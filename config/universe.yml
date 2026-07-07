@@ -1,0 +1,10 @@
+universe:
+  aum_top_n: 500
+  dollar_volume_top_n: 500
+  min_history_days: 180
+  min_close: 5
+  min_avg_dollar_vol_20: 3000000
+  min_avg_dollar_vol_63: 5000000
+  lookback_period: 1y
+  price_interval: 1d
+  use_adjusted_prices: true

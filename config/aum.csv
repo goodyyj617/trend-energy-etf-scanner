@@ -1,0 +1,6 @@
+symbol,aum,asset_group,category
+SPY,0,equity_broad,broad_us
+QQQ,0,equity_broad,nasdaq_100
+IWM,0,equity_broad,small_cap
+XLK,0,equity_sector,technology
+XLF,0,equity_sector,financials

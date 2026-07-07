@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trend Energy ETF Scanner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Trend Energy ETF Scanner</h1>
+    <p id="meta">Loading...</p>
+  </header>
+
+  <section class="controls">
+    <label><input type="checkbox" id="eligibleOnly" checked /> Eligible universe only</label>
+    <label><input type="checkbox" id="signalOnly" /> Surge signal only</label>
+    <label>Min R63 <input type="number" id="minR63" step="0.01" value="0.03" /></label>
+    <label>Min ER63 <input type="number" id="minER63" step="0.01" value="0.20" /></label>
+    <label>Min SurgeRatio <input type="number" id="minSurge" step="0.05" value="1.25" /></label>
+    <label>Max ATR20% <input type="number" id="maxATR" step="0.01" value="0.06" /></label>
+    <label>DollarVol Rank <= <input type="number" id="maxDollarRank" step="50" value="500" /></label>
+    <button id="resetBtn">Reset</button>
+    <a href="data/latest.csv" download>Download CSV</a>
+  </section>
+
+  <section class="table-wrap">
+    <table id="scannerTable">
+      <thead>
+        <tr>
+          <th data-key="symbol">Symbol</th>
+          <th data-key="name">Name</th>
+          <th data-key="asset_group">Group</th>
+          <th data-key="aum">AUM</th>
+          <th data-key="dollar_vol_rank">DV Rank</th>
+          <th data-key="close">Close</th>
+          <th data-key="r63">R63</th>
+          <th data-key="r126">R126</th>
+          <th data-key="er63">ER63</th>
+          <th data-key="te63">TE63</th>
+          <th data-key="te126">TE126</th>
+          <th data-key="score">Score</th>
+          <th data-key="surge_ratio">Surge</th>
+          <th data-key="atr20_pct">ATR20%</th>
+          <th data-key="signal_surge_v0">Signal</th>
+          <th>Links</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

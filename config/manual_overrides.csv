@@ -1,0 +1,5 @@
+symbol,action,reason
+SHY,include,Short-term Treasury is not inverse
+JPST,include,Ultra-short bond is not leveraged equity
+VIXY,exclude,VIX futures volatility ETF
+SVXY,exclude,short volatility ETF

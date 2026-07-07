@@ -1,0 +1,45 @@
+# Exclusion rules are intentionally conservative. Use manual_overrides.csv for exceptions.
+exclude_keywords:
+  leveraged:
+    - "2X"
+    - "3X"
+    - "4X"
+    - "ULTRA"
+    - "ULTRAPRO"
+    - "LEVERAGED"
+    - "DAILY BULL"
+  inverse:
+    - "INVERSE"
+    - "DAILY BEAR"
+    - "BEAR 1X"
+    - "BEAR 2X"
+    - "BEAR 3X"
+    - "SHORT S&P"
+    - "SHORT QQQ"
+    - "SHORT DOW"
+    - "SHORT RUSSELL"
+  volatility:
+    - "VIX"
+    - "VOLATILITY"
+    - "VOLATILITY SHARES"
+  single_stock:
+    - "SINGLE STOCK"
+    - "2X LONG"
+    - "2X SHORT"
+    - "1.5X"
+    - "1.75X"
+  option_income:
+    - "COVERED CALL"
+    - "BUYWRITE"
+    - "PREMIUM INCOME"
+    - "YIELDMAX"
+    - "INCOME STRATEGY"
+    - "WEEKLYPAY"
+  buffer:
+    - "BUFFER"
+    - "DEFINED OUTCOME"
+    - "POWER BUFFER"
+    - "ACCELERATED"
+    - "AUTOCALLABLE"
+    - "FLOOR"
+    - "CAP"
