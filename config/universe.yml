@@ -8,3 +8,8 @@ universe:
   lookback_period: 1y
   price_interval: 1d
   use_adjusted_prices: true
+
+  auto_aum:
+    enabled: true
+    max_new_per_run: 200
+    refresh_existing: false
