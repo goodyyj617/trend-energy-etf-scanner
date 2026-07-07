@@ -10,6 +10,7 @@ import yaml
 from .features import compute_latest_features
 from .prices import download_ohlcv
 from .universe import build_base_universe
+from .update_aum import update_aum_csv
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,6 +31,15 @@ def main() -> None:
     history_dir = data_dir / "history"
     data_dir.mkdir(parents=True, exist_ok=True)
     history_dir.mkdir(parents=True, exist_ok=True)
+
+    auto_aum_cfg = cfg.get("auto_aum", {})
+    if auto_aum_cfg.get("enabled", False):
+        update_aum_csv(
+            aum_csv=ROOT / "config" / "aum.csv",
+            exclusions_yml=ROOT / "config" / "exclusions.yml",
+            max_new_per_run=int(auto_aum_cfg.get("max_new_per_run", 200)),
+            refresh_existing=bool(auto_aum_cfg.get("refresh_existing", False)),
+        )
 
     universe = build_base_universe(
         aum_csv=ROOT / "config" / "aum.csv",
