@@ -1,0 +1,17 @@
+symbol,name,exchange,is_etf,is_test_issue,exclude_leveraged,exclude_inverse,exclude_volatility,exclude_single_stock,exclude_option_income,exclude_buffer,exclude_by_name,exclude_reason,aum,asset_group,category,aum_rank,aum_eligible,manual_action,excluded_product_type,base_universe_eligible
+SPY,State Street SPDR S&P 500 ETF Trust,P,True,False,False,False,False,False,False,False,False,,650000000000,equity_broad,broad_us,1.0,True,,False,True
+IVV,iShares Core S&P 500 ETF,P,True,False,False,False,False,False,False,False,False,,600000000000,equity_broad,broad_us,2.0,True,,False,True
+VOO,Vanguard S&P 500 ETF,P,True,False,False,False,False,False,False,False,False,,590000000000,equity_broad,broad_us,3.0,True,,False,True
+VTI,Vanguard Total Stock Market ETF,P,True,False,False,False,False,False,False,False,False,,500000000000,equity_broad,total_market,4.0,True,,False,True
+QQQ,"Invesco QQQ Trust, Series 1",Q,True,False,False,False,False,False,False,False,False,,330000000000,equity_broad,nasdaq_100,5.0,True,,False,True
+IWM,iShares Russell 2000 Index Fund,P,True,False,False,False,False,False,False,False,False,,70000000000,equity_broad,small_cap,6.0,True,,False,True
+XLK,State Street Technology Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,70000000000,equity_sector,technology,7.0,True,,False,True
+GLD,SPDR Gold Shares,P,True,False,False,False,False,False,False,False,False,,60000000000,commodity,gold,8.0,True,,False,True
+TLT,iShares 20+ Year Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,50000000000,bond_treasury,long_treasury,9.0,True,,False,True
+XLF,State Street Financial Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,45000000000,equity_sector,financials,10.0,True,,False,True
+XLV,State Street Health Care Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,40000000000,equity_sector,healthcare,11.0,True,,False,True
+XLE,State Street Energy Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,35000000000,equity_sector,energy,12.0,True,,False,True
+IEF,iShares 7-10 Year Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,30000000000,bond_treasury,intermediate_treasury,13.0,True,,False,True
+SMH,VanEck Semiconductor ETF,Q,True,False,False,False,False,False,False,False,False,,25000000000,equity_industry,semiconductor,14.0,True,,False,True
+HYG,iShares iBoxx $ High Yield Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,15000000000,bond_credit,high_yield,15.0,True,,False,True
+SOXX,iShares PHLX SOX Semiconductor Sector Index Fund,Q,True,False,False,False,False,False,False,False,False,,15000000000,equity_industry,semiconductor,16.0,True,,False,True
