@@ -26,7 +26,7 @@ def to_jsonable(df: pd.DataFrame) -> list[dict]:
 
 def main() -> None:
     cfg = load_config()
-    data_dir = ROOT / "web" / "data"
+    data_dir = ROOT / "docs" / "data"
     history_dir = data_dir / "history"
     data_dir.mkdir(parents=True, exist_ok=True)
     history_dir.mkdir(parents=True, exist_ok=True)
