@@ -49,8 +49,20 @@ def compute_symbol_features(g: pd.DataFrame) -> pd.DataFrame:
 
 
 def compute_latest_features(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    features = prices.groupby("symbol", group_keys=False).apply(compute_symbol_features)
-    latest = features.sort_values("date").groupby("symbol").tail(1).copy()
+    # Use an explicit loop rather than groupby.apply.
+    # Newer pandas versions can omit grouping columns from groupby.apply outputs,
+    # which can remove the symbol column and break the latest-row selection.
+    frames = []
+    for symbol, g in prices.groupby("symbol", sort=False):
+        out = compute_symbol_features(g.copy())
+        out["symbol"] = symbol
+        frames.append(out)
+
+    if not frames:
+        return pd.DataFrame()
+
+    features = pd.concat(frames, ignore_index=True)
+    latest = features.sort_values("date").groupby("symbol", as_index=False).tail(1).copy()
 
     latest = latest.merge(universe, on="symbol", how="left")
     latest["dollar_vol_rank"] = latest["avg_dollar_vol_63"].rank(ascending=False, method="first")
