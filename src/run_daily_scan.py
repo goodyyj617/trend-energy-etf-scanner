@@ -1,5 +1,5 @@
 from __future__ import annotations
-from update_aum import update_aum_csv
+from .update_aum import update_aum_csv
 
 import json
 from pathlib import Path
