@@ -8,6 +8,19 @@ const numberFields = new Set([
   "score", "surge_ratio", "atr20_pct"
 ]);
 
+
+function getGroup(row) {
+  return (
+    row.group ||
+    row.Group ||
+    row.asset_group ||
+    row.assetGroup ||
+    row.AssetGroup ||
+    row["Asset Group"] ||
+    "unknown"
+  );
+}
+
 function fmt(key, value) {
   if (value === null || value === undefined || Number.isNaN(value)) return "";
   if (key === "aum") return Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
@@ -23,6 +36,7 @@ function getFilters() {
   return {
     eligibleOnly: document.getElementById("eligibleOnly").checked,
     signalOnly: document.getElementById("signalOnly").checked,
+    groupFilter: document.getElementById("groupFilter")?.value || "All",
     minR63: Number(document.getElementById("minR63").value),
     minER63: Number(document.getElementById("minER63").value),
     minSurge: Number(document.getElementById("minSurge").value),
@@ -33,7 +47,12 @@ function getFilters() {
 
 function applyFilters(data) {
   const f = getFilters();
+
   return data.filter(r => {
+    const rowGroup = getGroup(r);
+
+    if (f.groupFilter !== "All" && rowGroup !== f.groupFilter) return false;
+
     if (f.eligibleOnly && !r.eligible_universe) return false;
     if (f.signalOnly && !r.signal_surge_v0) return false;
     if ((r.r63 ?? -999) < f.minR63) return false;
@@ -41,6 +60,7 @@ function applyFilters(data) {
     if ((r.surge_ratio ?? -999) < f.minSurge) return false;
     if ((r.atr20_pct ?? 999) > f.maxATR) return false;
     if ((r.dollar_vol_rank ?? 999999) > f.maxDollarRank) return false;
+
     return true;
   });
 }
@@ -87,10 +107,15 @@ async function init() {
   render();
 }
 
-document.querySelectorAll("input").forEach(el => el.addEventListener("input", render));
+document.querySelectorAll("input, select").forEach(el => {
+  el.addEventListener("input", render);
+  el.addEventListener("change", render);
+});
+
 document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById("eligibleOnly").checked = true;
   document.getElementById("signalOnly").checked = false;
+  document.getElementById("groupFilter").value = "All";
   document.getElementById("minR63").value = 0.03;
   document.getElementById("minER63").value = 0.20;
   document.getElementById("minSurge").value = 1.25;
