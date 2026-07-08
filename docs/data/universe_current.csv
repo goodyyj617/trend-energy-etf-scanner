@@ -3,198 +3,374 @@ SPY,State Street SPDR S&P 500 ETF Trust,P,True,False,False,False,False,False,Fal
 IVV,iShares Core S&P 500 ETF,P,True,False,False,False,False,False,False,False,False,,600000000000.0,equity_broad,broad_us,2.0,True,,False,True
 VOO,Vanguard S&P 500 ETF,P,True,False,False,False,False,False,False,False,False,,590000000000.0,equity_broad,broad_us,3.0,True,,False,True
 VTI,Vanguard Total Stock Market ETF,P,True,False,False,False,False,False,False,False,False,,500000000000.0,equity_broad,total_market,4.0,True,,False,True
-QQQ,"Invesco QQQ Trust, Series 1",Q,True,False,False,False,False,False,False,False,False,,330000000000.0,equity_broad,nasdaq_100,5.0,True,,False,True
-AGG,iShares Core U.S. Aggregate Bond ETF,P,True,False,False,False,False,False,False,False,False,,138847469568.0,unknown,unknown,6.0,True,,False,True
-IWM,iShares Russell 2000 Index Fund,P,True,False,False,False,False,False,False,False,False,,70000000000.0,equity_broad,small_cap,7.0,True,,False,True
-XLK,State Street Technology Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,70000000000.0,equity_sector,technology,8.0,True,,False,True
-GLD,SPDR Gold Shares,P,True,False,False,False,False,False,False,False,False,,60000000000.0,commodity,gold,9.0,True,,False,True
-TLT,iShares 20+ Year Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,50000000000.0,bond_treasury,long_treasury,10.0,True,,False,True
-XLF,State Street Financial Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,45000000000.0,equity_sector,financials,11.0,True,,False,True
-XLV,State Street Health Care Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,40000000000.0,equity_sector,healthcare,12.0,True,,False,True
-XLE,State Street Energy Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,35000000000.0,equity_sector,energy,13.0,True,,False,True
-ACWI,iShares MSCI ACWI ETF,Q,True,False,False,False,False,False,False,False,False,,33203742720.0,unknown,unknown,14.0,True,,False,True
-IEF,iShares 7-10 Year Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,30000000000.0,bond_treasury,intermediate_treasury,15.0,True,,False,True
-AVEM,Avantis Emerging Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,26237122560.0,unknown,unknown,16.0,True,,False,True
-SMH,VanEck Semiconductor ETF,Q,True,False,False,False,False,False,False,False,False,,25000000000.0,equity_industry,semiconductor,17.0,True,,False,True
-AVDE,Avantis International Equity ETF,P,True,False,False,False,False,False,False,False,False,,17163864064.0,unknown,unknown,18.0,True,,False,True
-BAI,iShares A.I. Innovation and Tech Active ETF,P,True,False,False,False,False,False,False,False,False,,15693548544.0,unknown,unknown,19.0,True,,False,True
-HYG,iShares iBoxx $ High Yield Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,15000000000.0,bond_credit,high_yield,20.0,True,,False,True
-SOXX,iShares PHLX SOX Semiconductor Sector Index Fund,Q,True,False,False,False,False,False,False,False,False,,15000000000.0,equity_industry,semiconductor,21.0,True,,False,True
-AVUS,Avantis U.S. Equity ETF,P,True,False,False,False,False,False,False,False,False,,13827512320.0,unknown,unknown,22.0,True,,False,True
-AMLP,Alerian MLP ETF,P,True,False,False,False,False,False,False,False,False,,12160584704.0,unknown,unknown,23.0,True,,False,True
-ACWX,iShares MSCI ACWI ex U.S. ETF,Q,True,False,False,False,False,False,False,False,False,,11616678912.0,unknown,unknown,24.0,True,,False,True
-AIRR,First Trust RBA American Industrial Renaissance ETF,Q,True,False,False,False,False,False,False,False,False,,11489859584.0,unknown,unknown,25.0,True,,False,True
-BBCA,JPMorgan BetaBuilders Canada ETF,Z,True,False,False,False,False,False,False,False,False,,10509565952.0,unknown,unknown,26.0,True,,False,True
-AIQ,Global X Artificial Intelligence & Technology ETF,Q,True,False,False,False,False,False,False,False,False,,10413852672.0,unknown,unknown,27.0,True,,False,True
-ARKK,ARK Innovation ETF,Z,True,False,False,False,False,False,False,False,False,,6534055424.0,unknown,unknown,28.0,True,,False,True
-BBAX,JPMorgan BetaBuilders Developed Asia Pacific-ex Japan ETF,Z,True,False,False,False,False,False,False,False,False,,6249870336.0,unknown,unknown,29.0,True,,False,True
-AIA,iShares Asia 50 ETF,Q,True,False,False,False,False,False,False,False,False,,5221864448.0,unknown,unknown,30.0,True,,False,True
-AKRE,Akre Focus ETF,P,True,False,False,False,False,False,False,False,False,,5185632256.0,unknown,unknown,31.0,True,,False,True
-AAXJ,iShares MSCI All Country Asia ex Japan ETF,Q,True,False,False,False,False,False,False,False,False,,3970623744.0,unknown,unknown,32.0,True,,False,True
-ARTY,iShares Future AI & Tech ETF,P,True,False,False,False,False,False,False,False,False,,3930527488.0,unknown,unknown,33.0,True,,False,True
-AOR,iShares Core 60/40 Balanced Allocation ETF,P,True,False,False,False,False,False,False,False,False,,3667536128.0,unknown,unknown,34.0,True,,False,True
-ACWV,iShares MSCI Global Min Vol Factor ETF,Z,True,False,False,False,False,False,False,False,False,,3240488448.0,unknown,unknown,35.0,True,,False,True
-AOA,iShares Core 80/20 Aggressive Allocation ETF,P,True,False,False,False,False,False,False,False,False,,3205894144.0,unknown,unknown,36.0,True,,False,True
-ANGL,VanEck Fallen Angel High Yield Bond ETF,Q,True,False,False,False,False,False,False,False,False,,3117964800.0,unknown,unknown,37.0,True,,False,True
-BALT,Innovator Defined Wealth Shield ETF,Z,True,False,False,False,False,False,False,False,False,,2567419904.0,unknown,unknown,38.0,True,,False,True
-APUE,ActivePassive U.S. Equity ETF,P,True,False,False,False,False,False,False,False,False,,2543153152.0,unknown,unknown,39.0,True,,False,True
-AAAU,Goldman Sachs Physical Gold ETF Shares,Z,True,False,False,False,False,False,False,False,False,,2399851264.0,unknown,unknown,40.0,True,,False,True
-ACIO,Aptus Collared Investment Opportunity ETF,Z,True,False,False,False,False,False,False,False,False,,2362386432.0,unknown,unknown,41.0,True,,False,True
-ARKQ,ARK Autonomous Technology & Robotics ETF,Z,True,False,False,False,False,False,False,False,False,,2214976768.0,unknown,unknown,42.0,True,,False,True
-AVIG,Avantis Core Fixed Income ETF,P,True,False,False,False,False,False,False,False,False,,1928182784.0,unknown,unknown,43.0,True,,False,True
-ARKB,ARK 21Shares Bitcoin ETF,Z,True,False,False,False,False,False,False,False,False,,1885744768.0,unknown,unknown,44.0,True,,False,True
-AOM,iShares Core 40/60 Moderate Allocation ETF,P,True,False,False,False,False,False,False,False,False,,1792574336.0,unknown,unknown,45.0,True,,False,True
-ARKG,ARK Genomic Revolution ETF,Z,True,False,False,False,False,False,False,False,False,,1729676032.0,unknown,unknown,46.0,True,,False,True
-BAFE,Brown Advisory Flexible Equity ETF,Q,True,False,False,False,False,False,False,False,False,,1689542912.0,unknown,unknown,47.0,True,,False,True
-ARKW,ARK Next Generation Internet ETF,Z,True,False,False,False,False,False,False,False,False,,1674919552.0,unknown,unknown,48.0,True,,False,True
-ASHR,Xtrackers Harvest CSI 300 China A-Shares ETF,P,True,False,False,False,False,False,False,False,False,,1644587008.0,unknown,unknown,49.0,True,,False,True
-ALLW,State Street Bridgewater All Weather ETF,Q,True,False,False,False,False,False,False,False,False,,1557451136.0,unknown,unknown,50.0,True,,False,True
-AVES,Avantis Emerging Markets Value ETF,P,True,False,False,False,False,False,False,False,False,,1471060736.0,unknown,unknown,51.0,True,,False,True
-APIE,ActivePassive International Equity ETF,P,True,False,False,False,False,False,False,False,False,,1066065152.0,unknown,unknown,52.0,True,,False,True
-BAB,Invesco Taxable Municipal Bond ETF,P,True,False,False,False,False,False,False,False,False,,1043711488.0,unknown,unknown,53.0,True,,False,True
-AVGE,Avantis All Equity Markets ETF,P,True,False,False,False,False,False,False,False,False,,1039890752.0,unknown,unknown,54.0,True,,False,True
-BBAG,JPMorgan BetaBuilders U.S. Aggregate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,1031444352.0,unknown,unknown,55.0,True,,False,True
-AIS,VistaShares Artificial Intelligence Supercycle ETF,P,True,False,False,False,False,False,False,False,False,,969790784.0,unknown,unknown,56.0,True,,False,True
-AIPO,Defiance AI & Power Infrastructure ETF,Q,True,False,False,False,False,False,False,False,False,,957962112.0,unknown,unknown,57.0,True,,False,True
-AGGY,WisdomTree Yield Enhanced U.S. Aggregate Bond Fund,P,True,False,False,False,False,False,False,False,False,,951970112.0,unknown,unknown,58.0,True,,False,True
-APCB,ActivePassive Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,939564160.0,unknown,unknown,59.0,True,,False,True
-ARKX,ARK Space & Defense Innovation ETF,Z,True,False,False,False,False,False,False,False,False,,933603136.0,unknown,unknown,60.0,True,,False,True
-AUSF,Global X Adaptive U.S. Factor ETF,P,True,False,False,False,False,False,False,False,False,,846885376.0,unknown,unknown,61.0,True,,False,True
-AVRE,Avantis Real Estate ETF,P,True,False,False,False,False,False,False,False,False,,844656256.0,unknown,unknown,62.0,True,,False,True
-ARGT,Global X MSCI Argentina ETF,P,True,False,False,False,False,False,False,False,False,,842971264.0,unknown,unknown,63.0,True,,False,True
-AOK,iShares Core 30/70 Conservative Allocation ETF,P,True,False,False,False,False,False,False,False,False,,812926144.0,unknown,unknown,64.0,True,,False,True
-AGIX,KraneShares Public-Private AI & Technology ETF,Q,True,False,False,False,False,False,False,False,False,,807395392.0,unknown,unknown,65.0,True,,False,True
-AMJB,Alerian MLP Index ETN,P,True,False,False,False,False,False,False,False,False,,805159552.0,unknown,unknown,66.0,True,,False,True
-AVTM,Avantis Total Equity Markets ETF,P,True,False,False,False,False,False,False,False,False,,778806784.0,unknown,unknown,67.0,True,,False,True
-ARKF,ARK Blockchain & Fintech Innovation ETF,Z,True,False,False,False,False,False,False,False,False,,724075136.0,unknown,unknown,68.0,True,,False,True
-AVNM,Avantis All International Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,666446784.0,unknown,unknown,69.0,True,,False,True
-AVSF,Avantis Short-Term Fixed Income ETF,P,True,False,False,False,False,False,False,False,False,,663844032.0,unknown,unknown,70.0,True,,False,True
-AQEC,AQE Core ETF,Z,True,False,False,False,False,False,False,False,False,,574481152.0,unknown,unknown,71.0,True,,False,True
-AGZ,iShares  Agency Bond ETF,P,True,False,False,False,False,False,False,False,False,,555886400.0,unknown,unknown,72.0,True,,False,True
-ABFL,Abacus FCF Leaders ETF,Z,True,False,False,False,False,False,False,False,False,,545103360.0,unknown,unknown,73.0,True,,False,True
-AGGH,Simplify Aggregate Bond ETF,P,True,False,False,False,False,False,False,False,False,,526589568.0,unknown,unknown,74.0,True,,False,True
-AAUS,Alpha Architect US Equity ETF,Q,True,False,False,False,False,False,False,False,False,,518264896.0,unknown,unknown,75.0,True,,False,True
-ACLO,TCW AAA CLO ETF,N,True,False,False,False,False,False,False,False,False,,510700256.0,unknown,unknown,76.0,True,,False,True
-AESR,Anfield U.S. Equity Sector Rotation ETF,Z,True,False,False,False,False,False,False,False,False,,505839360.0,unknown,unknown,77.0,True,,False,True
-AAEQ,Alpha Architect US Equity 2 ETF,Q,True,False,False,False,False,False,False,False,False,,497032864.0,unknown,unknown,78.0,True,,False,True
-BASG,Brown Advisory Sustainable Growth ETF,Q,True,False,False,False,False,False,False,False,False,,493740256.0,unknown,unknown,79.0,True,,False,True
-AVSU,Avantis Responsible U.S. Equity ETF,P,True,False,False,False,False,False,False,False,False,,475819136.0,unknown,unknown,80.0,True,,False,True
-AVSD,Avantis Responsible International Equity ETF,P,True,False,False,False,False,False,False,False,False,,475011488.0,unknown,unknown,81.0,True,,False,True
-AFIF,Anfield Universal Fixed Income ETF,Z,True,False,False,False,False,False,False,False,False,,454740384.0,unknown,unknown,82.0,True,,False,True
-ALAI,Alger AI Enablers & Adopters ETF,P,True,False,False,False,False,False,False,False,False,,451164832.0,unknown,unknown,83.0,True,,False,True
-AVXC,Avantis Emerging Markets ex-China Equity ETF,Q,True,False,False,False,False,False,False,False,False,,425943040.0,unknown,unknown,84.0,True,,False,True
-APLU,Allspring Core Plus ETF,P,True,False,False,False,False,False,False,False,False,,425065728.0,unknown,unknown,85.0,True,,False,True
-AIVL,WisdomTree U.S. AI Enhanced Value Fund,P,True,False,False,False,False,False,False,False,False,,416285568.0,unknown,unknown,86.0,True,,False,True
-BASV,Brown Advisory Sustainable Value ETF,Q,True,False,False,False,False,False,False,False,False,,408441600.0,unknown,unknown,87.0,True,,False,True
-AGOX,Adaptive Alpha Opportunities ETF,P,True,False,False,False,False,False,False,False,False,,391365376.0,unknown,unknown,88.0,True,,False,True
-AVGV,Avantis All Equity Markets Value ETF,P,True,False,False,False,False,False,False,False,False,,390831424.0,unknown,unknown,89.0,True,,False,True
-AAUA,Alpha Architect US Equity 3 ETF,Z,True,False,False,False,False,False,False,False,False,,369815520.0,unknown,unknown,90.0,True,,False,True
-AGEM,abrdn Emerging Markets Dividend Active ETF,Q,True,False,False,False,False,False,False,False,False,,361443744.0,unknown,unknown,91.0,True,,False,True
-AFOS,ARS Focused Opportunity Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,301053024.0,unknown,unknown,92.0,True,,False,True
-AAAA,Amplius Aggressive Asset Allocation ETF,Z,True,False,False,False,False,False,False,False,False,,292754432.0,unknown,unknown,93.0,True,,False,True
-ADME,Aptus Drawdown Managed Equity ETF,Z,True,False,False,False,False,False,False,False,False,,290082784.0,unknown,unknown,94.0,True,,False,True
-AQLT,iShares MSCI Global Quality Factor ETF,Z,True,False,False,False,False,False,False,False,False,,273890144.0,unknown,unknown,95.0,True,,False,True
-AVUQ,Avantis U.S. Quality ETF,Q,True,False,False,False,False,False,False,False,False,,268573984.0,unknown,unknown,96.0,True,,False,True
-APMU,ActivePassive Intermediate Municipal Bond ETF,P,True,False,False,False,False,False,False,False,False,,235150768.0,unknown,unknown,97.0,True,,False,True
-AVSE,Avantis Responsible Emerging Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,228766416.0,unknown,unknown,98.0,True,,False,True
-ASLV,Allspring Special Large Value ETF,P,True,False,False,False,False,False,False,False,False,,228150848.0,unknown,unknown,99.0,True,,False,True
-AFIX,Allspring Broad Market Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,217957472.0,unknown,unknown,100.0,True,,False,True
-AINP,Allspring Income Plus ETF,P,True,False,False,False,False,False,False,False,False,,217180352.0,unknown,unknown,101.0,True,,False,True
-ATFV,Alger 35 ETF,P,True,False,False,False,False,False,False,False,False,,198297680.0,unknown,unknown,102.0,True,,False,True
-ADPV,Adaptiv Select ETF,P,True,False,False,False,False,False,False,False,False,,190039808.0,unknown,unknown,103.0,True,,False,True
-BBBS,BondBloxx BBB Rated 1-5 Year Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,181136640.0,unknown,unknown,104.0,True,,False,True
-AVMU,Avantis Core Municipal Fixed Income ETF,P,True,False,False,False,False,False,False,False,False,,169317184.0,unknown,unknown,105.0,True,,False,True
-BBBI,BondBloxx BBB Rated 5-10 Year Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,164650928.0,unknown,unknown,106.0,True,,False,True
-ACVF,American Conservative Values ETF,P,True,False,False,False,False,False,False,False,False,,153987472.0,unknown,unknown,107.0,True,,False,True
-AIFD,TCW Artificial Intelligence ETF,Q,True,False,False,False,False,False,False,False,False,,141635056.0,unknown,unknown,108.0,True,,False,True
-ABEQ,Absolute Select Value ETF,P,True,False,False,False,False,False,False,False,False,,140559920.0,unknown,unknown,109.0,True,,False,True
-BAMG,Brookstone Growth Stock ETF,Z,True,False,False,False,False,False,False,False,False,,139131216.0,unknown,unknown,110.0,True,,False,True
-AHLT,AHL Trend ETF,P,True,False,False,False,False,False,False,False,False,,130554864.0,unknown,unknown,111.0,True,,False,True
-ACES,ALPS Clean Energy ETF,P,True,False,False,False,False,False,False,False,False,,129431520.0,unknown,unknown,112.0,True,,False,True
-AIVC,Amplify Bloomberg AI Equal Weight ETF,P,True,False,False,False,False,False,False,False,False,,126537248.0,unknown,unknown,113.0,True,,False,True
-BATT,Amplify Lithium & Battery Technology ETF,P,True,False,False,False,False,False,False,False,False,,125465216.0,unknown,unknown,114.0,True,,False,True
-AIEQ,Amplify AI Powered Equity ETF,P,True,False,False,False,False,False,False,False,False,,122672952.0,unknown,unknown,115.0,True,,False,True
-AOHY,Angel Oak High Yield Opportunities ETF,Q,True,False,False,False,False,False,False,False,False,,122256784.0,unknown,unknown,116.0,True,,False,True
-ASCE,Allspring SMID Core ETF,P,True,False,False,False,False,False,False,False,False,,117712848.0,unknown,unknown,117.0,True,,False,True
-AGZD,WisdomTree Interest Rate Hedged U.S. Aggregate Bond Fund,Q,True,False,False,False,False,False,False,False,False,,116217464.0,unknown,unknown,118.0,True,,False,True
-AGRW,Allspring LT Large Growth ETF,P,True,False,False,False,False,False,False,False,False,,115403648.0,unknown,unknown,119.0,True,,False,True
-ACSI,American Customer Satisfaction ETF,Z,True,False,False,False,False,False,False,False,False,,112898576.0,unknown,unknown,120.0,True,,False,True
-BAIV,Brown Advisory International Value Select ETF,Q,True,False,False,False,False,False,False,False,False,,107634504.0,unknown,unknown,121.0,True,,False,True
-AVOS,Avos Global Equities ETF,Q,True,False,False,False,False,False,False,False,False,,107474848.0,unknown,unknown,122.0,True,,False,True
-AOTG,AOT Growth and Innovation ETF,Q,True,False,False,False,False,False,False,False,False,,105217664.0,unknown,unknown,123.0,True,,False,True
-ARB,AltShares Merger Arbitrage ETF,P,True,False,False,False,False,False,False,False,False,,104538432.0,unknown,unknown,124.0,True,,False,True
-AFK,VanEck Africa Index ETF,P,True,False,False,False,False,False,False,False,False,,99709000.0,unknown,unknown,125.0,True,,False,True
-BAMV,Brookstone Value Stock ETF,Z,True,False,False,False,False,False,False,False,False,,99513832.0,unknown,unknown,126.0,True,,False,True
-ACEP,ARS Core Equity Portfolio ETF,Q,True,False,False,False,False,False,False,False,False,,97924440.0,unknown,unknown,127.0,True,,False,True
-ATTR,Arin Tactical Tail Risk ETF,Z,True,False,False,False,False,False,False,False,False,,95786488.0,unknown,unknown,128.0,True,,False,True
-BAMD,Brookstone Dividend Stock ETF,Z,True,False,False,False,False,False,False,False,False,,94786056.0,unknown,unknown,129.0,True,,False,True
-ASEA,Global X FTSE Southeast Asia ETF,P,True,False,False,False,False,False,False,False,False,,91529288.0,unknown,unknown,130.0,True,,False,True
-AGGA,EA Astoria Dynamic Core US Fixed Income ETF,Q,True,False,False,False,False,False,False,False,False,,88950992.0,unknown,unknown,131.0,True,,False,True
-AGNG,Global X Aging Population ETF,Q,True,False,False,False,False,False,False,False,False,,84506552.0,unknown,unknown,132.0,True,,False,True
-AVMA,Avantis Moderate Allocation ETF,P,True,False,False,False,False,False,False,False,False,,74488880.0,unknown,unknown,133.0,True,,False,True
-AAPR,Innovator Equity Defined Protection ETF - 2 Yr to April 2028,Z,True,False,False,False,False,False,False,False,False,,72408472.0,unknown,unknown,134.0,True,,False,True
-APOC,Innovator Equity Defined Protection ETF - 6mo Apr/Oct,Z,True,False,False,False,False,False,False,False,False,,69793704.0,unknown,unknown,135.0,True,,False,True
-ARP,PMV Adaptive Risk Parity ETF,P,True,False,False,False,False,False,False,False,False,,66215120.0,unknown,unknown,136.0,True,,False,True
-AMAX,Adaptive Hedged Multi-Asset Income ETF,P,True,False,False,False,False,False,False,False,False,,64752308.0,unknown,unknown,137.0,True,,False,True
-AHYB,American Century Select High Yield ETF,P,True,False,False,False,False,False,False,False,False,,60118364.0,unknown,unknown,138.0,True,,False,True
-AVNV,Avantis All International Markets Value ETF,P,True,False,False,False,False,False,False,False,False,,59914472.0,unknown,unknown,139.0,True,,False,True
-BAMB,Brookstone Intermediate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,59024296.0,unknown,unknown,140.0,True,,False,True
-AIVI,WisdomTree International AI Enhanced Value Fund,P,True,False,False,False,False,False,False,False,False,,58682620.0,unknown,unknown,141.0,True,,False,True
-AVRY,Avory Foundational ETF,Z,True,False,False,False,False,False,False,False,False,,58111900.0,unknown,unknown,142.0,True,,False,True
-AJUL,Innovator Equity Defined Protection ETF - 2 Yr to July 2026,Z,True,False,False,False,False,False,False,False,False,,57081952.0,unknown,unknown,143.0,True,,False,True
-ABI,VictoryShares Pioneer Asset-Based Income ETF,Q,True,False,False,False,False,False,False,False,False,,56523888.0,unknown,unknown,144.0,True,,False,True
-ASIA,Matthews Pacific Tiger Active ETF,P,True,False,False,False,False,False,False,False,False,,55972552.0,unknown,unknown,145.0,True,,False,True
-AGQI,First Trust Active Global Quality Income ETF,P,True,False,False,False,False,False,False,False,False,,55727992.0,unknown,unknown,146.0,True,,False,True
-ADIV,Guinness Atkinson Asia Pacific Dividend Builder ETF,P,True,False,False,False,False,False,False,False,False,,53560088.0,unknown,unknown,147.0,True,,False,True
-BBC,Virtus Biotech Clinical Trials ETF,P,True,False,False,False,False,False,False,False,False,,52678624.0,unknown,unknown,148.0,True,,False,True
-ADFI,Anfield Dynamic Fixed Income ETF,Z,True,False,False,False,False,False,False,False,False,,51219832.0,unknown,unknown,149.0,True,,False,True
-BAMA,Brookstone Active ETF,Z,True,False,False,False,False,False,False,False,False,,50878088.0,unknown,unknown,150.0,True,,False,True
-AOCT,Innovator Equity Defined Protection ETF - 2 Yr to October 2026,Z,True,False,False,False,False,False,False,False,False,,49259864.0,unknown,unknown,151.0,True,,False,True
-BAMO,Brookstone Opportunities ETF,Z,True,False,False,False,False,False,False,False,False,,47253968.0,unknown,unknown,152.0,True,,False,True
-ALTY,Global X Alternative Income ETF,Q,True,False,False,False,False,False,False,False,False,,45543800.0,unknown,unknown,153.0,True,,False,True
-AAA,Alternative Access First Priority CLO Bond ETF,P,True,False,False,False,False,False,False,False,False,,44906492.0,unknown,unknown,154.0,True,,False,True
-BAMY,Brookstone Yield ETF,Z,True,False,False,False,False,False,False,False,False,,44784788.0,unknown,unknown,155.0,True,,False,True
-AJAN,Innovator Equity Defined Protection ETF - 2 Yr to January 2028,Z,True,False,False,False,False,False,False,False,False,,44707672.0,unknown,unknown,156.0,True,,False,True
-AADR,AdvisorShares Dorsey Wright ADR ETF,Q,True,False,False,False,False,False,False,False,False,,41715124.0,unknown,unknown,157.0,True,,False,True
-AUGZ,TrueShares Structured Outcome (August) ETF,Z,True,False,False,False,False,False,False,False,False,,41014248.0,unknown,unknown,158.0,True,,False,True
-AGGS,Harbor Disciplined Bond ETF,P,True,False,False,False,False,False,False,False,False,,38768324.0,unknown,unknown,159.0,True,,False,True
-AZTD,Aztlan Global Stock Selection DM SMID ETF,P,True,False,False,False,False,False,False,False,False,,37291072.0,unknown,unknown,160.0,True,,False,True
-APRZ,TrueShares Structured Outcome (April) ETF,Z,True,False,False,False,False,False,False,False,False,,32695540.0,unknown,unknown,161.0,True,,False,True
-ACVT,Advent Convertible Bond ETF,P,True,False,False,False,False,False,False,False,False,,32391296.0,unknown,unknown,162.0,True,,False,True
-ASMF,Virtus AlphaSimplex Managed Futures ETF,P,True,False,False,False,False,False,False,False,False,,30838410.0,unknown,unknown,163.0,True,,False,True
-AAAP,Pacer Barings CLO Market Flex ETF,Q,True,False,False,False,False,False,False,False,False,,25727358.0,unknown,unknown,164.0,True,,False,True
-AAVM,Alpha Architect Global Factor Equity ETF,Q,True,False,False,False,False,False,False,False,False,,25277144.0,unknown,unknown,165.0,True,,False,True
-AUMI,Themes Gold Miners ETF,Q,True,False,False,False,False,False,False,False,False,,24714584.0,unknown,unknown,166.0,True,,False,True
-AWAY,Amplify Travel Tech ETF,P,True,False,False,False,False,False,False,False,False,,24527872.0,unknown,unknown,167.0,True,,False,True
-AQWA,Global X Clean Water ETF,Q,True,False,False,False,False,False,False,False,False,,23876834.0,unknown,unknown,168.0,True,,False,True
-AVGB,Avantis Credit ETF,Q,True,False,False,False,False,False,False,False,False,,20456516.0,unknown,unknown,169.0,True,,False,True
-ASEC,American Century Securitized Credit ETF,Q,True,False,False,False,False,False,False,False,False,,20056212.0,unknown,unknown,170.0,True,,False,True
-AMZP,Kurv Yield Premium Strategy Amazon (AMZN) ETF,Z,True,False,False,False,False,False,False,False,False,,19866076.0,unknown,unknown,171.0,True,,False,True
-ARWG,Archer Growth ETF,Z,True,False,False,False,False,False,False,False,False,,13927999.0,unknown,unknown,172.0,True,,False,True
-AVIE,Avantis Inflation Focused Equity ETF,P,True,False,False,False,False,False,False,False,False,,10408607.0,unknown,unknown,173.0,True,,False,True
-AGMI,Themes Silver Miners ETF,Q,True,False,False,False,False,False,False,False,False,,10405849.0,unknown,unknown,174.0,True,,False,True
-AMYY,GraniteShares YieldBOOST AMD ETF,Q,True,False,False,False,False,False,False,False,False,,9184484.0,unknown,unknown,175.0,True,,False,True
-ADVE,Matthews Asia Dividend Active ETF,P,True,False,False,False,False,False,False,False,False,,9129768.0,unknown,unknown,176.0,True,,False,True
-ASGM,Virtus AlphaSimplex Global Macro ETF,P,True,False,False,False,False,False,False,False,False,,8608038.0,unknown,unknown,177.0,True,,False,True
-AGRH,iShares Interest Rate Hedged U.S. Aggregate Bond ETF,P,True,False,False,False,False,False,False,False,False,,7886807.0,unknown,unknown,178.0,True,,False,True
-ANEW,ProShares MSCI Transformational Changes ETF,P,True,False,False,False,False,False,False,False,False,,7731381.0,unknown,unknown,179.0,True,,False,True
-ARMH,Arm Holdings PLC ADRhedged,P,True,False,False,False,False,False,False,False,False,,7541791.0,unknown,unknown,180.0,True,,False,True
-ALRG,Allspring LT Large Core ETF,P,True,False,False,False,False,False,False,False,False,,7469614.0,unknown,unknown,181.0,True,,False,True
-BBB,CYBER HORNET S&P 500 and Bitcoin 75/25 Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,7224550.0,unknown,unknown,182.0,True,,False,True
-BBBL,BondBloxx BBB Rated 10+ Year Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,7201175.0,unknown,unknown,183.0,True,,False,True
-ASMH,ASML Holding NV ADRhedged,P,True,False,False,False,False,False,False,False,False,,6782466.0,unknown,unknown,184.0,True,,False,True
-AEMS,Anfield Enhanced Market ETF,Z,True,False,False,False,False,False,False,False,False,,6298948.0,unknown,unknown,185.0,True,,False,True
-AAPY,Kurv Yield Premium Strategy Apple (AAPL) ETF,Z,True,False,False,False,False,False,False,False,False,,6160460.0,unknown,unknown,186.0,True,,False,True
-ARMY,Tema International Defense ETF,Q,True,False,False,False,False,False,False,False,False,,5614615.0,unknown,unknown,187.0,True,,False,True
-AETH,Bitwise Trendwise Ether and Treasuries Rotation Strategy ETF,P,True,False,False,False,False,False,False,False,False,,4390423.0,unknown,unknown,188.0,True,,False,True
-AZYY,GraniteShares YieldBoost AMZN ETF,Q,True,False,False,False,False,False,False,False,False,,3202825.0,unknown,unknown,189.0,True,,False,True
-AKAF,The Frontier Economic Fund,N,True,False,False,False,False,False,False,False,False,,2835201.0,unknown,unknown,190.0,True,,False,True
-ARVR,First Trust Indxx Metaverse ETF,Q,True,False,False,False,False,False,False,False,False,,2818409.0,unknown,unknown,191.0,True,,False,True
-BAY,Corgi Bay Area Based ETF,Z,True,False,False,False,False,False,False,False,False,,2048694.0,unknown,unknown,192.0,True,,False,True
-AMGR,Amana Growth ETF,Q,True,False,False,False,False,False,False,False,False,,1787578.0,unknown,unknown,193.0,True,,False,True
-AV,Corgi Aerospace & Commercial Aviation ETF,Z,True,False,False,False,False,False,False,False,False,,1448481.0,unknown,unknown,194.0,True,,False,True
-ASD,Defiance Autism Impact ETF,Q,True,False,False,False,False,False,False,False,False,,1351024.0,unknown,unknown,195.0,True,,False,True
-AIX,Defiance US 100 Tech AI Moat ETF,Q,True,False,False,False,False,False,False,False,False,,1010135.0,unknown,unknown,196.0,True,,False,True
+BND,Vanguard Total Bond Market ETF,Q,True,False,False,False,False,False,False,False,False,,397862928384.0,unknown,unknown,5.0,True,,False,True
+QQQ,"Invesco QQQ Trust, Series 1",Q,True,False,False,False,False,False,False,False,False,,330000000000.0,equity_broad,nasdaq_100,6.0,True,,False,True
+AGG,iShares Core U.S. Aggregate Bond ETF,P,True,False,False,False,False,False,False,False,False,,138847469568.0,unknown,unknown,7.0,True,,False,True
+BNDX,Vanguard Total International Bond ETF,Q,True,False,False,False,False,False,False,False,False,,123285929984.0,unknown,unknown,8.0,True,,False,True
+IWM,iShares Russell 2000 Index Fund,P,True,False,False,False,False,False,False,False,False,,70000000000.0,equity_broad,small_cap,9.0,True,,False,True
+XLK,State Street Technology Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,70000000000.0,equity_sector,technology,10.0,True,,False,True
+BSV,Vanguard Short-Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,69833809920.0,unknown,unknown,11.0,True,,False,True
+GLD,SPDR Gold Shares,P,True,False,False,False,False,False,False,False,False,,60000000000.0,commodity,gold,12.0,True,,False,True
+BIV,Vanguard Intermediate-Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,52510502912.0,unknown,unknown,13.0,True,,False,True
+TLT,iShares 20+ Year Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,50000000000.0,bond_treasury,long_treasury,14.0,True,,False,True
+BIL,State Street SPDR Bloomberg 1-3 Month T-Bill ETF,P,True,False,False,False,False,False,False,False,False,,47077847040.0,unknown,unknown,15.0,True,,False,True
+XLF,State Street Financial Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,45000000000.0,equity_sector,financials,16.0,True,,False,True
+XLV,State Street Health Care Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,40000000000.0,equity_sector,healthcare,17.0,True,,False,True
+XLE,State Street Energy Select Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,35000000000.0,equity_sector,energy,18.0,True,,False,True
+ACWI,iShares MSCI ACWI ETF,Q,True,False,False,False,False,False,False,False,False,,33203742720.0,unknown,unknown,19.0,True,,False,True
+IEF,iShares 7-10 Year Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,30000000000.0,bond_treasury,intermediate_treasury,20.0,True,,False,True
+AVEM,Avantis Emerging Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,26237122560.0,unknown,unknown,21.0,True,,False,True
+SMH,VanEck Semiconductor ETF,Q,True,False,False,False,False,False,False,False,False,,25000000000.0,equity_industry,semiconductor,22.0,True,,False,True
+BBJP,JPMorgan BetaBuilders Japan ETF,Z,True,False,False,False,False,False,False,False,False,,17599494144.0,unknown,unknown,23.0,True,,False,True
+AVDE,Avantis International Equity ETF,P,True,False,False,False,False,False,False,False,False,,17163864064.0,unknown,unknown,24.0,True,,False,True
+BINC,iShares Flexible Income Active ETF,P,True,False,False,False,False,False,False,False,False,,16206218240.0,unknown,unknown,25.0,True,,False,True
+BAI,iShares A.I. Innovation and Tech Active ETF,P,True,False,False,False,False,False,False,False,False,,15693548544.0,unknown,unknown,26.0,True,,False,True
+HYG,iShares iBoxx $ High Yield Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,15000000000.0,bond_credit,high_yield,27.0,True,,False,True
+SOXX,iShares PHLX SOX Semiconductor Sector Index Fund,Q,True,False,False,False,False,False,False,False,False,,15000000000.0,equity_industry,semiconductor,28.0,True,,False,True
+AVUS,Avantis U.S. Equity ETF,P,True,False,False,False,False,False,False,False,False,,13827512320.0,unknown,unknown,29.0,True,,False,True
+BOXX,Alpha Architect 1-3 Month Box ETF,Z,True,False,False,False,False,False,False,False,False,,12697272320.0,unknown,unknown,30.0,True,,False,True
+AMLP,Alerian MLP ETF,P,True,False,False,False,False,False,False,False,False,,12160584704.0,unknown,unknown,31.0,True,,False,True
+ACWX,iShares MSCI ACWI ex U.S. ETF,Q,True,False,False,False,False,False,False,False,False,,11616678912.0,unknown,unknown,32.0,True,,False,True
+AIRR,First Trust RBA American Industrial Renaissance ETF,Q,True,False,False,False,False,False,False,False,False,,11489859584.0,unknown,unknown,33.0,True,,False,True
+BBCA,JPMorgan BetaBuilders Canada ETF,Z,True,False,False,False,False,False,False,False,False,,10509565952.0,unknown,unknown,34.0,True,,False,True
+AIQ,Global X Artificial Intelligence & Technology ETF,Q,True,False,False,False,False,False,False,False,False,,10413852672.0,unknown,unknown,35.0,True,,False,True
+BBEU,JPMorgan BetaBuilders Europe ETF,Z,True,False,False,False,False,False,False,False,False,,9113485312.0,unknown,unknown,36.0,True,,False,True
+BLV,Vanguard Long-Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,8673027072.0,unknown,unknown,37.0,True,,False,True
+BBUS,JPMorgan BetaBuilders U.S. Equity ETF,Z,True,False,False,False,False,False,False,False,False,,8542320128.0,unknown,unknown,38.0,True,,False,True
+BOND,PIMCO Active Bond Exchange-Traded Fund Exchange-Traded Fund,N,True,False,False,False,False,False,False,False,False,,8311250432.0,unknown,unknown,39.0,True,,False,True
+BKLN,Invesco Senior Loan ETF,P,True,False,False,False,False,False,False,False,False,,7145859584.0,unknown,unknown,40.0,True,,False,True
+ARKK,ARK Innovation ETF,Z,True,False,False,False,False,False,False,False,False,,6534055424.0,unknown,unknown,41.0,True,,False,True
+BBIN,JPMorgan BetaBuilders International Equity ETF,Z,True,False,False,False,False,False,False,False,False,,6496628224.0,unknown,unknown,42.0,True,,False,True
+BBAX,JPMorgan BetaBuilders Developed Asia Pacific-ex Japan ETF,Z,True,False,False,False,False,False,False,False,False,,6249870336.0,unknown,unknown,43.0,True,,False,True
+AIA,iShares Asia 50 ETF,Q,True,False,False,False,False,False,False,False,False,,5221864448.0,unknown,unknown,44.0,True,,False,True
+AKRE,Akre Focus ETF,P,True,False,False,False,False,False,False,False,False,,5185632256.0,unknown,unknown,45.0,True,,False,True
+BSCR,Invesco BulletShares 2027 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,4586565632.0,unknown,unknown,46.0,True,,False,True
+AAXJ,iShares MSCI All Country Asia ex Japan ETF,Q,True,False,False,False,False,False,False,False,False,,3970623744.0,unknown,unknown,47.0,True,,False,True
+ARTY,iShares Future AI & Tech ETF,P,True,False,False,False,False,False,False,False,False,,3930527488.0,unknown,unknown,48.0,True,,False,True
+BILS,State Street SPDR Bloomberg 3-12 Month T-Bill ETF,P,True,False,False,False,False,False,False,False,False,,3866119680.0,unknown,unknown,49.0,True,,False,True
+BSCQ,Invesco BulletShares 2026 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,3705947392.0,unknown,unknown,50.0,True,,False,True
+AOR,iShares Core 60/40 Balanced Allocation ETF,P,True,False,False,False,False,False,False,False,False,,3667536128.0,unknown,unknown,51.0,True,,False,True
+BSCS,Invesco BulletShares 2028 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,3521428736.0,unknown,unknown,52.0,True,,False,True
+BOTZ,Global X Robotics & Artificial Intelligence ETF,Q,True,False,False,False,False,False,False,False,False,,3517117696.0,unknown,unknown,53.0,True,,False,True
+ACWV,iShares MSCI Global Min Vol Factor ETF,Z,True,False,False,False,False,False,False,False,False,,3240488448.0,unknown,unknown,54.0,True,,False,True
+AOA,iShares Core 80/20 Aggressive Allocation ETF,P,True,False,False,False,False,False,False,False,False,,3205894144.0,unknown,unknown,55.0,True,,False,True
+ANGL,VanEck Fallen Angel High Yield Bond ETF,Q,True,False,False,False,False,False,False,False,False,,3117964800.0,unknown,unknown,56.0,True,,False,True
+BDYN,iShares Dynamic Equity Active ETF,Q,True,False,False,False,False,False,False,False,False,,2977180928.0,unknown,unknown,57.0,True,,False,True
+BSCT,Invesco BulletShares 2029 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,2858114304.0,unknown,unknown,58.0,True,,False,True
+BSCU,Invesco BulletShares 2030 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,2620199168.0,unknown,unknown,59.0,True,,False,True
+BALT,Innovator Defined Wealth Shield ETF,Z,True,False,False,False,False,False,False,False,False,,2567419904.0,unknown,unknown,60.0,True,,False,True
+APUE,ActivePassive U.S. Equity ETF,P,True,False,False,False,False,False,False,False,False,,2543153152.0,unknown,unknown,61.0,True,,False,True
+AAAU,Goldman Sachs Physical Gold ETF Shares,Z,True,False,False,False,False,False,False,False,False,,2399851264.0,unknown,unknown,62.0,True,,False,True
+BHYB,Xtrackers USD High Yield BB-B ex Financials ETF,Z,True,False,False,False,False,False,False,False,False,,2382987008.0,unknown,unknown,63.0,True,,False,True
+ACIO,Aptus Collared Investment Opportunity ETF,Z,True,False,False,False,False,False,False,False,False,,2362386432.0,unknown,unknown,64.0,True,,False,True
+BCI,abrdn Bloomberg All Commodity Strategy K-1 Free ETF,P,True,False,False,False,False,False,False,False,False,,2278509056.0,unknown,unknown,65.0,True,,False,True
+ARKQ,ARK Autonomous Technology & Robotics ETF,Z,True,False,False,False,False,False,False,False,False,,2214976768.0,unknown,unknown,66.0,True,,False,True
+BGIG,Bahl & Gaynor Income Growth ETF,P,True,False,False,False,False,False,False,False,False,,2157414656.0,unknown,unknown,67.0,True,,False,True
+BKAG,BNY Mellon Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,2144153856.0,unknown,unknown,68.0,True,,False,True
+BITB,Bitwise Bitcoin ETF,P,True,False,False,False,False,False,False,False,False,,2121588608.0,unknown,unknown,69.0,True,,False,True
+AVIG,Avantis Core Fixed Income ETF,P,True,False,False,False,False,False,False,False,False,,1928182784.0,unknown,unknown,70.0,True,,False,True
+BNDW,Vanguard Total World Bond ETF,Q,True,False,False,False,False,False,False,False,False,,1909779968.0,unknown,unknown,71.0,True,,False,True
+ARKB,ARK 21Shares Bitcoin ETF,Z,True,False,False,False,False,False,False,False,False,,1885744768.0,unknown,unknown,72.0,True,,False,True
+AOM,iShares Core 40/60 Moderate Allocation ETF,P,True,False,False,False,False,False,False,False,False,,1792574336.0,unknown,unknown,73.0,True,,False,True
+BMOP,BNY Mellon Municipal Opportunities ETF,Q,True,False,False,False,False,False,False,False,False,,1788903168.0,unknown,unknown,74.0,True,,False,True
+BSCV,Invesco BulletShares 2031 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,1758816384.0,unknown,unknown,75.0,True,,False,True
+ARKG,ARK Genomic Revolution ETF,Z,True,False,False,False,False,False,False,False,False,,1729676032.0,unknown,unknown,76.0,True,,False,True
+BKMI,BNY Mellon Municipal Intermediate ETF,Q,True,False,False,False,False,False,False,False,False,,1708952960.0,unknown,unknown,77.0,True,,False,True
+BAFE,Brown Advisory Flexible Equity ETF,Q,True,False,False,False,False,False,False,False,False,,1689542912.0,unknown,unknown,78.0,True,,False,True
+ARKW,ARK Next Generation Internet ETF,Z,True,False,False,False,False,False,False,False,False,,1674919552.0,unknown,unknown,79.0,True,,False,True
+ASHR,Xtrackers Harvest CSI 300 China A-Shares ETF,P,True,False,False,False,False,False,False,False,False,,1644587008.0,unknown,unknown,80.0,True,,False,True
+BIZD,VanEck BDC Income ETF,P,True,False,False,False,False,False,False,False,False,,1631495808.0,unknown,unknown,81.0,True,,False,True
+BKDV,BNY Mellon Dynamic Value ETF,P,True,False,False,False,False,False,False,False,False,,1625343488.0,unknown,unknown,82.0,True,,False,True
+ALLW,State Street Bridgewater All Weather ETF,Q,True,False,False,False,False,False,False,False,False,,1557451136.0,unknown,unknown,83.0,True,,False,True
+BSCW,Invesco BulletShares 2032 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,1483394176.0,unknown,unknown,84.0,True,,False,True
+AVES,Avantis Emerging Markets Value ETF,P,True,False,False,False,False,False,False,False,False,,1471060736.0,unknown,unknown,85.0,True,,False,True
+BITO,ProShares Bitcoin ETF,P,True,False,False,False,False,False,False,False,False,,1333297536.0,unknown,unknown,86.0,True,,False,True
+BKIE,BNY Mellon International Equity ETF,P,True,False,False,False,False,False,False,False,False,,1283018752.0,unknown,unknown,87.0,True,,False,True
+BBRE,JPMorgan BetaBuilders MSCI U.S. REIT ETF,Z,True,False,False,False,False,False,False,False,False,,1266582528.0,unknown,unknown,88.0,True,,False,True
+BLOK,Amplify Blockchain Technology ETF,P,True,False,False,False,False,False,False,False,False,,1164569600.0,unknown,unknown,89.0,True,,False,True
+BKGI,BNY Mellon Global Infrastructure Income ETF,Z,True,False,False,False,False,False,False,False,False,,1140321536.0,unknown,unknown,90.0,True,,False,True
+APIE,ActivePassive International Equity ETF,P,True,False,False,False,False,False,False,False,False,,1066065152.0,unknown,unknown,91.0,True,,False,True
+BAB,Invesco Taxable Municipal Bond ETF,P,True,False,False,False,False,False,False,False,False,,1043711488.0,unknown,unknown,92.0,True,,False,True
+AVGE,Avantis All Equity Markets ETF,P,True,False,False,False,False,False,False,False,False,,1039890752.0,unknown,unknown,93.0,True,,False,True
+BSCX,Invesco BulletShares 2033 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,1039854592.0,unknown,unknown,94.0,True,,False,True
+BBAG,JPMorgan BetaBuilders U.S. Aggregate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,1031444352.0,unknown,unknown,95.0,True,,False,True
+AIS,VistaShares Artificial Intelligence Supercycle ETF,P,True,False,False,False,False,False,False,False,False,,969790784.0,unknown,unknown,96.0,True,,False,True
+AIPO,Defiance AI & Power Infrastructure ETF,Q,True,False,False,False,False,False,False,False,False,,957962112.0,unknown,unknown,97.0,True,,False,True
+AGGY,WisdomTree Yield Enhanced U.S. Aggregate Bond Fund,P,True,False,False,False,False,False,False,False,False,,951970112.0,unknown,unknown,98.0,True,,False,True
+BSJQ,Invesco BulletShares 2026 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,941484160.0,unknown,unknown,99.0,True,,False,True
+APCB,ActivePassive Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,939564160.0,unknown,unknown,100.0,True,,False,True
+ARKX,ARK Space & Defense Innovation ETF,Z,True,False,False,False,False,False,False,False,False,,933603136.0,unknown,unknown,101.0,True,,False,True
+BSJR,Invesco BulletShares 2027 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,853669120.0,unknown,unknown,102.0,True,,False,True
+AUSF,Global X Adaptive U.S. Factor ETF,P,True,False,False,False,False,False,False,False,False,,846885376.0,unknown,unknown,103.0,True,,False,True
+AVRE,Avantis Real Estate ETF,P,True,False,False,False,False,False,False,False,False,,844656256.0,unknown,unknown,104.0,True,,False,True
+ARGT,Global X MSCI Argentina ETF,P,True,False,False,False,False,False,False,False,False,,842971264.0,unknown,unknown,105.0,True,,False,True
+BBEM,JPMorgan BetaBuilders Emerging Markets Equity ETF,Z,True,False,False,False,False,False,False,False,False,,820816384.0,unknown,unknown,106.0,True,,False,True
+AOK,iShares Core 30/70 Conservative Allocation ETF,P,True,False,False,False,False,False,False,False,False,,812926144.0,unknown,unknown,107.0,True,,False,True
+AGIX,KraneShares Public-Private AI & Technology ETF,Q,True,False,False,False,False,False,False,False,False,,807395392.0,unknown,unknown,108.0,True,,False,True
+AMJB,Alerian MLP Index ETN,P,True,False,False,False,False,False,False,False,False,,805159552.0,unknown,unknown,109.0,True,,False,True
+BGDV,Bahl & Gaynor Dividend ETF,P,True,False,False,False,False,False,False,False,False,,804775616.0,unknown,unknown,110.0,True,,False,True
+AVTM,Avantis Total Equity Markets ETF,P,True,False,False,False,False,False,False,False,False,,778806784.0,unknown,unknown,111.0,True,,False,True
+BRTR,iShares Total Return Active ETF,Q,True,False,False,False,False,False,False,False,False,,725516224.0,unknown,unknown,112.0,True,,False,True
+ARKF,ARK Blockchain & Fintech Innovation ETF,Z,True,False,False,False,False,False,False,False,False,,724075136.0,unknown,unknown,113.0,True,,False,True
+BSJS,Invesco BulletShares 2028 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,702697984.0,unknown,unknown,114.0,True,,False,True
+BRES,Burney U.S. Equity Select ETF,Q,True,False,False,False,False,False,False,False,False,,672220352.0,unknown,unknown,115.0,True,,False,True
+AVNM,Avantis All International Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,666446784.0,unknown,unknown,116.0,True,,False,True
+AVSF,Avantis Short-Term Fixed Income ETF,P,True,False,False,False,False,False,False,False,False,,663844032.0,unknown,unknown,117.0,True,,False,True
+BBHY,JPMorgan BetaBuilders USD High Yield Corporate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,610806592.0,unknown,unknown,118.0,True,,False,True
+BSOL,Bitwise Solana Staking ETF,P,True,False,False,False,False,False,False,False,False,,593902208.0,unknown,unknown,119.0,True,,False,True
+BRNY,Burney U.S. Factor Rotation ETF,Q,True,False,False,False,False,False,False,False,False,,583867200.0,unknown,unknown,120.0,True,,False,True
+AQEC,AQE Core ETF,Z,True,False,False,False,False,False,False,False,False,,574481152.0,unknown,unknown,121.0,True,,False,True
+BLUX,Bluemonte Dynamic Total Market ETF,P,True,False,False,False,False,False,False,False,False,,567631168.0,unknown,unknown,122.0,True,,False,True
+BSCY,Invesco BulletShares 2034 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,563020864.0,unknown,unknown,123.0,True,,False,True
+AGZ,iShares  Agency Bond ETF,P,True,False,False,False,False,False,False,False,False,,555886400.0,unknown,unknown,124.0,True,,False,True
+ABFL,Abacus FCF Leaders ETF,Z,True,False,False,False,False,False,False,False,False,,545103360.0,unknown,unknown,125.0,True,,False,True
+BNO,"United States Brent Oil Fund, LP ETV",P,True,False,False,False,False,False,False,False,False,,543579264.0,unknown,unknown,126.0,True,,False,True
+BSJT,Invesco BulletShares 2029 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,540154816.0,unknown,unknown,127.0,True,,False,True
+BITW,Common Shares of Beneficial Interest,P,True,False,False,False,False,False,False,False,False,,531817824.0,unknown,unknown,128.0,True,,False,True
+AGGH,Simplify Aggregate Bond ETF,P,True,False,False,False,False,False,False,False,False,,526589568.0,unknown,unknown,129.0,True,,False,True
+AAUS,Alpha Architect US Equity ETF,Q,True,False,False,False,False,False,False,False,False,,518264896.0,unknown,unknown,130.0,True,,False,True
+BIBL,Inspire 100 ETF,P,True,False,False,False,False,False,False,False,False,,515160704.0,unknown,unknown,131.0,True,,False,True
+ACLO,TCW AAA CLO ETF,N,True,False,False,False,False,False,False,False,False,,510700256.0,unknown,unknown,132.0,True,,False,True
+AESR,Anfield U.S. Equity Sector Rotation ETF,Z,True,False,False,False,False,False,False,False,False,,505839360.0,unknown,unknown,133.0,True,,False,True
+BGRN,iShares USD Green Bond ETF,Q,True,False,False,False,False,False,False,False,False,,497633120.0,unknown,unknown,134.0,True,,False,True
+AAEQ,Alpha Architect US Equity 2 ETF,Q,True,False,False,False,False,False,False,False,False,,497032864.0,unknown,unknown,135.0,True,,False,True
+BASG,Brown Advisory Sustainable Growth ETF,Q,True,False,False,False,False,False,False,False,False,,493740256.0,unknown,unknown,136.0,True,,False,True
+BINV,Brandes International ETF,Z,True,False,False,False,False,False,False,False,False,,490105984.0,unknown,unknown,137.0,True,,False,True
+BDBT,Bluemonte Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,480250912.0,unknown,unknown,138.0,True,,False,True
+AVSU,Avantis Responsible U.S. Equity ETF,P,True,False,False,False,False,False,False,False,False,,475819136.0,unknown,unknown,139.0,True,,False,True
+AVSD,Avantis Responsible International Equity ETF,P,True,False,False,False,False,False,False,False,False,,475011488.0,unknown,unknown,140.0,True,,False,True
+AFIF,Anfield Universal Fixed Income ETF,Z,True,False,False,False,False,False,False,False,False,,454740384.0,unknown,unknown,141.0,True,,False,True
+ALAI,Alger AI Enablers & Adopters ETF,P,True,False,False,False,False,False,False,False,False,,451164832.0,unknown,unknown,142.0,True,,False,True
+BBLU,EA Bridgeway Blue Chip ETF,P,True,False,False,False,False,False,False,False,False,,446126688.0,unknown,unknown,143.0,True,,False,True
+BKMS,BNY Mellon Municipal Short Duration ETF,Q,True,False,False,False,False,False,False,False,False,,435900480.0,unknown,unknown,144.0,True,,False,True
+AVXC,Avantis Emerging Markets ex-China Equity ETF,Q,True,False,False,False,False,False,False,False,False,,425943040.0,unknown,unknown,145.0,True,,False,True
+APLU,Allspring Core Plus ETF,P,True,False,False,False,False,False,False,False,False,,425065728.0,unknown,unknown,146.0,True,,False,True
+AIVL,WisdomTree U.S. AI Enhanced Value Fund,P,True,False,False,False,False,False,False,False,False,,416285568.0,unknown,unknown,147.0,True,,False,True
+BIDD,iShares International Dividend Active ETF,P,True,False,False,False,False,False,False,False,False,,415692352.0,unknown,unknown,148.0,True,,False,True
+BITQ,Bitwise Crypto Industry Innovators ETF,P,True,False,False,False,False,False,False,False,False,,411071968.0,unknown,unknown,149.0,True,,False,True
+BASV,Brown Advisory Sustainable Value ETF,Q,True,False,False,False,False,False,False,False,False,,408441600.0,unknown,unknown,150.0,True,,False,True
+BINT,Bluemonte Global Equity ETF,P,True,False,False,False,False,False,False,False,False,,403534240.0,unknown,unknown,151.0,True,,False,True
+BBH,VanEck Biotech ETF,Q,True,False,False,False,False,False,False,False,False,,395554688.0,unknown,unknown,152.0,True,,False,True
+AGOX,Adaptive Alpha Opportunities ETF,P,True,False,False,False,False,False,False,False,False,,391365376.0,unknown,unknown,153.0,True,,False,True
+AVGV,Avantis All Equity Markets Value ETF,P,True,False,False,False,False,False,False,False,False,,390831424.0,unknown,unknown,154.0,True,,False,True
+BCD,abrdn Bloomberg All Commodity Longer Dated Strategy K-1 Free ETF,P,True,False,False,False,False,False,False,False,False,,383911552.0,unknown,unknown,155.0,True,,False,True
+AAUA,Alpha Architect US Equity 3 ETF,Z,True,False,False,False,False,False,False,False,False,,369815520.0,unknown,unknown,156.0,True,,False,True
+AGEM,abrdn Emerging Markets Dividend Active ETF,Q,True,False,False,False,False,False,False,False,False,,361443744.0,unknown,unknown,157.0,True,,False,True
+BRIE,MFS Blended Research International Equity ETF,N,True,False,False,False,False,False,False,False,False,,354661952.0,unknown,unknown,158.0,True,,False,True
+BSMR,Invesco BulletShares 2027 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,344681472.0,unknown,unknown,159.0,True,,False,True
+BRRR,Coinshares Bitcoin ETF,Q,True,False,False,False,False,False,False,False,False,,343609504.0,unknown,unknown,160.0,True,,False,True
+BGGG,Baillie Gifford Long Term Global Growth ETF,Q,True,False,False,False,False,False,False,False,False,,339997984.0,unknown,unknown,161.0,True,,False,True
+BLOX,Nicholas Crypto Income ETF,P,True,False,False,False,False,False,False,False,False,,312068384.0,unknown,unknown,162.0,True,,False,True
+BSMS,Invesco BulletShares 2028 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,306685856.0,unknown,unknown,163.0,True,,False,True
+BCPL,BNY Mellon Core Plus ETF,P,True,False,False,False,False,False,False,False,False,,301335040.0,unknown,unknown,164.0,True,,False,True
+AFOS,ARS Focused Opportunity Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,301053024.0,unknown,unknown,165.0,True,,False,True
+AAAA,Amplius Aggressive Asset Allocation ETF,Z,True,False,False,False,False,False,False,False,False,,292754432.0,unknown,unknown,166.0,True,,False,True
+BSJU,Invesco BulletShares 2030 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,291161376.0,unknown,unknown,167.0,True,,False,True
+ADME,Aptus Drawdown Managed Equity ETF,Z,True,False,False,False,False,False,False,False,False,,290082784.0,unknown,unknown,168.0,True,,False,True
+BKCH,Global X Blockchain ETF,Q,True,False,False,False,False,False,False,False,False,,285417120.0,unknown,unknown,169.0,True,,False,True
+BSMQ,Invesco BulletShares 2026 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,285413856.0,unknown,unknown,170.0,True,,False,True
+BSMT,Invesco BulletShares 2029 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,278783424.0,unknown,unknown,171.0,True,,False,True
+AQLT,iShares MSCI Global Quality Factor ETF,Z,True,False,False,False,False,False,False,False,False,,273890144.0,unknown,unknown,172.0,True,,False,True
+AVUQ,Avantis U.S. Quality ETF,Q,True,False,False,False,False,False,False,False,False,,268573984.0,unknown,unknown,173.0,True,,False,True
+BSCZ,Invesco BulletShares 2035 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,267013136.0,unknown,unknown,174.0,True,,False,True
+BSMU,Invesco BulletShares 2030 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,264674240.0,unknown,unknown,175.0,True,,False,True
+BKFI,BNY Mellon Active Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,261353792.0,unknown,unknown,176.0,True,,False,True
+BNDY,Horizon Core Bond ETF,Z,True,False,False,False,False,False,False,False,False,,248725632.0,unknown,unknown,177.0,True,,False,True
+BENJ,Horizon Landmark ETF,P,True,False,False,False,False,False,False,False,False,,240611248.0,unknown,unknown,178.0,True,,False,True
+APMU,ActivePassive Intermediate Municipal Bond ETF,P,True,False,False,False,False,False,False,False,False,,235150768.0,unknown,unknown,179.0,True,,False,True
+BFOR,Barron's 400 ETF,P,True,False,False,False,False,False,False,False,False,,229388496.0,unknown,unknown,180.0,True,,False,True
+AVSE,Avantis Responsible Emerging Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,228766416.0,unknown,unknown,181.0,True,,False,True
+ASLV,Allspring Special Large Value ETF,P,True,False,False,False,False,False,False,False,False,,228150848.0,unknown,unknown,182.0,True,,False,True
+BCHP,Principal Focused Blue Chip ETF,Z,True,False,False,False,False,False,False,False,False,,218233136.0,unknown,unknown,183.0,True,,False,True
+AFIX,Allspring Broad Market Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,217957472.0,unknown,unknown,184.0,True,,False,True
+AINP,Allspring Income Plus ETF,P,True,False,False,False,False,False,False,False,False,,217180352.0,unknown,unknown,185.0,True,,False,True
+BSMW,Invesco BulletShares 2032 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,208058224.0,unknown,unknown,186.0,True,,False,True
+BCTK,Baron Technology ETF,Q,True,False,False,False,False,False,False,False,False,,205235040.0,unknown,unknown,187.0,True,,False,True
+ATFV,Alger 35 ETF,P,True,False,False,False,False,False,False,False,False,,198297680.0,unknown,unknown,188.0,True,,False,True
+BEEX,The Beehive ETF,Q,True,False,False,False,False,False,False,False,False,,192441248.0,unknown,unknown,189.0,True,,False,True
+ADPV,Adaptiv Select ETF,P,True,False,False,False,False,False,False,False,False,,190039808.0,unknown,unknown,190.0,True,,False,True
+BSMV,Invesco BulletShares 2031 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,188686112.0,unknown,unknown,191.0,True,,False,True
+BNDI,NEOS Enhanced Income Aggregate Bond ETF,P,True,False,False,False,False,False,False,False,False,,181556192.0,unknown,unknown,192.0,True,,False,True
+BBBS,BondBloxx BBB Rated 1-5 Year Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,181136640.0,unknown,unknown,193.0,True,,False,True
+BNDC,FlexShares Core Select Bond Fund,P,True,False,False,False,False,False,False,False,False,,169637488.0,unknown,unknown,194.0,True,,False,True
+AVMU,Avantis Core Municipal Fixed Income ETF,P,True,False,False,False,False,False,False,False,False,,169317184.0,unknown,unknown,195.0,True,,False,True
+BEDY,BNY Mellon Enhanced Dividend and Income ETF,Q,True,False,False,False,False,False,False,False,False,,166936944.0,unknown,unknown,196.0,True,,False,True
+BLST,Bluemonte Short Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,166594768.0,unknown,unknown,197.0,True,,False,True
+BLES,Inspire Global Hope ETF,P,True,False,False,False,False,False,False,False,False,,166446288.0,unknown,unknown,198.0,True,,False,True
+BLTD,Bluemonte Long Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,166352336.0,unknown,unknown,199.0,True,,False,True
+BBBI,BondBloxx BBB Rated 5-10 Year Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,164650928.0,unknown,unknown,200.0,True,,False,True
+BKHY,BNY Mellon High Yield ETF,P,True,False,False,False,False,False,False,False,False,,159216736.0,unknown,unknown,201.0,True,,False,True
+BRIF,FIS Bright Portfolios Focused Equity ETF,P,True,False,False,False,False,False,False,False,False,,154289344.0,unknown,unknown,202.0,True,,False,True
+ACVF,American Conservative Values ETF,P,True,False,False,False,False,False,False,False,False,,153987472.0,unknown,unknown,203.0,True,,False,True
+BITI,ProShares Short Bitcoin ETF,P,True,False,False,False,False,False,False,False,False,,144245696.0,unknown,unknown,204.0,True,,False,True
+AIFD,TCW Artificial Intelligence ETF,Q,True,False,False,False,False,False,False,False,False,,141635056.0,unknown,unknown,205.0,True,,False,True
+ABEQ,Absolute Select Value ETF,P,True,False,False,False,False,False,False,False,False,,140559920.0,unknown,unknown,206.0,True,,False,True
+BSMY,Invesco BulletShares 2034 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,139954016.0,unknown,unknown,207.0,True,,False,True
+BAMG,Brookstone Growth Stock ETF,Z,True,False,False,False,False,False,False,False,False,,139131216.0,unknown,unknown,208.0,True,,False,True
+BKCI,BNY Mellon Concentrated International ETF,P,True,False,False,False,False,False,False,False,False,,134943600.0,unknown,unknown,209.0,True,,False,True
+AHLT,AHL Trend ETF,P,True,False,False,False,False,False,False,False,False,,130554864.0,unknown,unknown,210.0,True,,False,True
+ACES,ALPS Clean Energy ETF,P,True,False,False,False,False,False,False,False,False,,129431520.0,unknown,unknown,211.0,True,,False,True
+BSSX,Invesco BulletShares 2033 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,128788272.0,unknown,unknown,212.0,True,,False,True
+BNDP,Vanguard Core-Plus Bond Index ETF,Q,True,False,False,False,False,False,False,False,False,,128012248.0,unknown,unknown,213.0,True,,False,True
+AIVC,Amplify Bloomberg AI Equal Weight ETF,P,True,False,False,False,False,False,False,False,False,,126537248.0,unknown,unknown,214.0,True,,False,True
+BATT,Amplify Lithium & Battery Technology ETF,P,True,False,False,False,False,False,False,False,False,,125465216.0,unknown,unknown,215.0,True,,False,True
+AIEQ,Amplify AI Powered Equity ETF,P,True,False,False,False,False,False,False,False,False,,122672952.0,unknown,unknown,216.0,True,,False,True
+BRHY,iShares High Yield Active ETF,Q,True,False,False,False,False,False,False,False,False,,122334736.0,unknown,unknown,217.0,True,,False,True
+AOHY,Angel Oak High Yield Opportunities ETF,Q,True,False,False,False,False,False,False,False,False,,122256784.0,unknown,unknown,218.0,True,,False,True
+BLDX,Impax Global Sustainable Infrastructure ETF,P,True,False,False,False,False,False,False,False,False,,118496208.0,unknown,unknown,219.0,True,,False,True
+ASCE,Allspring SMID Core ETF,P,True,False,False,False,False,False,False,False,False,,117712848.0,unknown,unknown,220.0,True,,False,True
+BKCG,BNY Mellon Concentrated Growth ETF,P,True,False,False,False,False,False,False,False,False,,117297512.0,unknown,unknown,221.0,True,,False,True
+AGZD,WisdomTree Interest Rate Hedged U.S. Aggregate Bond Fund,Q,True,False,False,False,False,False,False,False,False,,116217464.0,unknown,unknown,222.0,True,,False,True
+AGRW,Allspring LT Large Growth ETF,P,True,False,False,False,False,False,False,False,False,,115403648.0,unknown,unknown,223.0,True,,False,True
+ACSI,American Customer Satisfaction ETF,Z,True,False,False,False,False,False,False,False,False,,112898576.0,unknown,unknown,224.0,True,,False,True
+BAIV,Brown Advisory International Value Select ETF,Q,True,False,False,False,False,False,False,False,False,,107634504.0,unknown,unknown,225.0,True,,False,True
+AVOS,Avos Global Equities ETF,Q,True,False,False,False,False,False,False,False,False,,107474848.0,unknown,unknown,226.0,True,,False,True
+BLUI,Bluemonte Diversified Income ETF,P,True,False,False,False,False,False,False,False,False,,105367152.0,unknown,unknown,227.0,True,,False,True
+AOTG,AOT Growth and Innovation ETF,Q,True,False,False,False,False,False,False,False,False,,105217664.0,unknown,unknown,228.0,True,,False,True
+ARB,AltShares Merger Arbitrage ETF,P,True,False,False,False,False,False,False,False,False,,104538432.0,unknown,unknown,229.0,True,,False,True
+BMVP,Invesco Bloomberg MVP Multi-factor ETF,P,True,False,False,False,False,False,False,False,False,,99961136.0,unknown,unknown,230.0,True,,False,True
+AFK,VanEck Africa Index ETF,P,True,False,False,False,False,False,False,False,False,,99709000.0,unknown,unknown,231.0,True,,False,True
+BAMV,Brookstone Value Stock ETF,Z,True,False,False,False,False,False,False,False,False,,99513832.0,unknown,unknown,232.0,True,,False,True
+BGCG,Baillie Gifford International Concentrated Growth ETF,Q,True,False,False,False,False,False,False,False,False,,98773216.0,unknown,unknown,233.0,True,,False,True
+ACEP,ARS Core Equity Portfolio ETF,Q,True,False,False,False,False,False,False,False,False,,97924440.0,unknown,unknown,234.0,True,,False,True
+ATTR,Arin Tactical Tail Risk ETF,Z,True,False,False,False,False,False,False,False,False,,95786488.0,unknown,unknown,235.0,True,,False,True
+BAMD,Brookstone Dividend Stock ETF,Z,True,False,False,False,False,False,False,False,False,,94786056.0,unknown,unknown,236.0,True,,False,True
+BSJV,Invesco BulletShares 2031 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,94062800.0,unknown,unknown,237.0,True,,False,True
+ASEA,Global X FTSE Southeast Asia ETF,P,True,False,False,False,False,False,False,False,False,,91529288.0,unknown,unknown,238.0,True,,False,True
+AGGA,EA Astoria Beacon Dynamic Core US Fixed Income ETF,Q,True,False,False,False,False,False,False,False,False,,88950992.0,unknown,unknown,239.0,True,,False,True
+BKEM,BNY Mellon Emerging Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,88553336.0,unknown,unknown,240.0,True,,False,True
+BBP,Virtus Biotech ETF,P,True,False,False,False,False,False,False,False,False,,86779832.0,unknown,unknown,241.0,True,,False,True
+AGNG,Global X Aging Population ETF,Q,True,False,False,False,False,False,False,False,False,,84506552.0,unknown,unknown,242.0,True,,False,True
+AVMA,Avantis Moderate Allocation ETF,P,True,False,False,False,False,False,False,False,False,,74488880.0,unknown,unknown,243.0,True,,False,True
+BCLO,iShares BBB-B CLO Active ETF,Q,True,False,False,False,False,False,False,False,False,,74288496.0,unknown,unknown,244.0,True,,False,True
+BKF,iShares MSCI BIC ETF,P,True,False,False,False,False,False,False,False,False,,73778264.0,unknown,unknown,245.0,True,,False,True
+AAPR,Innovator Equity Defined Protection ETF - 2 Yr to April 2028,Z,True,False,False,False,False,False,False,False,False,,72408472.0,unknown,unknown,246.0,True,,False,True
+APOC,Innovator Equity Defined Protection ETF - 6mo Apr/Oct,Z,True,False,False,False,False,False,False,False,False,,69793704.0,unknown,unknown,247.0,True,,False,True
+BOAT,SonicShares Global Shipping ETF,P,True,False,False,False,False,False,False,False,False,,67047328.0,unknown,unknown,248.0,True,,False,True
+BGIA,Baillie Gifford International Alpha ETF,Q,True,False,False,False,False,False,False,False,False,,66820692.0,unknown,unknown,249.0,True,,False,True
+ARP,PMV Adaptive Risk Parity ETF,P,True,False,False,False,False,False,False,False,False,,66215120.0,unknown,unknown,250.0,True,,False,True
+BLDG,Cambria Global Real Estate ETF,Z,True,False,False,False,False,False,False,False,False,,65901796.0,unknown,unknown,251.0,True,,False,True
+AMAX,Adaptive Hedged Multi-Asset Income ETF,P,True,False,False,False,False,False,False,False,False,,64752308.0,unknown,unknown,252.0,True,,False,True
+BOTT,Themes Humanoid Robotics ETF,Q,True,False,False,False,False,False,False,False,False,,63432624.0,unknown,unknown,253.0,True,,False,True
+AHYB,American Century Select High Yield ETF,P,True,False,False,False,False,False,False,False,False,,60118364.0,unknown,unknown,254.0,True,,False,True
+AVNV,Avantis All International Markets Value ETF,P,True,False,False,False,False,False,False,False,False,,59914472.0,unknown,unknown,255.0,True,,False,True
+BAMB,Brookstone Intermediate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,59024296.0,unknown,unknown,256.0,True,,False,True
+AIVI,WisdomTree International AI Enhanced Value Fund,P,True,False,False,False,False,False,False,False,False,,58682620.0,unknown,unknown,257.0,True,,False,True
+AVRY,Avory Foundational ETF,Z,True,False,False,False,False,False,False,False,False,,58111900.0,unknown,unknown,258.0,True,,False,True
+AJUL,Innovator Equity Defined Protection ETF - 2 Yr to July 2026,Z,True,False,False,False,False,False,False,False,False,,57081952.0,unknown,unknown,259.0,True,,False,True
+ABI,VictoryShares Pioneer Asset-Based Income ETF,Q,True,False,False,False,False,False,False,False,False,,56523888.0,unknown,unknown,260.0,True,,False,True
+BSR,Beacon Unified Catalyst ETF,P,True,False,False,False,False,False,False,False,False,,56385380.0,unknown,unknown,261.0,True,,False,True
+ASIA,Matthews Pacific Tiger Active ETF,P,True,False,False,False,False,False,False,False,False,,55972552.0,unknown,unknown,262.0,True,,False,True
+AGQI,First Trust Active Global Quality Income ETF,P,True,False,False,False,False,False,False,False,False,,55727992.0,unknown,unknown,263.0,True,,False,True
+BBSB,JPMorgan BetaBuilders U.S. Treasury Bond 1-3 Year ETF,Z,True,False,False,False,False,False,False,False,False,,55288644.0,unknown,unknown,264.0,True,,False,True
+BBIB,JPMorgan BetaBuilders U.S. Treasury Bond 3-10 Year ETF,Z,True,False,False,False,False,False,False,False,False,,54756996.0,unknown,unknown,265.0,True,,False,True
+ADIV,Guinness Atkinson Asia Pacific Dividend Builder ETF,P,True,False,False,False,False,False,False,False,False,,53560088.0,unknown,unknown,266.0,True,,False,True
+BRLN,iShares Floating Rate Loan Active ETF,Z,True,False,False,False,False,False,False,False,False,,53508392.0,unknown,unknown,267.0,True,,False,True
+BBC,Virtus Biotech Clinical Trials ETF,P,True,False,False,False,False,False,False,False,False,,52678624.0,unknown,unknown,268.0,True,,False,True
+BETZ,Roundhill Sports Betting & iGaming ETF,P,True,False,False,False,False,False,False,False,False,,52619068.0,unknown,unknown,269.0,True,,False,True
+ADFI,Anfield Dynamic Fixed Income ETF,Z,True,False,False,False,False,False,False,False,False,,51219832.0,unknown,unknown,270.0,True,,False,True
+BSMZ,Invesco BulletShares 2035 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,51042400.0,unknown,unknown,271.0,True,,False,True
+BAMA,Brookstone Active ETF,Z,True,False,False,False,False,False,False,False,False,,50878088.0,unknown,unknown,272.0,True,,False,True
+AOCT,Innovator Equity Defined Protection ETF - 2 Yr to October 2026,Z,True,False,False,False,False,False,False,False,False,,49259864.0,unknown,unknown,273.0,True,,False,True
+BAMO,Brookstone Opportunities ETF,Z,True,False,False,False,False,False,False,False,False,,47253968.0,unknown,unknown,274.0,True,,False,True
+BCFN,Baron Financials ETF,Q,True,False,False,False,False,False,False,False,False,,46099728.0,unknown,unknown,275.0,True,,False,True
+ALTY,Global X Alternative Income ETF,Q,True,False,False,False,False,False,False,False,False,,45543800.0,unknown,unknown,276.0,True,,False,True
+BBCB,JPMorgan BetaBuilders USD Investment Grade Corporate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,45301704.0,unknown,unknown,277.0,True,,False,True
+AAA,Alternative Access First Priority CLO Bond ETF,P,True,False,False,False,False,False,False,False,False,,44906492.0,unknown,unknown,278.0,True,,False,True
+BAMY,Brookstone Yield ETF,Z,True,False,False,False,False,False,False,False,False,,44784788.0,unknown,unknown,279.0,True,,False,True
+AJAN,Innovator Equity Defined Protection ETF - 2 Yr to January 2028,Z,True,False,False,False,False,False,False,False,False,,44707672.0,unknown,unknown,280.0,True,,False,True
+BCEM,Baron Emerging Markets Select ETF,N,True,False,False,False,False,False,False,False,False,,42934608.0,unknown,unknown,281.0,True,,False,True
+BSJW,Invesco BulletShares 2032 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,42873352.0,unknown,unknown,282.0,True,,False,True
+BEMB,iShares J.P. Morgan Broad USD Emerging Markets Bond ETF,Z,True,False,False,False,False,False,False,False,False,,42798436.0,unknown,unknown,283.0,True,,False,True
+AADR,AdvisorShares Dorsey Wright ADR ETF,Q,True,False,False,False,False,False,False,False,False,,41715124.0,unknown,unknown,284.0,True,,False,True
+BNDD,Quadratic Deflation ETF,P,True,False,False,False,False,False,False,False,False,,41474816.0,unknown,unknown,285.0,True,,False,True
+BCGS,Bancreek Global Select ETF,P,True,False,False,False,False,False,False,False,False,,41198232.0,unknown,unknown,286.0,True,,False,True
+AUGZ,TrueShares Structured Outcome (August) ETF,Z,True,False,False,False,False,False,False,False,False,,41014248.0,unknown,unknown,287.0,True,,False,True
+AGGS,Harbor Disciplined Bond ETF,P,True,False,False,False,False,False,False,False,False,,38768324.0,unknown,unknown,288.0,True,,False,True
+BREM,iShares Emerging Markets Bond Active ETF,Q,True,False,False,False,False,False,False,False,False,,38666212.0,unknown,unknown,289.0,True,,False,True
+AZTD,Aztlan Global Stock Selection DM SMID ETF,P,True,False,False,False,False,False,False,False,False,,37291072.0,unknown,unknown,290.0,True,,False,True
+BLCN,Siren NexGen Economy ETF,Q,True,False,False,False,False,False,False,False,False,,36378664.0,unknown,unknown,291.0,True,,False,True
+BRCE,MFS Blended Research Core Equity ETF,N,True,False,False,False,False,False,False,False,False,,34324440.0,unknown,unknown,292.0,True,,False,True
+BESF,Bastion Energy ETF,Z,True,False,False,False,False,False,False,False,False,,33197450.0,unknown,unknown,293.0,True,,False,True
+APRZ,TrueShares Structured Outcome (April) ETF,Z,True,False,False,False,False,False,False,False,False,,32695540.0,unknown,unknown,294.0,True,,False,True
+ACVT,Advent Convertible Bond ETF,P,True,False,False,False,False,False,False,False,False,,32391296.0,unknown,unknown,295.0,True,,False,True
+BBLB,JPMorgan BetaBuilders U.S. Treasury Bond 20+ Year ETF,Z,True,False,False,False,False,False,False,False,False,,31650278.0,unknown,unknown,296.0,True,,False,True
+BILT,iShares Infrastructure Active ETF,Z,True,False,False,False,False,False,False,False,False,,31458192.0,unknown,unknown,297.0,True,,False,True
+ASMF,Virtus AlphaSimplex Managed Futures ETF,P,True,False,False,False,False,False,False,False,False,,30838410.0,unknown,unknown,298.0,True,,False,True
+BDRY,Breakwave Dry Bulk Shipping ETF,P,True,False,False,False,False,False,False,False,False,,29999940.0,unknown,unknown,299.0,True,,False,True
+BREE,MFS Blended Research Emerging Markets Equity ETF,N,True,False,False,False,False,False,False,False,False,,26810008.0,unknown,unknown,300.0,True,,False,True
+AAAP,Pacer Barings CLO Market Flex ETF,Q,True,False,False,False,False,False,False,False,False,,25727358.0,unknown,unknown,301.0,True,,False,True
+AAVM,Alpha Architect Global Factor Equity ETF,Q,True,False,False,False,False,False,False,False,False,,25277144.0,unknown,unknown,302.0,True,,False,True
+AUMI,Themes Gold Miners ETF,Q,True,False,False,False,False,False,False,False,False,,24714584.0,unknown,unknown,303.0,True,,False,True
+AWAY,Amplify Travel Tech ETF,P,True,False,False,False,False,False,False,False,False,,24527872.0,unknown,unknown,304.0,True,,False,True
+BITS,Global X Blockchain & Bitcoin Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,24211406.0,unknown,unknown,305.0,True,,False,True
+AQWA,Global X Clean Water ETF,Q,True,False,False,False,False,False,False,False,False,,23876834.0,unknown,unknown,306.0,True,,False,True
+BHDG,Nicholas Bitcoin Tail ETF,Q,True,False,False,False,False,False,False,False,False,,21931758.0,unknown,unknown,307.0,True,,False,True
+BCDF,Horizon Kinetics Blockchain Development ETF,P,True,False,False,False,False,False,False,False,False,,21615728.0,unknown,unknown,308.0,True,,False,True
+AVGB,Avantis Credit ETF,Q,True,False,False,False,False,False,False,False,False,,20456516.0,unknown,unknown,309.0,True,,False,True
+BSJX,Invesco BulletShares 2033 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,20092818.0,unknown,unknown,310.0,True,,False,True
+ASEC,American Century Securitized Credit ETF,Q,True,False,False,False,False,False,False,False,False,,20056212.0,unknown,unknown,311.0,True,,False,True
+AMZP,Kurv Yield Premium Strategy Amazon (AMZN) ETF,Z,True,False,False,False,False,False,False,False,False,,19866076.0,unknown,unknown,312.0,True,,False,True
+BCHI,GMO Beyond China ETF,P,True,False,False,False,False,False,False,False,False,,18761704.0,unknown,unknown,313.0,True,,False,True
+BOXA,Alpha Architect Aggregate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,14797985.0,unknown,unknown,314.0,True,,False,True
+BITC,Bitwise Trendwise Bitcoin and Treasuries Rotation Strategy ETF,P,True,False,False,False,False,False,False,False,False,,14525659.0,unknown,unknown,315.0,True,,False,True
+ARWG,Archer Growth ETF,Z,True,False,False,False,False,False,False,False,False,,13927999.0,unknown,unknown,316.0,True,,False,True
+BDVG,IMGP Berkshire Dividend Growth ETF,P,True,False,False,False,False,False,False,False,False,,13555672.0,unknown,unknown,317.0,True,,False,True
+BFIX,Build Bond Innovation ETF,P,True,False,False,False,False,False,False,False,False,,11906393.0,unknown,unknown,318.0,True,,False,True
+BITY,Amplify Bitcoin 2% Monthly Option Income ETF,Z,True,False,False,False,False,False,False,False,False,,11520410.0,unknown,unknown,319.0,True,,False,True
+BGEG,Baillie Gifford Emerging Markets ETF,Q,True,False,False,False,False,False,False,False,False,,11410465.0,unknown,unknown,320.0,True,,False,True
+BMED,iShares Health Innovation Active ETF,P,True,False,False,False,False,False,False,False,False,,11030106.0,unknown,unknown,321.0,True,,False,True
+AVIE,Avantis Inflation Focused Equity ETF,P,True,False,False,False,False,False,False,False,False,,10408607.0,unknown,unknown,322.0,True,,False,True
+AGMI,Themes Silver Miners ETF,Q,True,False,False,False,False,False,False,False,False,,10405849.0,unknown,unknown,323.0,True,,False,True
+BELT,iShares U.S. Select Equity Active ETF,Q,True,False,False,False,False,False,False,False,False,,9981512.0,unknown,unknown,324.0,True,,False,True
+BRAZ,Global X Brazil Active ETF,P,True,False,False,False,False,False,False,False,False,,9942582.0,unknown,unknown,325.0,True,,False,True
+BCGD,Baron Global Durable Advantage ETF,N,True,False,False,False,False,False,False,False,False,,9773673.0,unknown,unknown,326.0,True,,False,True
+BPAY,iShares FinTech Active ETF,P,True,False,False,False,False,False,False,False,False,,9268787.0,unknown,unknown,327.0,True,,False,True
+AMYY,GraniteShares YieldBOOST AMD ETF,Q,True,False,False,False,False,False,False,False,False,,9184484.0,unknown,unknown,328.0,True,,False,True
+ADVE,Matthews Asia Dividend Active ETF,P,True,False,False,False,False,False,False,False,False,,9129768.0,unknown,unknown,329.0,True,,False,True
+ASGM,Virtus AlphaSimplex Global Macro ETF,P,True,False,False,False,False,False,False,False,False,,8608038.0,unknown,unknown,330.0,True,,False,True
+AGRH,iShares Interest Rate Hedged U.S. Aggregate Bond ETF,P,True,False,False,False,False,False,False,False,False,,7886807.0,unknown,unknown,331.0,True,,False,True
+ANEW,ProShares MSCI Transformational Changes ETF,P,True,False,False,False,False,False,False,False,False,,7731381.0,unknown,unknown,332.0,True,,False,True
+BESO,GSR Crypto Core3 ETF,Q,True,False,False,False,False,False,False,False,False,,7627526.0,unknown,unknown,333.0,True,,False,True
+ARMH,Arm Holdings PLC ADRhedged,P,True,False,False,False,False,False,False,False,False,,7541791.0,unknown,unknown,334.0,True,,False,True
+ALRG,Allspring LT Large Core ETF,P,True,False,False,False,False,False,False,False,False,,7469614.0,unknown,unknown,335.0,True,,False,True
+BILD,Nomura Global Listed Infrastructure ETF,P,True,False,False,False,False,False,False,False,False,,7386811.0,unknown,unknown,336.0,True,,False,True
+BBB,CYBER HORNET S&P 500 and Bitcoin 75/25 Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,7224550.0,unknown,unknown,337.0,True,,False,True
+BBBL,BondBloxx BBB Rated 10+ Year Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,7201175.0,unknown,unknown,338.0,True,,False,True
+ASMH,ASML Holding NV ADRhedged,P,True,False,False,False,False,False,False,False,False,,6782466.0,unknown,unknown,339.0,True,,False,True
+BETE,ProShares Bitcoin & Ether Equal Weight ETF,P,True,False,False,False,False,False,False,False,False,,6423573.0,unknown,unknown,340.0,True,,False,True
+AEMS,Anfield Enhanced Market ETF,Z,True,False,False,False,False,False,False,False,False,,6298948.0,unknown,unknown,341.0,True,,False,True
+AAPY,Kurv Yield Premium Strategy Apple (AAPL) ETF,Z,True,False,False,False,False,False,False,False,False,,6160460.0,unknown,unknown,342.0,True,,False,True
+BDIV,AAM Brentview Dividend Growth ETF,P,True,False,False,False,False,False,False,False,False,,6104826.0,unknown,unknown,343.0,True,,False,True
+BSJY,Invesco BulletShares 2034 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,6062860.0,unknown,unknown,344.0,True,,False,True
+BEEZ,Honeytree U.S. Equity ETF,Q,True,False,False,False,False,False,False,False,False,,5759960.0,unknown,unknown,345.0,True,,False,True
+ARMY,Tema International Defense ETF,Q,True,False,False,False,False,False,False,False,False,,5614615.0,unknown,unknown,346.0,True,,False,True
+BSCA,Invesco BulletShares 2036 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,5020512.0,unknown,unknown,347.0,True,,False,True
+BNGE,First Trust S-Network Streaming and Gaming ETF,P,True,False,False,False,False,False,False,False,False,,4598514.0,unknown,unknown,348.0,True,,False,True
+AETH,Bitwise Trendwise Ether and Treasuries Rotation Strategy ETF,P,True,False,False,False,False,False,False,False,False,,4390423.0,unknown,unknown,349.0,True,,False,True
+AZYY,GraniteShares YieldBoost AMZN ETF,Q,True,False,False,False,False,False,False,False,False,,3202825.0,unknown,unknown,350.0,True,,False,True
+BEDZ,AdvisorShares Hotel ETF,P,True,False,False,False,False,False,False,False,False,,2981664.0,unknown,unknown,351.0,True,,False,True
+AKAF,The Frontier Economic Fund,N,True,False,False,False,False,False,False,False,False,,2835201.0,unknown,unknown,352.0,True,,False,True
+ARVR,First Trust Indxx Metaverse ETF,Q,True,False,False,False,False,False,False,False,False,,2818409.0,unknown,unknown,353.0,True,,False,True
+BCOR,Grayscale Bitcoin Adopters ETF,P,True,False,False,False,False,False,False,False,False,,2444673.0,unknown,unknown,354.0,True,,False,True
+BCKT,LifeX 2030 Income Bucket ETF,Z,True,False,False,False,False,False,False,False,False,,2427066.0,unknown,unknown,355.0,True,,False,True
+BAY,Corgi Bay Area Based ETF,Z,True,False,False,False,False,False,False,False,False,,2048694.0,unknown,unknown,356.0,True,,False,True
+AMGR,Amana Growth ETF,Q,True,False,False,False,False,False,False,False,False,,1787578.0,unknown,unknown,357.0,True,,False,True
+BPH,BP plc ADRhedged,P,True,False,False,False,False,False,False,False,False,,1753295.0,unknown,unknown,358.0,True,,False,True
+BREW,Corgi Coffee & Energy Drinks ETF,Z,True,False,False,False,False,False,False,False,False,,1610950.0,unknown,unknown,359.0,True,,False,True
+AV,Corgi Aerospace & Commercial Aviation ETF,Z,True,False,False,False,False,False,False,False,False,,1448481.0,unknown,unknown,360.0,True,,False,True
+ASD,Defiance Autism Impact ETF,Q,True,False,False,False,False,False,False,False,False,,1351024.0,unknown,unknown,361.0,True,,False,True
+AIX,Defiance US 100 Tech AI Moat ETF,Q,True,False,False,False,False,False,False,False,False,,1010135.0,unknown,unknown,362.0,True,,False,True
+BSTV,Invesco BulletShares 2031 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,1006732.0,unknown,unknown,363.0,True,,False,True
+BSTU,Invesco BulletShares 2030 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,1005521.0,unknown,unknown,364.0,True,,False,True
+BSGT,Invesco BulletShares 2029 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,1004161.0,unknown,unknown,365.0,True,,False,True
+BSTS,Invesco BulletShares 2028 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,1002695.0,unknown,unknown,366.0,True,,False,True
+BSGR,Invesco BulletShares 2027 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,1001620.0,unknown,unknown,367.0,True,,False,True
+BIOY,GraniteShares YieldBOOST Biotech ETF,Q,True,False,False,False,False,False,False,False,False,,693209.0,unknown,unknown,368.0,True,,False,True
+BOBP,CORE16 Best of Breed Premier Index ETF,P,True,False,False,False,False,False,False,False,False,,676923.0,unknown,unknown,369.0,True,,False,True
+BBYY,GraniteShares YieldBOOST BABA ETF,Q,True,False,False,False,False,False,False,False,False,,670575.0,unknown,unknown,370.0,True,,False,True
+AMEI,Amana Equity Income ETF,Q,True,False,False,False,False,False,False,False,False,,525989.0,unknown,unknown,371.0,True,,False,True
+BLCK,Corgi Crypto Infrastructure ETF,Z,True,False,False,False,False,False,False,False,False,,488984.0,unknown,unknown,372.0,True,,False,True
 AAAC,Columbia AAA CLO ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 AAAD,PGIM AAA CLO Aggregate Duration ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 ABLD,Abacus FCF Real Assets Leaders ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
@@ -209,192 +385,16 @@ AFGR,First Trust Multi-Manager Large Growth ETF,P,True,False,False,False,False,F
 AGIQ,SoFi Agentic AI ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 AIQD,MicroSectors -3? Short Artificial Intelligence (AI) ETNs,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 AIQU,MicroSectors 3? Long Artificial Intelligence (AI) ETNs,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-AMEI,Amana Equity Income ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 AMEM,Amana Developing World ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 AMHI,American Beacon Aberdeen Municipal High Income ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 AOTS,AOT Software Platform ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 AUAU,Global X Gold Miners ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 BAVA,Common Shares of Beneficial Interest of Bitwise Avalanche ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBCB,JPMorgan BetaBuilders USD Investment Grade Corporate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBEM,JPMorgan BetaBuilders Emerging Markets Equity ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBEU,JPMorgan BetaBuilders Europe ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBH,VanEck Biotech ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBHY,JPMorgan BetaBuilders USD High Yield Corporate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBIB,JPMorgan BetaBuilders U.S. Treasury Bond 3-10 Year ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBIN,JPMorgan BetaBuilders International Equity ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBJP,JPMorgan BetaBuilders Japan ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBLB,JPMorgan BetaBuilders U.S. Treasury Bond 20+ Year ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBLU,EA Bridgeway Blue Chip ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBP,Virtus Biotech ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBRE,JPMorgan BetaBuilders MSCI U.S. REIT ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBSB,JPMorgan BetaBuilders U.S. Treasury Bond 1-3 Year ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBUS,JPMorgan BetaBuilders U.S. Equity ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BBYY,GraniteShares YieldBOOST BABA ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCD,abrdn Bloomberg All Commodity Longer Dated Strategy K-1 Free ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCDF,Horizon Kinetics Blockchain Development ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCEM,Baron Emerging Markets Select ETF,N,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCFN,Baron Financials ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCGD,Baron Global Durable Advantage ETF,N,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCGS,Bancreek Global Select ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCHI,GMO Beyond China ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCHP,Principal Focused Blue Chip ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCI,abrdn Bloomberg All Commodity Strategy K-1 Free ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCKT,LifeX 2030 Income Bucket ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCLO,iShares BBB-B CLO Active ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCOR,Grayscale Bitcoin Adopters ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCPL,BNY Mellon Core Plus ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BCTK,Baron Technology ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 BD,Russell Investments Core Plus Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BDBT,Bluemonte Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BDIV,AAM Brentview Dividend Growth ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BDRY,Breakwave Dry Bulk Shipping ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BDVG,IMGP Berkshire Dividend Growth ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BDYN,iShares Dynamic Equity Active ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BEDY,BNY Mellon Enhanced Dividend and Income ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BEDZ,AdvisorShares Hotel ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BEEX,The Beehive ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BEEZ,Honeytree U.S. Equity ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BELT,iShares U.S. Select Equity Active ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BEMB,iShares J.P. Morgan Broad USD Emerging Markets Bond ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BENJ,Horizon Landmark ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BESF,Bastion Energy ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BESO,GSR Crypto Core3 ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BETE,ProShares Bitcoin & Ether Equal Weight ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BETZ,Roundhill Sports Betting & iGaming ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BFIX,Build Bond Innovation ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 BFLX,iShares Flexible Equity Active ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BFOR,Barron's 400 ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BGCG,Baillie Gifford International Concentrated Growth ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BGDV,Bahl & Gaynor Dividend ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BGEG,Baillie Gifford Emerging Markets ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BGGG,Baillie Gifford Long Term Global Growth ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BGIA,Baillie Gifford International Alpha ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BGIG,Bahl & Gaynor Income Growth ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BGRN,iShares USD Green Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BHDG,Nicholas Bitcoin Tail ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BHYB,Xtrackers USD High Yield BB-B ex Financials ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 BHYP,Common Shares of Beneficial Interest of Bitwise Hyperliquid ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BIBL,Inspire 100 ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BIDD,iShares International Dividend Active ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BIL,State Street SPDR Bloomberg 1-3 Month T-Bill ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BILD,Nomura Global Listed Infrastructure ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BILS,State Street SPDR Bloomberg 3-12 Month T-Bill ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BILT,iShares Infrastructure Active ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BINC,iShares Flexible Income Active ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BINT,Bluemonte Global Equity ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BINV,Brandes International ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BIOY,GraniteShares YieldBOOST Biotech ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BITB,Bitwise Bitcoin ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BITC,Bitwise Trendwise Bitcoin and Treasuries Rotation Strategy ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BITI,ProShares Short Bitcoin ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BITO,ProShares Bitcoin ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BITQ,Bitwise Crypto Industry Innovators ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BITS,Global X Blockchain & Bitcoin Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BITW,Common Shares of Beneficial Interest,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BITY,Amplify Bitcoin 2% Monthly Option Income ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BIV,Vanguard Intermediate-Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BIZD,VanEck BDC Income ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKAG,BNY Mellon Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKCG,BNY Mellon Concentrated Growth ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKCH,Global X Blockchain ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKCI,BNY Mellon Concentrated International ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKDV,BNY Mellon Dynamic Value ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKEM,BNY Mellon Emerging Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKF,iShares MSCI BIC ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKFI,BNY Mellon Active Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKGI,BNY Mellon Global Infrastructure Income ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKHY,BNY Mellon High Yield ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKIE,BNY Mellon International Equity ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKLN,Invesco Senior Loan ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKMI,BNY Mellon Municipal Intermediate ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BKMS,BNY Mellon Municipal Short Duration ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLCK,Corgi Crypto Infrastructure ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLCN,Siren NexGen Economy ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLDG,Cambria Global Real Estate ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLDX,Impax Global Sustainable Infrastructure ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLES,Inspire Global Hope ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLOK,Amplify Blockchain Technology ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLOX,Nicholas Crypto Income ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLST,Bluemonte Short Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLTD,Bluemonte Long Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLUI,Bluemonte Diversified Income ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLUX,Bluemonte Dynamic Total Market ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BLV,Vanguard Long-Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BMED,iShares Health Innovation Active ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BMOP,BNY Mellon Municipal Opportunities ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BMVP,Invesco Bloomberg MVP Multi-factor ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BND,Vanguard Total Bond Market ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BNDC,FlexShares Core Select Bond Fund,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BNDD,Quadratic Deflation ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BNDI,NEOS Enhanced Income Aggregate Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BNDP,Vanguard Core-Plus Bond Index ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BNDW,Vanguard Total World Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BNDX,Vanguard Total International Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BNDY,Horizon Core Bond ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BNGE,First Trust S-Network Streaming and Gaming ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BNO,"United States Brent Oil Fund, LP ETV",P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BOAT,SonicShares Global Shipping ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BOBP,CORE16 Best of Breed Premier Index ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BOND,PIMCO Active Bond Exchange-Traded Fund Exchange-Traded Fund,N,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BOTT,Themes Humanoid Robotics ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BOTZ,Global X Robotics & Artificial Intelligence ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BOXA,Alpha Architect Aggregate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BOXX,Alpha Architect 1-3 Month Box ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BPAY,iShares FinTech Active ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BPH,BP plc ADRhedged,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 BPRO,Bitwise Proficio Currency Debasement ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRAZ,Global X Brazil Active ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRCE,MFS Blended Research Core Equity ETF,N,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BREE,MFS Blended Research Emerging Markets Equity ETF,N,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BREM,iShares Emerging Markets Bond Active ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRES,Burney U.S. Equity Select ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BREW,Corgi Coffee & Energy Drinks ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRHY,iShares High Yield Active ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 BRIB,FIS Bright Portfolios Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRIE,MFS Blended Research International Equity ETF,N,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRIF,FIS Bright Portfolios Focused Equity ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRLN,iShares Floating Rate Loan Active ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRNY,Burney U.S. Factor Rotation ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRRR,Coinshares Bitcoin ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BRTR,iShares Total Return Active ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCA,Invesco BulletShares 2036 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCQ,Invesco BulletShares 2026 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCR,Invesco BulletShares 2027 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCS,Invesco BulletShares 2028 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCT,Invesco BulletShares 2029 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCU,Invesco BulletShares 2030 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCV,Invesco BulletShares 2031 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCW,Invesco BulletShares 2032 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCX,Invesco BulletShares 2033 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCY,Invesco BulletShares 2034 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSCZ,Invesco BulletShares 2035 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSGR,Invesco BulletShares 2027 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSGT,Invesco BulletShares 2029 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSJQ,Invesco BulletShares 2026 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSJR,Invesco BulletShares 2027 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSJS,Invesco BulletShares 2028 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSJT,Invesco BulletShares 2029 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSJU,Invesco BulletShares 2030 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSJV,Invesco BulletShares 2031 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSJW,Invesco BulletShares 2032 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSJX,Invesco BulletShares 2033 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSJY,Invesco BulletShares 2034 High Yield Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSMQ,Invesco BulletShares 2026 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSMR,Invesco BulletShares 2027 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSMS,Invesco BulletShares 2028 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSMT,Invesco BulletShares 2029 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSMU,Invesco BulletShares 2030 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSMV,Invesco BulletShares 2031 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSMW,Invesco BulletShares 2032 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSMY,Invesco BulletShares 2034 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSMZ,Invesco BulletShares 2035 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSOL,Bitwise Solana Staking ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSR,Beacon Unified Catalyst ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSSX,Invesco BulletShares 2033 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSTS,Invesco BulletShares 2028 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSTU,Invesco BulletShares 2030 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSTV,Invesco BulletShares 2031 Treasury Bond ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
-BSV,Vanguard Short-Term Bond ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 BTAL,AGF U.S. Market Neutral Anti-Beta Fund,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 BTC,Grayscale Bitcoin Mini Trust (BTC),P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 BTCI,NEOS Bitcoin High Income ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
@@ -2834,6 +2834,7 @@ SNPE,Xtrackers S&P 500 Scored & Screened ETF,P,True,False,False,False,False,Fals
 SNPG,Xtrackers S&P 500 Growth Scored & Screened ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 SNSR,Global X Internet of Things ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 SNTH,MRP SynthEquity ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
+SNTQ,MRP SynthEquity Nasdaq 100 ETF,Z,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 SOCL,Global X Social Media ETF,Q,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 SOEZ,Franklin Solana ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
 SOFR,Amplify Samsung SOFR ETF,P,True,False,False,False,False,False,False,False,False,,,unknown,unknown,,False,,False,False
