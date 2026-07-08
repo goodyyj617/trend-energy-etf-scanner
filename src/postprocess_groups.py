@@ -178,7 +178,9 @@ def postprocess_json(path: Path) -> None:
         symbol = get_value_case_insensitive(row, ["symbol", "ticker"])
         name = get_value_case_insensitive(row, ["name", "security_name", "fund_name"])
         group = classify_group(symbol, name)
+       
         set_value_case_insensitive(row, "group", group)
+        set_value_case_insensitive(row, "asset_group", group)
         changed += 1
 
     with open(path, "w", encoding="utf-8") as f:
@@ -204,7 +206,8 @@ def postprocess_csv(path: Path) -> None:
 
     symbol_col = find_col(df, ["symbol", "ticker"])
     name_col = find_col(df, ["name", "security_name", "fund_name"])
-    group_col = find_col(df, ["group"])
+        group_col = find_col(df, ["group"])
+    asset_group_col = find_col(df, ["asset_group"])
 
     if symbol_col is None:
         print(f"[GROUP] no symbol column in {path}")
@@ -214,13 +217,19 @@ def postprocess_csv(path: Path) -> None:
         df["_tmp_name"] = ""
         name_col = "_tmp_name"
 
-    if group_col is None:
-        group_col = "group"
-
-    df[group_col] = [
+    groups = [
         classify_group(symbol, name)
         for symbol, name in zip(df[symbol_col], df[name_col])
     ]
+
+    if group_col is None:
+        group_col = "group"
+
+    if asset_group_col is None:
+        asset_group_col = "asset_group"
+
+    df[group_col] = groups
+    df[asset_group_col] = groups
 
     if "_tmp_name" in df.columns:
         df = df.drop(columns=["_tmp_name"])
