@@ -31,7 +31,7 @@ jobs:
 
       - name: Run ETF scan
         run: |
-          python src/run_daily_scan.py
+          python -m src/run_daily_scan.py
 
       - name: Commit updated data
         run: |
