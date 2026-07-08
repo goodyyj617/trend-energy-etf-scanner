@@ -9,7 +9,20 @@ universe:
   price_interval: 1d
   use_adjusted_prices: true
 
-  auto_aum:
-    enabled: true
-    max_new_per_run: 200
-    refresh_existing: false
+auto_aum:
+  enabled: true
+
+  # 0 = 이번 실행에서 가능한 누락 ETF 전부 시도
+  max_new_per_run: 0
+
+  # GitHub Actions가 강제 종료되기 전에 cache 저장 후 정상 종료
+  time_budget_minutes: 75
+
+  # yfinance 요청 burst 방지용
+  sleep_seconds: 0.15
+
+  # 이미 AUM을 성공적으로 받은 ETF는 180일 뒤 재조회
+  refresh_existing_days: 180
+
+  # 명백한 레버리지/인버스/옵션형 ETF는 AUM 조회 전부터 생략
+  skip_obvious_exclusions: true
