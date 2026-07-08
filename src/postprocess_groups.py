@@ -206,8 +206,6 @@ def postprocess_csv(path: Path) -> None:
 
     symbol_col = find_col(df, ["symbol", "ticker"])
     name_col = find_col(df, ["name", "security_name", "fund_name"])
-        group_col = find_col(df, ["group"])
-    asset_group_col = find_col(df, ["asset_group"])
 
     if symbol_col is None:
         print(f"[GROUP] no symbol column in {path}")
@@ -221,6 +219,9 @@ def postprocess_csv(path: Path) -> None:
         classify_group(symbol, name)
         for symbol, name in zip(df[symbol_col], df[name_col])
     ]
+
+    group_col = find_col(df, ["group"])
+    asset_group_col = find_col(df, ["asset_group"])
 
     if group_col is None:
         group_col = "group"
