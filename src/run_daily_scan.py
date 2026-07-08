@@ -1,4 +1,5 @@
 from __future__ import annotations
+from update_aum import update_aum_csv
 
 import json
 from pathlib import Path
@@ -26,6 +27,11 @@ def to_jsonable(df: pd.DataFrame) -> list[dict]:
 
 
 def main() -> None:
+    try:
+        update_aum_csv()
+    except Exception as e:
+        print(f"[AUM] update failed, continuing scan with existing config/aum.csv: {e}")
+        
     cfg = load_config()
     data_dir = ROOT / "docs" / "data"
     history_dir = data_dir / "history"
