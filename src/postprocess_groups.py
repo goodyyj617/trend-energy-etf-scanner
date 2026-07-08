@@ -12,6 +12,18 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "docs" / "data"
 
 
+def force_set_group_fields(row: Dict[str, Any], group: str) -> None:
+    """
+    Write every likely group field name.
+    This avoids frontend/backend field-name mismatch.
+    """
+    row["group"] = group
+    row["Group"] = group
+    row["asset_group"] = group
+    row["assetGroup"] = group
+    row["AssetGroup"] = group
+    row["Asset Group"] = group
+
 def norm_text(value: Any) -> str:
     if value is None:
         return ""
@@ -178,9 +190,7 @@ def postprocess_json(path: Path) -> None:
         symbol = get_value_case_insensitive(row, ["symbol", "ticker"])
         name = get_value_case_insensitive(row, ["name", "security_name", "fund_name"])
         group = classify_group(symbol, name)
-       
-        set_value_case_insensitive(row, "group", group)
-        set_value_case_insensitive(row, "asset_group", group)
+        force_set_group_fields(row, group)
         changed += 1
 
     with open(path, "w", encoding="utf-8") as f:
@@ -220,24 +230,19 @@ def postprocess_csv(path: Path) -> None:
         for symbol, name in zip(df[symbol_col], df[name_col])
     ]
 
-    group_col = find_col(df, ["group"])
-    asset_group_col = find_col(df, ["asset_group"])
-
-    if group_col is None:
-        group_col = "group"
-
-    if asset_group_col is None:
-        asset_group_col = "asset_group"
-
-    df[group_col] = groups
-    df[asset_group_col] = groups
+    # Write every likely group column name.
+    df["group"] = groups
+    df["Group"] = groups
+    df["asset_group"] = groups
+    df["assetGroup"] = groups
+    df["AssetGroup"] = groups
+    df["Asset Group"] = groups
 
     if "_tmp_name" in df.columns:
         df = df.drop(columns=["_tmp_name"])
 
     df.to_csv(path, index=False)
     print(f"[GROUP] updated {len(df)} rows in {path}")
-
 
 def main() -> None:
     postprocess_json(DATA_DIR / "latest.json")
