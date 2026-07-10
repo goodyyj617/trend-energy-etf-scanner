@@ -4090,6 +4090,7 @@ IFLR,Innovator International Developed Managed Floor ETF,P,True,False,False,Fals
 IGGY,AB International Growth ETF,P,True,False,False,False,False,False,False,False,False,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 IINC,Alki Consolidated Income ETF,P,True,False,False,False,False,False,False,False,False,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 IPB,"Merrill Lynch & Co., Inc. 6.0518% Index Plus Trust Certificates Series 2003-1",N,True,False,False,False,False,False,False,False,False,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+IQQ,iShares Nasdaq 100 ETF,Q,True,False,False,False,False,False,False,False,False,,,US Equity,unknown,,False,,False,False,US Equity,US Equity,US Equity,US Equity,US Equity
 IQSZ,Invesco Global Equity Net Zero ETF,P,True,False,False,False,False,False,False,False,False,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 IROC,Invesco Rochester High Yield Municipal ETF,Z,True,False,False,False,False,False,False,False,False,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 JA,Janus Henderson AA-A CLO ETF,P,True,False,False,False,False,False,False,False,False,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
@@ -4250,6 +4251,7 @@ WELD,Tema U.S. Manufacturing & Reshoring ETF,P,True,False,False,False,False,Fals
 WEPN,Nicholas Defense and Rare Earth Income ETF,P,True,False,False,False,False,False,False,False,False,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 WMSB,Weitz Multisector Bond ETF,P,True,False,False,False,False,False,False,False,False,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 WSML,iShares MSCI World Small-Cap ETF,Q,True,False,False,False,False,False,False,True,True,buffer,,Global Equity,unknown,,False,,True,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
+WSPC,WisdomTree Space Economy Fund,Q,True,False,False,False,False,False,False,False,False,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 WTIB,USCF Oil Plus Bitcoin Strategy Fund,P,True,False,False,False,False,False,False,False,False,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 WTLS,WisdomTree Efficient Long/Short U.S. Equity Fund,Z,True,False,False,False,False,False,False,False,False,,,US Equity,unknown,,False,,False,False,US Equity,US Equity,US Equity,US Equity,US Equity
 XLCI,State Street Communication Services Select Sector SPDR Premium Income ETF,P,True,False,False,False,False,False,True,False,True,option_income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
