@@ -1,13 +1,21 @@
-# Exclusion rules are intentionally conservative. Use manual_overrides.csv for exceptions.
+# Exclusion rules are intentionally conservative.
+# Use manual_overrides.csv for exceptions.
+#
+# Important:
+# - Keep keywords specific.
+# - Avoid overly broad words such as "CAP", because they can accidentally exclude
+#   normal Small Cap / Mid Cap / Large Cap ETFs.
+# - manual_overrides.csv can force include/exclude specific tickers.
+
 exclude_keywords:
   leveraged:
     - "2X"
     - "3X"
     - "4X"
-    - "ULTRA"
     - "ULTRAPRO"
     - "LEVERAGED"
     - "DAILY BULL"
+
   inverse:
     - "INVERSE"
     - "DAILY BEAR"
@@ -18,16 +26,19 @@ exclude_keywords:
     - "SHORT QQQ"
     - "SHORT DOW"
     - "SHORT RUSSELL"
+
   volatility:
     - "VIX"
     - "VOLATILITY"
     - "VOLATILITY SHARES"
+
   single_stock:
     - "SINGLE STOCK"
     - "2X LONG"
     - "2X SHORT"
     - "1.5X"
     - "1.75X"
+
   option_income:
     - "COVERED CALL"
     - "BUYWRITE"
@@ -35,11 +46,12 @@ exclude_keywords:
     - "YIELDMAX"
     - "INCOME STRATEGY"
     - "WEEKLYPAY"
+
   buffer:
     - "BUFFER"
     - "DEFINED OUTCOME"
     - "POWER BUFFER"
-    - "ACCELERATED"
+    - "TARGET OUTCOME"
+    - "OUTCOME PERIOD"
     - "AUTOCALLABLE"
     - "FLOOR"
-    - "CAP"
