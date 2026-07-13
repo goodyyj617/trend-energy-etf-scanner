@@ -16,6 +16,13 @@ ROUND_TRIP_COST = 0.002
 MAX_HOLDING_DAYS = 63
 DIAGNOSTIC_HORIZONS = [1, 3, 5, 10, 20]
 
+# Score breakout robustness grid.
+# The grid is intentionally compact enough for the daily GitHub Actions job,
+# but structured so that more parameters can be added later for statistical tests.
+SCORE_LOOKBACK_GRID = [10, 20, 40]
+R20_MIN_GRID = [-0.02, 0.00, 0.02]
+ER20_MIN_GRID = [0.05, 0.10, 0.15]
+
 
 @dataclass(frozen=True)
 class SignalRule:
@@ -84,28 +91,15 @@ def _ma50(row: pd.Series) -> float:
     return _num(row, "ma50")
 
 
-def _scanner_signal(df: pd.DataFrame) -> pd.Series:
-    return df[BASE_SIGNAL_COL].fillna(False).astype(bool)
-
-
-def make_early_te_cross_signal(r20_min: float, er20_min: float, ma50_slope_min: float) -> Callable[[pd.DataFrame], pd.Series]:
-    def _fn(df: pd.DataFrame) -> pd.Series:
-        te63 = pd.to_numeric(df["te63"], errors="coerce")
-        te63_sma20 = te63.rolling(20).mean()
-        crosses_up = (te63 > te63_sma20) & (te63.shift(1) <= te63_sma20.shift(1))
-        return (
-            df["eligible_universe"].fillna(False)
-            & crosses_up.fillna(False)
-            & (te63 > 0)
-            & (pd.to_numeric(df["r20"], errors="coerce") >= r20_min)
-            & (pd.to_numeric(df["er20"], errors="coerce") >= er20_min)
-            & (pd.to_numeric(df["close"], errors="coerce") > pd.to_numeric(df["ma50"], errors="coerce"))
-            & (pd.to_numeric(df["ma50_slope_10"], errors="coerce") >= ma50_slope_min)
-        )
-    return _fn
-
-
 def make_score_breakout_signal(r20_min: float, er20_min: float, score_lookback: int) -> Callable[[pd.DataFrame], pd.Series]:
+    """
+    Score breakout signal.
+
+    score = 0.65 * TE63 + 0.35 * TE126, where TE = return x efficiency ratio.
+    A signal fires when today's score exceeds the highest score from the prior
+    score_lookback trading days. It is not a price breakout; it is a breakout in
+    the strategy's own trend-energy score.
+    """
     def _fn(df: pd.DataFrame) -> pd.Series:
         score = pd.to_numeric(df["score"], errors="coerce")
         prev_high = score.shift(1).rolling(score_lookback).max()
@@ -121,36 +115,49 @@ def make_score_breakout_signal(r20_min: float, er20_min: float, score_lookback: 
     return _fn
 
 
-SIGNAL_RULES: list[SignalRule] = [
-    SignalRule(
-        key="scanner_surge_v0",
-        label="Scanner surge v0",
-        description="현재 웹앱의 signal_surge_v0 조건입니다. 기존 scanner TRUE와 정확히 같은 조건을 entry 후보로 사용합니다.",
-        params={"source": "features.add_signal_surge_v0"},
-        signal_fn=_scanner_signal,
-    ),
-    SignalRule(
-        key="early_te_cross_base",
-        label="Early TE cross base",
-        description="TE63가 자기 20일 평균을 상향 돌파하고, R20/ER20/MA50 기울기가 최소 조건을 만족할 때의 초기 추세 전환형 signal입니다.",
-        params={"r20_min": 0.00, "er20_min": 0.10, "ma50_slope_10_min": 0.00},
-        signal_fn=make_early_te_cross_signal(r20_min=0.00, er20_min=0.10, ma50_slope_min=0.00),
-    ),
-    SignalRule(
-        key="early_te_cross_strict",
-        label="Early TE cross strict",
-        description="Early TE cross base보다 R20/ER20 조건을 조금 더 강하게 둔 robustness variant입니다.",
-        params={"r20_min": 0.02, "er20_min": 0.15, "ma50_slope_10_min": 0.00},
-        signal_fn=make_early_te_cross_signal(r20_min=0.02, er20_min=0.15, ma50_slope_min=0.00),
-    ),
-    SignalRule(
-        key="score_breakout_base",
-        label="Score breakout base",
-        description="Score가 직전 20거래일 고점을 돌파하고 R20/ER20 조건을 만족할 때의 초기 모멘텀 전환형 signal입니다.",
-        params={"r20_min": 0.00, "er20_min": 0.10, "score_lookback": 20},
-        signal_fn=make_score_breakout_signal(r20_min=0.00, er20_min=0.10, score_lookback=20),
-    ),
-]
+def _fmt_param(value: float | int) -> str:
+    if isinstance(value, int):
+        return str(value)
+    sign = "m" if value < 0 else "p"
+    return f"{sign}{abs(value):.2f}".replace(".", "")
+
+
+def build_score_breakout_signal_rules() -> list[SignalRule]:
+    rules: list[SignalRule] = []
+    for lookback in SCORE_LOOKBACK_GRID:
+        for r20_min in R20_MIN_GRID:
+            for er20_min in ER20_MIN_GRID:
+                key = f"score_bo_l{lookback}_r{_fmt_param(r20_min)}_er{_fmt_param(er20_min)}"
+                label = f"Score BO L{lookback} R20>={r20_min:.2f} ER20>={er20_min:.2f}"
+                params = {
+                    "family": "score_breakout",
+                    "score_lookback": lookback,
+                    "r20_min": r20_min,
+                    "er20_min": er20_min,
+                    "close_filter": "close > ma50",
+                }
+                description = (
+                    "Score breakout signal. Score가 직전 lookback 거래일 고점을 돌파하고, "
+                    "R20/ER20 최소 조건과 close > MA50 조건을 만족할 때 TRUE입니다. "
+                    "Score는 0.65*TE63 + 0.35*TE126이며, TE는 return과 efficiency ratio를 곱한 trend-energy 지표입니다."
+                )
+                rules.append(
+                    SignalRule(
+                        key=key,
+                        label=label,
+                        description=description,
+                        params=params,
+                        signal_fn=make_score_breakout_signal(
+                            r20_min=r20_min,
+                            er20_min=er20_min,
+                            score_lookback=lookback,
+                        ),
+                    )
+                )
+    return rules
+
+
+SIGNAL_RULES: list[SignalRule] = build_score_breakout_signal_rules()
 
 
 def _first_signal_indices(g: pd.DataFrame) -> list[int]:
@@ -216,13 +223,15 @@ ENTRY_RULES: list[EntryRule] = [
     ),
     EntryRule(
         key="breakout_5d_after_signal",
-        label="5D breakout after signal",
+        label="5D price breakout after signal",
         description="첫 signal 이후 5거래일 안에 종가가 직전 5일 고점을 돌파하면 다음 거래일 open에 진입합니다.",
         indices_fn=_breakout_after_signal_indices,
     ),
 ]
 
 
+# No stopless MaxHold-only exit rule is included. Max holding remains only as a
+# hard cap for every price-stop strategy.
 EXIT_RULES: list[ExitRule] = [
     ExitRule(
         key="low10",
@@ -253,12 +262,6 @@ EXIT_RULES: list[ExitRule] = [
         label="MA50 trailing",
         description="MA50을 price stop으로 사용합니다. 느리지만 noise가 적은 stop입니다.",
         stop_fn=_ma50,
-    ),
-    ExitRule(
-        key="maxhold_only",
-        label="MaxHold only",
-        description="가격 stop 없이 max holding 기간이 끝나면 close로 청산합니다. Stop rule의 기준점 역할을 합니다.",
-        stop_fn=None,
     ),
 ]
 
@@ -333,26 +336,24 @@ def _simulate_one_symbol(g: pd.DataFrame, strategy: StrategyRule) -> tuple[list[
         if not _valid_price(entry_price):
             continue
 
-        active_stop = np.nan
-        if strategy.exit.stop_fn is not None:
-            active_stop = strategy.exit.stop_fn(signal_row)
-            if not _valid_price(active_stop):
-                continue
-            if entry_price <= active_stop:
-                skipped.append({
-                    "strategy_key": strategy.key,
-                    "strategy_label": strategy.label,
-                    "signal_key": strategy.signal.key,
-                    "entry_key": strategy.entry.key,
-                    "exit_key": strategy.exit.key,
-                    "symbol": str(entry_row.get("symbol", "")),
-                    "entry_signal_date": signal_row["date"].date().isoformat(),
-                    "entry_date": entry_row["date"].date().isoformat(),
-                    "entry_price": float(entry_price),
-                    "initial_stop": float(active_stop),
-                    "skip_reason": "entry_open_at_or_below_initial_stop",
-                })
-                continue
+        active_stop = strategy.exit.stop_fn(signal_row)
+        if not _valid_price(active_stop):
+            continue
+        if entry_price <= active_stop:
+            skipped.append({
+                "strategy_key": strategy.key,
+                "strategy_label": strategy.label,
+                "signal_key": strategy.signal.key,
+                "entry_key": strategy.entry.key,
+                "exit_key": strategy.exit.key,
+                "symbol": str(entry_row.get("symbol", "")),
+                "entry_signal_date": signal_row["date"].date().isoformat(),
+                "entry_date": entry_row["date"].date().isoformat(),
+                "entry_price": float(entry_price),
+                "initial_stop": float(active_stop),
+                "skip_reason": "entry_open_at_or_below_initial_stop",
+            })
+            continue
 
         exit_idx = None
         exit_price = np.nan
@@ -363,7 +364,7 @@ def _simulate_one_symbol(g: pd.DataFrame, strategy: StrategyRule) -> tuple[list[
             row = g.iloc[j]
             holding_days = j - entry_idx + 1
 
-            if strategy.exit.stop_fn is not None and _valid_price(active_stop):
+            if _valid_price(active_stop):
                 day_open = _num(row, "open")
                 day_low = _num(row, "low")
                 if _valid_price(day_low) and day_low <= active_stop:
@@ -382,13 +383,12 @@ def _simulate_one_symbol(g: pd.DataFrame, strategy: StrategyRule) -> tuple[list[
                     stop_at_exit = active_stop
                     break
 
-            if strategy.exit.stop_fn is not None:
-                raw_next_stop = strategy.exit.stop_fn(row)
-                if _valid_price(raw_next_stop):
-                    if strategy.exit.use_trailing_max and _valid_price(active_stop):
-                        active_stop = max(active_stop, raw_next_stop)
-                    else:
-                        active_stop = raw_next_stop
+            raw_next_stop = strategy.exit.stop_fn(row)
+            if _valid_price(raw_next_stop):
+                if strategy.exit.use_trailing_max and _valid_price(active_stop):
+                    active_stop = max(active_stop, raw_next_stop)
+                else:
+                    active_stop = raw_next_stop
 
         if exit_idx is None:
             continue
@@ -419,7 +419,7 @@ def _simulate_one_symbol(g: pd.DataFrame, strategy: StrategyRule) -> tuple[list[
             "net_return": float(net_return),
             "holding_days": int(exit_idx - entry_idx + 1),
             "exit_reason": exit_reason,
-            "stop_at_exit": None if not _valid_price(stop_at_exit) else float(stop_at_exit),
+            "stop_at_exit": float(stop_at_exit),
             "entry_score": None if not np.isfinite(_num(signal_row, "score")) else float(_num(signal_row, "score")),
             "entry_score_pct": None if not np.isfinite(_num(signal_row, "score_pct")) else float(_num(signal_row, "score_pct")),
             "entry_r20": None if not np.isfinite(_num(signal_row, "r20")) else float(_num(signal_row, "r20")),
@@ -449,17 +449,19 @@ def summarize_trades(trades: pd.DataFrame, skipped: pd.DataFrame) -> pd.DataFram
         g = trades[trades["strategy_key"] == strategy.key].sort_values("entry_date") if not trades.empty else pd.DataFrame()
         sg = skipped[skipped["strategy_key"] == strategy.key] if not skipped.empty else pd.DataFrame()
         skipped_stop_broken = int(len(sg)) if not sg.empty else 0
+        base = {
+            "strategy_key": strategy.key,
+            "strategy_label": strategy.label,
+            "signal_label": strategy.signal.label,
+            "entry_label": strategy.entry.label,
+            "exit_label": strategy.exit.label,
+            "signal_params": json.dumps(strategy.signal.params, sort_keys=True),
+            "description": f"Signal: {strategy.signal.description} Entry: {strategy.entry.description} Exit: {strategy.exit.description}",
+            "skipped_stop_broken": skipped_stop_broken,
+        }
         if g.empty:
-            rows.append({
-                "strategy_key": strategy.key,
-                "strategy_label": strategy.label,
-                "signal_label": strategy.signal.label,
-                "entry_label": strategy.entry.label,
-                "exit_label": strategy.exit.label,
-                "signal_params": json.dumps(strategy.signal.params, sort_keys=True),
-                "description": f"Signal: {strategy.signal.description} Entry: {strategy.entry.description} Exit: {strategy.exit.description}",
+            rows.append(base | {
                 "trades": 0,
-                "skipped_stop_broken": skipped_stop_broken,
                 "win_rate": 0.0,
                 "avg_return": 0.0,
                 "median_return": 0.0,
@@ -478,16 +480,8 @@ def summarize_trades(trades: pd.DataFrame, skipped: pd.DataFrame) -> pd.DataFram
         gross_profit = wins.sum()
         gross_loss = losses.sum()
 
-        rows.append({
-            "strategy_key": strategy.key,
-            "strategy_label": strategy.label,
-            "signal_label": strategy.signal.label,
-            "entry_label": strategy.entry.label,
-            "exit_label": strategy.exit.label,
-            "signal_params": json.dumps(strategy.signal.params, sort_keys=True),
-            "description": f"Signal: {strategy.signal.description} Entry: {strategy.entry.description} Exit: {strategy.exit.description}",
+        rows.append(base | {
             "trades": int(len(g)),
-            "skipped_stop_broken": skipped_stop_broken,
             "win_rate": float((ret > 0).mean()) if len(ret) else 0.0,
             "avg_return": float(ret.mean()) if len(ret) else 0.0,
             "median_return": float(ret.median()) if len(ret) else 0.0,
@@ -627,15 +621,23 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
 
     payload = {
         "as_of": as_of,
-        "entry_model": "Signal rules are entry candidate/trigger logic only. They are never used as exit signals.",
-        "exit_model": "Exits use price stops or max holding only. Price stop uses intraday low; gap below stop exits at open.",
+        "entry_model": "Score breakout signal rules are entry candidate/trigger logic only. They are never used as exit signals.",
+        "exit_model": "Every strategy uses a price stop plus a max holding cap. There is no stopless MaxHold-only exit rule.",
         "round_trip_cost": ROUND_TRIP_COST,
         "max_holding_days": MAX_HOLDING_DAYS,
+        "robustness_grid": {
+            "signal_family": "score_breakout",
+            "score_lookback": SCORE_LOOKBACK_GRID,
+            "r20_min": R20_MIN_GRID,
+            "er20_min": ER20_MIN_GRID,
+            "note": "Robust candidates should work across neighboring parameter values, not only at one isolated point.",
+        },
         "diagnostic_definitions": {
+            "score_breakout": "Score가 직전 lookback 거래일의 최고 score를 돌파하면 TRUE입니다. Score는 0.65*TE63 + 0.35*TE126이고, TE는 return과 efficiency ratio를 곱한 trend-energy 값입니다.",
             "fwd_Nd": "Entry next open 기준으로 N거래일 뒤 close까지 보유했을 때의 단순 수익률입니다.",
-            "mfe_20d": "Maximum Favorable Excursion. Entry 이후 20거래일 동안 경험한 최대 유리한 가격 이동입니다. 높을수록 진입 후 위로 열렸던 공간이 큽니다.",
+            "mfe_20d": "Maximum Favorable Excursion. Entry 이후 20거래일 동안 경험한 최대 유리한 가격 이동입니다. 높을수록 진입 후 위로 열린 공간이 큽니다.",
             "mae_20d": "Maximum Adverse Excursion. Entry 이후 20거래일 동안 경험한 최대 불리한 가격 이동입니다. 더 음수일수록 진입 후 아래로 많이 흔들렸다는 뜻입니다.",
-            "skipped_stop_broken": "Entry open이 initial stop 이하라서 진입하지 않은 거래 수입니다. 롱 전략에서는 이미 손절선이 깨진 상태이므로 제외합니다."
+            "skipped_stop_broken": "Entry open이 initial stop 이하라서 진입하지 않은 거래 수입니다. 롱 전략에서는 이미 손절선이 깨진 상태이므로 제외합니다.",
         },
         "signal_rules": [
             {"key": r.key, "label": r.label, "description": r.description, "params": r.params}
