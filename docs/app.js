@@ -10,20 +10,26 @@ const numberFields = new Set([
   "r63", "r126", "er63", "te63", "te126", "score", "surge_ratio", "atr20_pct",
   "low10", "low20", "suggested_stop", "stop_distance_pct",
   "signal_streak_trading_days", "signal_streak_calendar_days",
-  "trades", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown",
+  "trades", "signals", "skipped_stop_broken", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown",
   "avg_holding_days", "profit_factor", "stop_hit_rate", "max_hold_exit_rate",
-  "net_return", "gross_return", "holding_days"
+  "net_return", "gross_return", "holding_days",
+  "avg_fwd_1d", "avg_fwd_3d", "avg_fwd_5d", "avg_fwd_10d", "avg_fwd_20d",
+  "median_fwd_1d", "median_fwd_3d", "median_fwd_5d", "median_fwd_10d", "median_fwd_20d",
+  "win_rate_1d", "win_rate_3d", "win_rate_5d", "win_rate_10d", "win_rate_20d",
+  "avg_mfe_20d", "median_mfe_20d", "avg_mae_20d", "median_mae_20d"
 ]);
 
 const heatmapFields = new Set([
   "aum", "dollar_vol_rank", "r63", "r126", "er63", "te63", "te126", "score",
-  "surge_ratio", "atr20_pct", "suggested_stop", "stop_distance_pct",
-  "signal_streak_trading_days", "trades", "win_rate", "avg_return", "median_return",
-  "total_return", "max_drawdown", "profit_factor", "stop_hit_rate", "net_return"
+  "surge_ratio", "atr20_pct", "suggested_stop", "stop_distance_pct", "signal_streak_trading_days",
+  "trades", "signals", "skipped_stop_broken", "win_rate", "avg_return", "median_return", "total_return",
+  "max_drawdown", "profit_factor", "stop_hit_rate", "net_return",
+  "avg_fwd_1d", "avg_fwd_3d", "avg_fwd_5d", "avg_fwd_10d", "avg_fwd_20d",
+  "median_fwd_20d", "win_rate_20d", "avg_mfe_20d", "avg_mae_20d"
 ]);
 
 const lowerIsBetterFields = new Set([
-  "dollar_vol_rank", "atr20_pct", "stop_distance_pct", "max_drawdown", "stop_hit_rate"
+  "dollar_vol_rank", "atr20_pct", "stop_distance_pct", "max_drawdown", "stop_hit_rate", "skipped_stop_broken", "avg_mae_20d"
 ]);
 
 const displayNames = {
@@ -53,9 +59,12 @@ const displayNames = {
   suggested_stop: "Suggested Stop",
   stop_distance_pct: "Stop Dist.",
   strategy_label: "Strategy",
+  signal_label: "Signal",
   entry_label: "Entry",
   exit_label: "Exit",
   trades: "Trades",
+  signals: "Signals",
+  skipped_stop_broken: "Skipped",
   win_rate: "Win Rate",
   avg_return: "Avg Ret",
   median_return: "Median Ret",
@@ -71,7 +80,16 @@ const displayNames = {
   exit_reason: "Exit Reason",
   net_return: "Net Ret",
   gross_return: "Gross Ret",
-  holding_days: "Days"
+  holding_days: "Days",
+  avg_fwd_1d: "Avg Fwd 1D",
+  avg_fwd_3d: "Avg Fwd 3D",
+  avg_fwd_5d: "Avg Fwd 5D",
+  avg_fwd_10d: "Avg Fwd 10D",
+  avg_fwd_20d: "Avg Fwd 20D",
+  median_fwd_20d: "Median Fwd 20D",
+  win_rate_20d: "Win 20D",
+  avg_mfe_20d: "Avg MFE20",
+  avg_mae_20d: "Avg MAE20"
 };
 
 const presets = {
@@ -91,24 +109,20 @@ function normalizeGroupName(value) {
 function buildGroupFilterOptions() {
   const select = document.getElementById("groupFilter");
   if (!select) return;
-
   const currentValue = select.value || "All";
   const groups = [...new Set(rows.map(r => getGroup(r)).filter(Boolean))]
     .sort((a, b) => String(a).localeCompare(String(b)));
-
   select.innerHTML = "";
   const allOption = document.createElement("option");
   allOption.value = "All";
   allOption.textContent = "All";
   select.appendChild(allOption);
-
   for (const group of groups) {
     const opt = document.createElement("option");
     opt.value = group;
     opt.textContent = group;
     select.appendChild(opt);
   }
-
   select.value = groups.includes(currentValue) ? currentValue : "All";
 }
 
@@ -142,22 +156,19 @@ function fmt(key, value) {
   if ([
     "r63", "r126", "er63", "te63", "te126", "score", "surge_ratio", "atr20_pct",
     "stop_distance_pct", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown",
-    "stop_hit_rate", "max_hold_exit_rate", "net_return", "gross_return"
+    "stop_hit_rate", "max_hold_exit_rate", "net_return", "gross_return",
+    "avg_fwd_1d", "avg_fwd_3d", "avg_fwd_5d", "avg_fwd_10d", "avg_fwd_20d",
+    "median_fwd_1d", "median_fwd_3d", "median_fwd_5d", "median_fwd_10d", "median_fwd_20d",
+    "win_rate_1d", "win_rate_3d", "win_rate_5d", "win_rate_10d", "win_rate_20d",
+    "avg_mfe_20d", "median_mfe_20d", "avg_mae_20d", "median_mae_20d"
   ].includes(key)) {
     return Number(value).toFixed(3);
   }
 
-  if (key === "profit_factor") return Number(value).toFixed(2);
-
-  if (["close", "low10", "low20", "suggested_stop", "entry_price", "exit_price"].includes(key)) {
-    return Number(value).toFixed(2);
-  }
-
-  if (["dollar_vol_rank", "signal_streak_trading_days", "signal_streak_calendar_days", "trades", "holding_days"].includes(key)) {
-    return Math.round(Number(value));
-  }
-
-  if (key === "avg_holding_days") return Number(value).toFixed(1);
+  if (["profit_factor"].includes(key)) return Number(value).toFixed(2);
+  if (["close", "low10", "low20", "suggested_stop", "entry_price", "exit_price"].includes(key)) return Number(value).toFixed(2);
+  if (["dollar_vol_rank", "signal_streak_trading_days", "signal_streak_calendar_days", "trades", "signals", "skipped_stop_broken", "holding_days"].includes(key)) return Math.round(Number(value));
+  if (["avg_holding_days"].includes(key)) return Number(value).toFixed(1);
   if (key === "signal_surge_v0") return value ? "TRUE" : "";
   if (key === "is_first_signal_today") return value ? "NEW" : "";
   return value;
@@ -179,7 +190,6 @@ function getFilters() {
 function applyFilters(data) {
   const f = getFilters();
   const selectedGroup = normalizeGroupName(f.groupFilter);
-
   return data.filter(r => {
     const rowGroup = normalizeGroupName(getGroup(r));
     if (selectedGroup !== "all" && rowGroup !== selectedGroup) return false;
@@ -298,7 +308,6 @@ function renderTable(tableSelector, data, keys, options = {}) {
   const sorted = sortRows(data);
   const heatmapStats = buildHeatmapStats(sorted, keys);
   tbody.innerHTML = "";
-
   for (const row of sorted) {
     const tr = document.createElement("tr");
     if (row.signal_surge_v0) tr.classList.add("signal");
@@ -327,22 +336,39 @@ function renderActiveSignals() {
     `As of ${payload.as_of} | active signals ${rendered.length} | new today ${newSignals} | sorted by ${getSortLabel()}`;
 }
 
+function renderDiagnosticDefinitions() {
+  const box = document.getElementById("diagnosticDefs");
+  if (!box || !backtestPayload?.diagnostic_definitions) return;
+  const d = backtestPayload.diagnostic_definitions;
+  box.innerHTML = `
+    <strong>Diagnostic definitions:</strong>
+    <span><b>Fwd Nd</b> = ${d.fwd_Nd || "N-day forward return from entry."}</span>
+    <span><b>MFE20</b> = ${d.mfe_20d || "Maximum favorable excursion over 20 trading days."}</span>
+    <span><b>MAE20</b> = ${d.mae_20d || "Maximum adverse excursion over 20 trading days."}</span>
+    <span><b>Skipped</b> = ${d.skipped_stop_broken || "Skipped trades where entry open was already below the initial stop."}</span>
+  `;
+}
+
 function renderBacktest() {
-  const summaryKeys = ["strategy_label", "entry_label", "exit_label", "trades", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown", "avg_holding_days", "profit_factor", "stop_hit_rate", "max_hold_exit_rate"];
-  const tradeKeys = ["strategy_label", "entry_label", "exit_label", "symbol", "name", "asset_group", "entry_signal_date", "entry_date", "entry_price", "exit_date", "exit_price", "net_return", "holding_days", "exit_reason"];
+  const summaryKeys = ["strategy_label", "signal_label", "entry_label", "exit_label", "trades", "skipped_stop_broken", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown", "avg_holding_days", "profit_factor", "stop_hit_rate", "max_hold_exit_rate"];
+  const diagnosticKeys = ["signal_label", "entry_label", "signals", "avg_fwd_1d", "avg_fwd_3d", "avg_fwd_5d", "avg_fwd_10d", "avg_fwd_20d", "median_fwd_20d", "win_rate_20d", "avg_mfe_20d", "avg_mae_20d"];
+  const tradeKeys = ["strategy_label", "signal_label", "entry_label", "exit_label", "symbol", "name", "asset_group", "entry_signal_date", "entry_date", "entry_price", "exit_date", "exit_price", "net_return", "holding_days", "exit_reason"];
 
   const summary = backtestPayload?.summary || [];
+  const diagnostics = backtestPayload?.diagnostic_summary || [];
   const recentTrades = backtestPayload?.recent_trades || [];
   renderTable("#backtestSummaryTable", summary, summaryKeys);
+  renderTable("#signalDiagnosticsTable", diagnostics, diagnosticKeys);
   renderTable("#backtestTradesTable", recentTrades, tradeKeys);
+  renderDiagnosticDefinitions();
 
   const meta = document.getElementById("backtestMeta");
   if (meta && backtestPayload) {
-    meta.textContent = `As of ${backtestPayload.as_of} | signal: ${backtestPayload.signal_column} | cost: ${(backtestPayload.round_trip_cost * 100).toFixed(2)}% round trip | max hold: ${backtestPayload.max_holding_days} trading days | signal FALSE exit: disabled`;
+    meta.textContent = `As of ${backtestPayload.as_of} | cost: ${(backtestPayload.round_trip_cost * 100).toFixed(2)}% round trip | max hold: ${backtestPayload.max_holding_days} trading days | signal FALSE exit: disabled`;
   }
 
   document.getElementById("meta").textContent =
-    `Backtest as of ${backtestPayload?.as_of || payload.as_of} | strategies ${summary.length} | recent trades ${recentTrades.length} | sorted by ${getSortLabel()}`;
+    `Backtest as of ${backtestPayload?.as_of || payload.as_of} | strategies ${summary.length} | diagnostics ${diagnostics.length} | recent trades ${recentTrades.length} | sorted by ${getSortLabel()}`;
 }
 
 function render() {
@@ -357,7 +383,6 @@ function setActiveTab(tabName) {
   activeTab = tabName;
   document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tabName));
   document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
-
   if (tabName === "activeSignals") {
     document.getElementById("activeSignalsPanel").classList.add("active");
     sortKey = "signal_streak_trading_days";
@@ -378,14 +403,12 @@ async function init() {
   const res = await fetch("data/latest.json", { cache: "no-store" });
   payload = await res.json();
   rows = payload.rows || [];
-
   try {
     const backtestRes = await fetch("data/backtest_summary.json", { cache: "no-store" });
     if (backtestRes.ok) backtestPayload = await backtestRes.json();
   } catch (err) {
-    backtestPayload = { as_of: payload.as_of, summary: [], recent_trades: [] };
+    backtestPayload = { as_of: payload.as_of, summary: [], diagnostic_summary: [], recent_trades: [] };
   }
-
   buildGroupFilterOptions();
   applyPreset("basic");
   render();
@@ -419,7 +442,6 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   const groupFilter = document.getElementById("groupFilter");
   if (groupFilter) groupFilter.value = "All";
   applyPreset("basic");
-
   if (activeTab === "activeSignals") sortKey = "signal_streak_trading_days";
   else if (activeTab === "backtest") sortKey = "avg_return";
   else sortKey = "score";
