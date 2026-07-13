@@ -45,6 +45,14 @@ def compute_symbol_features(g: pd.DataFrame) -> pd.DataFrame:
     g["atr20"] = tr.rolling(20).mean()
     g["atr20_pct"] = _safe_div(g["atr20"], c)
 
+    # Practical stop-line helpers.
+    # These are intended for broker-side price alerts / stop management,
+    # because custom indicators like TE63 or ER63 are hard to automate in most HTS apps.
+    g["low10"] = l.rolling(10).min()
+    g["low20"] = l.rolling(20).min()
+    g["suggested_stop"] = g["low20"]
+    g["stop_distance_pct"] = _safe_div(g["suggested_stop"], c) - 1
+
     return g
 
 
