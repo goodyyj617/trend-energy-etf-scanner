@@ -1,4 +1,5 @@
 let payload = null;
+let backtestPayload = null;
 let rows = [];
 let activeTab = "scanner";
 let sortKey = "score";
@@ -8,6 +9,8 @@ const numberFields = new Set([
   "aum",
   "dollar_vol_rank",
   "close",
+  "entry_price",
+  "exit_price",
   "r63",
   "r126",
   "er63",
@@ -21,7 +24,21 @@ const numberFields = new Set([
   "suggested_stop",
   "stop_distance_pct",
   "signal_streak_trading_days",
-  "signal_streak_calendar_days"
+  "signal_streak_calendar_days",
+  "trades",
+  "win_rate",
+  "avg_return",
+  "median_return",
+  "total_return",
+  "max_drawdown",
+  "avg_holding_days",
+  "profit_factor",
+  "stop_hit_rate",
+  "signal_false_exit_rate",
+  "max_hold_exit_rate",
+  "net_return",
+  "gross_return",
+  "holding_days"
 ]);
 
 const heatmapFields = new Set([
@@ -37,13 +54,24 @@ const heatmapFields = new Set([
   "atr20_pct",
   "suggested_stop",
   "stop_distance_pct",
-  "signal_streak_trading_days"
+  "signal_streak_trading_days",
+  "trades",
+  "win_rate",
+  "avg_return",
+  "median_return",
+  "total_return",
+  "max_drawdown",
+  "profit_factor",
+  "stop_hit_rate",
+  "net_return"
 ]);
 
 const lowerIsBetterFields = new Set([
   "dollar_vol_rank",
   "atr20_pct",
-  "stop_distance_pct"
+  "stop_distance_pct",
+  "max_drawdown",
+  "stop_hit_rate"
 ]);
 
 const displayNames = {
@@ -55,6 +83,8 @@ const displayNames = {
   aum: "AUM",
   dollar_vol_rank: "DV Rank",
   close: "Close",
+  entry_price: "Entry",
+  exit_price: "Exit",
   r63: "R63",
   r126: "R126",
   er63: "ER63",
@@ -69,46 +99,36 @@ const displayNames = {
   signal_streak_calendar_days: "Calendar Days",
   is_first_signal_today: "New?",
   suggested_stop: "Suggested Stop",
-  stop_distance_pct: "Stop Dist."
+  stop_distance_pct: "Stop Dist.",
+  rule_label: "Stop Rule",
+  trades: "Trades",
+  win_rate: "Win Rate",
+  avg_return: "Avg Ret",
+  median_return: "Median Ret",
+  total_return: "Total Ret",
+  max_drawdown: "Max DD",
+  avg_holding_days: "Avg Days",
+  profit_factor: "Profit Factor",
+  stop_hit_rate: "Stop Hit",
+  signal_false_exit_rate: "Signal Exit",
+  max_hold_exit_rate: "Max Hold Exit",
+  entry_signal_date: "Signal Date",
+  entry_date: "Entry Date",
+  exit_date: "Exit Date",
+  exit_reason: "Exit Reason",
+  net_return: "Net Ret",
+  gross_return: "Gross Ret",
+  holding_days: "Days"
 };
 
 const presets = {
-  exploratory: {
-    label: "탐색형",
-    minR63: 0.00,
-    minER63: 0.15,
-    minSurge: 1.00,
-    maxATR: 0.08,
-    maxDollarRank: 500
-  },
-  basic: {
-    label: "기본형",
-    minR63: 0.03,
-    minER63: 0.20,
-    minSurge: 1.10,
-    maxATR: 0.06,
-    maxDollarRank: 500
-  },
-  strict: {
-    label: "엄격형",
-    minR63: 0.05,
-    minER63: 0.25,
-    minSurge: 1.25,
-    maxATR: 0.05,
-    maxDollarRank: 500
-  }
+  exploratory: { label: "탐색형", minR63: 0.00, minER63: 0.15, minSurge: 1.00, maxATR: 0.08, maxDollarRank: 500 },
+  basic: { label: "기본형", minR63: 0.03, minER63: 0.20, minSurge: 1.10, maxATR: 0.06, maxDollarRank: 500 },
+  strict: { label: "엄격형", minR63: 0.05, minER63: 0.25, minSurge: 1.25, maxATR: 0.05, maxDollarRank: 500 }
 };
 
 function getGroup(row) {
-  return (
-    row.group ||
-    row.Group ||
-    row.asset_group ||
-    row.assetGroup ||
-    row.AssetGroup ||
-    row["Asset Group"] ||
-    "unknown"
-  );
+  return row.group || row.Group || row.asset_group || row.assetGroup || row.AssetGroup || row["Asset Group"] || "unknown";
 }
 
 function normalizeGroupName(value) {
@@ -120,12 +140,10 @@ function buildGroupFilterOptions() {
   if (!select) return;
 
   const currentValue = select.value || "All";
-
   const groups = [...new Set(rows.map(r => getGroup(r)).filter(Boolean))]
     .sort((a, b) => String(a).localeCompare(String(b)));
 
   select.innerHTML = "";
-
   const allOption = document.createElement("option");
   allOption.value = "All";
   allOption.textContent = "All";
@@ -149,7 +167,6 @@ function setInputValue(id, value) {
 function applyPreset(presetKey) {
   const preset = presets[presetKey];
   if (!preset) return;
-
   setInputValue("minR63", preset.minR63.toFixed(2));
   setInputValue("minER63", preset.minER63.toFixed(2));
   setInputValue("minSurge", preset.minSurge.toFixed(2));
@@ -166,51 +183,35 @@ function fmt(key, value) {
   if (value === null || value === undefined || Number.isNaN(value)) return "";
 
   if (key === "aum") {
-    return Intl.NumberFormat("en", {
-      notation: "compact",
-      maximumFractionDigits: 1
-    }).format(value);
+    return Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
   }
 
   if ([
-    "r63",
-    "r126",
-    "er63",
-    "te63",
-    "te126",
-    "score",
-    "surge_ratio",
-    "atr20_pct",
-    "stop_distance_pct"
+    "r63", "r126", "er63", "te63", "te126", "score", "surge_ratio", "atr20_pct",
+    "stop_distance_pct", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown",
+    "stop_hit_rate", "signal_false_exit_rate", "max_hold_exit_rate", "net_return", "gross_return"
   ].includes(key)) {
     return Number(value).toFixed(3);
   }
 
-  if ([
-    "close",
-    "low10",
-    "low20",
-    "suggested_stop"
-  ].includes(key)) {
+  if (["profit_factor"].includes(key)) {
     return Number(value).toFixed(2);
   }
 
-  if ([
-    "dollar_vol_rank",
-    "signal_streak_trading_days",
-    "signal_streak_calendar_days"
-  ].includes(key)) {
+  if (["close", "low10", "low20", "suggested_stop", "entry_price", "exit_price"].includes(key)) {
+    return Number(value).toFixed(2);
+  }
+
+  if (["dollar_vol_rank", "signal_streak_trading_days", "signal_streak_calendar_days", "trades", "holding_days"].includes(key)) {
     return Math.round(Number(value));
   }
 
-  if (key === "signal_surge_v0") {
-    return value ? "TRUE" : "";
+  if (["avg_holding_days"].includes(key)) {
+    return Number(value).toFixed(1);
   }
 
-  if (key === "is_first_signal_today") {
-    return value ? "NEW" : "";
-  }
-
+  if (key === "signal_surge_v0") return value ? "TRUE" : "";
+  if (key === "is_first_signal_today") return value ? "NEW" : "";
   return value;
 }
 
@@ -233,9 +234,7 @@ function applyFilters(data) {
 
   return data.filter(r => {
     const rowGroup = normalizeGroupName(getGroup(r));
-
     if (selectedGroup !== "all" && rowGroup !== selectedGroup) return false;
-
     if (f.eligibleOnly && !r.eligible_universe) return false;
     if (f.signalOnly && !r.signal_surge_v0) return false;
     if ((r.r63 ?? -999) < f.minR63) return false;
@@ -243,7 +242,6 @@ function applyFilters(data) {
     if ((r.surge_ratio ?? -999) < f.minSurge) return false;
     if ((r.atr20_pct ?? 999) > f.maxATR) return false;
     if ((r.dollar_vol_rank ?? 999999) > f.maxDollarRank) return false;
-
     return true;
   });
 }
@@ -253,10 +251,7 @@ function getActiveSignals(data) {
 }
 
 function getSortValue(row, key) {
-  if (key === "asset_group" || key === "group" || key === "Group") {
-    return getGroup(row);
-  }
-
+  if (key === "asset_group" || key === "group" || key === "Group") return getGroup(row);
   return row[key];
 }
 
@@ -264,15 +259,8 @@ function sortRows(data) {
   return [...data].sort((a, b) => {
     const av = getSortValue(a, sortKey);
     const bv = getSortValue(b, sortKey);
-
-    if (numberFields.has(sortKey)) {
-      return ((av ?? -Infinity) - (bv ?? -Infinity)) * sortDir;
-    }
-
-    if (sortKey === "signal_surge_v0" || sortKey === "is_first_signal_today") {
-      return ((av ? 1 : 0) - (bv ? 1 : 0)) * sortDir;
-    }
-
+    if (numberFields.has(sortKey)) return ((av ?? -Infinity) - (bv ?? -Infinity)) * sortDir;
+    if (sortKey === "signal_surge_v0" || sortKey === "is_first_signal_today") return ((av ? 1 : 0) - (bv ? 1 : 0)) * sortDir;
     return String(av ?? "").localeCompare(String(bv ?? "")) * sortDir;
   });
 }
@@ -285,13 +273,9 @@ function getSortLabel() {
 
 function updateHeaderSortIndicators() {
   document.querySelectorAll("th[data-key]").forEach(th => {
-    if (!th.dataset.label) {
-      th.dataset.label = th.textContent.trim();
-    }
-
+    if (!th.dataset.label) th.dataset.label = th.textContent.trim();
     const key = th.dataset.key;
     const baseLabel = th.dataset.label;
-
     if (key === sortKey) {
       th.textContent = `${baseLabel} ${sortDir === -1 ? "↓" : "↑"}`;
       th.classList.add("sorted");
@@ -303,85 +287,50 @@ function updateHeaderSortIndicators() {
 }
 
 function getFiniteValues(data, key) {
-  return data
-    .map(row => Number(getSortValue(row, key)))
-    .filter(value => Number.isFinite(value));
+  return data.map(row => Number(getSortValue(row, key))).filter(value => Number.isFinite(value));
 }
 
 function buildHeatmapStats(data, keys) {
   const stats = {};
-
   for (const key of keys) {
     if (!heatmapFields.has(key)) continue;
-
     const values = getFiniteValues(data, key);
     if (!values.length) continue;
-
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-
-    stats[key] = { min, max };
+    stats[key] = { min: Math.min(...values), max: Math.max(...values) };
   }
-
   return stats;
 }
 
 function getHeatIntensity(value, key, stats) {
   if (!stats[key]) return 0;
-
   const num = Number(value);
   if (!Number.isFinite(num)) return 0;
-
   const { min, max } = stats[key];
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) {
-    return 0.25;
-  }
-
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) return 0.25;
   let normalized = (num - min) / (max - min);
   normalized = Math.max(0, Math.min(1, normalized));
-
-  if (lowerIsBetterFields.has(key)) {
-    normalized = 1 - normalized;
-  }
-
+  if (lowerIsBetterFields.has(key)) normalized = 1 - normalized;
   return normalized;
 }
 
 function applyHeatmapStyle(td, key, value, stats) {
   if (!heatmapFields.has(key)) return;
-
   const intensity = getHeatIntensity(value, key, stats);
-
   td.classList.add("heatmap-cell");
   td.style.setProperty("--heat", intensity.toFixed(3));
 }
 
 function addCell(tr, row, key, heatmapStats) {
   const td = document.createElement("td");
-
-  if (key === "asset_group") {
-    td.textContent = getGroup(row);
-  } else {
-    td.textContent = fmt(key, row[key]);
-  }
-
-  if (key === "symbol") {
-    td.classList.add("ticker");
-  }
-
-  if (key === "signal_surge_v0" && row.signal_surge_v0) {
-    td.classList.add("signal-badge");
-  }
-
-  if (key === "is_first_signal_today" && row.is_first_signal_today) {
-    td.classList.add("new-badge");
-  }
-
+  td.textContent = key === "asset_group" ? getGroup(row) : fmt(key, row[key]);
+  if (key === "symbol") td.classList.add("ticker");
+  if (key === "signal_surge_v0" && row.signal_surge_v0) td.classList.add("signal-badge");
+  if (key === "is_first_signal_today" && row.is_first_signal_today) td.classList.add("new-badge");
+  if (key === "exit_reason") td.classList.add(`exit-${String(row[key] || "").replaceAll("_", "-")}`);
   if (numberFields.has(key)) {
     td.classList.add("numeric");
     applyHeatmapStyle(td, key, row[key], heatmapStats);
   }
-
   tr.appendChild(td);
 }
 
@@ -395,119 +344,85 @@ function addLinksCell(tr, row) {
   tr.appendChild(linkTd);
 }
 
-function renderTable(tableSelector, data, keys) {
+function renderTable(tableSelector, data, keys, options = {}) {
   const tbody = document.querySelector(`${tableSelector} tbody`);
-  if (!tbody) return;
-
+  if (!tbody) return [];
   const sorted = sortRows(data);
   const heatmapStats = buildHeatmapStats(sorted, keys);
-
   tbody.innerHTML = "";
 
   for (const row of sorted) {
     const tr = document.createElement("tr");
-
-    if (row.signal_surge_v0) {
-      tr.classList.add("signal");
-    }
-
-    for (const key of keys) {
-      addCell(tr, row, key, heatmapStats);
-    }
-
-    addLinksCell(tr, row);
+    if (row.signal_surge_v0) tr.classList.add("signal");
+    for (const key of keys) addCell(tr, row, key, heatmapStats);
+    if (options.links) addLinksCell(tr, row);
     tbody.appendChild(tr);
   }
-
   return sorted;
 }
 
 function renderScanner() {
-  const keys = [
-    "symbol",
-    "name",
-    "asset_group",
-    "aum",
-    "dollar_vol_rank",
-    "close",
-    "r63",
-    "r126",
-    "er63",
-    "te63",
-    "te126",
-    "score",
-    "surge_ratio",
-    "atr20_pct",
-    "signal_surge_v0"
-  ];
-
+  const keys = ["symbol", "name", "asset_group", "aum", "dollar_vol_rank", "close", "r63", "r126", "er63", "te63", "te126", "score", "surge_ratio", "atr20_pct", "signal_surge_v0"];
   const filtered = applyFilters(rows);
-  const rendered = renderTable("#scannerTable", filtered, keys) || [];
+  const rendered = renderTable("#scannerTable", filtered, keys, { links: true }) || [];
   const filteredSignals = rendered.filter(r => r.signal_surge_v0).length;
-
   document.getElementById("meta").textContent =
     `As of ${payload.as_of} | rows ${payload.row_count} | eligible ${payload.eligible_count} | filtered ${rendered.length} | signals ${filteredSignals} | sorted by ${getSortLabel()}`;
 }
 
 function renderActiveSignals() {
-  const keys = [
-    "symbol",
-    "name",
-    "asset_group",
-    "signal_streak_start_date",
-    "signal_streak_trading_days",
-    "signal_streak_calendar_days",
-    "is_first_signal_today",
-    "close",
-    "suggested_stop",
-    "stop_distance_pct",
-    "r63",
-    "er63",
-    "score",
-    "surge_ratio"
-  ];
-
+  const keys = ["symbol", "name", "asset_group", "signal_streak_start_date", "signal_streak_trading_days", "signal_streak_calendar_days", "is_first_signal_today", "close", "suggested_stop", "stop_distance_pct", "r63", "er63", "score", "surge_ratio"];
   const activeSignals = getActiveSignals(rows);
-  const rendered = renderTable("#activeSignalsTable", activeSignals, keys) || [];
+  const rendered = renderTable("#activeSignalsTable", activeSignals, keys, { links: true }) || [];
   const newSignals = rendered.filter(r => r.is_first_signal_today).length;
-
   document.getElementById("meta").textContent =
     `As of ${payload.as_of} | active signals ${rendered.length} | new today ${newSignals} | sorted by ${getSortLabel()}`;
 }
 
-function render() {
-  if (!payload) return;
+function renderBacktest() {
+  const summaryKeys = ["rule_label", "trades", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown", "avg_holding_days", "profit_factor", "stop_hit_rate", "signal_false_exit_rate"];
+  const tradeKeys = ["rule_label", "symbol", "name", "asset_group", "entry_signal_date", "entry_date", "entry_price", "exit_date", "exit_price", "net_return", "holding_days", "exit_reason"];
 
-  if (activeTab === "activeSignals") {
-    renderActiveSignals();
-  } else {
-    renderScanner();
+  const summary = backtestPayload?.summary || [];
+  const recentTrades = backtestPayload?.recent_trades || [];
+  renderTable("#backtestSummaryTable", summary, summaryKeys);
+  renderTable("#backtestTradesTable", recentTrades, tradeKeys);
+
+  const meta = document.getElementById("backtestMeta");
+  if (meta && backtestPayload) {
+    meta.textContent = `As of ${backtestPayload.as_of} | signal: ${backtestPayload.signal_column} | cost: ${(backtestPayload.round_trip_cost * 100).toFixed(2)}% round trip | max hold: ${backtestPayload.max_holding_days} trading days`;
   }
 
+  document.getElementById("meta").textContent =
+    `Backtest as of ${backtestPayload?.as_of || payload.as_of} | rules ${summary.length} | recent trades ${recentTrades.length} | sorted by ${getSortLabel()}`;
+}
+
+function render() {
+  if (!payload) return;
+  if (activeTab === "activeSignals") renderActiveSignals();
+  else if (activeTab === "backtest") renderBacktest();
+  else renderScanner();
   updateHeaderSortIndicators();
 }
 
 function setActiveTab(tabName) {
   activeTab = tabName;
-
-  document.querySelectorAll(".tab-btn").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.tab === tabName);
-  });
-
-  document.querySelectorAll(".tab-panel").forEach(panel => {
-    panel.classList.remove("active");
-  });
+  document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tabName));
+  document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
 
   if (tabName === "activeSignals") {
     document.getElementById("activeSignalsPanel").classList.add("active");
     sortKey = "signal_streak_trading_days";
+    sortDir = -1;
+  } else if (tabName === "backtest") {
+    document.getElementById("backtestPanel").classList.add("active");
+    sortKey = "avg_return";
     sortDir = -1;
   } else {
     document.getElementById("scannerPanel").classList.add("active");
     sortKey = "score";
     sortDir = -1;
   }
-
   render();
 }
 
@@ -516,34 +431,31 @@ async function init() {
   payload = await res.json();
   rows = payload.rows || [];
 
+  try {
+    const backtestRes = await fetch("data/backtest_summary.json", { cache: "no-store" });
+    if (backtestRes.ok) backtestPayload = await backtestRes.json();
+  } catch (err) {
+    backtestPayload = { as_of: payload.as_of, summary: [], recent_trades: [] };
+  }
+
   buildGroupFilterOptions();
   applyPreset("basic");
   render();
 }
 
 document.querySelectorAll(".tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    setActiveTab(btn.dataset.tab);
-  });
+  btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
 });
 
 document.getElementById("presetFilter").addEventListener("change", event => {
   const presetKey = event.target.value;
-  if (presetKey !== "custom") {
-    applyPreset(presetKey);
-  }
+  if (presetKey !== "custom") applyPreset(presetKey);
   render();
 });
 
 document.querySelectorAll("input[type='number']").forEach(el => {
-  el.addEventListener("input", () => {
-    markCustomPreset();
-    render();
-  });
-  el.addEventListener("change", () => {
-    markCustomPreset();
-    render();
-  });
+  el.addEventListener("input", () => { markCustomPreset(); render(); });
+  el.addEventListener("change", () => { markCustomPreset(); render(); });
 });
 
 document.querySelectorAll("input[type='checkbox'], select:not(#presetFilter)").forEach(el => {
@@ -554,39 +466,32 @@ document.querySelectorAll("input[type='checkbox'], select:not(#presetFilter)").f
 document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById("eligibleOnly").checked = true;
   document.getElementById("signalOnly").checked = false;
-
   const presetFilter = document.getElementById("presetFilter");
   if (presetFilter) presetFilter.value = "basic";
-
   const groupFilter = document.getElementById("groupFilter");
   if (groupFilter) groupFilter.value = "All";
-
   applyPreset("basic");
 
-  sortKey = activeTab === "activeSignals" ? "signal_streak_trading_days" : "score";
+  if (activeTab === "activeSignals") sortKey = "signal_streak_trading_days";
+  else if (activeTab === "backtest") sortKey = "avg_return";
+  else sortKey = "score";
   sortDir = -1;
-
   render();
 });
 
 document.querySelectorAll("th[data-key]").forEach(th => {
   th.dataset.label = th.textContent.trim();
-
   th.addEventListener("click", () => {
     const key = th.dataset.key;
-
-    if (sortKey === key) {
-      sortDir *= -1;
-    } else {
+    if (sortKey === key) sortDir *= -1;
+    else {
       sortKey = key;
       sortDir = numberFields.has(key) || key === "signal_surge_v0" || key === "is_first_signal_today" ? -1 : 1;
     }
-
     render();
   });
 });
 
 init().catch(err => {
-  document.getElementById("meta").textContent =
-    `Failed to load data/latest.json: ${err}`;
+  document.getElementById("meta").textContent = `Failed to load data/latest.json: ${err}`;
 });
