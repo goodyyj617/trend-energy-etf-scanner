@@ -47,8 +47,8 @@
 
     <button id="resetBtn">Reset</button>
     <a href="data/latest.csv" download>Download CSV</a>
-    <a href="data/backtest_trades.csv" download>Download Backtest Trades</a>
-    <a href="data/signal_diagnostics.csv" download>Download Signal Diagnostics</a>
+    <a href="data/backtest_recent_trades.csv" download>Download Recent Trades</a>
+    <a href="data/signal_diagnostics_summary.csv" download>Download Diagnostics Summary</a>
   </section>
 
   <section class="preset-help">
@@ -125,7 +125,7 @@
     <section class="active-help">
       <strong>Backtest:</strong>
       Signal은 진입 후보/트리거로만 사용하고, 청산에는 signal FALSE를 사용하지 않습니다.
-      청산은 가격 기반 stop 또는 max holding만 사용합니다.
+      청산은 가격 기반 stop과 max holding cap을 사용합니다. Stop 없는 MaxHold-only 전략은 제외했습니다.
       <p id="backtestMeta" class="sub-meta">Backtest loading...</p>
       <div id="diagnosticDefs" class="definition-box"></div>
     </section>
