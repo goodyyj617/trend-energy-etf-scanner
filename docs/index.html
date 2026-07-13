@@ -15,6 +15,7 @@
   <section class="tabs">
     <button id="scannerTabBtn" class="tab-btn active" data-tab="scanner">Scanner</button>
     <button id="activeSignalsTabBtn" class="tab-btn" data-tab="activeSignals">Active Signals</button>
+    <button id="backtestTabBtn" class="tab-btn" data-tab="backtest">Backtest</button>
   </section>
 
   <section class="controls">
@@ -46,6 +47,7 @@
 
     <button id="resetBtn">Reset</button>
     <a href="data/latest.csv" download>Download CSV</a>
+    <a href="data/backtest_trades.csv" download>Download Backtest Trades</a>
   </section>
 
   <section class="preset-help">
@@ -111,6 +113,61 @@
             <th data-key="score">Score</th>
             <th data-key="surge_ratio">Surge</th>
             <th>Links</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </section>
+
+  <section id="backtestPanel" class="tab-panel">
+    <section class="active-help">
+      <strong>Backtest:</strong>
+      Scanner signal이 새로 TRUE가 된 다음 거래일 open에 진입하고, exit rule별로 청산한 event backtest입니다.
+      Stop은 intraday low로 판정하고, gap down은 open 가격 청산으로 처리합니다.
+      현재 결과는 포트폴리오 비중 제한 없는 signal 품질 검증용입니다.
+      <p id="backtestMeta" class="sub-meta">Backtest loading...</p>
+    </section>
+
+    <section class="table-wrap">
+      <h2>Exit Rule Summary</h2>
+      <table id="backtestSummaryTable">
+        <thead>
+          <tr>
+            <th data-key="rule_label">Stop Rule</th>
+            <th data-key="trades">Trades</th>
+            <th data-key="win_rate">Win Rate</th>
+            <th data-key="avg_return">Avg Ret</th>
+            <th data-key="median_return">Median Ret</th>
+            <th data-key="total_return">Total Ret</th>
+            <th data-key="max_drawdown">Max DD</th>
+            <th data-key="avg_holding_days">Avg Days</th>
+            <th data-key="profit_factor">Profit Factor</th>
+            <th data-key="stop_hit_rate">Stop Hit</th>
+            <th data-key="signal_false_exit_rate">Signal Exit</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="table-wrap">
+      <h2>Recent Trades</h2>
+      <table id="backtestTradesTable">
+        <thead>
+          <tr>
+            <th data-key="rule_label">Rule</th>
+            <th data-key="symbol">Symbol</th>
+            <th data-key="name">Name</th>
+            <th data-key="asset_group">Group</th>
+            <th data-key="entry_signal_date">Signal Date</th>
+            <th data-key="entry_date">Entry Date</th>
+            <th data-key="entry_price">Entry</th>
+            <th data-key="exit_date">Exit Date</th>
+            <th data-key="exit_price">Exit</th>
+            <th data-key="net_return">Net Ret</th>
+            <th data-key="holding_days">Days</th>
+            <th data-key="exit_reason">Exit Reason</th>
           </tr>
         </thead>
         <tbody></tbody>
