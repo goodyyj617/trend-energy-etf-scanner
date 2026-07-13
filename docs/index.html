@@ -131,25 +131,43 @@
     </section>
 
     <section class="table-wrap">
-      <h2>Strategy Summary</h2>
-      <table id="backtestSummaryTable">
+      <h2>Robustness Dashboard</h2>
+      <div class="backtest-controls">
+        <label>
+          Entry
+          <select id="robustEntryFilter">
+            <option value="All">All</option>
+          </select>
+        </label>
+        <label>
+          Metric
+          <select id="robustMetric">
+            <option value="median_fwd_20d" selected>Median Fwd 20D</option>
+            <option value="avg_fwd_20d">Avg Fwd 20D</option>
+            <option value="win_rate_20d">Win 20D</option>
+            <option value="mfe_mae_ratio">MFE / |MAE|</option>
+            <option value="robust_score">Robust Score</option>
+          </select>
+        </label>
+        <label>Min Signals <input type="number" id="robustMinSignals" value="300" step="50" /></label>
+      </div>
+      <div id="robustCards" class="kpi-grid"></div>
+      <table id="robustnessTable">
         <thead>
           <tr>
-            <th data-key="strategy_label">Strategy</th>
-            <th data-key="signal_label">Signal</th>
-            <th data-key="entry_label">Entry</th>
-            <th data-key="exit_label">Exit</th>
-            <th data-key="trades">Trades</th>
-            <th data-key="skipped_stop_broken">Skipped</th>
-            <th data-key="win_rate">Win Rate</th>
-            <th data-key="avg_return">Avg Ret</th>
-            <th data-key="median_return">Median Ret</th>
-            <th data-key="total_return">Total Ret</th>
-            <th data-key="max_drawdown">Max DD</th>
-            <th data-key="avg_holding_days">Avg Days</th>
-            <th data-key="profit_factor">Profit Factor</th>
-            <th data-key="stop_hit_rate">Stop Hit</th>
-            <th data-key="max_hold_exit_rate">Max Hold Exit</th>
+            <th>Signal</th>
+            <th>Entry</th>
+            <th>Lookback</th>
+            <th>R20 Min</th>
+            <th>ER20 Min</th>
+            <th>Signals</th>
+            <th>Avg Fwd20</th>
+            <th>Median Fwd20</th>
+            <th>Win20</th>
+            <th>MFE20</th>
+            <th>MAE20</th>
+            <th>MFE/|MAE|</th>
+            <th>Robust Score</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -173,6 +191,32 @@
             <th data-key="win_rate_20d">Win 20D</th>
             <th data-key="avg_mfe_20d">Avg MFE20</th>
             <th data-key="avg_mae_20d">Avg MAE20</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="table-wrap">
+      <h2>Strategy Summary</h2>
+      <table id="backtestSummaryTable">
+        <thead>
+          <tr>
+            <th data-key="strategy_label">Strategy</th>
+            <th data-key="signal_label">Signal</th>
+            <th data-key="entry_label">Entry</th>
+            <th data-key="exit_label">Exit</th>
+            <th data-key="trades">Trades</th>
+            <th data-key="skipped_stop_broken">Skipped</th>
+            <th data-key="win_rate">Win Rate</th>
+            <th data-key="avg_return">Avg Ret</th>
+            <th data-key="median_return">Median Ret</th>
+            <th data-key="total_return">Total Ret</th>
+            <th data-key="max_drawdown">Max DD</th>
+            <th data-key="avg_holding_days">Avg Days</th>
+            <th data-key="profit_factor">Profit Factor</th>
+            <th data-key="stop_hit_rate">Stop Hit</th>
+            <th data-key="max_hold_exit_rate">Max Hold Exit</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -207,5 +251,6 @@
   </section>
 
   <script src="app.js"></script>
+  <script src="backtest_dashboard.js"></script>
 </body>
 </html>
