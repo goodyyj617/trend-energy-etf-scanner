@@ -134,6 +134,19 @@ input[type="number"]:hover {
   padding-top: 8px;
 }
 
+.definition-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(2, 6, 23, 0.45);
+}
+
+.definition-box span {
+  display: block;
+  margin-top: 4px;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -205,10 +218,6 @@ tr:hover {
 .exit-stop-hit {
   color: #fca5a5;
   font-weight: 700;
-}
-
-.exit-signal-false-next-open {
-  color: #bfdbfe;
 }
 
 .exit-max-holding-days {
