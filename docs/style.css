@@ -1,592 +1,201 @@
-let payload = null;
-let rows = [];
-let activeTab = "scanner";
-let sortKey = "score";
-let sortDir = -1;
-
-const numberFields = new Set([
-  "aum",
-  "dollar_vol_rank",
-  "close",
-  "r63",
-  "r126",
-  "er63",
-  "te63",
-  "te126",
-  "score",
-  "surge_ratio",
-  "atr20_pct",
-  "low10",
-  "low20",
-  "suggested_stop",
-  "stop_distance_pct",
-  "signal_streak_trading_days",
-  "signal_streak_calendar_days"
-]);
-
-const heatmapFields = new Set([
-  "aum",
-  "dollar_vol_rank",
-  "r63",
-  "r126",
-  "er63",
-  "te63",
-  "te126",
-  "score",
-  "surge_ratio",
-  "atr20_pct",
-  "suggested_stop",
-  "stop_distance_pct",
-  "signal_streak_trading_days"
-]);
-
-const lowerIsBetterFields = new Set([
-  "dollar_vol_rank",
-  "atr20_pct",
-  "stop_distance_pct"
-]);
-
-const displayNames = {
-  symbol: "Symbol",
-  name: "Name",
-  asset_group: "Group",
-  group: "Group",
-  Group: "Group",
-  aum: "AUM",
-  dollar_vol_rank: "DV Rank",
-  close: "Close",
-  r63: "R63",
-  r126: "R126",
-  er63: "ER63",
-  te63: "TE63",
-  te126: "TE126",
-  score: "Score",
-  surge_ratio: "Surge",
-  atr20_pct: "ATR20%",
-  signal_surge_v0: "Signal",
-  signal_streak_start_date: "First Signal",
-  signal_streak_trading_days: "Signal Days",
-  signal_streak_calendar_days: "Calendar Days",
-  is_first_signal_today: "New?",
-  suggested_stop: "Suggested Stop",
-  stop_distance_pct: "Stop Dist."
-};
-
-const presets = {
-  exploratory: {
-    label: "탐색형",
-    minR63: 0.00,
-    minER63: 0.15,
-    minSurge: 1.00,
-    maxATR: 0.08,
-    maxDollarRank: 500
-  },
-  basic: {
-    label: "기본형",
-    minR63: 0.03,
-    minER63: 0.20,
-    minSurge: 1.10,
-    maxATR: 0.06,
-    maxDollarRank: 500
-  },
-  strict: {
-    label: "엄격형",
-    minR63: 0.05,
-    minER63: 0.25,
-    minSurge: 1.25,
-    maxATR: 0.05,
-    maxDollarRank: 500
-  }
-};
-
-function getGroup(row) {
-  return (
-    row.group ||
-    row.Group ||
-    row.asset_group ||
-    row.assetGroup ||
-    row.AssetGroup ||
-    row["Asset Group"] ||
-    "unknown"
-  );
+:root {
+  --bg: #0f172a;
+  --panel: #111827;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --border: #334155;
+  --accent: #38bdf8;
+  --good: 34, 197, 94;
+  --signal: 56, 189, 248;
 }
 
-function normalizeGroupName(value) {
-  return String(value || "unknown").trim().toLowerCase();
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
 
-function buildGroupFilterOptions() {
-  const select = document.getElementById("groupFilter");
-  if (!select) return;
-
-  const currentValue = select.value || "All";
-
-  const groups = [...new Set(rows.map(r => getGroup(r)).filter(Boolean))]
-    .sort((a, b) => String(a).localeCompare(String(b)));
-
-  select.innerHTML = "";
-
-  const allOption = document.createElement("option");
-  allOption.value = "All";
-  allOption.textContent = "All";
-  select.appendChild(allOption);
-
-  for (const group of groups) {
-    const opt = document.createElement("option");
-    opt.value = group;
-    opt.textContent = group;
-    select.appendChild(opt);
-  }
-
-  select.value = groups.includes(currentValue) ? currentValue : "All";
+header,
+.tabs,
+.controls,
+.preset-help,
+.active-help,
+.table-wrap {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 16px;
 }
 
-function setInputValue(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.value = value;
+h1 {
+  margin: 8px 0;
 }
 
-function applyPreset(presetKey) {
-  const preset = presets[presetKey];
-  if (!preset) return;
-
-  setInputValue("minR63", preset.minR63.toFixed(2));
-  setInputValue("minER63", preset.minER63.toFixed(2));
-  setInputValue("minSurge", preset.minSurge.toFixed(2));
-  setInputValue("maxATR", preset.maxATR.toFixed(2));
-  setInputValue("maxDollarRank", preset.maxDollarRank);
+#meta {
+  color: var(--muted);
 }
 
-function markCustomPreset() {
-  const presetSelect = document.getElementById("presetFilter");
-  if (presetSelect) presetSelect.value = "custom";
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 0;
 }
 
-function fmt(key, value) {
-  if (value === null || value === undefined || Number.isNaN(value)) return "";
-
-  if (key === "aum") {
-    return Intl.NumberFormat("en", {
-      notation: "compact",
-      maximumFractionDigits: 1
-    }).format(value);
-  }
-
-  if ([
-    "r63",
-    "r126",
-    "er63",
-    "te63",
-    "te126",
-    "score",
-    "surge_ratio",
-    "atr20_pct",
-    "stop_distance_pct"
-  ].includes(key)) {
-    return Number(value).toFixed(3);
-  }
-
-  if ([
-    "close",
-    "low10",
-    "low20",
-    "suggested_stop"
-  ].includes(key)) {
-    return Number(value).toFixed(2);
-  }
-
-  if ([
-    "dollar_vol_rank",
-    "signal_streak_trading_days",
-    "signal_streak_calendar_days"
-  ].includes(key)) {
-    return Math.round(Number(value));
-  }
-
-  if (key === "signal_surge_v0") {
-    return value ? "TRUE" : "";
-  }
-
-  if (key === "is_first_signal_today") {
-    return value ? "NEW" : "";
-  }
-
-  return value;
+.tab-btn {
+  color: var(--text);
+  background: #1e293b;
+  border: 1px solid var(--border);
+  border-radius: 6px 6px 0 0;
+  padding: 8px 12px;
+  cursor: pointer;
 }
 
-function getFilters() {
-  return {
-    eligibleOnly: document.getElementById("eligibleOnly").checked,
-    signalOnly: document.getElementById("signalOnly").checked,
-    groupFilter: document.getElementById("groupFilter")?.value || "All",
-    minR63: Number(document.getElementById("minR63").value),
-    minER63: Number(document.getElementById("minER63").value),
-    minSurge: Number(document.getElementById("minSurge").value),
-    maxATR: Number(document.getElementById("maxATR").value),
-    maxDollarRank: Number(document.getElementById("maxDollarRank").value)
-  };
+.tab-btn.active {
+  color: #020617;
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
 }
 
-function applyFilters(data) {
-  const f = getFilters();
-  const selectedGroup = normalizeGroupName(f.groupFilter);
-
-  return data.filter(r => {
-    const rowGroup = normalizeGroupName(getGroup(r));
-
-    if (selectedGroup !== "all" && rowGroup !== selectedGroup) return false;
-
-    if (f.eligibleOnly && !r.eligible_universe) return false;
-    if (f.signalOnly && !r.signal_surge_v0) return false;
-    if ((r.r63 ?? -999) < f.minR63) return false;
-    if ((r.er63 ?? -999) < f.minER63) return false;
-    if ((r.surge_ratio ?? -999) < f.minSurge) return false;
-    if ((r.atr20_pct ?? 999) > f.maxATR) return false;
-    if ((r.dollar_vol_rank ?? 999999) > f.maxDollarRank) return false;
-
-    return true;
-  });
+.tab-panel {
+  display: none;
 }
 
-function getActiveSignals(data) {
-  return data.filter(r => r.signal_surge_v0);
+.tab-panel.active {
+  display: block;
 }
 
-function getSortValue(row, key) {
-  if (key === "asset_group" || key === "group" || key === "Group") {
-    return getGroup(row);
-  }
-
-  return row[key];
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
-function sortRows(data) {
-  return [...data].sort((a, b) => {
-    const av = getSortValue(a, sortKey);
-    const bv = getSortValue(b, sortKey);
-
-    if (numberFields.has(sortKey)) {
-      return ((av ?? -Infinity) - (bv ?? -Infinity)) * sortDir;
-    }
-
-    if (sortKey === "signal_surge_v0" || sortKey === "is_first_signal_today") {
-      return ((av ? 1 : 0) - (bv ? 1 : 0)) * sortDir;
-    }
-
-    return String(av ?? "").localeCompare(String(bv ?? "")) * sortDir;
-  });
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-function getSortLabel() {
-  const name = displayNames[sortKey] || sortKey;
-  const arrow = sortDir === -1 ? "↓" : "↑";
-  return `${name} ${arrow}`;
+input[type="number"],
+select {
+  background: #020617;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  border-radius: 4px;
 }
 
-function updateHeaderSortIndicators() {
-  document.querySelectorAll("th[data-key]").forEach(th => {
-    if (!th.dataset.label) {
-      th.dataset.label = th.textContent.trim();
-    }
-
-    const key = th.dataset.key;
-    const baseLabel = th.dataset.label;
-
-    if (key === sortKey) {
-      th.textContent = `${baseLabel} ${sortDir === -1 ? "↓" : "↑"}`;
-      th.classList.add("sorted");
-    } else {
-      th.textContent = baseLabel;
-      th.classList.remove("sorted");
-    }
-  });
+input[type="number"] {
+  width: 90px;
 }
 
-function getFiniteValues(data, key) {
-  return data
-    .map(row => Number(getSortValue(row, key)))
-    .filter(value => Number.isFinite(value));
+select {
+  min-width: 120px;
 }
 
-function buildHeatmapStats(data, keys) {
-  const stats = {};
-
-  for (const key of keys) {
-    if (!heatmapFields.has(key)) continue;
-
-    const values = getFiniteValues(data, key);
-    if (!values.length) continue;
-
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-
-    stats[key] = { min, max };
-  }
-
-  return stats;
+button,
+a {
+  color: var(--text);
+  background: #1e293b;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-function getHeatIntensity(value, key, stats) {
-  if (!stats[key]) return 0;
-
-  const num = Number(value);
-  if (!Number.isFinite(num)) return 0;
-
-  const { min, max } = stats[key];
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) {
-    return 0.25;
-  }
-
-  let normalized = (num - min) / (max - min);
-  normalized = Math.max(0, Math.min(1, normalized));
-
-  if (lowerIsBetterFields.has(key)) {
-    normalized = 1 - normalized;
-  }
-
-  return normalized;
+button:hover,
+a:hover,
+select:hover,
+input[type="number"]:hover {
+  border-color: var(--accent);
 }
 
-function applyHeatmapStyle(td, key, value, stats) {
-  if (!heatmapFields.has(key)) return;
-
-  const intensity = getHeatIntensity(value, key, stats);
-
-  td.classList.add("heatmap-cell");
-  td.style.setProperty("--heat", intensity.toFixed(3));
+.preset-help,
+.active-help {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-function addCell(tr, row, key, heatmapStats) {
-  const td = document.createElement("td");
-
-  if (key === "asset_group") {
-    td.textContent = getGroup(row);
-  } else {
-    td.textContent = fmt(key, row[key]);
-  }
-
-  if (key === "symbol") {
-    td.classList.add("ticker");
-  }
-
-  if (key === "signal_surge_v0" && row.signal_surge_v0) {
-    td.classList.add("signal-badge");
-  }
-
-  if (key === "is_first_signal_today" && row.is_first_signal_today) {
-    td.classList.add("new-badge");
-  }
-
-  if (numberFields.has(key)) {
-    td.classList.add("numeric");
-    applyHeatmapStyle(td, key, row[key], heatmapStats);
-  }
-
-  tr.appendChild(td);
+.active-help {
+  padding-top: 8px;
 }
 
-function addLinksCell(tr, row) {
-  const linkTd = document.createElement("td");
-  linkTd.classList.add("links");
-  linkTd.innerHTML = `
-    <a target="_blank" rel="noopener" href="https://finance.yahoo.com/quote/${row.symbol}">Yahoo</a>
-    <a target="_blank" rel="noopener" href="https://www.tradingview.com/symbols/AMEX-${row.symbol}/">TV</a>
-  `;
-  tr.appendChild(linkTd);
+.table-wrap {
+  overflow-x: auto;
 }
 
-function renderTable(tableSelector, data, keys) {
-  const tbody = document.querySelector(`${tableSelector} tbody`);
-  if (!tbody) return;
-
-  const sorted = sortRows(data);
-  const heatmapStats = buildHeatmapStats(sorted, keys);
-
-  tbody.innerHTML = "";
-
-  for (const row of sorted) {
-    const tr = document.createElement("tr");
-
-    if (row.signal_surge_v0) {
-      tr.classList.add("signal");
-    }
-
-    for (const key of keys) {
-      addCell(tr, row, key, heatmapStats);
-    }
-
-    addLinksCell(tr, row);
-    tbody.appendChild(tr);
-  }
-
-  return sorted;
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
 }
 
-function renderScanner() {
-  const keys = [
-    "symbol",
-    "name",
-    "asset_group",
-    "aum",
-    "dollar_vol_rank",
-    "close",
-    "r63",
-    "r126",
-    "er63",
-    "te63",
-    "te126",
-    "score",
-    "surge_ratio",
-    "atr20_pct",
-    "signal_surge_v0"
-  ];
-
-  const filtered = applyFilters(rows);
-  const rendered = renderTable("#scannerTable", filtered, keys) || [];
-  const filteredSignals = rendered.filter(r => r.signal_surge_v0).length;
-
-  document.getElementById("meta").textContent =
-    `As of ${payload.as_of} | rows ${payload.row_count} | eligible ${payload.eligible_count} | filtered ${rendered.length} | signals ${filteredSignals} | sorted by ${getSortLabel()}`;
+th,
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 7px 8px;
+  white-space: nowrap;
 }
 
-function renderActiveSignals() {
-  const keys = [
-    "symbol",
-    "name",
-    "asset_group",
-    "signal_streak_start_date",
-    "signal_streak_trading_days",
-    "signal_streak_calendar_days",
-    "is_first_signal_today",
-    "close",
-    "suggested_stop",
-    "stop_distance_pct",
-    "r63",
-    "er63",
-    "score",
-    "surge_ratio"
-  ];
-
-  const activeSignals = getActiveSignals(rows);
-  const rendered = renderTable("#activeSignalsTable", activeSignals, keys) || [];
-  const newSignals = rendered.filter(r => r.is_first_signal_today).length;
-
-  document.getElementById("meta").textContent =
-    `As of ${payload.as_of} | active signals ${rendered.length} | new today ${newSignals} | sorted by ${getSortLabel()}`;
+th {
+  position: sticky;
+  top: 0;
+  background: #020617;
+  cursor: pointer;
+  color: var(--accent);
+  z-index: 1;
+  user-select: none;
 }
 
-function render() {
-  if (!payload) return;
-
-  if (activeTab === "activeSignals") {
-    renderActiveSignals();
-  } else {
-    renderScanner();
-  }
-
-  updateHeaderSortIndicators();
+th.sorted {
+  color: #facc15;
 }
 
-function setActiveTab(tabName) {
-  activeTab = tabName;
-
-  document.querySelectorAll(".tab-btn").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.tab === tabName);
-  });
-
-  document.querySelectorAll(".tab-panel").forEach(panel => {
-    panel.classList.remove("active");
-  });
-
-  if (tabName === "activeSignals") {
-    document.getElementById("activeSignalsPanel").classList.add("active");
-    sortKey = "signal_streak_trading_days";
-    sortDir = -1;
-  } else {
-    document.getElementById("scannerPanel").classList.add("active");
-    sortKey = "score";
-    sortDir = -1;
-  }
-
-  render();
+tr.signal {
+  background: rgba(var(--signal), 0.08);
 }
 
-async function init() {
-  const res = await fetch("data/latest.json", { cache: "no-store" });
-  payload = await res.json();
-  rows = payload.rows || [];
-
-  buildGroupFilterOptions();
-  applyPreset("basic");
-  render();
+tr:hover {
+  background: rgba(148, 163, 184, 0.08);
 }
 
-document.querySelectorAll(".tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    setActiveTab(btn.dataset.tab);
-  });
-});
+.ticker {
+  font-weight: 700;
+}
 
-document.getElementById("presetFilter").addEventListener("change", event => {
-  const presetKey = event.target.value;
-  if (presetKey !== "custom") {
-    applyPreset(presetKey);
-  }
-  render();
-});
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 
-document.querySelectorAll("input[type='number']").forEach(el => {
-  el.addEventListener("input", () => {
-    markCustomPreset();
-    render();
-  });
-  el.addEventListener("change", () => {
-    markCustomPreset();
-    render();
-  });
-});
+.heatmap-cell {
+  --heat: 0;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(var(--good), calc(0.06 + var(--heat) * 0.42)),
+      rgba(var(--good), calc(0.02 + var(--heat) * 0.20))
+    );
+}
 
-document.querySelectorAll("input[type='checkbox'], select:not(#presetFilter)").forEach(el => {
-  el.addEventListener("input", render);
-  el.addEventListener("change", render);
-});
+.signal-badge {
+  color: #bae6fd;
+  font-weight: 700;
+}
 
-document.getElementById("resetBtn").addEventListener("click", () => {
-  document.getElementById("eligibleOnly").checked = true;
-  document.getElementById("signalOnly").checked = false;
+.new-badge {
+  color: #facc15;
+  font-weight: 800;
+}
 
-  const presetFilter = document.getElementById("presetFilter");
-  if (presetFilter) presetFilter.value = "basic";
-
-  const groupFilter = document.getElementById("groupFilter");
-  if (groupFilter) groupFilter.value = "All";
-
-  applyPreset("basic");
-
-  sortKey = activeTab === "activeSignals" ? "signal_streak_trading_days" : "score";
-  sortDir = -1;
-
-  render();
-});
-
-document.querySelectorAll("th[data-key]").forEach(th => {
-  th.dataset.label = th.textContent.trim();
-
-  th.addEventListener("click", () => {
-    const key = th.dataset.key;
-
-    if (sortKey === key) {
-      sortDir *= -1;
-    } else {
-      sortKey = key;
-      sortDir = numberFields.has(key) || key === "signal_surge_v0" || key === "is_first_signal_today" ? -1 : 1;
-    }
-
-    render();
-  });
-});
-
-init().catch(err => {
-  document.getElementById("meta").textContent =
-    `Failed to load data/latest.json: ${err}`;
-});
+.links a {
+  display: inline-block;
+  margin-right: 6px;
+}
