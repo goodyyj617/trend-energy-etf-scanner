@@ -48,6 +48,7 @@
     <button id="resetBtn">Reset</button>
     <a href="data/latest.csv" download>Download CSV</a>
     <a href="data/backtest_trades.csv" download>Download Backtest Trades</a>
+    <a href="data/signal_diagnostics.csv" download>Download Signal Diagnostics</a>
   </section>
 
   <section class="preset-help">
@@ -123,11 +124,10 @@
   <section id="backtestPanel" class="tab-panel">
     <section class="active-help">
       <strong>Backtest:</strong>
-      Scanner signal은 진입 후보/진입 트리거로만 사용합니다.
-      청산에는 signal FALSE를 사용하지 않고, 가격 기반 stop 또는 max holding만 사용합니다.
-      Stop은 intraday low로 판정하고, gap down은 open 가격 청산으로 처리합니다.
-      현재 결과는 포트폴리오 비중 제한 없는 signal/entry 품질 검증용입니다.
+      Signal은 진입 후보/트리거로만 사용하고, 청산에는 signal FALSE를 사용하지 않습니다.
+      청산은 가격 기반 stop 또는 max holding만 사용합니다.
       <p id="backtestMeta" class="sub-meta">Backtest loading...</p>
+      <div id="diagnosticDefs" class="definition-box"></div>
     </section>
 
     <section class="table-wrap">
@@ -136,9 +136,11 @@
         <thead>
           <tr>
             <th data-key="strategy_label">Strategy</th>
+            <th data-key="signal_label">Signal</th>
             <th data-key="entry_label">Entry</th>
             <th data-key="exit_label">Exit</th>
             <th data-key="trades">Trades</th>
+            <th data-key="skipped_stop_broken">Skipped</th>
             <th data-key="win_rate">Win Rate</th>
             <th data-key="avg_return">Avg Ret</th>
             <th data-key="median_return">Median Ret</th>
@@ -155,11 +157,35 @@
     </section>
 
     <section class="table-wrap">
+      <h2>Signal Forward Return Diagnostics</h2>
+      <table id="signalDiagnosticsTable">
+        <thead>
+          <tr>
+            <th data-key="signal_label">Signal</th>
+            <th data-key="entry_label">Entry</th>
+            <th data-key="signals">Signals</th>
+            <th data-key="avg_fwd_1d">Avg Fwd 1D</th>
+            <th data-key="avg_fwd_3d">Avg Fwd 3D</th>
+            <th data-key="avg_fwd_5d">Avg Fwd 5D</th>
+            <th data-key="avg_fwd_10d">Avg Fwd 10D</th>
+            <th data-key="avg_fwd_20d">Avg Fwd 20D</th>
+            <th data-key="median_fwd_20d">Median Fwd 20D</th>
+            <th data-key="win_rate_20d">Win 20D</th>
+            <th data-key="avg_mfe_20d">Avg MFE20</th>
+            <th data-key="avg_mae_20d">Avg MAE20</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="table-wrap">
       <h2>Recent Trades</h2>
       <table id="backtestTradesTable">
         <thead>
           <tr>
             <th data-key="strategy_label">Strategy</th>
+            <th data-key="signal_label">Signal</th>
             <th data-key="entry_label">Entry</th>
             <th data-key="exit_label">Exit</th>
             <th data-key="symbol">Symbol</th>
