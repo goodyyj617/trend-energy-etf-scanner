@@ -123,18 +123,21 @@
   <section id="backtestPanel" class="tab-panel">
     <section class="active-help">
       <strong>Backtest:</strong>
-      Scanner signal이 새로 TRUE가 된 다음 거래일 open에 진입하고, exit rule별로 청산한 event backtest입니다.
+      Scanner signal은 진입 후보/진입 트리거로만 사용합니다.
+      청산에는 signal FALSE를 사용하지 않고, 가격 기반 stop 또는 max holding만 사용합니다.
       Stop은 intraday low로 판정하고, gap down은 open 가격 청산으로 처리합니다.
-      현재 결과는 포트폴리오 비중 제한 없는 signal 품질 검증용입니다.
+      현재 결과는 포트폴리오 비중 제한 없는 signal/entry 품질 검증용입니다.
       <p id="backtestMeta" class="sub-meta">Backtest loading...</p>
     </section>
 
     <section class="table-wrap">
-      <h2>Exit Rule Summary</h2>
+      <h2>Strategy Summary</h2>
       <table id="backtestSummaryTable">
         <thead>
           <tr>
-            <th data-key="rule_label">Stop Rule</th>
+            <th data-key="strategy_label">Strategy</th>
+            <th data-key="entry_label">Entry</th>
+            <th data-key="exit_label">Exit</th>
             <th data-key="trades">Trades</th>
             <th data-key="win_rate">Win Rate</th>
             <th data-key="avg_return">Avg Ret</th>
@@ -144,7 +147,7 @@
             <th data-key="avg_holding_days">Avg Days</th>
             <th data-key="profit_factor">Profit Factor</th>
             <th data-key="stop_hit_rate">Stop Hit</th>
-            <th data-key="signal_false_exit_rate">Signal Exit</th>
+            <th data-key="max_hold_exit_rate">Max Hold Exit</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -156,7 +159,9 @@
       <table id="backtestTradesTable">
         <thead>
           <tr>
-            <th data-key="rule_label">Rule</th>
+            <th data-key="strategy_label">Strategy</th>
+            <th data-key="entry_label">Entry</th>
+            <th data-key="exit_label">Exit</th>
             <th data-key="symbol">Symbol</th>
             <th data-key="name">Name</th>
             <th data-key="asset_group">Group</th>
