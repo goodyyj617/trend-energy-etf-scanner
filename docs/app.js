@@ -6,72 +6,24 @@ let sortKey = "score";
 let sortDir = -1;
 
 const numberFields = new Set([
-  "aum",
-  "dollar_vol_rank",
-  "close",
-  "entry_price",
-  "exit_price",
-  "r63",
-  "r126",
-  "er63",
-  "te63",
-  "te126",
-  "score",
-  "surge_ratio",
-  "atr20_pct",
-  "low10",
-  "low20",
-  "suggested_stop",
-  "stop_distance_pct",
-  "signal_streak_trading_days",
-  "signal_streak_calendar_days",
-  "trades",
-  "win_rate",
-  "avg_return",
-  "median_return",
-  "total_return",
-  "max_drawdown",
-  "avg_holding_days",
-  "profit_factor",
-  "stop_hit_rate",
-  "signal_false_exit_rate",
-  "max_hold_exit_rate",
-  "net_return",
-  "gross_return",
-  "holding_days"
+  "aum", "dollar_vol_rank", "close", "entry_price", "exit_price",
+  "r63", "r126", "er63", "te63", "te126", "score", "surge_ratio", "atr20_pct",
+  "low10", "low20", "suggested_stop", "stop_distance_pct",
+  "signal_streak_trading_days", "signal_streak_calendar_days",
+  "trades", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown",
+  "avg_holding_days", "profit_factor", "stop_hit_rate", "max_hold_exit_rate",
+  "net_return", "gross_return", "holding_days"
 ]);
 
 const heatmapFields = new Set([
-  "aum",
-  "dollar_vol_rank",
-  "r63",
-  "r126",
-  "er63",
-  "te63",
-  "te126",
-  "score",
-  "surge_ratio",
-  "atr20_pct",
-  "suggested_stop",
-  "stop_distance_pct",
-  "signal_streak_trading_days",
-  "trades",
-  "win_rate",
-  "avg_return",
-  "median_return",
-  "total_return",
-  "max_drawdown",
-  "profit_factor",
-  "stop_hit_rate",
-  "net_return"
+  "aum", "dollar_vol_rank", "r63", "r126", "er63", "te63", "te126", "score",
+  "surge_ratio", "atr20_pct", "suggested_stop", "stop_distance_pct",
+  "signal_streak_trading_days", "trades", "win_rate", "avg_return", "median_return",
+  "total_return", "max_drawdown", "profit_factor", "stop_hit_rate", "net_return"
 ]);
 
 const lowerIsBetterFields = new Set([
-  "dollar_vol_rank",
-  "atr20_pct",
-  "stop_distance_pct",
-  "max_drawdown",
-  "stop_hit_rate"
+  "dollar_vol_rank", "atr20_pct", "stop_distance_pct", "max_drawdown", "stop_hit_rate"
 ]);
 
 const displayNames = {
@@ -100,7 +52,9 @@ const displayNames = {
   is_first_signal_today: "New?",
   suggested_stop: "Suggested Stop",
   stop_distance_pct: "Stop Dist.",
-  rule_label: "Stop Rule",
+  strategy_label: "Strategy",
+  entry_label: "Entry",
+  exit_label: "Exit",
   trades: "Trades",
   win_rate: "Win Rate",
   avg_return: "Avg Ret",
@@ -110,7 +64,6 @@ const displayNames = {
   avg_holding_days: "Avg Days",
   profit_factor: "Profit Factor",
   stop_hit_rate: "Stop Hit",
-  signal_false_exit_rate: "Signal Exit",
   max_hold_exit_rate: "Max Hold Exit",
   entry_signal_date: "Signal Date",
   entry_date: "Entry Date",
@@ -189,14 +142,12 @@ function fmt(key, value) {
   if ([
     "r63", "r126", "er63", "te63", "te126", "score", "surge_ratio", "atr20_pct",
     "stop_distance_pct", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown",
-    "stop_hit_rate", "signal_false_exit_rate", "max_hold_exit_rate", "net_return", "gross_return"
+    "stop_hit_rate", "max_hold_exit_rate", "net_return", "gross_return"
   ].includes(key)) {
     return Number(value).toFixed(3);
   }
 
-  if (["profit_factor"].includes(key)) {
-    return Number(value).toFixed(2);
-  }
+  if (key === "profit_factor") return Number(value).toFixed(2);
 
   if (["close", "low10", "low20", "suggested_stop", "entry_price", "exit_price"].includes(key)) {
     return Number(value).toFixed(2);
@@ -206,10 +157,7 @@ function fmt(key, value) {
     return Math.round(Number(value));
   }
 
-  if (["avg_holding_days"].includes(key)) {
-    return Number(value).toFixed(1);
-  }
-
+  if (key === "avg_holding_days") return Number(value).toFixed(1);
   if (key === "signal_surge_v0") return value ? "TRUE" : "";
   if (key === "is_first_signal_today") return value ? "NEW" : "";
   return value;
@@ -380,8 +328,8 @@ function renderActiveSignals() {
 }
 
 function renderBacktest() {
-  const summaryKeys = ["rule_label", "trades", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown", "avg_holding_days", "profit_factor", "stop_hit_rate", "signal_false_exit_rate"];
-  const tradeKeys = ["rule_label", "symbol", "name", "asset_group", "entry_signal_date", "entry_date", "entry_price", "exit_date", "exit_price", "net_return", "holding_days", "exit_reason"];
+  const summaryKeys = ["strategy_label", "entry_label", "exit_label", "trades", "win_rate", "avg_return", "median_return", "total_return", "max_drawdown", "avg_holding_days", "profit_factor", "stop_hit_rate", "max_hold_exit_rate"];
+  const tradeKeys = ["strategy_label", "entry_label", "exit_label", "symbol", "name", "asset_group", "entry_signal_date", "entry_date", "entry_price", "exit_date", "exit_price", "net_return", "holding_days", "exit_reason"];
 
   const summary = backtestPayload?.summary || [];
   const recentTrades = backtestPayload?.recent_trades || [];
@@ -390,11 +338,11 @@ function renderBacktest() {
 
   const meta = document.getElementById("backtestMeta");
   if (meta && backtestPayload) {
-    meta.textContent = `As of ${backtestPayload.as_of} | signal: ${backtestPayload.signal_column} | cost: ${(backtestPayload.round_trip_cost * 100).toFixed(2)}% round trip | max hold: ${backtestPayload.max_holding_days} trading days`;
+    meta.textContent = `As of ${backtestPayload.as_of} | signal: ${backtestPayload.signal_column} | cost: ${(backtestPayload.round_trip_cost * 100).toFixed(2)}% round trip | max hold: ${backtestPayload.max_holding_days} trading days | signal FALSE exit: disabled`;
   }
 
   document.getElementById("meta").textContent =
-    `Backtest as of ${backtestPayload?.as_of || payload.as_of} | rules ${summary.length} | recent trades ${recentTrades.length} | sorted by ${getSortLabel()}`;
+    `Backtest as of ${backtestPayload?.as_of || payload.as_of} | strategies ${summary.length} | recent trades ${recentTrades.length} | sorted by ${getSortLabel()}`;
 }
 
 function render() {
