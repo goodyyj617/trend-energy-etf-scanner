@@ -5,6 +5,8 @@
   --muted: #9ca3af;
   --border: #334155;
   --accent: #38bdf8;
+  --good: 34, 197, 94;
+  --signal: 56, 189, 248;
 }
 
 body {
@@ -14,14 +16,22 @@ body {
   color: var(--text);
 }
 
-header, .controls, .table-wrap {
+header,
+.controls,
+.preset-help,
+.table-wrap {
   max-width: 1500px;
   margin: 0 auto;
   padding: 16px;
 }
 
-h1 { margin: 8px 0; }
-#meta { color: var(--muted); }
+h1 {
+  margin: 8px 0;
+}
+
+#meta {
+  color: var(--muted);
+}
 
 .controls {
   display: flex;
@@ -33,24 +43,56 @@ h1 { margin: 8px 0; }
   border-bottom: 1px solid var(--border);
 }
 
-input[type="number"] {
-  width: 90px;
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+input[type="number"],
+select {
   background: #020617;
   color: var(--text);
   border: 1px solid var(--border);
-  padding: 4px;
+  padding: 4px 6px;
+  border-radius: 4px;
 }
 
-button, a {
+input[type="number"] {
+  width: 90px;
+}
+
+select {
+  min-width: 120px;
+}
+
+button,
+a {
   color: var(--text);
   background: #1e293b;
   border: 1px solid var(--border);
+  border-radius: 4px;
   padding: 6px 10px;
   text-decoration: none;
   cursor: pointer;
 }
 
-.table-wrap { overflow-x: auto; }
+button:hover,
+a:hover,
+select:hover,
+input[type="number"]:hover {
+  border-color: var(--accent);
+}
+
+.preset-help {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
 
 table {
   width: 100%;
@@ -58,7 +100,8 @@ table {
   font-size: 13px;
 }
 
-th, td {
+th,
+td {
   border-bottom: 1px solid var(--border);
   padding: 7px 8px;
   white-space: nowrap;
@@ -70,9 +113,47 @@ th {
   background: #020617;
   cursor: pointer;
   color: var(--accent);
+  z-index: 1;
+  user-select: none;
 }
 
-tr.signal { background: rgba(56, 189, 248, 0.08); }
-.ticker { font-weight: 700; }
-.negative { color: #fca5a5; }
-.positive { color: #86efac; }
+th.sorted {
+  color: #facc15;
+}
+
+tr.signal {
+  background: rgba(var(--signal), 0.08);
+}
+
+tr:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.ticker {
+  font-weight: 700;
+}
+
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap-cell {
+  --heat: 0;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(var(--good), calc(0.06 + var(--heat) * 0.42)),
+      rgba(var(--good), calc(0.02 + var(--heat) * 0.20))
+    );
+}
+
+.signal-badge {
+  color: #bae6fd;
+  font-weight: 700;
+}
+
+.links a {
+  display: inline-block;
+  margin-right: 6px;
+}
