@@ -17,6 +17,71 @@ const numberFields = new Set([
   "atr20_pct"
 ]);
 
+const heatmapFields = new Set([
+  "aum",
+  "dollar_vol_rank",
+  "r63",
+  "r126",
+  "er63",
+  "te63",
+  "te126",
+  "score",
+  "surge_ratio",
+  "atr20_pct"
+]);
+
+const lowerIsBetterFields = new Set([
+  "dollar_vol_rank",
+  "atr20_pct"
+]);
+
+const displayNames = {
+  symbol: "Symbol",
+  name: "Name",
+  asset_group: "Group",
+  group: "Group",
+  Group: "Group",
+  aum: "AUM",
+  dollar_vol_rank: "DV Rank",
+  close: "Close",
+  r63: "R63",
+  r126: "R126",
+  er63: "ER63",
+  te63: "TE63",
+  te126: "TE126",
+  score: "Score",
+  surge_ratio: "Surge",
+  atr20_pct: "ATR20%",
+  signal_surge_v0: "Signal"
+};
+
+const presets = {
+  exploratory: {
+    label: "탐색형",
+    minR63: 0.00,
+    minER63: 0.15,
+    minSurge: 1.00,
+    maxATR: 0.08,
+    maxDollarRank: 500
+  },
+  basic: {
+    label: "기본형",
+    minR63: 0.03,
+    minER63: 0.20,
+    minSurge: 1.10,
+    maxATR: 0.06,
+    maxDollarRank: 500
+  },
+  strict: {
+    label: "엄격형",
+    minR63: 0.05,
+    minER63: 0.25,
+    minSurge: 1.25,
+    maxATR: 0.05,
+    maxDollarRank: 500
+  }
+};
+
 function getGroup(row) {
   return (
     row.group ||
@@ -57,6 +122,27 @@ function buildGroupFilterOptions() {
   }
 
   select.value = groups.includes(currentValue) ? currentValue : "All";
+}
+
+function setInputValue(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value;
+}
+
+function applyPreset(presetKey) {
+  const preset = presets[presetKey];
+  if (!preset) return;
+
+  setInputValue("minR63", preset.minR63.toFixed(2));
+  setInputValue("minER63", preset.minER63.toFixed(2));
+  setInputValue("minSurge", preset.minSurge.toFixed(2));
+  setInputValue("maxATR", preset.maxATR.toFixed(2));
+  setInputValue("maxDollarRank", preset.maxDollarRank);
+}
+
+function markCustomPreset() {
+  const presetSelect = document.getElementById("presetFilter");
+  if (presetSelect) presetSelect.value = "custom";
 }
 
 function fmt(key, value) {
@@ -148,8 +234,89 @@ function sortRows(data) {
       return ((av ?? -Infinity) - (bv ?? -Infinity)) * sortDir;
     }
 
+    if (sortKey === "signal_surge_v0") {
+      return ((av ? 1 : 0) - (bv ? 1 : 0)) * sortDir;
+    }
+
     return String(av ?? "").localeCompare(String(bv ?? "")) * sortDir;
   });
+}
+
+function getSortLabel() {
+  const name = displayNames[sortKey] || sortKey;
+  const arrow = sortDir === -1 ? "↓" : "↑";
+  return `${name} ${arrow}`;
+}
+
+function updateHeaderSortIndicators() {
+  document.querySelectorAll("th[data-key]").forEach(th => {
+    if (!th.dataset.label) {
+      th.dataset.label = th.textContent.trim();
+    }
+
+    const key = th.dataset.key;
+    const baseLabel = th.dataset.label;
+
+    if (key === sortKey) {
+      th.textContent = `${baseLabel} ${sortDir === -1 ? "↓" : "↑"}`;
+      th.classList.add("sorted");
+    } else {
+      th.textContent = baseLabel;
+      th.classList.remove("sorted");
+    }
+  });
+}
+
+function getFiniteValues(data, key) {
+  return data
+    .map(row => Number(getSortValue(row, key)))
+    .filter(value => Number.isFinite(value));
+}
+
+function buildHeatmapStats(data) {
+  const stats = {};
+
+  for (const key of heatmapFields) {
+    const values = getFiniteValues(data, key);
+    if (!values.length) continue;
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    stats[key] = { min, max };
+  }
+
+  return stats;
+}
+
+function getHeatIntensity(value, key, stats) {
+  if (!stats[key]) return 0;
+
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 0;
+
+  const { min, max } = stats[key];
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) {
+    return 0.25;
+  }
+
+  let normalized = (num - min) / (max - min);
+  normalized = Math.max(0, Math.min(1, normalized));
+
+  if (lowerIsBetterFields.has(key)) {
+    normalized = 1 - normalized;
+  }
+
+  return normalized;
+}
+
+function applyHeatmapStyle(td, key, value, stats) {
+  if (!heatmapFields.has(key)) return;
+
+  const intensity = getHeatIntensity(value, key, stats);
+
+  td.classList.add("heatmap-cell");
+  td.style.setProperty("--heat", intensity.toFixed(3));
 }
 
 function render() {
@@ -157,6 +324,8 @@ function render() {
   if (!tbody || !payload) return;
 
   const filtered = sortRows(applyFilters(rows));
+  const heatmapStats = buildHeatmapStats(filtered);
+
   tbody.innerHTML = "";
 
   const keys = [
@@ -197,18 +366,20 @@ function render() {
         td.classList.add("ticker");
       }
 
-      if (numberFields.has(key) && Number(r[key]) > 0) {
-        td.classList.add("positive");
+      if (key === "signal_surge_v0" && r.signal_surge_v0) {
+        td.classList.add("signal-badge");
       }
 
-      if (numberFields.has(key) && Number(r[key]) < 0) {
-        td.classList.add("negative");
+      if (numberFields.has(key)) {
+        td.classList.add("numeric");
+        applyHeatmapStyle(td, key, r[key], heatmapStats);
       }
 
       tr.appendChild(td);
     }
 
     const linkTd = document.createElement("td");
+    linkTd.classList.add("links");
     linkTd.innerHTML = `
       <a target="_blank" rel="noopener" href="https://finance.yahoo.com/quote/${r.symbol}">Yahoo</a>
       <a target="_blank" rel="noopener" href="https://www.tradingview.com/symbols/AMEX-${r.symbol}/">TV</a>
@@ -221,7 +392,9 @@ function render() {
   const filteredSignals = filtered.filter(r => r.signal_surge_v0).length;
 
   document.getElementById("meta").textContent =
-    `As of ${payload.as_of} | rows ${payload.row_count} | eligible ${payload.eligible_count} | filtered ${filtered.length} | signals ${filteredSignals}`;
+    `As of ${payload.as_of} | rows ${payload.row_count} | eligible ${payload.eligible_count} | filtered ${filtered.length} | signals ${filteredSignals} | sorted by ${getSortLabel()}`;
+
+  updateHeaderSortIndicators();
 }
 
 async function init() {
@@ -230,10 +403,30 @@ async function init() {
   rows = payload.rows || [];
 
   buildGroupFilterOptions();
+  applyPreset("basic");
   render();
 }
 
-document.querySelectorAll("input, select").forEach(el => {
+document.getElementById("presetFilter").addEventListener("change", event => {
+  const presetKey = event.target.value;
+  if (presetKey !== "custom") {
+    applyPreset(presetKey);
+  }
+  render();
+});
+
+document.querySelectorAll("input[type='number']").forEach(el => {
+  el.addEventListener("input", () => {
+    markCustomPreset();
+    render();
+  });
+  el.addEventListener("change", () => {
+    markCustomPreset();
+    render();
+  });
+});
+
+document.querySelectorAll("input[type='checkbox'], select:not(#presetFilter)").forEach(el => {
   el.addEventListener("input", render);
   el.addEventListener("change", render);
 });
@@ -242,19 +435,23 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById("eligibleOnly").checked = true;
   document.getElementById("signalOnly").checked = false;
 
+  const presetFilter = document.getElementById("presetFilter");
+  if (presetFilter) presetFilter.value = "basic";
+
   const groupFilter = document.getElementById("groupFilter");
   if (groupFilter) groupFilter.value = "All";
 
-  document.getElementById("minR63").value = 0.03;
-  document.getElementById("minER63").value = 0.20;
-  document.getElementById("minSurge").value = 1.25;
-  document.getElementById("maxATR").value = 0.06;
-  document.getElementById("maxDollarRank").value = 500;
+  applyPreset("basic");
+
+  sortKey = "score";
+  sortDir = -1;
 
   render();
 });
 
 document.querySelectorAll("th[data-key]").forEach(th => {
+  th.dataset.label = th.textContent.trim();
+
   th.addEventListener("click", () => {
     const key = th.dataset.key;
 
@@ -262,7 +459,7 @@ document.querySelectorAll("th[data-key]").forEach(th => {
       sortDir *= -1;
     } else {
       sortKey = key;
-      sortDir = numberFields.has(key) ? -1 : 1;
+      sortDir = numberFields.has(key) || key === "signal_surge_v0" ? -1 : 1;
     }
 
     render();
