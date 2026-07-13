@@ -38,6 +38,11 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add docs/data config/aum.csv
+          rm -f docs/data/backtest_trades.csv docs/data/signal_diagnostics.csv docs/data/backtest_skipped.csv
+          git add config/aum.csv
+          git add docs/data/latest.json docs/data/latest.csv docs/data/universe_current.csv
+          git add docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv
+          git add docs/data/backtest_recent_trades.csv docs/data/signal_diagnostics_summary.csv docs/data/backtest_skipped_summary.csv
+          git add docs/data/history || true
           git commit -m "Update ETF scan data" || echo "No changes to commit"
           git push
