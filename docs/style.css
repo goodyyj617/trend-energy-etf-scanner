@@ -31,7 +31,14 @@ h1 {
   margin: 8px 0;
 }
 
-#meta {
+h2 {
+  margin: 0 0 12px 0;
+  color: var(--text);
+  font-size: 16px;
+}
+
+#meta,
+.sub-meta {
   color: var(--muted);
 }
 
@@ -193,6 +200,19 @@ tr:hover {
 .new-badge {
   color: #facc15;
   font-weight: 800;
+}
+
+.exit-stop-hit {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
+.exit-signal-false-next-open {
+  color: #bfdbfe;
+}
+
+.exit-max-holding-days {
+  color: #fde68a;
 }
 
 .links a {
