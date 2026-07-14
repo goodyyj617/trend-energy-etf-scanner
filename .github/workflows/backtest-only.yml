@@ -1,0 +1,29 @@
+name: Backtest Only
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 18 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backtest-only
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python
