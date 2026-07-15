@@ -41,6 +41,13 @@ jobs:
         run: |
           echo "Data file sizes:"
           du -h docs/data/* | sort -h || true
+          raw_outputs="docs/data/backtest_trades.csv docs/data/signal_diagnostics.csv docs/data/backtest_skipped.csv"
+          for raw_output in $raw_outputs; do
+            if [ -e "$raw_output" ]; then
+              echo "Raw backtest output must not be committed: $raw_output"
+              exit 1
+            fi
+          done
           too_large=$(find docs/data -type f -size +45M | tr '\n' ' ')
           if [ -n "$too_large" ]; then
             echo "Files larger than 45MB: $too_large"
@@ -52,6 +59,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           rm -f docs/data/backtest_trades.csv docs/data/signal_diagnostics.csv docs/data/backtest_skipped.csv
+          git add -u -- docs/data/backtest_trades.csv docs/data/signal_diagnostics.csv docs/data/backtest_skipped.csv
           git add docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv
           git add docs/data/backtest_recent_trades.csv docs/data/signal_diagnostics_summary.csv docs/data/backtest_skipped_summary.csv
           git commit -m "Update backtest data" || echo "No changes to commit"
