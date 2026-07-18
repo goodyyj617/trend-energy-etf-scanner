@@ -59,7 +59,12 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           rm -f docs/data/backtest_trades.csv docs/data/signal_diagnostics.csv docs/data/backtest_skipped.csv
-          git add -u -- docs/data/backtest_trades.csv docs/data/signal_diagnostics.csv docs/data/backtest_skipped.csv
+          raw_outputs="docs/data/backtest_trades.csv docs/data/signal_diagnostics.csv docs/data/backtest_skipped.csv"
+          for raw_output in $raw_outputs; do
+            if git ls-files --error-unmatch "$raw_output" >/dev/null 2>&1; then
+              git add -u -- "$raw_output"
+            fi
+          done
           git add docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv
           git add docs/data/backtest_recent_trades.csv docs/data/signal_diagnostics_summary.csv docs/data/backtest_skipped_summary.csv
           git commit -m "Update backtest data" || echo "No changes to commit"
