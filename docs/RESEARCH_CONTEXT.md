@@ -22,6 +22,8 @@ Build a GitHub Pages ETF scanner and event backtester that identifies robust tre
 - Phase 1 supports static entry-date presets (All available, recent 1/3/5 years) instead of arbitrary dates so the site does not need an unbounded raw trade file.
 - `src/run_backtest_only.py` runs the backtest without the daily scanner.
 - `.github/workflows/backtest-only.yml` runs the backtest-only job and commits bounded summary outputs.
+- The daily scanner continues to use `lookback_period: 1y`, while backtest-only runs use `backtest_lookback_period: 10y`.
+- A one-year price download was insufficient for robustness research because the 180-trading-day eligibility warm-up left only a short eligible entry period. Longer backtest history is required before interpreting Time Stability or final strategy robustness.
 - Backtest logic currently lives in `src/backtest.py`; there is no separate `src/signal_rules.py` in the current repository state.
 
 ## Current Strategy Hypothesis
