@@ -16,6 +16,28 @@ ROUND_TRIP_COST = 0.002
 MAX_HOLDING_DAYS = 63
 DIAGNOSTIC_HORIZONS = [1, 3, 5, 10, 20]
 RECENT_TRADE_LIMIT = 250
+ANALYSIS_SCHEMA_VERSION = 2
+
+# Transparent research decision thresholds. These are serialized with every
+# backtest payload so the static UI never maintains a second threshold copy.
+GATE_CONFIG = {
+    "version": "phase1-v1",
+    "min_completed_trades": 100,
+    "min_bucket_trades": 10,
+    "min_eligible_neighbors": 2,
+    "min_profit_factor": 1.0,
+    "min_median_trade_return": 0.0,
+    "min_neighbor_pass_ratio": 0.60,
+    "min_positive_year_ratio": 0.60,
+    "min_positive_regime_ratio": 0.50,
+}
+
+ENTRY_PERIOD_PRESETS = [
+    ("all", "All available", None),
+    ("last_1y", "Recent 1 year", 1),
+    ("last_3y", "Recent 3 years", 3),
+    ("last_5y", "Recent 5 years", 5),
+]
 
 # Score breakout robustness grid. This is compact enough for the daily GitHub
 # Actions job, but structured so that more parameters can be added later for
@@ -383,37 +405,268 @@ def _max_drawdown(returns: pd.Series) -> float:
     return float(dd.min())
 
 
+def _trade_metric_values(g: pd.DataFrame) -> dict:
+    ordered = g.sort_values(["entry_date", "exit_date", "symbol"]) if not g.empty else g
+    ret = pd.to_numeric(ordered["net_return"], errors="coerce").dropna() if not ordered.empty else pd.Series(dtype=float)
+    wins = ret[ret > 0]
+    losses = ret[ret < 0]
+    gross_loss = float(losses.sum()) if len(losses) else 0.0
+    profit_factor = float(wins.sum() / abs(gross_loss)) if gross_loss < 0 else (np.nan if len(wins) else 0.0)
+    avg_days = float(pd.to_numeric(ordered["holding_days"], errors="coerce").mean()) if not ordered.empty else 0.0
+    trade_sequence_dd = _max_drawdown(ret)
+    return {
+        "trades": int(len(ordered)),
+        "completed_trades": int(len(ordered)),
+        "win_rate": float((ret > 0).mean()) if len(ret) else 0.0,
+        "trade_win_rate": float((ret > 0).mean()) if len(ret) else 0.0,
+        "avg_return": float(ret.mean()) if len(ret) else 0.0,
+        "avg_trade_return": float(ret.mean()) if len(ret) else 0.0,
+        "median_return": float(ret.median()) if len(ret) else 0.0,
+        "median_trade_return": float(ret.median()) if len(ret) else 0.0,
+        # Compatibility diagnostic: compounded event sequence, not a portfolio return.
+        "total_return": float((1 + ret).prod() - 1) if len(ret) else 0.0,
+        "sum_trade_returns": float(ret.sum()) if len(ret) else 0.0,
+        "max_drawdown": trade_sequence_dd,
+        "trade_sequence_drawdown": trade_sequence_dd,
+        "worst_trade_return": float(ret.min()) if len(ret) else 0.0,
+        "tail_return_10": float(ret.quantile(0.10)) if len(ret) else 0.0,
+        "avg_holding_days": avg_days,
+        "avg_days": avg_days,
+        "profit_factor": profit_factor,
+        "stop_hit_rate": float((ordered["exit_reason"] == "stop_hit").mean()) if not ordered.empty else 0.0,
+        "max_hold_exit_rate": float((ordered["exit_reason"] == "max_holding_days").mean()) if not ordered.empty else 0.0,
+    }
+
+
+def _gate_fields(metrics: dict) -> dict:
+    sample_pass = int(metrics["completed_trades"]) >= int(GATE_CONFIG["min_completed_trades"])
+    median_pass = float(metrics["median_trade_return"]) >= float(GATE_CONFIG["min_median_trade_return"])
+    profit_factor = metrics["profit_factor"]
+    profit_pass = bool(
+        (pd.isna(profit_factor) and metrics["completed_trades"] > 0 and metrics["trade_win_rate"] > 0)
+        or (not pd.isna(profit_factor) and float(profit_factor) >= float(GATE_CONFIG["min_profit_factor"]))
+    )
+    passed = int(sample_pass) + int(median_pass) + int(profit_pass)
+    return {
+        "gate_sample": "Pass" if sample_pass else "Insufficient",
+        "gate_median_trade_return": "Pass" if median_pass else "Fail",
+        "gate_profit_factor": "Pass" if profit_pass else "Fail",
+        "mandatory_gates_passed": passed,
+        "mandatory_gate_status": "Pass" if passed == 3 else ("Insufficient" if not sample_pass else "Fail"),
+    }
+
+
 def summarize_trades(trades: pd.DataFrame, skipped: pd.DataFrame) -> pd.DataFrame:
     rows = []
+    trade_groups = {key: group for key, group in trades.groupby("strategy_key", sort=False)} if not trades.empty else {}
+    skipped_groups = {key: group for key, group in skipped.groupby("strategy_key", sort=False)} if not skipped.empty else {}
     for strategy in STRATEGY_RULES:
-        g = trades[trades["strategy_key"] == strategy.key].sort_values("entry_date") if not trades.empty else pd.DataFrame()
-        sg = skipped[skipped["strategy_key"] == strategy.key] if not skipped.empty else pd.DataFrame()
-        skipped_stop_broken = int(len(sg)) if not sg.empty else 0
-        ret = pd.to_numeric(g["net_return"], errors="coerce").dropna() if not g.empty else pd.Series(dtype=float)
-        wins = ret[ret > 0]
-        losses = ret[ret < 0]
-        gross_loss = losses.sum()
+        g = trade_groups.get(strategy.key, pd.DataFrame())
+        sg = skipped_groups.get(strategy.key, pd.DataFrame())
+        metrics = _trade_metric_values(g)
         rows.append({
             "strategy_key": strategy.key,
             "strategy_label": strategy.label,
+            "signal_key": strategy.signal.key,
             "signal_label": strategy.signal.label,
+            "entry_key": strategy.entry.key,
             "entry_label": strategy.entry.label,
+            "exit_key": strategy.exit.key,
             "exit_label": strategy.exit.label,
             "signal_params": json.dumps(strategy.signal.params, sort_keys=True),
             "description": f"Signal: {strategy.signal.description} Entry: {strategy.entry.description} Exit: {strategy.exit.description}",
-            "trades": int(len(g)),
-            "skipped_stop_broken": skipped_stop_broken,
-            "win_rate": float((ret > 0).mean()) if len(ret) else 0.0,
-            "avg_return": float(ret.mean()) if len(ret) else 0.0,
-            "median_return": float(ret.median()) if len(ret) else 0.0,
-            "total_return": float((1 + ret).prod() - 1) if len(ret) else 0.0,
-            "max_drawdown": _max_drawdown(ret),
-            "avg_holding_days": float(pd.to_numeric(g["holding_days"], errors="coerce").mean()) if not g.empty else 0.0,
-            "profit_factor": float(wins.sum() / abs(gross_loss)) if gross_loss < 0 else 0.0,
-            "stop_hit_rate": float((g["exit_reason"] == "stop_hit").mean()) if not g.empty else 0.0,
-            "max_hold_exit_rate": float((g["exit_reason"] == "max_holding_days").mean()) if not g.empty else 0.0,
+            "skipped_stop_broken": int(len(sg)) if not sg.empty else 0,
+            **metrics,
+            **_gate_fields(metrics),
         })
     return pd.DataFrame(rows)
+
+
+def _filter_by_entry_period(df: pd.DataFrame, start: Optional[pd.Timestamp], end: Optional[pd.Timestamp]) -> pd.DataFrame:
+    if df.empty or "entry_date" not in df:
+        return df.copy()
+    entry_dates = pd.to_datetime(df["entry_date"], errors="coerce")
+    mask = entry_dates.notna()
+    if start is not None:
+        mask &= entry_dates >= start
+    if end is not None:
+        mask &= entry_dates <= end
+    return df.loc[mask].copy()
+
+
+def _entry_period_specs(trades: pd.DataFrame) -> list[dict]:
+    if trades.empty:
+        return [{"key": key, "label": label, "start": None, "end": None} for key, label, _ in ENTRY_PERIOD_PRESETS]
+    entry_dates = pd.to_datetime(trades["entry_date"], errors="coerce").dropna()
+    if entry_dates.empty:
+        return [{"key": key, "label": label, "start": None, "end": None} for key, label, _ in ENTRY_PERIOD_PRESETS]
+    available_start = entry_dates.min().normalize()
+    available_end = entry_dates.max().normalize()
+    specs = []
+    for key, label, years in ENTRY_PERIOD_PRESETS:
+        start = available_start if years is None else (available_end - pd.DateOffset(years=years) + pd.Timedelta(days=1)).normalize()
+        specs.append({"key": key, "label": label, "start": start, "end": available_end})
+    return specs
+
+
+def _yearly_trade_summaries(trades: pd.DataFrame) -> pd.DataFrame:
+    columns = [
+        "strategy_key", "year", "completed_trades", "avg_trade_return", "median_trade_return",
+        "trade_win_rate", "profit_factor", "trade_sequence_drawdown", "status",
+    ]
+    if trades.empty:
+        return pd.DataFrame(columns=columns)
+    work = trades.copy()
+    work["entry_year"] = pd.to_datetime(work["entry_date"], errors="coerce").dt.year
+    work = work.dropna(subset=["entry_year"])
+    rows = []
+    for (strategy_key, year), group in work.groupby(["strategy_key", "entry_year"], sort=True):
+        metrics = _trade_metric_values(group)
+        eligible = metrics["completed_trades"] >= int(GATE_CONFIG["min_bucket_trades"])
+        status = "Insufficient" if not eligible else ("Pass" if metrics["median_trade_return"] > 0 else "Fail")
+        rows.append({
+            "strategy_key": strategy_key,
+            "year": int(year),
+            "completed_trades": metrics["completed_trades"],
+            "avg_trade_return": metrics["avg_trade_return"],
+            "median_trade_return": metrics["median_trade_return"],
+            "trade_win_rate": metrics["trade_win_rate"],
+            "profit_factor": metrics["profit_factor"],
+            "trade_sequence_drawdown": metrics["trade_sequence_drawdown"],
+            "status": status,
+        })
+    return pd.DataFrame(rows, columns=columns)
+
+
+def _attach_time_stability(summary: pd.DataFrame, yearly: pd.DataFrame) -> pd.DataFrame:
+    out = summary.copy()
+    details = {key: group.to_dict(orient="records") for key, group in yearly.groupby("strategy_key")} if not yearly.empty else {}
+    statuses = []
+    ratios = []
+    eligible_counts = []
+    for strategy_key in out["strategy_key"]:
+        rows = details.get(strategy_key, [])
+        eligible = [row for row in rows if row["status"] != "Insufficient"]
+        positive = [row for row in eligible if row["status"] == "Pass"]
+        ratio = len(positive) / len(eligible) if eligible else 0.0
+        status = "Insufficient" if len(eligible) < 2 else ("Pass" if ratio >= GATE_CONFIG["min_positive_year_ratio"] else "Fail")
+        statuses.append(status)
+        ratios.append(ratio)
+        eligible_counts.append(len(eligible))
+    out["time_stability_status"] = statuses
+    out["positive_year_ratio"] = ratios
+    out["eligible_years"] = eligible_counts
+    return out
+
+
+def _adjacent_values(value: float | int, grid: list) -> list:
+    try:
+        idx = grid.index(value)
+    except ValueError:
+        return []
+    return [grid[i] for i in (idx - 1, idx + 1) if 0 <= i < len(grid)]
+
+
+def _attach_parameter_stability(summary: pd.DataFrame) -> pd.DataFrame:
+    out = summary.copy()
+    signal_by_params = {
+        (int(rule.params["score_lookback"]), float(rule.params["r20_min"]), float(rule.params["er20_min"])): rule.key
+        for rule in SIGNAL_RULES
+    }
+    lookup = {(row.signal_key, row.entry_key, row.exit_key): row for row in out.itertuples(index=False)}
+    records = []
+    for row in out.itertuples(index=False):
+        params = json.loads(row.signal_params)
+        lookback = int(params["score_lookback"])
+        r20_min = float(params["r20_min"])
+        er20_min = float(params["er20_min"])
+        neighbor_params = [
+            *((v, r20_min, er20_min) for v in _adjacent_values(lookback, SCORE_LOOKBACK_GRID)),
+            *((lookback, v, er20_min) for v in _adjacent_values(r20_min, R20_MIN_GRID)),
+            *((lookback, r20_min, v) for v in _adjacent_values(er20_min, ER20_MIN_GRID)),
+        ]
+        neighbors = []
+        for param_tuple in neighbor_params:
+            signal_key = signal_by_params.get(param_tuple)
+            neighbor = lookup.get((signal_key, row.entry_key, row.exit_key))
+            if neighbor is not None:
+                neighbors.append(neighbor)
+        eligible = [n for n in neighbors if n.completed_trades >= GATE_CONFIG["min_completed_trades"]]
+        passed = [n for n in eligible if n.mandatory_gate_status == "Pass"]
+        pass_ratio = len(passed) / len(eligible) if eligible else 0.0
+        status = "Insufficient" if len(eligible) < GATE_CONFIG["min_eligible_neighbors"] else (
+            "Pass" if pass_ratio >= GATE_CONFIG["min_neighbor_pass_ratio"] else "Fail"
+        )
+        medians = [float(n.median_trade_return) for n in eligible]
+        drawdowns = [float(n.trade_sequence_drawdown) for n in eligible]
+        records.append({
+            "available_neighbors": len(neighbors),
+            "eligible_neighbors": len(eligible),
+            "neighbor_pass_ratio": pass_ratio,
+            "neighbor_median_return_min": min(medians) if medians else None,
+            "neighbor_median_return_max": max(medians) if medians else None,
+            "neighbor_drawdown_min": min(drawdowns) if drawdowns else None,
+            "neighbor_drawdown_max": max(drawdowns) if drawdowns else None,
+            "parameter_stability_status": status,
+        })
+    return pd.concat([out.reset_index(drop=True), pd.DataFrame(records)], axis=1)
+
+
+def _attach_robustness_tiers(summary: pd.DataFrame) -> pd.DataFrame:
+    out = summary.copy()
+    tiers = []
+    ranks = []
+    for row in out.itertuples(index=False):
+        if row.gate_sample != "Pass":
+            tier, rank = "Insufficient data", 0
+        elif row.mandatory_gate_status != "Pass":
+            tier, rank = "Not qualified", 1
+        elif row.parameter_stability_status == "Pass" and row.time_stability_status == "Pass":
+            tier, rank = "Tier A (regime unverified)", 4
+        elif row.parameter_stability_status == "Pass":
+            tier, rank = "Tier B", 3
+        else:
+            tier, rank = "Tier C", 2
+        tiers.append(tier)
+        ranks.append(rank)
+    out["robustness_tier"] = tiers
+    out["robustness_tier_rank"] = ranks
+    out["regime_stability_status"] = "Not available"
+    return out
+
+
+def build_period_analysis(trades: pd.DataFrame, skipped: pd.DataFrame) -> list[dict]:
+    periods = []
+    available_entry = pd.to_datetime(trades.get("entry_date", pd.Series(dtype=str)), errors="coerce").dropna()
+    available_start = available_entry.min().date().isoformat() if len(available_entry) else None
+    available_end = available_entry.max().date().isoformat() if len(available_entry) else None
+    for spec in _entry_period_specs(trades):
+        period_trades = _filter_by_entry_period(trades, spec["start"], spec["end"])
+        period_skipped = _filter_by_entry_period(skipped, spec["start"], spec["end"])
+        summary = summarize_trades(period_trades, period_skipped)
+        yearly = _yearly_trade_summaries(period_trades)
+        summary = _attach_time_stability(summary, yearly)
+        summary = _attach_parameter_stability(summary)
+        summary = _attach_robustness_tiers(summary)
+        included_entry = pd.to_datetime(period_trades.get("entry_date", pd.Series(dtype=str)), errors="coerce").dropna()
+        included_exit = pd.to_datetime(period_trades.get("exit_date", pd.Series(dtype=str)), errors="coerce").dropna()
+        periods.append({
+            "key": spec["key"],
+            "label": spec["label"],
+            "filter_mode": "entry_date_inclusive",
+            "requested_entry_start": spec["start"].date().isoformat() if spec["start"] is not None else None,
+            "requested_entry_end": spec["end"].date().isoformat() if spec["end"] is not None else None,
+            "available_entry_start": available_start,
+            "available_entry_end": available_end,
+            "included_entry_start": included_entry.min().date().isoformat() if len(included_entry) else None,
+            "included_entry_end": included_entry.max().date().isoformat() if len(included_entry) else None,
+            "realized_exit_start": included_exit.min().date().isoformat() if len(included_exit) else None,
+            "realized_exit_end": included_exit.max().date().isoformat() if len(included_exit) else None,
+            "included_completed_trades": int(len(period_trades)),
+            "summary": _safe_records(summary),
+            "yearly_details": _safe_records(yearly),
+        })
+    return periods
 
 
 def _diagnose_one_symbol(g: pd.DataFrame, signal_rule: SignalRule, entry_rule: EntryRule) -> list[dict]:
@@ -530,7 +783,8 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     if not diagnostics.empty:
         diagnostics = diagnostics.sort_values(["entry_date", "signal_key", "entry_key", "symbol"]).reset_index(drop=True)
 
-    summary = summarize_trades(trades, skipped)
+    period_analysis = build_period_analysis(trades, skipped)
+    summary = pd.DataFrame(period_analysis[0]["summary"]) if period_analysis else summarize_trades(trades, skipped)
     diagnostic_summary = summarize_diagnostics(diagnostics)
     skipped_summary = (
         skipped.groupby(["strategy_key", "strategy_label", "signal_key", "entry_key", "exit_key", "skip_reason"])
@@ -546,11 +800,15 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     skipped_summary.to_csv(data_path / "backtest_skipped_summary.csv", index=False)
 
     payload = {
+        "analysis_schema_version": ANALYSIS_SCHEMA_VERSION,
         "as_of": as_of,
         "entry_model": "Score breakout signal rules are entry candidate/trigger logic only. They are never used as exit signals.",
         "exit_model": "Every strategy uses a price stop plus a max holding cap. Stopless MaxHold-only strategies are intentionally disabled.",
+        "analysis_model": "Completed strategy trades are analyzed as independent events. This is not a portfolio equity backtest.",
+        "period_filter_model": "Static preset summaries include completed trades whose entry_date is inside the requested inclusive period. Their realized exits may occur after the requested end date.",
         "round_trip_cost": ROUND_TRIP_COST,
         "max_holding_days": MAX_HOLDING_DAYS,
+        "gate_config": GATE_CONFIG,
         "trade_count_total": int(len(trades)),
         "diagnostic_event_count": int(len(diagnostics)),
         "recent_trade_limit": RECENT_TRADE_LIMIT,
@@ -563,7 +821,21 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
         "signal_rules": [{"key": r.key, "label": r.label, "description": r.description, "params": r.params} for r in SIGNAL_RULES],
         "entry_rules": [{"key": r.key, "label": r.label, "description": r.description} for r in ENTRY_RULES],
         "exit_rules": [{"key": r.key, "label": r.label, "description": r.description} for r in EXIT_RULES],
+        "metric_definitions": {
+            "r20": "Close-to-close return over 20 trading days: close / close.shift(20) - 1.",
+            "er20": "Upside efficiency over 20 trading days: max(close - close.shift(20), 0) divided by the sum of absolute daily close changes over the same window.",
+            "te63": "The 63-trading-day return multiplied by the 63-day upside efficiency ratio.",
+            "te126": "The 126-trading-day return multiplied by the 126-day upside efficiency ratio.",
+            "score": "0.65 * TE63 + 0.35 * TE126.",
+            "score_breakout": "Score exceeds its highest value over the prior score_lookback days, Score is positive, R20 and ER20 meet their thresholds, and Close is above MA50.",
+            "sum_trade_returns": "Arithmetic sum of completed net trade returns after round-trip cost. It is not a portfolio return.",
+            "trade_sequence_drawdown": "Drawdown of the sequentially compounded completed-trade return series ordered by entry date. It is not portfolio drawdown and does not model overlapping positions.",
+            "profit_factor": "Sum of positive completed net trade returns divided by the absolute sum of negative completed net trade returns.",
+            "parameter_stability": "Direct-neighbor consistency while holding entry and exit rules fixed and changing one adjacent Score Breakout grid value.",
+            "time_stability": "Consistency across entry-calendar-year cohorts using fully realized completed-trade outcomes.",
+        },
         "summary": _safe_records(summary),
+        "period_analysis": period_analysis,
         "diagnostic_summary": _safe_records(diagnostic_summary),
         "recent_trades": _safe_records(recent_trades_df),
     }

@@ -15,8 +15,11 @@ Build a GitHub Pages ETF scanner and event backtester that identifies robust tre
 ## Current Implemented State
 
 - Scanner, Active Signals, and Backtest tabs are implemented.
-- The Backtest tab currently focuses on the Score Breakout signal and includes a Robustness Dashboard, forward-return diagnostics, strategy summaries, and recent trades.
+- The Backtest tab focuses on Score Breakout strategies evaluated from completed, exit-applied trades after entry, price stop, maximum holding period, and round-trip cost.
+- Signal Forward Return Diagnostics are no longer rendered in the default Backtest UI. Their generator remains temporarily for compatibility but does not affect the Candidate Snapshot, ranking, gates, or Robustness Tier.
+- The default Backtest UI includes an event-level warning, entry-period presets/status, Candidate Snapshot, Exit-Applied Strategy Leaderboard, gate/component summaries, and collapsed detail tables.
 - Backtest return and excursion fields are displayed as percentages; for example, `0.023` is shown as `2.3%`.
+- Phase 1 supports static entry-date presets (All available, recent 1/3/5 years) instead of arbitrary dates so the site does not need an unbounded raw trade file.
 - `src/run_backtest_only.py` runs the backtest without the daily scanner.
 - `.github/workflows/backtest-only.yml` runs the backtest-only job and commits bounded summary outputs.
 - Backtest logic currently lives in `src/backtest.py`; there is no separate `src/signal_rules.py` in the current repository state.
@@ -53,13 +56,35 @@ All exit variants use an initial price stop, update it as a trailing stop that d
 
 Use this order of evaluation:
 
-1. Signal forward-return diagnostics: determine whether the signal has useful forward expectancy before judging trade construction.
-2. Parameter robustness: prefer neighborhoods where nearby lookback, R20, and ER20 settings also perform well.
-3. Entry rule comparison: compare timing/confirmation rules within robust signal neighborhoods.
-4. Exit rule comparison: evaluate downside protection, return distribution, drawdown, stop-hit behavior, and preservation of favorable excursions.
-5. Benchmark alpha and portfolio validation: later test benchmark-relative alpha, overlapping positions, capital allocation, exposure, and portfolio CAGR/drawdown.
+1. Choose the requested entry-period preset and confirm the included trade entry period and realized exit period.
+2. Require enough completed trades after the selected signal, entry, price stop/exit, maximum holding period, and cost.
+3. Compare completed-trade Performance and descriptive Downside.
+4. Prefer candidates that remain acceptable across direct parameter neighbors and entry-calendar-year cohorts.
+5. Compare entry and exit rules within those stable neighborhoods.
+6. Later validate benchmark alpha and portfolio behavior with overlapping positions, capital allocation, exposure, cash, portfolio CAGR, and portfolio drawdown.
 
-Event-level compounded `total_return` is a diagnostic convenience, not final portfolio performance. Consider sample size, median and average returns, win rate, MFE/MAE, drawdown, parameter stability, costs, and regime coverage together.
+The default date semantics include completed trades whose `entry_date` is inside the requested inclusive period. Their fully realized results remain included even when `exit_date` is after the requested end date. Open/incomplete trades are excluded.
+
+Default event-level labels are explicit: Avg Trade Ret, Median Trade Ret, Trade Win Rate, Sum of Trade Returns, and Trade-Sequence DD. Sum of Trade Returns is the arithmetic sum of completed net trade returns. Trade-Sequence DD is calculated from the entry-date-ordered compounded trade sequence. Neither is a portfolio performance metric. The legacy compounded `total_return` may remain in compatibility data but is not shown as Sum of Trade Returns.
+
+### Phase 1 Gate Configuration and Tiers
+
+Gate thresholds are defined once in `src/backtest.py`, serialized in `backtest_summary.json`, and displayed in the UI. Starting decision thresholds are:
+
+- `min_completed_trades = 100`
+- `min_bucket_trades = 10`
+- `min_eligible_neighbors = 2`
+- `min_profit_factor = 1.0`
+- `min_median_trade_return = 0.0`
+- `min_neighbor_pass_ratio = 0.60`
+- `min_positive_year_ratio = 0.60`
+- `min_positive_regime_ratio = 0.50`
+
+These are transparent, revisable research decisions, not statistical proof. Phase 1 uses sample size, Median Trade Ret, and Profit Factor as mandatory gates. Trade-Sequence DD, Worst Trade Ret, and 10th-percentile Trade Ret are descriptive rather than hard-fail gates.
+
+Candidate selection is deterministic: higher provisional tier, more mandatory gates passed, higher Median Trade Ret, higher Profit Factor, lower absolute Trade-Sequence DD, then more completed trades. The old weighted `robust_score` is not used.
+
+Parameter Stability uses direct adjacent Score Breakout grid neighbors while holding entry and exit rules fixed. Time Stability uses completed outcomes grouped by entry calendar year. Regime Stability is `Not available` because SPY history is not already present in the static pipeline; adding a new benchmark dependency is deferred.
 
 ## Data / GitHub Storage Constraints
 
