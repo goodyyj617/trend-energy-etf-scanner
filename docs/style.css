@@ -277,3 +277,180 @@ tr:hover {
   display: inline-block;
   margin-right: 6px;
 }
+
+.analysis-warning {
+  padding: 12px 14px;
+  border: 1px solid #f59e0b;
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.10);
+  color: #fde68a;
+}
+
+.analysis-warning strong {
+  color: #fbbf24;
+}
+
+.control-note,
+.section-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.status-grid,
+.candidate-snapshot,
+.component-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.status-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.status-grid > div,
+.snapshot-item,
+.component-card {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(2, 6, 23, 0.45);
+  padding: 10px 12px;
+}
+
+.status-grid span,
+.snapshot-item span,
+.snapshot-item small,
+.component-card > span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.status-grid b,
+.snapshot-item b {
+  display: block;
+  margin-top: 5px;
+  color: var(--text);
+}
+
+.candidate-snapshot {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.snapshot-item b {
+  color: #facc15;
+  font-size: 17px;
+}
+
+.snapshot-item small {
+  margin-top: 5px;
+}
+
+.component-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 12px;
+}
+
+.component-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.component-card > span {
+  margin-top: 4px;
+}
+
+.gate-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.gate-pass {
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
+.gate-fail,
+.gate-not-qualified {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.gate-insufficient,
+.gate-not-available,
+.gate-descriptive {
+  color: #cbd5e1;
+}
+
+.detail-panel {
+  display: block;
+}
+
+.detail-panel > summary {
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 10px 0;
+}
+
+.detail-panel[open] > summary {
+  margin-bottom: 8px;
+}
+
+.candidate-row {
+  cursor: pointer;
+}
+
+.candidate-row.selected-candidate {
+  outline: 1px solid var(--accent);
+  background: rgba(var(--signal), 0.10);
+}
+
+.definition-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.definition-columns h3 {
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.definition-columns p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.empty-state {
+  padding: 14px;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+}
+
+@media (max-width: 700px) {
+  header,
+  .tabs,
+  .controls,
+  .preset-help,
+  .active-help,
+  .table-wrap {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .candidate-snapshot,
+  .component-grid,
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+}

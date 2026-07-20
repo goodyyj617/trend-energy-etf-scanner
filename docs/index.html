@@ -122,116 +122,107 @@
   </section>
 
   <section id="backtestPanel" class="tab-panel">
-    <section class="active-help">
-      <strong>Backtest:</strong>
-      Signal은 진입 후보/트리거로만 사용하고, 청산에는 signal FALSE를 사용하지 않습니다.
-      청산은 가격 기반 stop과 max holding cap을 사용합니다. Stop 없는 MaxHold-only 전략은 제외했습니다.
+    <section class="active-help backtest-intro">
+      <div class="analysis-warning">
+        <strong>Event-level analysis only.</strong>
+        This page analyzes completed strategy trades as independent events. It is not a portfolio equity backtest.
+        Sum of Trade Returns and Trade-Sequence DD are not portfolio return, CAGR, or portfolio drawdown because
+        overlapping trades, capital allocation, exposure, and cash constraints are not modeled.
+      </div>
       <p id="backtestMeta" class="sub-meta">Backtest loading...</p>
-      <div id="diagnosticDefs" class="definition-box"></div>
+      <div class="definition-box how-to-read">
+        <strong>How to read this page</strong>
+        <span>1. Set the requested entry period and confirm the included entry and realized exit periods.</span>
+        <span>2. Check that a candidate has enough completed trades.</span>
+        <span>3. Compare Performance and Downside after the selected exit, stop, max holding, and cost.</span>
+        <span>4. Prefer candidates that remain acceptable across neighboring parameters and entry-year buckets.</span>
+        <span>5. Portfolio-level CAGR and portfolio max drawdown remain future work.</span>
+      </div>
     </section>
 
-    <section class="table-wrap">
-      <h2>Robustness Dashboard</h2>
-      <div class="definition-box">
-        <strong>How to read this research:</strong>
-        <span>1. Start with signal forward-return diagnostics to confirm that the signal has useful expectancy.</span>
-        <span>2. Check parameter robustness: good results should persist across neighboring Lookback, R20 Min, and ER20 Min settings, not only the top row.</span>
-        <span>3. Compare entry rules within robust parameter neighborhoods, then compare price-based exit rules for downside protection and trend capture.</span>
-        <span>4. Treat benchmark alpha and portfolio-level return, exposure, and drawdown validation as the later confirmation stage.</span>
-      </div>
+    <section class="table-wrap period-panel">
+      <h2>Entry Period</h2>
       <div class="backtest-controls">
         <label>
-          Entry
-          <select id="robustEntryFilter">
-            <option value="All">All</option>
+          Requested entry period
+          <select id="entryPeriodPreset">
+            <option value="all">All available</option>
+            <option value="last_1y">Recent 1 year</option>
+            <option value="last_3y">Recent 3 years</option>
+            <option value="last_5y">Recent 5 years</option>
           </select>
         </label>
-        <label>
-          Metric
-          <select id="robustMetric">
-            <option value="median_fwd_20d" selected>Median Fwd 20D</option>
-            <option value="avg_fwd_20d">Avg Fwd 20D</option>
-            <option value="win_rate_20d">Win 20D</option>
-            <option value="mfe_mae_ratio">MFE / |MAE|</option>
-            <option value="robust_score">Robust Score</option>
-          </select>
-        </label>
-        <label>Min Signals <input type="number" id="robustMinSignals" value="300" step="50" /></label>
+        <span class="control-note">Static preset summaries; arbitrary dates would require publishing unsafe raw trade data.</span>
       </div>
-      <div id="robustCards" class="kpi-grid"></div>
-      <table id="robustnessTable">
+      <div id="periodStatus" class="status-grid">
+        <div><span>Requested entry period</span><b id="requestedEntryPeriod">-</b></div>
+        <div><span>Included trade entry period</span><b id="includedEntryPeriod">-</b></div>
+        <div><span>Realized exit period of included trades</span><b id="realizedExitPeriod">-</b></div>
+        <div><span>Included completed trades</span><b id="includedCompletedTrades">-</b></div>
+      </div>
+    </section>
+
+    <section class="table-wrap">
+      <h2>Candidate Snapshot</h2>
+      <div id="candidateSnapshot" class="candidate-snapshot"></div>
+      <div id="componentSummary" class="component-grid"></div>
+    </section>
+
+    <section class="table-wrap">
+      <h2>Exit-Applied Strategy Leaderboard</h2>
+      <p class="section-note">Top candidates are ranked by tier, mandatory gates passed, Median Trade Ret, Profit Factor, lower absolute Trade-Sequence DD, then completed trades.</p>
+      <table id="leaderboardTopTable">
         <thead>
           <tr>
-            <th>Signal</th>
-            <th>Entry</th>
-            <th>Lookback</th>
-            <th>R20 Min</th>
-            <th>ER20 Min</th>
-            <th>Signals</th>
-            <th>Avg Fwd20</th>
-            <th>Median Fwd20</th>
-            <th>Win20</th>
-            <th>MFE20</th>
-            <th>MAE20</th>
-            <th>MFE/|MAE|</th>
-            <th>Robust Score</th>
+            <th>Tier</th><th>Lookback</th><th>R20 Min</th><th>ER20 Min</th><th>Entry</th><th>Exit</th>
+            <th>Completed Trades</th><th>Avg Trade Ret</th><th>Median Trade Ret</th><th>Trade Win Rate</th>
+            <th>Sum of Trade Returns</th><th>Trade-Sequence DD</th><th>Profit Factor</th><th>Avg Days</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </section>
 
-    <section class="table-wrap">
-      <h2>Signal Forward Return Diagnostics</h2>
-      <table id="signalDiagnosticsTable">
-        <thead>
-          <tr>
-            <th data-key="signal_label">Signal</th>
-            <th data-key="entry_label">Entry</th>
-            <th data-key="signals">Signals</th>
-            <th data-key="avg_fwd_1d">Avg Fwd 1D</th>
-            <th data-key="avg_fwd_3d">Avg Fwd 3D</th>
-            <th data-key="avg_fwd_5d">Avg Fwd 5D</th>
-            <th data-key="avg_fwd_10d">Avg Fwd 10D</th>
-            <th data-key="avg_fwd_20d">Avg Fwd 20D</th>
-            <th data-key="median_fwd_20d">Median Fwd 20D</th>
-            <th data-key="win_rate_20d">Win 20D</th>
-            <th data-key="avg_mfe_20d">Avg MFE20</th>
-            <th data-key="avg_mae_20d">Avg MAE20</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-
-    <section class="table-wrap">
-      <h2>Strategy Summary</h2>
+    <details class="table-wrap detail-panel">
+      <summary>Full Exit-Applied Strategy Leaderboard</summary>
       <table id="backtestSummaryTable">
         <thead>
           <tr>
-            <th data-key="strategy_label">Strategy</th>
-            <th data-key="signal_label">Signal</th>
-            <th data-key="entry_label">Entry</th>
-            <th data-key="exit_label">Exit</th>
-            <th data-key="trades">Trades</th>
-            <th data-key="skipped_stop_broken">Skipped</th>
-            <th data-key="win_rate">Win Rate</th>
-            <th data-key="avg_return">Avg Ret</th>
-            <th data-key="median_return">Median Ret</th>
-            <th data-key="total_return">Total Ret</th>
-            <th data-key="max_drawdown">Max DD</th>
-            <th data-key="avg_holding_days">Avg Days</th>
-            <th data-key="profit_factor">Profit Factor</th>
-            <th data-key="stop_hit_rate">Stop Hit</th>
-            <th data-key="max_hold_exit_rate">Max Hold Exit</th>
+            <th>Tier</th><th>Gates</th><th>Signal</th><th>Entry</th><th>Exit</th><th>Completed Trades</th>
+            <th>Avg Trade Ret</th><th>Median Trade Ret</th><th>Trade Win Rate</th><th>Sum of Trade Returns</th>
+            <th>Trade-Sequence DD</th><th>Worst Trade Ret</th><th>10th Pctl Trade Ret</th><th>Profit Factor</th>
+            <th>Stop Hit Rate</th><th>Avg Days</th><th>Parameter Stability</th><th>Time Stability</th><th>Regime Stability</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
-    </section>
+    </details>
 
-    <section class="table-wrap">
-      <h2>Recent Trades</h2>
+    <details class="table-wrap detail-panel">
+      <summary>Parameter Neighborhood Details</summary>
+      <table id="parameterDetailsTable">
+        <thead>
+          <tr>
+            <th>Candidate</th><th>Status</th><th>Available Neighbors</th><th>Eligible Neighbors</th>
+            <th>Neighbor Pass Ratio</th><th>Neighbor Median Ret Range</th><th>Neighbor Trade-Sequence DD Range</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </details>
+
+    <details class="table-wrap detail-panel">
+      <summary>Entry-Year Stability Details</summary>
+      <table id="yearlyDetailsTable">
+        <thead>
+          <tr><th>Year</th><th>Status</th><th>Completed Trades</th><th>Avg Trade Ret</th><th>Median Trade Ret</th><th>Trade Win Rate</th><th>Profit Factor</th><th>Trade-Sequence DD</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </details>
+
+    <details class="table-wrap detail-panel">
+      <summary>Recent Completed Trades Sample</summary>
       <table id="backtestTradesTable">
         <thead>
           <tr>
@@ -254,7 +245,50 @@
         </thead>
         <tbody></tbody>
       </table>
-    </section>
+    </details>
+
+    <details class="table-wrap detail-panel metric-definitions">
+      <summary>Metric Definitions and Active Gate Thresholds</summary>
+      <div id="activeThresholds" class="definition-box"></div>
+      <div class="definition-columns">
+        <div>
+          <h3>Signal inputs</h3>
+          <p><b>R20:</b> Close-to-close 20-trading-day return.</p>
+          <p><b>ER20:</b> Upside net movement over 20 days divided by the sum of absolute daily close changes; negative net movement is clipped to zero.</p>
+          <p><b>TE63 / TE126:</b> 63- or 126-day return multiplied by its matching upside efficiency ratio.</p>
+          <p><b>Score:</b> 0.65 × TE63 + 0.35 × TE126.</p>
+          <p><b>Score Breakout:</b> Score exceeds its prior <b>score_lookback</b> high, Score is positive, R20/ER20 pass their minimums, and Close is above MA50.</p>
+          <p><b>score_lookback:</b> Number of prior trading days used for the Score high comparison.</p>
+        </div>
+        <div>
+          <h3>Entry and exit rules</h3>
+          <p><b>First signal:</b> Next-open entry after the signal first changes from false to true.</p>
+          <p><b>Signal 2D / 3D confirm:</b> Next-open entry after two or three consecutive true signal days.</p>
+          <p><b>5D breakout after signal:</b> Within five days of the first signal, Close must break the prior five-day high; entry is at the next open.</p>
+          <p><b>Low10 / Low20 trailing:</b> Signal-day rolling low is the initial stop and the stop can only move upward.</p>
+          <p><b>Low20 - 0.5ATR trailing:</b> Low20 minus half ATR20, trailed upward only.</p>
+          <p><b>Chandelier20 2.5ATR:</b> HHV20 minus 2.5 × ATR20, trailed upward only.</p>
+          <p><b>MA50 trailing:</b> MA50 price stop, trailed upward only.</p>
+          <p><b>Max holding days:</b> Exit at the close after 63 trading days if no stop exits first.</p>
+          <p><b>Round-trip cost:</b> 0.2% is deducted once from each completed trade's gross return. A gap below the stop exits at the open; otherwise a touched stop exits at the stop.</p>
+        </div>
+        <div>
+          <h3>Completed-trade results</h3>
+          <p><b>Completed Trades:</b> Exit-applied trades with realized outcomes.</p>
+          <p><b>Avg / Median Trade Ret:</b> Mean or median completed net trade return.</p>
+          <p><b>Trade Win Rate:</b> Share of completed net trade returns above zero.</p>
+          <p><b>Sum of Trade Returns:</b> Arithmetic sum of completed net trade returns; not portfolio return.</p>
+          <p><b>Trade-Sequence DD:</b> Drawdown of the entry-date-ordered compounded trade sequence; not portfolio drawdown.</p>
+          <p><b>Profit Factor:</b> Positive return sum divided by the absolute negative return sum.</p>
+          <p><b>Worst / 10th Pctl Trade Ret:</b> Worst and lower-tail completed net trade outcomes.</p>
+          <p><b>Stop Hit Rate:</b> Share of completed trades exited by a price stop.</p>
+          <p><b>Avg Days:</b> Mean trading-day holding length.</p>
+          <p><b>Parameter Stability:</b> Gate consistency across direct adjacent Score parameter neighbors with the same entry and exit.</p>
+          <p><b>Time Stability:</b> Positive-result consistency across eligible entry-calendar-year cohorts.</p>
+          <p><b>Robustness Tier:</b> Provisional transparent tier based on mandatory gates plus parameter and time stability. Regime is unverified in Phase 1.</p>
+        </div>
+      </div>
+    </details>
   </section>
 
   <script src="app.js"></script>
