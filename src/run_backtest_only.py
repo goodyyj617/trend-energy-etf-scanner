@@ -12,6 +12,13 @@ from .universe import build_base_universe
 
 def main() -> None:
     cfg = load_config()
+    scanner_lookback_period = str(cfg.get("lookback_period", "1y"))
+    backtest_lookback_period = str(
+        cfg.get("backtest_lookback_period", cfg.get("lookback_period", "1y"))
+    )
+
+    print(f"scanner_lookback_period={scanner_lookback_period}")
+    print(f"backtest_lookback_period={backtest_lookback_period}")
 
     data_dir = ROOT / "docs" / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -26,15 +33,22 @@ def main() -> None:
     symbols = universe.loc[universe["base_universe_eligible"], "symbol"].tolist()
     prices = download_ohlcv(
         symbols,
-        period=str(cfg["lookback_period"]),
+        period=backtest_lookback_period,
         interval=str(cfg["price_interval"]),
     )
 
     if prices.empty:
         raise RuntimeError("No price data downloaded. Check symbols, internet access, or yfinance availability.")
 
-    as_of_ts = pd.to_datetime(prices["date"], errors="coerce").dropna().max()
+    price_dates = pd.to_datetime(prices["date"], errors="coerce").dropna()
+    price_min_ts = price_dates.min()
+    as_of_ts = price_dates.max()
     as_of = str(as_of_ts.date()) if pd.notna(as_of_ts) else "unknown"
+
+    print(f"downloaded_price_min={price_min_ts.date() if pd.notna(price_min_ts) else 'unknown'}")
+    print(f"downloaded_price_max={as_of}")
+    print(f"downloaded_symbols={prices['symbol'].nunique()}")
+    print(f"downloaded_ohlcv_rows={len(prices)}")
 
     backtest_payload = run_backtests(
         prices=prices,
