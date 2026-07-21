@@ -45,4 +45,5 @@ jobs:
           git add docs/data/backtest_recent_trades.csv docs/data/signal_diagnostics_summary.csv docs/data/backtest_skipped_summary.csv
           git add docs/data/history || true
           git commit -m "Update ETF scan data" || echo "No changes to commit"
+          git pull --rebase --autostash origin main
           git push
