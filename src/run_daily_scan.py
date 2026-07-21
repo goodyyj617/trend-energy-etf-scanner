@@ -11,7 +11,7 @@ from .backtest import run_backtests
 from .features import compute_latest_features
 from .prices import download_ohlcv
 from .signal_history import add_signal_history
-from .universe import build_base_universe
+from .universe import build_base_universe, build_income_exclusion_review
 from .update_aum import update_aum_csv
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +54,10 @@ def main() -> None:
         universe_yml=ROOT / "config" / "universe.yml",
     )
     universe.to_csv(data_dir / "universe_current.csv", index=False)
+    income_exclusion_review = build_income_exclusion_review(universe)
+    income_exclusion_review.to_csv(data_dir / "excluded_etfs_summary.csv", index=False)
+    income_exclusion_counts = income_exclusion_review.groupby("reason_category").size().to_dict()
+    print(f"income_exclusions={income_exclusion_counts}")
 
     symbols = universe.loc[universe["base_universe_eligible"], "symbol"].tolist()
     prices = download_ohlcv(
