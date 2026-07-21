@@ -1,0 +1,228 @@
+symbol,name,matched_keyword,reason_category,asset_group
+AIPI,REX AI Equity Premium Income ETF,premium income,covered_call_option_income,Bond
+APRH,Innovator Premium Income 20 Barrier ETF - April,premium income,covered_call_option_income,Other
+APRJ,Innovator Premium Income 30 Barrier ETF - April,premium income,covered_call_option_income,Other
+BALI,iShares U.S. Large Cap Premium Income Active ETF,premium income,covered_call_option_income,Factor / Style
+BALQ,iShares Nasdaq Premium Income Active ETF,premium income,covered_call_option_income,Other
+BITA,iShares Bitcoin Premium Income ETF,premium income,covered_call_option_income,Crypto
+BITY,Amplify Bitcoin 2% Monthly Option Income ETF,option income,covered_call_option_income,Crypto
+BPI,Grayscale Bitcoin Premium Income ETF,premium income,covered_call_option_income,Crypto
+BUCK,Simplify Treasury Option Income ETF,option income,covered_call_option_income,Bond
+CEPI,REX Crypto Equity Premium Income ETF,premium income,covered_call_option_income,Crypto
+DDDD,YieldMax U.S. Stocks Target Double Distribution ETF,yieldmax,covered_call_option_income,Other
+ETTY,Amplify Ethereum 3% Monthly Option Income ETF,option income,covered_call_option_income,Crypto
+FEPI,REX FANG & Innovation Equity Premium Income ETF,premium income,covered_call_option_income,Bond
+FIXP,FolioBeyond Enhanced Fixed Income Premium ETF,income premium,covered_call_option_income,Bond
+GPIQ,Goldman Sachs Nasdaq-100 Premium Income ETF,premium income,covered_call_option_income,Bond
+GPIX,Goldman Sachs S&P 500 Premium Income ETF,premium income,covered_call_option_income,Bond
+HEMI,Hartford Equity Premium Income ETF,premium income,covered_call_option_income,Bond
+JANH,Innovator Premium Income 20 Barrier ETF - January,premium income,covered_call_option_income,Other
+JANJ,Innovator Premium Income 30 Barrier ETF - January,premium income,covered_call_option_income,Other
+JEPI,JPMorgan Equity Premium Income ETF,premium income,covered_call_option_income,Bond
+JEPQ,JPMorgan Nasdaq Equity Premium Income ETF,premium income,covered_call_option_income,Bond
+JULH,Innovator Premium Income 20 Barrier ETF - July,premium income,covered_call_option_income,Other
+JULJ,Innovator Premium Income 30 Barrier ETF - July,premium income,covered_call_option_income,Other
+KHPI,Kensington Hedged Premium Income ETF,premium income,covered_call_option_income,Bond
+MSST,YieldMax MSTR Performance & Distribution Target 25 ETF,yieldmax,covered_call_option_income,Other
+NVIT,YieldMax NVDA Performance & Distribution Target 25 ETF,yieldmax,covered_call_option_income,Other
+OCTH,Innovator Premium Income 20 Barrier ETF - October,premium income,covered_call_option_income,Other
+OCTJ,Innovator Premium Income 30 Barrier ETF - October,premium income,covered_call_option_income,Other
+ODTE,VegaShares SPX NDX RTY Premium Income ETF,premium income,covered_call_option_income,Bond
+PAPI,Parametric Equity Premium Income ETF,premium income,covered_call_option_income,Bond
+RDTY,YieldMax R2000 0DTE Covered Strategy ETF,yieldmax,covered_call_option_income,Other
+SCEP,Sterling Capital Hedged Equity Premium Income ETF,premium income,covered_call_option_income,Bond
+SEPI,Shelton Equity Premium Income ETF,premium income,covered_call_option_income,Bond
+SOLM,Amplify Solana 3% Monthly Option Income ETF,option income,covered_call_option_income,Bond
+SPIN,State Street US Equity Premium Income ETF,premium income,covered_call_option_income,Bond
+SPUT,Innovator Equity Premium Income - Daily PutWrite ETF,premium income,covered_call_option_income,Other
+TCAL,T. Rowe Price Capital Appreciation Premium Income ETF,premium income,covered_call_option_income,Bond
+TEST,YieldMax TSLA Performance & Distribution Target 25 ETF,yieldmax,covered_call_option_income,Other
+THOR,Thornburg Premium Income Builder ETF,premium income,covered_call_option_income,Other
+TLTP,Amplify TLT U.S. Treasury 12% Option Income ETF,option income,covered_call_option_income,Bond
+WEEL,Peerless Option Income Wheel ETF,option income,covered_call_option_income,Other
+WTPI,WisdomTree Equity Premium Income Fund,premium income,covered_call_option_income,Other
+XLBI,State Street Materials Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLCI,State Street Communication Services Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLEI,State Street Energy Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLFI,State Street Financial Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLII,State Street Industrial Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLKI,State Street Technology Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLRI,State Street Real Estate Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLSI,State Street Consumer Staples Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLUI,State Street Utilities Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLVI,State Street Health Care Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XLYI,State Street Consumer Discretionary Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,Bond
+XRPM,Amplify XRP 3% Monthly Option Income ETF,option income,covered_call_option_income,Bond
+YBMN,Defiance BMNR Option Income ETF,option income,covered_call_option_income,Bond
+ADIV,Guinness Atkinson Asia Pacific Dividend Builder ETF,dividend,dividend_equity_income,Country / Region
+ADVE,Matthews Asia Dividend Active ETF,dividend,dividend_equity_income,Country / Region
+AGEM,abrdn Emerging Markets Dividend Active ETF,dividend,dividend_equity_income,Country / Region
+AMEI,Amana Equity Income ETF,equity income,dividend_equity_income,Bond
+BAMD,Brookstone Dividend Stock ETF,dividend,dividend_equity_income,Factor / Style
+BDIV,AAM Brentview Dividend Growth ETF,dividend growth,dividend_equity_income,Factor / Style
+BDVG,IMGP Berkshire Dividend Growth ETF,dividend growth,dividend_equity_income,Factor / Style
+BEDY,BNY Mellon Enhanced Dividend and Income ETF,dividend,dividend_equity_income,Bond
+BGDV,Bahl & Gaynor Dividend ETF,dividend,dividend_equity_income,Factor / Style
+BIDD,iShares International Dividend Active ETF,dividend,dividend_equity_income,Factor / Style
+CGDG,Capital Group Dividend Growers ETF,dividend,dividend_equity_income,Factor / Style
+CGDV,Capital Group Dividend Value ETF,dividend,dividend_equity_income,Factor / Style
+COWS,Amplify Cash Flow Dividend Leaders ETF,dividend,dividend_equity_income,Factor / Style
+CVGD,CresAlta Global Dividend ETF,dividend,dividend_equity_income,Factor / Style
+DDIV,First Trust Dorsey Wright Momentum & Dividend ETF,dividend,dividend_equity_income,Factor / Style
+DEM,WisdomTree Emerging Markets High Dividend Fund,high dividend,dividend_equity_income,Country / Region
+DES,WisdomTree U.S. SmallCap Dividend Fund,dividend,dividend_equity_income,Factor / Style
+DEW,WisdomTree Global High Dividend Fund,high dividend,dividend_equity_income,Factor / Style
+DFE,WisdomTree Europe SmallCap Dividend Fund,dividend,dividend_equity_income,Country / Region
+DGRE,WisdomTree Emerging Markets Quality Dividend Growth Fund,dividend growth,dividend_equity_income,Country / Region
+DGRO,iShares Core Dividend Growth ETF,dividend growth,dividend_equity_income,Factor / Style
+DGRS,WisdomTree U.S. SmallCap Quality Dividend Growth Fund,dividend growth,dividend_equity_income,Factor / Style
+DGRW,WisdomTree U.S. Quality Dividend Growth Fund,dividend growth,dividend_equity_income,Factor / Style
+DHS,WisdomTree U.S. High Dividend Fund,high dividend,dividend_equity_income,Factor / Style
+DIEM,Franklin Emerging Market Core Dividend Tilt Index ETF,dividend,dividend_equity_income,Factor / Style
+DIM,WisdomTree International MidCap Dividend Fund,dividend,dividend_equity_income,Factor / Style
+DIV,Global X Super Dividend ETF,dividend,dividend_equity_income,Factor / Style
+DIVB,iShares Core Dividend ETF,dividend,dividend_equity_income,Factor / Style
+DIVD,Altrius Global Dividend ETF,dividend,dividend_equity_income,Factor / Style
+DIVE,Dana Concentrated Dividend ETF,dividend,dividend_equity_income,Factor / Style
+DIVG,Invesco S&P 500 High Dividend Growers ETF,high dividend,dividend_equity_income,Factor / Style
+DIVI,Franklin International Core Dividend Tilt Index ETF,dividend,dividend_equity_income,Factor / Style
+DIVL,Madison Dividend Value ETF,dividend,dividend_equity_income,Factor / Style
+DIVN,Horizon Dividend Income ETF,dividend,dividend_equity_income,Bond
+DIVO,Amplify CWP Enhanced Dividend Income ETF,dividend,dividend_equity_income,Bond
+DIVP,Cullen Enhanced Equity Income ETF,equity income,dividend_equity_income,Bond
+DIVS,Guinness Atkinson Dividend Builder ETF,dividend,dividend_equity_income,Factor / Style
+DIVY,Sound Equity Dividend Income ETF,dividend,dividend_equity_income,Bond
+DIVZ,Polen Dividend Income ETF,dividend,dividend_equity_income,Bond
+DJD,Invesco Dow Jones Industrial Average Dividend ETF,dividend,dividend_equity_income,Factor / Style
+DLN,WisdomTree U.S. LargeCap Dividend Fund,dividend,dividend_equity_income,Factor / Style
+DON,WisdomTree U.S. MidCap Dividend Fund,dividend,dividend_equity_income,Factor / Style
+DRVR,Amplify S&P 500 Dividend Drivers ETF,dividend,dividend_equity_income,Factor / Style
+DTD,WisdomTree U.S. Total Dividend Fund,dividend,dividend_equity_income,Factor / Style
+DTH,WisdomTree International High Dividend Fund,high dividend,dividend_equity_income,Factor / Style
+DURA,VanEck Durable High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+DVDN,Kingsbarn Dividend Opportunity ETF,dividend,dividend_equity_income,Factor / Style
+DVGR,DAC 3D Dividend Growth ETF,dividend growth,dividend_equity_income,Factor / Style
+DVND,Touchstone Dividend Select ETF,dividend,dividend_equity_income,Factor / Style
+DVVY,Invesco Diversified Dividend Opportunities ETF,dividend,dividend_equity_income,Factor / Style
+DVY,iShares Select Dividend ETF,dividend,dividend_equity_income,Factor / Style
+DVYA,iShares Asia / Pacific Dividend 30 Index Fund Exchange Traded Fund,dividend,dividend_equity_income,Country / Region
+DVYE,iShares Emerging Markets Dividend Index Fund Exchange Traded Fund,dividend,dividend_equity_income,Country / Region
+DWX,State Street SPDR S&P International Dividend ETF,dividend,dividend_equity_income,Factor / Style
+EASY,Liberty One Defensive Dividend Growth ETF,dividend growth,dividend_equity_income,Factor / Style
+EDIV,State Street SPDR S&P Emerging Markets Dividend ETF,dividend,dividend_equity_income,Country / Region
+EDOG,ALPS Emerging Sector Dividend Dogs ETF,dividend,dividend_equity_income,Sector
+EFAD,ProShares MSCI EAFE Dividend Growers ETF,dividend,dividend_equity_income,Country / Region
+EFAS,Global X MSCI SuperDividend EAFE ETF,dividend,dividend_equity_income,Country / Region
+ELCV,Strategy Shares Eventide High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+EMDV,ProShares MSCI Emerging Markets Dividend Growers ETF,dividend,dividend_equity_income,Country / Region
+EQIN,Columbia U.S. Equity Income ETF,equity income,dividend_equity_income,Bond
+EUDG,WisdomTree Europe Quality Dividend Growth Fund,dividend growth,dividend_equity_income,Country / Region
+EUDV,ProShares MSCI Europe Dividend Growers ETF,dividend,dividend_equity_income,Country / Region
+FDD,First Trust STOXX European Select Dividend Index Fund,dividend,dividend_equity_income,Factor / Style
+FDIV,MarketDesk Focused U.S. Dividend ETF,dividend,dividend_equity_income,Factor / Style
+FDRR,Fidelity Dividend ETF for Rising Rates,dividend,dividend_equity_income,Factor / Style
+FDV,Federated Hermes U.S. Strategic Dividend ETF,dividend,dividend_equity_income,Factor / Style
+FDVV,Fidelity High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+FGD,First Trust DJ Global Select Dividend,dividend,dividend_equity_income,Factor / Style
+FID,First Trust S&P International Dividend Aristocrats ETF,dividend aristocrats,dividend_equity_income,Factor / Style
+FIDI,Fidelity International High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+FRIZ,Franklin Dividend Growth ETF,dividend growth,dividend_equity_income,Factor / Style
+FTDS,First Trust Dividend Strength ETF,dividend,dividend_equity_income,Factor / Style
+FVD,First Trust VL Dividend,dividend,dividend_equity_income,Factor / Style
+GCOW,Pacer Global Cash Cows Dividend ETF,dividend,dividend_equity_income,Factor / Style
+GDIV,Harbor Dividend Growth Leaders ETF,dividend growth,dividend_equity_income,Factor / Style
+GEND,Genter Capital Dividend Income ETF,dividend,dividend_equity_income,Bond
+GENW,Genter Capital International Dividend ETF,dividend,dividend_equity_income,Factor / Style
+HDEF,Xtrackers MSCI EAFE High Dividend Yield Equity ETF,dividend yield,dividend_equity_income,Country / Region
+HDV,iShares Core High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+HIDV,AB US High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+ICAP,Infrastructure Capital Equity Income ETF,equity income,dividend_equity_income,Bond
+IDOG,ALPS International Sector Dividend Dogs ETF,dividend,dividend_equity_income,Sector
+IDV,iShares International Select Dividend ETF,dividend,dividend_equity_income,Factor / Style
+IDVO,Amplify CWP International Enhanced Dividend Income ETF,dividend,dividend_equity_income,Bond
+IDVY,First Trust International Rising Dividend Achievers ETF,dividend,dividend_equity_income,Factor / Style
+IDVZ,Polen International Dividend Income Fund,dividend,dividend_equity_income,Factor / Style
+IGRO,iShares International Dividend Growth ETF,dividend growth,dividend_equity_income,Factor / Style
+IHDG,WisdomTree International Hedged Quality Dividend Growth Fund,dividend growth,dividend_equity_income,Factor / Style
+INEQ,Columbia International Equity Income ETF,equity income,dividend_equity_income,Bond
+IQDF,FlexShares International Quality Dividend Index Fund,dividend,dividend_equity_income,Factor / Style
+IQDG,WisdomTree International Quality Dividend Growth Fund,dividend growth,dividend_equity_income,Factor / Style
+IQDY,FlexShares International Quality Dividend Dynamic Index Fund,dividend,dividend_equity_income,Factor / Style
+JDIV,JPMorgan Dividend Leaders ETF,dividend,dividend_equity_income,Factor / Style
+JHDV,John Hancock U.S. High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+JHID,John Hancock International High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+KBWD,Invesco KBW High Dividend Yield Financial ETF,dividend yield,dividend_equity_income,Factor / Style
+KDVD,Keeley Dividend ETF,dividend,dividend_equity_income,Factor / Style
+KNG,FT Vest S&P 500 Dividend Aristocrats Target Income ETF,dividend aristocrats,dividend_equity_income,Bond
+KNGZ,First Trust S&P 500 Diversified Dividend Aristocrats ETF,dividend aristocrats,dividend_equity_income,Factor / Style
+KVLE,KraneShares Value Line Dynamic Dividend Equity Index ETF,dividend,dividend_equity_income,Factor / Style
+MBOX,Freedom Day Dividend ETF,dividend,dividend_equity_income,Factor / Style
+MDPL,Monarch Dividend Plus Index ETF,dividend,dividend_equity_income,Factor / Style
+MVFD,Monarch Volume Factor Dividend Tree Index ETF,dividend,dividend_equity_income,Factor / Style
+NLSI,NEOS Long/Short Equity Income ETF,equity income,dividend_equity_income,Bond
+NOBL,ProShares S&P 500 Dividend Aristocrats ETF,dividend aristocrats,dividend_equity_income,Factor / Style
+NUDG,Nuveen Dividend Growth Fund: ETF Class Shares,dividend growth,dividend_equity_income,Factor / Style
+NUDV,Nuveen ESG Dividend ETF,dividend,dividend_equity_income,Factor / Style
+OEFA,ALPS O'Shares International Developed Quality Dividend ETF,dividend,dividend_equity_income,Factor / Style
+OEI,Optimized Equity Income ETF,equity income,dividend_equity_income,Bond
+OUSA,ALPS O'Shares U.S. Quality Dividend ETF,dividend,dividend_equity_income,Factor / Style
+OUSM,ALPS O'Shares U.S. Small-Cap Quality Dividend ETF,dividend,dividend_equity_income,Factor / Style
+PEY,Invesco High Yield Equity Dividend Achievers ETF,dividend,dividend_equity_income,Bond
+PFM,Invesco Dividend Achievers ETF,dividend,dividend_equity_income,Factor / Style
+PID,Invesco International Dividend Achievers ETF,dividend,dividend_equity_income,Factor / Style
+QDEF,FlexShares Quality Dividend Defensive Index Fund,dividend,dividend_equity_income,Factor / Style
+QDF,FlexShares Quality Dividend Index Fund,dividend,dividend_equity_income,Factor / Style
+QDIV,Global X S&P 500 Quality Dividend ETF,dividend,dividend_equity_income,Factor / Style
+QDPL,Pacer Metaurus US Large Cap Dividend Multiplier 400 ETF,dividend,dividend_equity_income,Factor / Style
+QFHD,Pacer S&P 500 Quality FCF High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+QQQH,NEOS Nasdaq-100 Hedged Equity Income ETF,equity income,dividend_equity_income,Bond
+QSIX,Pacer Metaurus Nasdaq 100 Dividend Multiplier 600 ETF,dividend,dividend_equity_income,Factor / Style
+RDOG,ALPS REIT Dividend Dogs ETF,dividend,dividend_equity_income,REIT / Infra
+RDVI,FT Vest Rising Dividend Achievers Target Income ETF,dividend,dividend_equity_income,Bond
+RDVY,First Trust Rising Dividend Achievers ETF,dividend,dividend_equity_income,Factor / Style
+REGL,ProShares S&P MidCap 400 Dividend Aristocrats ETF,dividend aristocrats,dividend_equity_income,Factor / Style
+RFDA,ALPS Dynamic US Dividend Advantage ETF,dividend,dividend_equity_income,Factor / Style
+RIET,Hoya Capital High Dividend Yield ETF,dividend yield,dividend_equity_income,Factor / Style
+RJDI,RJ Eagle GCM Dividend Select Income ETF,dividend,dividend_equity_income,Bond
+SCDV,Bahl & Gaynor Small Cap Dividend ETF,dividend,dividend_equity_income,Factor / Style
+SCHD,Schwab US Dividend Equity ETF,dividend,dividend_equity_income,Factor / Style
+SCHY,Schwab International Dividend Equity ETF,dividend,dividend_equity_income,Factor / Style
+SCLZ,Swan Enhanced Dividend Income ETF,dividend,dividend_equity_income,Bond
+SDEM,Global X MSCI SuperDividend Emerging Markets ETF,dividend,dividend_equity_income,Country / Region
+SDIV,Global X SuperDividend ETF,dividend,dividend_equity_income,Global Equity
+SDOG,ALPS Sector Dividend Dogs ETF,dividend,dividend_equity_income,Sector
+SDVD,FT Vest SMID Rising Dividend Achievers Target Income ETF,dividend,dividend_equity_income,Bond
+SDVY,First Trust SMID Cap Rising Dividend Achievers ETF,dividend,dividend_equity_income,Factor / Style
+SDY,State Street SPDR S&P Dividend ETF,dividend,dividend_equity_income,Factor / Style
+SMDV,ProShares Russell 2000 Dividend Growers ETF,dividend,dividend_equity_income,Factor / Style
+SNPD,Xtrackers S&P Dividend Aristocrats Screened ETF,dividend aristocrats,dividend_equity_income,Factor / Style
+SPDG,State Street SPDR Portfolio S&P Sector Neutral Dividend ETF,dividend,dividend_equity_income,Sector
+SPDV,AAM S&P 500 High Dividend Value ETF,high dividend,dividend_equity_income,Factor / Style
+SPUC,Simplify US Equity Income ETF,equity income,dividend_equity_income,Bond
+SPYD,State Street SPDR Portfolio S&P 500 High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+SPYH,NEOS S&P 500 Hedged Equity Income ETF,equity income,dividend_equity_income,Bond
+SRET,Global X SuperDividend REIT ETF,dividend,dividend_equity_income,REIT / Infra
+STXD,Strive 1000 Dividend Growth ETF,dividend growth,dividend_equity_income,Factor / Style
+TBG,TBG Dividend Focus ETF,dividend,dividend_equity_income,Factor / Style
+TDIV,First Trust NASDAQ Technology Dividend Index Fund,dividend,dividend_equity_income,Sector
+TDV,ProShares S&P Technology Dividend Aristocrats ETF,dividend aristocrats,dividend_equity_income,Sector
+TDVG,T. Rowe Price Dividend Growth ETF,dividend growth,dividend_equity_income,Factor / Style
+TDVI,FT Vest Technology Dividend Target Income ETF,dividend,dividend_equity_income,Bond
+TEQI,T. Rowe Price Equity Income ETF,equity income,dividend_equity_income,Bond
+TMDV,ProShares Russell US Dividend Growers ETF,dividend,dividend_equity_income,Factor / Style
+TPHD,Timothy Plan High Dividend Stock ETF,high dividend,dividend_equity_income,Factor / Style
+UDI,USCF Dividend Income Fund,dividend,dividend_equity_income,Factor / Style
+UDIV,Franklin U.S. Core Dividend Tilt Index ETF,dividend,dividend_equity_income,Factor / Style
+VDI,Virtus International Dividend ETF,dividend,dividend_equity_income,Factor / Style
+VDIG,Vanguard Wellington Dividend Growth Active ETF,dividend growth,dividend_equity_income,Factor / Style
+VEM,Virtus Emerging Markets Dividend ETF,dividend,dividend_equity_income,Country / Region
+VIGI,Vanguard International Dividend Appreciation ETF,dividend,dividend_equity_income,Factor / Style
+VSDA,VictoryShares Dividend Accelerator ETF,dividend,dividend_equity_income,Factor / Style
+VUS,Virtus US Dividend ETF,dividend,dividend_equity_income,Factor / Style
+VYM,Vanguard High Dividend Yield ETF,dividend yield,dividend_equity_income,Factor / Style
+VYMI,Vanguard International High Dividend Yield ETF,dividend yield,dividend_equity_income,Factor / Style
+WBIY,WBI Power Factor High Dividend ETF,high dividend,dividend_equity_income,Factor / Style
+WDIV,State Street SPDR S&P Global Dividend ETF,dividend,dividend_equity_income,Factor / Style
+XDIV,Roundhill S&P 500 No Dividend Target ETF,dividend,dividend_equity_income,Factor / Style
+XIDV,Franklin International Dividend Booster Index ETF,dividend,dividend_equity_income,Factor / Style
+XUDV,Franklin U.S. Dividend Booster Index ETF,dividend,dividend_equity_income,Factor / Style

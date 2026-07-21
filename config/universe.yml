@@ -9,6 +9,22 @@ universe:
   backtest_lookback_period: 10y
   price_interval: 1d
   use_adjusted_prices: true
+  exclude_name_keywords:
+    covered_call_option_income:
+      - covered call
+      - buywrite
+      - option income
+      - premium income
+      - income premium
+      - yieldmax
+    dividend_equity_income:
+      - dividend
+      - high dividend
+      - dividend yield
+      - equity income
+      - dividend aristocrats
+      - dividend growth
+      - low volatility high dividend
 
 auto_aum:
   enabled: true
