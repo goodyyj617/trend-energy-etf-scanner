@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
@@ -15,6 +16,28 @@ ACTIVE_SIGNAL_COL = "__active_signal"
 ROUND_TRIP_COST = 0.002
 MAX_HOLDING_DAYS = 63
 DIAGNOSTIC_HORIZONS = [1, 3, 5, 10, 20]
+DIAGNOSTIC_SUMMARY_COLUMNS = [
+    "signal_key",
+    "signal_label",
+    "entry_key",
+    "entry_label",
+    "signal_params",
+    "description",
+    "signals",
+    *[
+        column
+        for horizon in DIAGNOSTIC_HORIZONS
+        for column in (
+            f"avg_fwd_{horizon}d",
+            f"median_fwd_{horizon}d",
+            f"win_rate_{horizon}d",
+        )
+    ],
+    "avg_mfe_20d",
+    "median_mfe_20d",
+    "avg_mae_20d",
+    "median_mae_20d",
+]
 RECENT_TRADE_LIMIT = 250
 ANALYSIS_SCHEMA_VERSION = 2
 
@@ -740,6 +763,11 @@ def summarize_diagnostics(diagnostics: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def empty_diagnostic_summary() -> pd.DataFrame:
+    """Return a header-only compatibility table when diagnostics are disabled."""
+    return pd.DataFrame(columns=DIAGNOSTIC_SUMMARY_COLUMNS)
+
+
 def _safe_records(df: pd.DataFrame) -> list[dict]:
     return df.replace({np.nan: None, np.inf: None, -np.inf: None}).to_dict(orient="records")
 
@@ -752,40 +780,57 @@ def _remove_oversized_legacy_outputs(data_path: Path) -> None:
 
 
 def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_dir: str | Path, as_of: str) -> dict:
+    total_started = time.perf_counter()
     data_path = Path(data_dir)
     data_path.mkdir(parents=True, exist_ok=True)
     _remove_oversized_legacy_outputs(data_path)
 
+    stage_started = time.perf_counter()
     features = build_historical_features(prices, universe, cfg)
+    print(f"backtest_timing build_historical_features_sec={time.perf_counter() - stage_started:.3f}")
     all_trades: list[dict] = []
     all_skipped: list[dict] = []
     all_diagnostics: list[dict] = []
+    grouped = list(features.groupby("symbol", sort=False)) if not features.empty else []
 
-    if not features.empty:
-        grouped = list(features.groupby("symbol", sort=False))
+    stage_started = time.perf_counter()
+    if grouped:
         for strategy in STRATEGY_RULES:
             for _, g in grouped:
                 trades_i, skipped_i = _simulate_one_symbol(g, strategy)
                 all_trades.extend(trades_i)
                 all_skipped.extend(skipped_i)
-        for signal_rule in SIGNAL_RULES:
-            for entry_rule in ENTRY_RULES:
-                for _, g in grouped:
-                    all_diagnostics.extend(_diagnose_one_symbol(g, signal_rule, entry_rule))
-
     trades = pd.DataFrame(all_trades)
     skipped = pd.DataFrame(all_skipped)
-    diagnostics = pd.DataFrame(all_diagnostics)
     if not trades.empty:
         trades = trades.sort_values(["entry_date", "strategy_key", "symbol"]).reset_index(drop=True)
     if not skipped.empty:
         skipped = skipped.sort_values(["entry_date", "strategy_key", "symbol"]).reset_index(drop=True)
+    print(f"backtest_timing simulate_completed_trades_sec={time.perf_counter() - stage_started:.3f}")
+
+    generate_signal_diagnostics = cfg.get("backtest_generate_signal_diagnostics", False) is True
+    stage_started = time.perf_counter()
+    if generate_signal_diagnostics and grouped:
+        for signal_rule in SIGNAL_RULES:
+            for entry_rule in ENTRY_RULES:
+                for _, g in grouped:
+                    all_diagnostics.extend(_diagnose_one_symbol(g, signal_rule, entry_rule))
+    diagnostics = pd.DataFrame(all_diagnostics)
     if not diagnostics.empty:
         diagnostics = diagnostics.sort_values(["entry_date", "signal_key", "entry_key", "symbol"]).reset_index(drop=True)
+    print(
+        f"backtest_timing signal_diagnostics_sec={time.perf_counter() - stage_started:.3f} "
+        f"enabled={str(generate_signal_diagnostics).lower()}"
+    )
 
+    stage_started = time.perf_counter()
     period_analysis = build_period_analysis(trades, skipped)
     summary = pd.DataFrame(period_analysis[0]["summary"]) if period_analysis else summarize_trades(trades, skipped)
-    diagnostic_summary = summarize_diagnostics(diagnostics)
+    diagnostic_summary = (
+        summarize_diagnostics(diagnostics)
+        if generate_signal_diagnostics
+        else empty_diagnostic_summary()
+    )
     skipped_summary = (
         skipped.groupby(["strategy_key", "strategy_label", "signal_key", "entry_key", "exit_key", "skip_reason"])
         .size()
@@ -794,6 +839,15 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     )
 
     recent_trades_df = trades.sort_values("entry_date", ascending=False).head(RECENT_TRADE_LIMIT) if not trades.empty else pd.DataFrame()
+    print(f"backtest_timing period_analysis_sec={time.perf_counter() - stage_started:.3f}")
+
+    print(
+        f"backtest_counts symbols={len(grouped)} features_rows={len(features)} "
+        f"completed_trade_rows={len(trades)} skipped_rows={len(skipped)} "
+        f"diagnostic_rows={len(diagnostics)} strategies={len(STRATEGY_RULES)}"
+    )
+
+    stage_started = time.perf_counter()
     summary.to_csv(data_path / "backtest_strategy_summary.csv", index=False)
     diagnostic_summary.to_csv(data_path / "signal_diagnostics_summary.csv", index=False)
     recent_trades_df.to_csv(data_path / "backtest_recent_trades.csv", index=False)
@@ -841,4 +895,6 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     }
     with open(data_path / "backtest_summary.json", "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
+    print(f"backtest_timing output_write_sec={time.perf_counter() - stage_started:.3f}")
+    print(f"backtest_timing total_sec={time.perf_counter() - total_started:.3f}")
     return payload

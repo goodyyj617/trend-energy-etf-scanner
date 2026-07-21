@@ -70,6 +70,8 @@ The default date semantics include completed trades whose `entry_date` is inside
 
 Default event-level labels are explicit: Avg Trade Ret, Median Trade Ret, Trade Win Rate, Sum of Trade Returns, and Trade-Sequence DD. Sum of Trade Returns is the arithmetic sum of completed net trade returns. Trade-Sequence DD is calculated from the entry-date-ordered compounded trade sequence. Neither is a portfolio performance metric. The legacy compounded `total_return` may remain in compatibility data but is not shown as Sum of Trade Returns.
 
+Signal Forward Diagnostics are not part of the default decision workflow. Backtest-only runs skip generating them by default with `backtest_generate_signal_diagnostics: false` to reduce runtime; completed-trade robustness outputs are unchanged. Set the config value to `true` only when forward-diagnostic research is specifically needed.
+
 ### Phase 1 Gate Configuration and Tiers
 
 Gate thresholds are defined once in `src/backtest.py`, serialized in `backtest_summary.json`, and displayed in the UI. Starting decision thresholds are:

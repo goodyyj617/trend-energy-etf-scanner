@@ -7,6 +7,7 @@ universe:
   min_avg_dollar_vol_63: 5000000
   lookback_period: 1y
   backtest_lookback_period: 10y
+  backtest_generate_signal_diagnostics: false
   price_interval: 1d
   use_adjusted_prices: true
   exclude_name_keywords:
