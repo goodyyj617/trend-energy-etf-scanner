@@ -1198,6 +1198,11 @@ def rank_strategy_summary(summary: pd.DataFrame) -> pd.DataFrame:
     out["__qualified"] = out["qualification_tier"].eq("Qualified")
     out["__time"] = out["time_gate_pass"].map(lambda value: value is True)
     out["__parameter"] = out["parameter_gate_pass"].map(lambda value: value is True)
+    numeric_columns = [
+        "loyo_pass_ratio", "joint_positive_year_ratio", "effective_neighbor_edge_pass_ratio",
+        "profit_factor", "avg_trade_return", "completed_trades",
+    ]
+    out[numeric_columns] = out[numeric_columns].apply(pd.to_numeric, errors="coerce")
     columns = [
         "__qualified", "__time", "__parameter", "loyo_pass_ratio", "joint_positive_year_ratio",
         "effective_neighbor_edge_pass_ratio", "profit_factor", "avg_trade_return", "completed_trades",

@@ -46,6 +46,15 @@ function finiteNumber(value, fallback = null) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function compareNumbers(leftValue, rightValue, direction = -1) {
+  const left = finiteNumber(leftValue);
+  const right = finiteNumber(rightValue);
+  if (left === null && right === null) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return (left - right) * direction;
+}
+
 function pct(value) {
   const number = finiteNumber(value);
   return number === null ? "-" : `${(number * 100).toFixed(1)}%`;
@@ -148,14 +157,14 @@ function candidateComparator(a, b) {
     Number(b.qualification_tier === "Qualified") - Number(a.qualification_tier === "Qualified"),
     Number(b.time_gate_pass === true) - Number(a.time_gate_pass === true),
     Number(b.parameter_gate_pass === true) - Number(a.parameter_gate_pass === true),
-    finiteNumber(b.loyo_pass_ratio, -Infinity) - finiteNumber(a.loyo_pass_ratio, -Infinity),
-    finiteNumber(b.joint_positive_year_ratio, -Infinity) - finiteNumber(a.joint_positive_year_ratio, -Infinity),
-    finiteNumber(b.effective_neighbor_edge_pass_ratio, -Infinity) - finiteNumber(a.effective_neighbor_edge_pass_ratio, -Infinity),
-    finiteNumber(b.profit_factor, -Infinity) - finiteNumber(a.profit_factor, -Infinity),
-    finiteNumber(b.avg_trade_return, -Infinity) - finiteNumber(a.avg_trade_return, -Infinity),
-    finiteNumber(b.completed_trades, 0) - finiteNumber(a.completed_trades, 0)
+    compareNumbers(a.loyo_pass_ratio, b.loyo_pass_ratio),
+    compareNumbers(a.joint_positive_year_ratio, b.joint_positive_year_ratio),
+    compareNumbers(a.effective_neighbor_edge_pass_ratio, b.effective_neighbor_edge_pass_ratio),
+    compareNumbers(a.profit_factor, b.profit_factor),
+    compareNumbers(a.avg_trade_return, b.avg_trade_return),
+    compareNumbers(a.completed_trades, b.completed_trades)
   ];
-  return comparisons.find(value => value !== 0 && Number.isFinite(value)) || String(a.strategy_key).localeCompare(String(b.strategy_key));
+  return comparisons.find(value => value !== 0) || String(a.strategy_key).localeCompare(String(b.strategy_key));
 }
 
 const backtestNumericSortFields = new Set([
@@ -168,11 +177,12 @@ function sortCompletedTradeRows(rows) {
   return [...rows].sort((a, b) => {
     let comparison;
     if (backtestNumericSortFields.has(backtestSortKey)) {
-      comparison = finiteNumber(a[backtestSortKey], -Infinity) - finiteNumber(b[backtestSortKey], -Infinity);
+      comparison = compareNumbers(a[backtestSortKey], b[backtestSortKey], backtestSortDir);
     } else {
       comparison = String(a[backtestSortKey] ?? "").localeCompare(String(b[backtestSortKey] ?? ""));
+      comparison *= backtestSortDir;
     }
-    return (comparison * backtestSortDir) || String(a.strategy_key).localeCompare(String(b.strategy_key));
+    return comparison || String(a.strategy_key).localeCompare(String(b.strategy_key));
   });
 }
 

@@ -123,6 +123,61 @@ Entry-Year Stability now displays full/partial coverage, trade count, average an
 
 Committed schema-v2 data is intentionally not reinterpreted as the new gate model. Until a schema-v3 Backtest Only run is published, the dashboard shows new qualification fields as unavailable and does not label an old row Qualified.
 
+## Pre-merge bounded audit
+
+The final pre-merge audit used the committed 540-row overall summary, the 5,400-row entry-year aggregate, and the PR #12 scenario and candidate outputs. It did not rerun the full backtest. The approved PR #12 definition was independently reconstructed and compared with the PR #13 production functions using `rtol = 1e-12` and `atol = 1e-10` for floating-point fields; integer and boolean fields required exact equality.
+
+### Qualified-set and field equivalence
+
+- Analysis-qualified count: **42**.
+- Production-qualified count: **42**.
+- Keys only in analysis: **none**.
+- Keys only in production: **none**.
+- Exact set match: **yes**.
+- Field mismatches across all 42 Qualified strategies: **none**.
+
+The field comparison covered completed trades, average return, Profit Factor, eligible and joint-positive year counts and ratio, LOYO fold and pass counts and ratio, effective-neighbor count and edge-pass ratio, and all four component gate booleans. As an additional cross-check, all corresponding fields in the 20 PR #12 rows published for scenario C at 0.60 matched the independent reconstruction within the same tolerances. No difference was hidden by display rounding.
+
+### Top-10 production ranking audit
+
+All values below are the native ranking values before display formatting. `Q`, `T`, and `P` are Qualification, Time Gate, and Parameter Gate respectively.
+
+| Rank | Strategy key | Q | T | P | LOYO ratio | Joint-positive ratio | Effective-neighbor ratio | Profit Factor | Avg trade return | Completed trades |
+| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | `score_bo_l40_rm002_erp010__signal_3d_confirm__ma50` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.439782991074818 | 0.0071428364334109 | 3,720 |
+| 2 | `score_bo_l40_rp000_erp010__signal_3d_confirm__ma50` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.439782991074818 | 0.0071428364334109 | 3,720 |
+| 3 | `score_bo_l40_rm002_erp005__signal_3d_confirm__ma50` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.4343332978879957 | 0.0069266706646455 | 3,860 |
+| 4 | `score_bo_l40_rp000_erp005__signal_3d_confirm__ma50` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.4343332978879957 | 0.0069266706646455 | 3,860 |
+| 5 | `score_bo_l40_rm002_erp015__signal_3d_confirm__ma50` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.4329288394308104 | 0.007103908620082 | 3,527 |
+| 6 | `score_bo_l40_rp000_erp015__signal_3d_confirm__ma50` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.4329288394308104 | 0.007103908620082 | 3,527 |
+| 7 | `score_bo_l40_rp002_erp010__signal_3d_confirm__ma50` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.4121794073577374 | 0.0080258240376001 | 2,913 |
+| 8 | `score_bo_l40_rm002_erp015__signal_3d_confirm__low20` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.4075971268617544 | 0.0066244243259158 | 3,573 |
+| 9 | `score_bo_l40_rp000_erp015__signal_3d_confirm__low20` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.4075971268617544 | 0.0066244243259158 | 3,573 |
+| 10 | `score_bo_l40_rp002_erp015__signal_3d_confirm__ma50` | Qualified | true | true | 1.0 | 0.625 | 1.0 | 1.4013676109207516 | 0.0078160383315016 | 2,834 |
+
+The leader and its `r20_min = 0.00` twin are identical through completed-trade count; `strategy_key` is their first differing ranking field and selects the `-0.02` key. Against the PR #12 primary `score_bo_l20_rm002_erp010__first_signal__low10` (production rank 20), the first differing field is effective-neighbor edge-pass ratio, `1.0` versus `0.75`. Against that primary's `r20_min = 0.00` twin (rank 18), it is again the effective ratio, `1.0` versus `0.80`. The older What-if leader `score_bo_l10_rp002_erp005__first_signal__low20` and previous dashboard leader `score_bo_l10_rm002_erp005__breakout_5d_after_signal__low20_minus_0_5atr` are both Not qualified under the approved gate, so Qualification Tier is the first differing field.
+
+The new leader does not contradict the earlier family-level finding that L40 and 3D confirm were weak on average. Across all 540 strategies in the current bounded summary, L40 has mean Profit Factor `1.2447954744049858` versus `1.4145272943115317` for L20, and 3D confirm has mean Profit Factor `1.2195644886568138` versus `1.4376750414606922` for First signal. Those are family averages. The revised full-year/LOYO definition nevertheless finds a concentrated strong L40/3D subset: 27 of the 42 Qualified rows use each family. The individual leader passes every mandatory gate, has perfect LOYO and effective-neighbor ratios, and then has the highest Profit Factor among the remaining tied rows. Family weakness describes the average member; individual qualification decides eligibility; the lexicographic tuple ranks only the eligible individual rows.
+
+### Sorting safety
+
+The backend now explicitly coerces every numeric ranking column to numeric before its stable sort. Qualification, Time, and Parameter booleans sort pass-first; all requested numeric fields sort descending; missing numeric values sort last; and `strategy_key` is the final ascending tie-breaker. Shuffling the 540 input rows does not change the result.
+
+The audit found and corrected one bounded display-sorting defect: the dashboard comparator previously ignored an infinite comparison produced when a valid number was compared with the missing-value sentinel. The corrected typed comparator keeps missing values last in both ascending and descending interactive sorts and never compares formatted percentage or count strings. Deterministic Python and JavaScript tests cover numeric values such as `10` versus `2`, missing values, boolean direction, both numeric directions, final key ordering, and shuffled input.
+
+### Gate-contamination checks
+
+All checks passed:
+
+- partial 2017 and 2026 rows are visible but excluded from eligible years and LOYO;
+- annual and overall median trade returns are diagnostic only;
+- bootstrap fields affect neither qualification nor production ranking;
+- neighbor edge pass uses only overall completed trades, Profit Factor, and average return, never the Time Gate;
+- missing or invalid annual aggregates cannot become Qualified; and
+- candidate-identical outcomes are removed and remaining identical neighbor signatures are deduplicated before the effective count and ratio are calculated.
+
+**Pre-merge conclusion: PR #13 is safe to merge after the sorting-safety correction and bounded checks described here.** One full Backtest Only run remains required after merge; it was not run during this audit.
+
 ## Development validation
 
 Development uses deterministic unit fixtures and the committed bounded annual/overall summaries. It covers gate boundaries, partial-year exclusion, annual eligibility, joint-positive semantics, LOYO numerator reconstruction, effective-neighbor count and ratio boundaries, all-gates qualification, negative-median qualification, unavailable annual data, input-order-independent ranking, UI fallback text, workflow ownership, raw-output protection, and existing simulation equivalence.

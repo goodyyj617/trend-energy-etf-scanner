@@ -341,6 +341,47 @@ class RankingAndPresentationTest(unittest.TestCase):
         random.Random(7).shuffle(rows)
         self.assertEqual(rank_strategy_summary(pd.DataFrame(rows))["strategy_key"].tolist(), expected)
 
+    def test_ranking_uses_typed_values_documented_directions_and_missing_last(self) -> None:
+        base = {
+            "qualification_tier": "Qualified",
+            "time_gate_pass": True,
+            "parameter_gate_pass": True,
+            "loyo_pass_ratio": "1.0",
+            "joint_positive_year_ratio": "0.625",
+            "effective_neighbor_edge_pass_ratio": "1.0",
+            "profit_factor": "2.0",
+            "avg_trade_return": "0.01",
+            "completed_trades": "100",
+        }
+
+        def assert_first(winner_changes: dict, loser_changes: dict) -> None:
+            winner = {**base, "strategy_key": "winner", **winner_changes}
+            loser = {**base, "strategy_key": "loser", **loser_changes}
+            rows = pd.DataFrame([loser, winner]).sample(frac=1, random_state=23)
+            ranked = rank_strategy_summary(rows)
+            self.assertEqual(ranked.iloc[0].strategy_key, "winner")
+            for column in [
+                "loyo_pass_ratio", "joint_positive_year_ratio", "effective_neighbor_edge_pass_ratio",
+                "profit_factor", "avg_trade_return", "completed_trades",
+            ]:
+                self.assertTrue(pd.api.types.is_numeric_dtype(ranked[column]), column)
+
+        assert_first({}, {"qualification_tier": "Not qualified"})
+        assert_first({}, {"time_gate_pass": False})
+        assert_first({}, {"parameter_gate_pass": False})
+        for field in [
+            "loyo_pass_ratio", "joint_positive_year_ratio", "effective_neighbor_edge_pass_ratio",
+            "profit_factor", "avg_trade_return", "completed_trades",
+        ]:
+            assert_first({field: "10"}, {field: "2"})
+            assert_first({field: "2"}, {field: None})
+
+        tied = pd.DataFrame([
+            {**base, "strategy_key": "b"},
+            {**base, "strategy_key": "a"},
+        ])
+        self.assertEqual(rank_strategy_summary(tied).strategy_key.tolist(), ["a", "b"])
+
     def test_partial_year_display_and_unavailable_ui_contract_are_present(self) -> None:
         key = "candidate"
         details = _strategy_year_details(pd.DataFrame([annual_row(key, 2017, full=False)]), None)
