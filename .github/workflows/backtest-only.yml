@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: backtest-only
+  group: data-publish-main
   cancel-in-progress: false
 
 jobs:
