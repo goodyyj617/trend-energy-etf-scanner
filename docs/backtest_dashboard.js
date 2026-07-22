@@ -2,7 +2,9 @@ const backtestPercentFields = new Set([
   "trade_win_rate", "avg_trade_return", "median_trade_return", "sum_trade_returns",
   "trade_sequence_drawdown", "worst_trade_return", "tail_return_10", "stop_hit_rate",
   "max_hold_exit_rate", "net_return", "gross_return", "neighbor_pass_ratio",
-  "positive_year_ratio", "win_rate", "avg_return", "median_return", "max_drawdown"
+  "raw_neighbor_edge_pass_ratio", "effective_neighbor_edge_pass_ratio",
+  "positive_year_ratio", "joint_positive_year_ratio", "loyo_pass_ratio",
+  "win_rate", "avg_return", "median_return", "max_drawdown"
 ]);
 
 const baseFmtForBacktest = fmt;
@@ -17,6 +19,8 @@ fmt = function enhancedFmt(key, value) {
 };
 
 let selectedBacktestStrategyKey = null;
+let backtestSortKey = null;
+let backtestSortDir = -1;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -64,6 +68,10 @@ function dateRange(start, end) {
 
 function normalizeCompletedTradeRow(row) {
   const params = parseSignalParams(row);
+  const hasProductionGates = row.sample_gate_pass !== undefined
+    && row.edge_gate_pass !== undefined
+    && row.time_gate_pass !== undefined
+    && row.parameter_gate_pass !== undefined;
   return {
     ...row,
     completed_trades: row.completed_trades ?? row.trades ?? 0,
@@ -77,11 +85,20 @@ function normalizeCompletedTradeRow(row) {
     score_lookback: params.score_lookback,
     r20_min: params.r20_min,
     er20_min: params.er20_min,
-    robustness_tier: row.robustness_tier || "Awaiting regenerated data",
-    robustness_tier_rank: finiteNumber(row.robustness_tier_rank, -1),
+    qualification_tier: hasProductionGates ? (row.qualification_tier || "Not qualified") : "Not qualified",
+    robustness_tier: hasProductionGates ? (row.qualification_tier || row.robustness_tier || "Not qualified") : "Not qualified",
+    robustness_tier_rank: hasProductionGates ? finiteNumber(row.robustness_tier_rank, 0) : 0,
     mandatory_gates_passed: finiteNumber(row.mandatory_gates_passed, 0),
-    parameter_stability_status: row.parameter_stability_status || "Not available",
-    time_stability_status: row.time_stability_status || "Not available",
+    mandatory_gates_pass: hasProductionGates ? row.mandatory_gates_pass === true : false,
+    sample_gate_status: hasProductionGates ? (row.sample_gate_status || "Not available") : "Not available",
+    edge_gate_status: hasProductionGates ? (row.edge_gate_status || "Not available") : "Not available",
+    parameter_gate_status: hasProductionGates ? (row.parameter_gate_status || "Not available") : "Not available",
+    time_gate_status: hasProductionGates ? (row.time_gate_status || "Not available") : "Not available",
+    parameter_stability_status: hasProductionGates ? (row.parameter_gate_status || row.parameter_stability_status || "Not available") : "Not available",
+    time_stability_status: hasProductionGates ? (row.time_gate_status || row.time_stability_status || "Not available") : "Not available",
+    qualification_reason: hasProductionGates
+      ? (row.qualification_reason || "Qualification reason unavailable.")
+      : "Regenerate Backtest Only outputs with analysis schema v3; annual robustness gates are unavailable.",
     regime_stability_status: row.regime_stability_status || "Not available"
   };
 }
@@ -128,14 +145,35 @@ function selectedPeriod() {
 
 function candidateComparator(a, b) {
   const comparisons = [
-    finiteNumber(b.robustness_tier_rank, -1) - finiteNumber(a.robustness_tier_rank, -1),
-    finiteNumber(b.mandatory_gates_passed, 0) - finiteNumber(a.mandatory_gates_passed, 0),
-    finiteNumber(b.median_trade_return, -Infinity) - finiteNumber(a.median_trade_return, -Infinity),
+    Number(b.qualification_tier === "Qualified") - Number(a.qualification_tier === "Qualified"),
+    Number(b.time_gate_pass === true) - Number(a.time_gate_pass === true),
+    Number(b.parameter_gate_pass === true) - Number(a.parameter_gate_pass === true),
+    finiteNumber(b.loyo_pass_ratio, -Infinity) - finiteNumber(a.loyo_pass_ratio, -Infinity),
+    finiteNumber(b.joint_positive_year_ratio, -Infinity) - finiteNumber(a.joint_positive_year_ratio, -Infinity),
+    finiteNumber(b.effective_neighbor_edge_pass_ratio, -Infinity) - finiteNumber(a.effective_neighbor_edge_pass_ratio, -Infinity),
     finiteNumber(b.profit_factor, -Infinity) - finiteNumber(a.profit_factor, -Infinity),
-    Math.abs(finiteNumber(a.trade_sequence_drawdown, Infinity)) - Math.abs(finiteNumber(b.trade_sequence_drawdown, Infinity)),
+    finiteNumber(b.avg_trade_return, -Infinity) - finiteNumber(a.avg_trade_return, -Infinity),
     finiteNumber(b.completed_trades, 0) - finiteNumber(a.completed_trades, 0)
   ];
   return comparisons.find(value => value !== 0 && Number.isFinite(value)) || String(a.strategy_key).localeCompare(String(b.strategy_key));
+}
+
+const backtestNumericSortFields = new Set([
+  "completed_trades", "avg_trade_return", "median_trade_return", "profit_factor", "eligible_years",
+  "joint_positive_year_ratio", "loyo_pass_ratio", "effective_neighbor_edge_pass_ratio"
+]);
+
+function sortCompletedTradeRows(rows) {
+  if (!backtestSortKey) return [...rows].sort(candidateComparator);
+  return [...rows].sort((a, b) => {
+    let comparison;
+    if (backtestNumericSortFields.has(backtestSortKey)) {
+      comparison = finiteNumber(a[backtestSortKey], -Infinity) - finiteNumber(b[backtestSortKey], -Infinity);
+    } else {
+      comparison = String(a[backtestSortKey] ?? "").localeCompare(String(b[backtestSortKey] ?? ""));
+    }
+    return (comparison * backtestSortDir) || String(a.strategy_key).localeCompare(String(b.strategy_key));
+  });
 }
 
 function gateBadge(status) {
@@ -167,17 +205,21 @@ function renderCandidateSnapshot(candidate, period) {
   }
   const params = `L${candidate.score_lookback ?? "-"} / R20 ${numFmt(candidate.r20_min, 2)} / ER20 ${numFmt(candidate.er20_min, 2)}`;
   container.innerHTML = [
-    snapshotCard("Robustness Tier", escapeHtml(candidate.robustness_tier), `${candidate.mandatory_gates_passed}/3 mandatory gates passed`),
+    snapshotCard("Qualification Tier", gateBadge(candidate.qualification_tier), candidate.qualification_reason),
+    snapshotCard("Sample Gate", gateBadge(candidate.sample_gate_status)),
+    snapshotCard("Edge Gate", gateBadge(candidate.edge_gate_status)),
+    snapshotCard("Time Gate", gateBadge(candidate.time_gate_status)),
+    snapshotCard("Parameter Gate", gateBadge(candidate.parameter_gate_status)),
     snapshotCard("Signal Parameters", escapeHtml(params)),
     snapshotCard("Entry / Exit", `${escapeHtml(candidate.entry_label)}<br>${escapeHtml(candidate.exit_label)}`),
     snapshotCard("Completed Trades", integerFmt(candidate.completed_trades), period.label),
     snapshotCard("Avg Trade Ret", pct(candidate.avg_trade_return)),
-    snapshotCard("Median Trade Ret", pct(candidate.median_trade_return)),
-    snapshotCard("Trade Win Rate", pct(candidate.trade_win_rate)),
-    snapshotCard("Sum of Trade Returns", pct(candidate.sum_trade_returns), "Arithmetic event-level sum"),
-    snapshotCard("Trade-Sequence DD", pct(candidate.trade_sequence_drawdown), "Not portfolio drawdown"),
+    snapshotCard("Median Trade Ret", pct(candidate.median_trade_return), "Diagnostic only"),
     snapshotCard("Profit Factor", numFmt(candidate.profit_factor, 2)),
-    snapshotCard("Avg Days", numFmt(candidate.avg_days, 1)),
+    snapshotCard("Joint-Positive-Year Ratio", pct(candidate.joint_positive_year_ratio)),
+    snapshotCard("Eligible Full Years", integerFmt(candidate.eligible_years)),
+    snapshotCard("LOYO Pass Ratio", pct(candidate.loyo_pass_ratio)),
+    snapshotCard("Effective Neighbor Edge Pass Ratio", pct(candidate.effective_neighbor_edge_pass_ratio)),
     snapshotCard("Included Period", escapeHtml(dateRange(period.included_entry_start, period.included_entry_end)), `Realized exits: ${dateRange(period.realized_exit_start, period.realized_exit_end)}`)
   ].join("");
 }
@@ -194,23 +236,24 @@ function renderComponentSummary(candidate) {
     return;
   }
   container.innerHTML = [
-    componentCard("Performance", candidate.mandatory_gate_status, [
-      `Sample ${gateBadge(candidate.gate_sample)}`,
-      `Median ${gateBadge(candidate.gate_median_trade_return)}`,
-      `Profit Factor ${gateBadge(candidate.gate_profit_factor)}`
+    componentCard("Qualification", candidate.qualification_tier, [
+      `Sample ${gateBadge(candidate.sample_gate_status)}`,
+      `Edge ${gateBadge(candidate.edge_gate_status)}`,
+      `Median Trade Ret: <b>${pct(candidate.median_trade_return)}</b> (diagnostic)`
     ]),
     componentCard("Downside", "Descriptive", [
       `Trade-Sequence DD: <b>${pct(candidate.trade_sequence_drawdown)}</b>`,
       `Worst Trade Ret: <b>${pct(candidate.worst_trade_return)}</b>`,
       `10th Pctl Trade Ret: <b>${pct(candidate.tail_return_10)}</b>`
     ]),
-    componentCard("Parameter Stability", candidate.parameter_stability_status, [
-      `Eligible neighbors: <b>${integerFmt(candidate.eligible_neighbors)}</b>`,
-      `Neighbor pass ratio: <b>${pct(candidate.neighbor_pass_ratio)}</b>`
+    componentCard("Parameter Stability", candidate.parameter_gate_status, [
+      `Raw eligible / edge ratio: <b>${integerFmt(candidate.raw_eligible_neighbors)} / ${pct(candidate.raw_neighbor_edge_pass_ratio)}</b>`,
+      `Effective eligible / edge ratio: <b>${integerFmt(candidate.effective_eligible_neighbors)} / ${pct(candidate.effective_neighbor_edge_pass_ratio)}</b>`
     ]),
-    componentCard("Time Stability", candidate.time_stability_status, [
-      `Eligible entry years: <b>${integerFmt(candidate.eligible_years)}</b>`,
-      `Positive year ratio: <b>${pct(candidate.positive_year_ratio)}</b>`
+    componentCard("Time Stability", candidate.time_gate_status, [
+      `Eligible full entry years: <b>${integerFmt(candidate.eligible_years)}</b>`,
+      `Joint-positive years / ratio: <b>${integerFmt(candidate.joint_positive_years)} / ${pct(candidate.joint_positive_year_ratio)}</b>`,
+      `LOYO pass count / ratio: <b>${integerFmt(candidate.loyo_pass_count)} / ${pct(candidate.loyo_pass_ratio)}</b>`
     ]),
     componentCard("Regime Stability", candidate.regime_stability_status, [
       "SPY history is not present in the current static pipeline; deferred without adding a dependency."
@@ -222,23 +265,23 @@ function candidateCells(row, compact = false) {
   const parameterLabel = `L${row.score_lookback ?? "-"} / R20 ${numFmt(row.r20_min, 2)} / ER20 ${numFmt(row.er20_min, 2)}`;
   if (compact) {
     return `
-      <td>${escapeHtml(row.robustness_tier)}</td><td class="numeric">${escapeHtml(row.score_lookback ?? "")}</td>
+      <td>${gateBadge(row.qualification_tier)}</td><td class="numeric">${escapeHtml(row.score_lookback ?? "")}</td>
       <td class="numeric">${numFmt(row.r20_min, 2)}</td><td class="numeric">${numFmt(row.er20_min, 2)}</td>
       <td>${escapeHtml(row.entry_label)}</td><td>${escapeHtml(row.exit_label)}</td><td class="numeric">${integerFmt(row.completed_trades)}</td>
       <td class="numeric">${pct(row.avg_trade_return)}</td><td class="numeric">${pct(row.median_trade_return)}</td>
-      <td class="numeric">${pct(row.trade_win_rate)}</td><td class="numeric">${pct(row.sum_trade_returns)}</td>
-      <td class="numeric">${pct(row.trade_sequence_drawdown)}</td><td class="numeric">${numFmt(row.profit_factor, 2)}</td><td class="numeric">${numFmt(row.avg_days, 1)}</td>`;
+      <td class="numeric">${numFmt(row.profit_factor, 2)}</td><td class="numeric">${integerFmt(row.eligible_years)}</td>
+      <td class="numeric">${pct(row.joint_positive_year_ratio)}</td><td class="numeric">${pct(row.loyo_pass_ratio)}</td>
+      <td class="numeric">${pct(row.effective_neighbor_edge_pass_ratio)}</td>`;
   }
   return `
-    <td>${escapeHtml(row.robustness_tier)}</td><td>${row.mandatory_gates_passed}/3</td>
+    <td>${gateBadge(row.qualification_tier)}</td><td>${row.mandatory_gates_passed}/4</td>
     <td title="${escapeHtml(row.signal_label)}">${escapeHtml(parameterLabel)}</td><td>${escapeHtml(row.entry_label)}</td><td>${escapeHtml(row.exit_label)}</td>
     <td class="numeric">${integerFmt(row.completed_trades)}</td><td class="numeric">${pct(row.avg_trade_return)}</td>
-    <td class="numeric">${pct(row.median_trade_return)}</td><td class="numeric">${pct(row.trade_win_rate)}</td>
-    <td class="numeric">${pct(row.sum_trade_returns)}</td><td class="numeric">${pct(row.trade_sequence_drawdown)}</td>
-    <td class="numeric">${pct(row.worst_trade_return)}</td><td class="numeric">${pct(row.tail_return_10)}</td>
-    <td class="numeric">${numFmt(row.profit_factor, 2)}</td><td class="numeric">${pct(row.stop_hit_rate)}</td>
-    <td class="numeric">${numFmt(row.avg_days, 1)}</td><td>${gateBadge(row.parameter_stability_status)}</td>
-    <td>${gateBadge(row.time_stability_status)}</td><td>${gateBadge(row.regime_stability_status)}</td>`;
+    <td class="numeric">${pct(row.median_trade_return)}</td><td class="numeric">${numFmt(row.profit_factor, 2)}</td>
+    <td class="numeric">${integerFmt(row.eligible_years)}</td><td class="numeric">${pct(row.joint_positive_year_ratio)}</td>
+    <td class="numeric">${pct(row.loyo_pass_ratio)}</td><td class="numeric">${pct(row.effective_neighbor_edge_pass_ratio)}</td>
+    <td class="numeric">${pct(row.trade_win_rate)}</td><td class="numeric">${pct(row.sum_trade_returns)}</td>
+    <td class="numeric">${pct(row.trade_sequence_drawdown)}</td><td class="numeric">${pct(row.worst_trade_return)}</td>`;
 }
 
 function renderCandidateTable(selector, rows, compact = false, limit = null) {
@@ -249,6 +292,7 @@ function renderCandidateTable(selector, rows, compact = false, limit = null) {
   for (const row of visible) {
     const tr = document.createElement("tr");
     tr.className = "candidate-row";
+    tr.classList.add(row.qualification_tier === "Qualified" ? "qualified-candidate" : "not-qualified-candidate");
     tr.dataset.strategyKey = row.strategy_key;
     if (row.strategy_key === selectedBacktestStrategyKey) tr.classList.add("selected-candidate");
     tr.innerHTML = candidateCells(row, compact);
@@ -266,8 +310,9 @@ function renderParameterDetails(rows) {
   body.innerHTML = rows.slice(0, 100).map(row => `
     <tr>
       <td>${escapeHtml(row.signal_label)} / ${escapeHtml(row.entry_label)} / ${escapeHtml(row.exit_label)}</td>
-      <td>${gateBadge(row.parameter_stability_status)}</td><td class="numeric">${integerFmt(row.available_neighbors)}</td>
-      <td class="numeric">${integerFmt(row.eligible_neighbors)}</td><td class="numeric">${pct(row.neighbor_pass_ratio)}</td>
+      <td>${gateBadge(row.parameter_gate_status)}</td><td class="numeric">${integerFmt(row.available_neighbors)}</td>
+      <td class="numeric">${integerFmt(row.raw_eligible_neighbors)}</td><td class="numeric">${pct(row.raw_neighbor_edge_pass_ratio)}</td>
+      <td class="numeric">${integerFmt(row.effective_eligible_neighbors)}</td><td class="numeric">${pct(row.effective_neighbor_edge_pass_ratio)}</td>
       <td class="numeric">${pct(row.neighbor_median_return_min)} to ${pct(row.neighbor_median_return_max)}</td>
       <td class="numeric">${pct(row.neighbor_drawdown_min)} to ${pct(row.neighbor_drawdown_max)}</td>
     </tr>`).join("");
@@ -278,35 +323,82 @@ function renderYearlyDetails(period, candidate) {
   if (!body) return;
   const rows = (period.yearly_details || []).filter(row => row.strategy_key === candidate?.strategy_key);
   body.innerHTML = rows.length ? rows.map(row => `
-    <tr><td>${escapeHtml(row.year)}</td><td>${gateBadge(row.status)}</td><td class="numeric">${integerFmt(row.completed_trades)}</td>
+    <tr><td>${escapeHtml(row.year)}</td><td>${row.is_partial_year === true ? "Partial" : (row.is_full_calendar_year === true ? "Full" : "Not available")}</td><td class="numeric">${integerFmt(row.completed_trades)}</td>
     <td class="numeric">${pct(row.avg_trade_return)}</td><td class="numeric">${pct(row.median_trade_return)}</td>
-    <td class="numeric">${pct(row.trade_win_rate)}</td><td class="numeric">${numFmt(row.profit_factor, 2)}</td>
-    <td class="numeric">${pct(row.trade_sequence_drawdown)}</td></tr>`).join("")
-    : '<tr><td colspan="8">No eligible entry-year details are available for this candidate.</td></tr>';
+    <td class="numeric">${numFmt(row.profit_factor, 2)}</td><td class="numeric">${pct(row.sum_trade_returns)}</td>
+    <td>${row.eligible_for_time_gate === true ? "Yes" : (row.eligible_for_time_gate === false ? "No" : "Not available")}</td>
+    <td>${escapeHtml(row.joint_positive_status || "Not available")}</td></tr>`).join("")
+    : '<tr><td colspan="9">Entry-year details are not available for this candidate. Time Gate data is unavailable and cannot qualify.</td></tr>';
 }
 
 function renderThresholds() {
   const container = document.getElementById("activeThresholds");
   if (!container) return;
   const config = backtestPayload?.gate_config;
-  if (!config) {
-    container.textContent = "Active thresholds are unavailable until backtest data is regenerated with analysis schema v2.";
+  if (!config || finiteNumber(backtestPayload?.analysis_schema_version, 0) < 3) {
+    container.textContent = "Production robustness thresholds are unavailable until Backtest Only data is regenerated with analysis schema v3. Existing data is not reinterpreted under the new gate model.";
     return;
   }
   const labels = {
     min_completed_trades: "Minimum completed trades",
-    min_bucket_trades: "Minimum trades per year bucket",
-    min_eligible_neighbors: "Minimum eligible direct neighbors",
-    min_profit_factor: "Minimum Profit Factor",
-    min_median_trade_return: "Minimum Median Trade Ret",
-    min_neighbor_pass_ratio: "Minimum neighbor pass ratio",
-    min_positive_year_ratio: "Minimum positive year ratio",
-    min_positive_regime_ratio: "Minimum positive regime ratio"
+    min_profit_factor: "Minimum overall Profit Factor",
+    min_avg_trade_return: "Minimum overall average return (exclusive)",
+    min_eligible_years: "Minimum eligible full entry years",
+    min_annual_completed_trades: "Minimum completed trades per full year",
+    min_annual_profit_factor: "Minimum annual Profit Factor (exclusive)",
+    min_joint_positive_year_ratio: "Minimum joint-positive-year ratio",
+    min_loyo_pass_ratio: "Minimum LOYO pass ratio",
+    min_eligible_neighbors: "Minimum effective eligible neighbors",
+    min_effective_neighbor_pass_ratio: "Minimum effective neighbor edge pass ratio"
   };
-  const percentKeys = new Set(["min_median_trade_return", "min_neighbor_pass_ratio", "min_positive_year_ratio", "min_positive_regime_ratio"]);
+  const percentKeys = new Set([
+    "min_avg_trade_return", "min_joint_positive_year_ratio", "min_loyo_pass_ratio",
+    "min_effective_neighbor_pass_ratio"
+  ]);
   container.innerHTML = `<strong>Active gate configuration: ${escapeHtml(config.version)}</strong>` + Object.entries(labels)
+    .filter(([key]) => config[key] !== undefined && config[key] !== null)
     .map(([key, label]) => `<span><b>${escapeHtml(label)}:</b> ${percentKeys.has(key) ? pct(config[key]) : escapeHtml(config[key])}</span>`)
-    .join("") + '<span>These are transparent, revisable research decisions—not statistical proof.</span>';
+    .join("") + '<span>These are provisional in-sample robustness gates, not statistical proof or evidence of out-of-sample profitability.</span>';
+}
+
+function diagnosticLeader(rows, field) {
+  const available = rows.filter(row => finiteNumber(row[field]) !== null);
+  if (!available.length) return null;
+  return [...available].sort((a, b) => (
+    finiteNumber(b[field], -Infinity) - finiteNumber(a[field], -Infinity)
+    || String(a.strategy_key).localeCompare(String(b.strategy_key))
+  ))[0];
+}
+
+function renderDiagnosticLeaders(rows) {
+  const container = document.getElementById("diagnosticLeaders");
+  if (!container) return;
+  const qualified = rows.filter(row => row.qualification_tier === "Qualified");
+  if (!qualified.length) {
+    container.innerHTML = '<div class="empty-state">No Qualified strategies are available for separate diagnostic leaders.</div>';
+    return;
+  }
+  const definitions = [
+    ["Highest Profit Factor", "profit_factor", value => numFmt(value, 2)],
+    ["Highest Avg Trade Ret", "avg_trade_return", pct],
+    ["Best Joint-Positive-Year Ratio", "joint_positive_year_ratio", pct],
+    ["Best LOYO Pass Ratio", "loyo_pass_ratio", pct],
+    ["Best Effective Parameter Robustness", "effective_neighbor_edge_pass_ratio", pct],
+    ["Best Median Trade Ret (diagnostic)", "median_trade_return", pct]
+  ];
+  container.innerHTML = definitions.map(([label, field, formatter]) => {
+    const leader = diagnosticLeader(qualified, field);
+    return snapshotCard(label, leader ? escapeHtml(leader.strategy_label) : "-", leader ? formatter(leader[field]) : "Not available");
+  }).join("");
+}
+
+function updateBacktestHeaderIndicators() {
+  document.querySelectorAll("th[data-backtest-key]").forEach(th => {
+    if (!th.dataset.label) th.dataset.label = th.textContent.trim();
+    const active = th.dataset.backtestKey === backtestSortKey;
+    th.textContent = active ? `${th.dataset.label} ${backtestSortDir === -1 ? "▼" : "▲"}` : th.dataset.label;
+    th.classList.toggle("sorted", active);
+  });
 }
 
 function renderRecentTradesForPeriod(period) {
@@ -323,7 +415,7 @@ function renderRecentTradesForPeriod(period) {
 function renderExitAppliedBacktest() {
   if (!backtestPayload) return;
   const period = selectedPeriod();
-  const rows = (period.summary || []).map(normalizeCompletedTradeRow).sort(candidateComparator);
+  const rows = sortCompletedTradeRows((period.summary || []).map(normalizeCompletedTradeRow));
   if (!rows.some(row => row.strategy_key === selectedBacktestStrategyKey)) {
     selectedBacktestStrategyKey = rows[0]?.strategy_key || null;
   }
@@ -334,10 +426,12 @@ function renderExitAppliedBacktest() {
   renderComponentSummary(candidate);
   renderCandidateTable("#leaderboardTopTable", rows, true, 10);
   renderCandidateTable("#backtestSummaryTable", rows, false);
+  renderDiagnosticLeaders(rows);
   renderParameterDetails(rows);
   renderYearlyDetails(period, candidate);
   renderThresholds();
   renderRecentTradesForPeriod(period);
+  updateBacktestHeaderIndicators();
 
   const meta = document.getElementById("backtestMeta");
   if (meta) {
@@ -354,5 +448,19 @@ renderBacktest = function completedTradeRenderBacktest() {
 
 document.getElementById("entryPeriodPreset")?.addEventListener("change", () => {
   selectedBacktestStrategyKey = null;
+  backtestSortKey = null;
   renderExitAppliedBacktest();
+});
+
+document.querySelectorAll("th[data-backtest-key]").forEach(th => {
+  th.dataset.label = th.textContent.trim();
+  th.addEventListener("click", () => {
+    const key = th.dataset.backtestKey;
+    if (backtestSortKey === key) backtestSortDir *= -1;
+    else {
+      backtestSortKey = key;
+      backtestSortDir = key === "qualification_tier" ? -1 : (backtestNumericSortFields.has(key) ? -1 : 1);
+    }
+    renderExitAppliedBacktest();
+  });
 });

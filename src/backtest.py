@@ -39,7 +39,7 @@ DIAGNOSTIC_SUMMARY_COLUMNS = [
     "median_mae_20d",
 ]
 RECENT_TRADE_LIMIT = 250
-ANALYSIS_SCHEMA_VERSION = 2
+ANALYSIS_SCHEMA_VERSION = 3
 STRATEGY_YEAR_BASIS = "entry_year"
 STRATEGY_YEAR_SUMMARY_COLUMNS = [
     "strategy_key",
@@ -79,15 +79,23 @@ STRATEGY_YEAR_SUMMARY_COLUMNS = [
 # Transparent research decision thresholds. These are serialized with every
 # backtest payload so the static UI never maintains a second threshold copy.
 GATE_CONFIG = {
-    "version": "phase1-v1",
+    "version": "provisional-trend-following-v1",
     "min_completed_trades": 100,
-    "min_bucket_trades": 10,
+    "min_annual_completed_trades": 100,
+    "min_eligible_years": 5,
     "min_eligible_neighbors": 2,
-    "min_profit_factor": 1.0,
-    "min_median_trade_return": 0.0,
+    "min_profit_factor": 1.2,
+    "min_avg_trade_return": 0.0,
+    "min_annual_profit_factor": 1.0,
+    "min_joint_positive_year_ratio": 0.60,
+    "min_loyo_pass_ratio": 0.80,
+    "min_effective_neighbor_pass_ratio": 0.60,
+    # Compatibility aliases for older bounded consumers. Median return is no
+    # longer a qualification gate.
+    "min_bucket_trades": 100,
     "min_neighbor_pass_ratio": 0.60,
     "min_positive_year_ratio": 0.60,
-    "min_positive_regime_ratio": 0.50,
+    "min_median_trade_return": None,
 }
 
 ENTRY_PERIOD_PRESETS = [
@@ -682,19 +690,20 @@ def _strategy_year_metadata(strategy_year_summary: pd.DataFrame) -> dict:
 
 def _gate_fields(metrics: dict) -> dict:
     sample_pass = int(metrics["completed_trades"]) >= int(GATE_CONFIG["min_completed_trades"])
-    median_pass = float(metrics["median_trade_return"]) >= float(GATE_CONFIG["min_median_trade_return"])
     profit_factor = metrics["profit_factor"]
-    profit_pass = bool(
-        (pd.isna(profit_factor) and metrics["completed_trades"] > 0 and metrics["trade_win_rate"] > 0)
-        or (not pd.isna(profit_factor) and float(profit_factor) >= float(GATE_CONFIG["min_profit_factor"]))
+    edge_pass = bool(
+        not pd.isna(profit_factor)
+        and float(profit_factor) >= float(GATE_CONFIG["min_profit_factor"])
+        and float(metrics["avg_trade_return"]) > float(GATE_CONFIG["min_avg_trade_return"])
     )
-    passed = int(sample_pass) + int(median_pass) + int(profit_pass)
     return {
+        "sample_gate_pass": bool(sample_pass),
+        "edge_gate_pass": edge_pass,
+        "sample_gate_status": "Pass" if sample_pass else "Insufficient",
+        "edge_gate_status": "Pass" if edge_pass else "Fail",
         "gate_sample": "Pass" if sample_pass else "Insufficient",
-        "gate_median_trade_return": "Pass" if median_pass else "Fail",
-        "gate_profit_factor": "Pass" if profit_pass else "Fail",
-        "mandatory_gates_passed": passed,
-        "mandatory_gate_status": "Pass" if passed == 3 else ("Insufficient" if not sample_pass else "Fail"),
+        "gate_median_trade_return": "Diagnostic",
+        "gate_profit_factor": "Pass" if edge_pass else "Fail",
     }
 
 
@@ -751,54 +760,256 @@ def _entry_period_specs(trades: pd.DataFrame) -> list[dict]:
     return specs
 
 
-def _yearly_trade_summaries(trades: pd.DataFrame) -> pd.DataFrame:
-    columns = [
-        "strategy_key", "year", "completed_trades", "avg_trade_return", "median_trade_return",
-        "trade_win_rate", "profit_factor", "trade_sequence_drawdown", "status",
+def _coerce_bool_series(values: pd.Series) -> pd.Series:
+    if pd.api.types.is_bool_dtype(values):
+        return values.fillna(False).astype(bool)
+    normalized = values.astype(str).str.strip().str.lower()
+    return normalized.map({"true": True, "false": False}).fillna(False).astype(bool)
+
+
+def validate_strategy_year_summary(
+    strategy_year_summary: pd.DataFrame,
+    overall_summary: Optional[pd.DataFrame] = None,
+) -> Optional[str]:
+    """Return a clear unavailability reason, or None when the bounded aggregate is valid."""
+    if strategy_year_summary is None or strategy_year_summary.empty:
+        return "Strategy-year aggregate is unavailable."
+    required = {
+        "strategy_key", "entry_year", "year_basis", "is_partial_year", "is_full_calendar_year",
+        "completed_trades", "gross_profit", "gross_loss_abs", "sum_trade_returns",
+        "avg_trade_return", "median_trade_return", "profit_factor", "win_rate",
+    }
+    missing = sorted(required.difference(strategy_year_summary.columns))
+    if missing:
+        return f"Strategy-year aggregate is invalid; missing columns: {missing}."
+    if strategy_year_summary.duplicated(["strategy_key", "entry_year"]).any():
+        return "Strategy-year aggregate is invalid; duplicate strategy_key and entry_year rows were found."
+    if set(strategy_year_summary["year_basis"].dropna().astype(str)) != {STRATEGY_YEAR_BASIS}:
+        return "Strategy-year aggregate is invalid; year_basis must be entry_year."
+    numeric_columns = [
+        "entry_year", "completed_trades", "gross_profit", "gross_loss_abs", "sum_trade_returns",
+        "avg_trade_return", "median_trade_return", "win_rate",
     ]
-    if trades.empty:
+    numeric = strategy_year_summary[numeric_columns].apply(pd.to_numeric, errors="coerce")
+    if (
+        numeric.isna().any().any()
+        or (numeric["completed_trades"] <= 0).any()
+        or (numeric["gross_profit"] < 0).any()
+        or (numeric["gross_loss_abs"] < 0).any()
+    ):
+        return "Strategy-year aggregate is invalid; required numeric values are missing or invalid."
+    annual_pf = strategy_year_summary.apply(
+        lambda row: _profit_factor_from_totals(float(row.gross_profit), float(row.gross_loss_abs)), axis=1
+    )
+    if not (
+        np.allclose(
+            numeric["gross_profit"] - numeric["gross_loss_abs"], numeric["sum_trade_returns"],
+            rtol=1e-12, atol=1e-10,
+        )
+        and np.allclose(
+            numeric["sum_trade_returns"] / numeric["completed_trades"], numeric["avg_trade_return"],
+            rtol=1e-12, atol=1e-10,
+        )
+        and np.allclose(
+            annual_pf, pd.to_numeric(strategy_year_summary["profit_factor"], errors="coerce"),
+            rtol=1e-12, atol=1e-10, equal_nan=True,
+        )
+    ):
+        return "Strategy-year aggregate is invalid; annual numerators and derived metrics disagree."
+    for flag in ["is_full_calendar_year", "is_partial_year"]:
+        normalized = strategy_year_summary[flag].astype(str).str.strip().str.lower()
+        if not normalized.isin(["true", "false"]).all():
+            return f"Strategy-year aggregate is invalid; {flag} contains a non-boolean value."
+    full = _coerce_bool_series(strategy_year_summary["is_full_calendar_year"])
+    partial = _coerce_bool_series(strategy_year_summary["is_partial_year"])
+    if not (full == ~partial).all():
+        return "Strategy-year aggregate is invalid; full and partial year flags disagree."
+    if overall_summary is not None and not overall_summary.empty:
+        required_overall = {"strategy_key", "completed_trades", "sum_trade_returns", "avg_trade_return", "profit_factor"}
+        if not required_overall.issubset(overall_summary.columns):
+            return "Strategy-year aggregate cannot be validated; overall summary fields are missing."
+        annual = strategy_year_summary.groupby("strategy_key", sort=False).agg(
+            annual_completed=("completed_trades", "sum"),
+            annual_sum=("sum_trade_returns", "sum"),
+            annual_gross_profit=("gross_profit", "sum"),
+            annual_gross_loss=("gross_loss_abs", "sum"),
+        ).reset_index()
+        expected = overall_summary.loc[
+            pd.to_numeric(overall_summary["completed_trades"], errors="coerce") > 0,
+            ["strategy_key", "completed_trades", "sum_trade_returns", "avg_trade_return", "profit_factor"],
+        ]
+        reconstructed = expected.merge(annual, on="strategy_key", how="left", validate="one_to_one")
+        if reconstructed[["annual_completed", "annual_sum", "annual_gross_profit", "annual_gross_loss"]].isna().any().any():
+            return "Strategy-year aggregate is invalid; rows are missing for strategies with completed trades."
+        reconstructed_avg = reconstructed["annual_sum"] / reconstructed["annual_completed"]
+        reconstructed_pf = reconstructed.apply(
+            lambda row: _profit_factor_from_totals(row.annual_gross_profit, row.annual_gross_loss), axis=1
+        )
+        if not (
+            np.array_equal(reconstructed["annual_completed"].to_numpy(), reconstructed["completed_trades"].to_numpy())
+            and np.allclose(reconstructed["annual_sum"], reconstructed["sum_trade_returns"], rtol=1e-12, atol=1e-10)
+            and np.allclose(reconstructed_avg, reconstructed["avg_trade_return"], rtol=1e-12, atol=1e-10)
+            and np.allclose(reconstructed_pf, reconstructed["profit_factor"], rtol=1e-12, atol=1e-10, equal_nan=True)
+        ):
+            return "Strategy-year aggregate is invalid; annual numerators do not reconstruct the overall summary."
+    return None
+
+
+def _profit_factor_from_totals(gross_profit: float, gross_loss_abs: float) -> float:
+    if gross_loss_abs > 0:
+        return float(gross_profit / gross_loss_abs)
+    return np.nan if gross_profit > 0 else 0.0
+
+
+def _strategy_year_details(strategy_year_summary: pd.DataFrame, validation_reason: Optional[str]) -> pd.DataFrame:
+    columns = [
+        "strategy_key", "year", "entry_year", "is_partial_year", "is_full_calendar_year",
+        "completed_trades", "avg_trade_return", "median_trade_return", "trade_win_rate",
+        "profit_factor", "sum_trade_returns", "eligible_for_time_gate", "joint_positive",
+        "joint_positive_status", "status",
+    ]
+    if validation_reason or strategy_year_summary is None or strategy_year_summary.empty:
         return pd.DataFrame(columns=columns)
-    work = trades.copy()
-    work["entry_year"] = pd.to_datetime(work["entry_date"], errors="coerce").dt.year
-    work = work.dropna(subset=["entry_year"])
-    rows = []
-    for (strategy_key, year), group in work.groupby(["strategy_key", "entry_year"], sort=True):
-        metrics = _trade_metric_values(group)
-        eligible = metrics["completed_trades"] >= int(GATE_CONFIG["min_bucket_trades"])
-        status = "Insufficient" if not eligible else ("Pass" if metrics["median_trade_return"] > 0 else "Fail")
-        rows.append({
-            "strategy_key": strategy_key,
-            "year": int(year),
-            "completed_trades": metrics["completed_trades"],
-            "avg_trade_return": metrics["avg_trade_return"],
-            "median_trade_return": metrics["median_trade_return"],
-            "trade_win_rate": metrics["trade_win_rate"],
-            "profit_factor": metrics["profit_factor"],
-            "trade_sequence_drawdown": metrics["trade_sequence_drawdown"],
-            "status": status,
-        })
-    return pd.DataFrame(rows, columns=columns)
+    rows = strategy_year_summary.copy()
+    rows["is_full_calendar_year"] = _coerce_bool_series(rows["is_full_calendar_year"])
+    rows["is_partial_year"] = _coerce_bool_series(rows["is_partial_year"])
+    rows["eligible_for_time_gate"] = (
+        rows["is_full_calendar_year"]
+        & (pd.to_numeric(rows["completed_trades"], errors="coerce") >= int(GATE_CONFIG["min_annual_completed_trades"]))
+    )
+    rows["joint_positive"] = (
+        rows["eligible_for_time_gate"]
+        & (pd.to_numeric(rows["avg_trade_return"], errors="coerce") > 0)
+        & (pd.to_numeric(rows["profit_factor"], errors="coerce") > float(GATE_CONFIG["min_annual_profit_factor"]))
+    ).astype(object)
+    rows.loc[~rows["eligible_for_time_gate"], "joint_positive"] = None
+    rows["joint_positive_status"] = np.where(
+        ~rows["eligible_for_time_gate"],
+        "Not eligible",
+        np.where(rows["joint_positive"] == True, "Yes", "No"),  # noqa: E712
+    )
+    rows["status"] = np.where(
+        ~rows["eligible_for_time_gate"],
+        "Not eligible",
+        np.where(rows["joint_positive"] == True, "Pass", "Fail"),  # noqa: E712
+    )
+    rows["year"] = pd.to_numeric(rows["entry_year"], errors="coerce").astype(int)
+    rows["trade_win_rate"] = rows["win_rate"]
+    return rows[columns].sort_values(["strategy_key", "entry_year"]).reset_index(drop=True)
 
 
-def _attach_time_stability(summary: pd.DataFrame, yearly: pd.DataFrame) -> pd.DataFrame:
+def _attach_time_stability(
+    summary: pd.DataFrame,
+    strategy_year_summary: pd.DataFrame,
+    validation_reason: Optional[str] = None,
+) -> pd.DataFrame:
     out = summary.copy()
-    details = {key: group.to_dict(orient="records") for key, group in yearly.groupby("strategy_key")} if not yearly.empty else {}
-    statuses = []
-    ratios = []
-    eligible_counts = []
+    groups = (
+        {key: group.sort_values("entry_year") for key, group in strategy_year_summary.groupby("strategy_key", sort=False)}
+        if not validation_reason and strategy_year_summary is not None and not strategy_year_summary.empty
+        else {}
+    )
+    records = []
     for strategy_key in out["strategy_key"]:
-        rows = details.get(strategy_key, [])
-        eligible = [row for row in rows if row["status"] != "Insufficient"]
-        positive = [row for row in eligible if row["status"] == "Pass"]
-        ratio = len(positive) / len(eligible) if eligible else 0.0
-        status = "Insufficient" if len(eligible) < 2 else ("Pass" if ratio >= GATE_CONFIG["min_positive_year_ratio"] else "Fail")
-        statuses.append(status)
-        ratios.append(ratio)
-        eligible_counts.append(len(eligible))
-    out["time_stability_status"] = statuses
-    out["positive_year_ratio"] = ratios
-    out["eligible_years"] = eligible_counts
-    return out
+        reason = validation_reason
+        rows = groups.get(strategy_key)
+        if reason is None and (rows is None or rows.empty):
+            reason = "No strategy-year aggregate rows are available for this strategy."
+        if reason:
+            records.append({
+                "time_gate_pass": None,
+                "time_gate_status": "Not available",
+                "time_gate_unavailable_reason": reason,
+                "time_stability_status": "Not available",
+                "eligible_years": None,
+                "joint_positive_years": None,
+                "joint_positive_year_ratio": None,
+                "positive_year_ratio": None,
+                "median_annual_avg_trade_return": None,
+                "minimum_annual_avg_trade_return": None,
+                "median_annual_profit_factor": None,
+                "minimum_annual_profit_factor": None,
+                "annual_median_trade_return": None,
+                "loyo_fold_count": None,
+                "loyo_pass_count": None,
+                "loyo_pass_ratio": None,
+                "worst_loyo_avg_trade_return": None,
+                "worst_loyo_profit_factor": None,
+                "omitted_year_causing_worst_avg": None,
+                "omitted_year_causing_worst_pf": None,
+            })
+            continue
+
+        work = rows.copy()
+        full = _coerce_bool_series(work["is_full_calendar_year"])
+        eligible = work.loc[
+            full & (pd.to_numeric(work["completed_trades"], errors="coerce") >= int(GATE_CONFIG["min_annual_completed_trades"]))
+        ].copy()
+        eligible_count = int(len(eligible))
+        joint_mask = (
+            (pd.to_numeric(eligible["avg_trade_return"], errors="coerce") > 0)
+            & (pd.to_numeric(eligible["profit_factor"], errors="coerce") > float(GATE_CONFIG["min_annual_profit_factor"]))
+        )
+        joint_count = int(joint_mask.sum())
+        joint_ratio = joint_count / eligible_count if eligible_count else 0.0
+
+        folds = []
+        if eligible_count:
+            totals = eligible[["completed_trades", "sum_trade_returns", "gross_profit", "gross_loss_abs"]].sum()
+            for annual_row in eligible.itertuples(index=False):
+                pooled_count = int(totals.completed_trades - annual_row.completed_trades)
+                pooled_sum = float(totals.sum_trade_returns - annual_row.sum_trade_returns)
+                pooled_gp = float(totals.gross_profit - annual_row.gross_profit)
+                pooled_gl = float(totals.gross_loss_abs - annual_row.gross_loss_abs)
+                pooled_avg = pooled_sum / pooled_count if pooled_count > 0 else np.nan
+                pooled_pf = _profit_factor_from_totals(pooled_gp, pooled_gl)
+                fold_pass = bool(
+                    pooled_count >= int(GATE_CONFIG["min_completed_trades"])
+                    and not pd.isna(pooled_avg) and pooled_avg > 0
+                    and not pd.isna(pooled_pf) and pooled_pf >= float(GATE_CONFIG["min_profit_factor"])
+                )
+                folds.append({
+                    "omitted_year": int(annual_row.entry_year),
+                    "pooled_avg_trade_return": pooled_avg,
+                    "pooled_profit_factor": pooled_pf,
+                    "pass": fold_pass,
+                })
+        loyo_count = len(folds)
+        loyo_pass_count = sum(int(fold["pass"]) for fold in folds)
+        loyo_ratio = loyo_pass_count / loyo_count if loyo_count else 0.0
+        finite_avg_folds = [fold for fold in folds if not pd.isna(fold["pooled_avg_trade_return"])]
+        finite_pf_folds = [fold for fold in folds if not pd.isna(fold["pooled_profit_factor"])]
+        worst_avg = min(finite_avg_folds, key=lambda fold: (fold["pooled_avg_trade_return"], fold["omitted_year"])) if finite_avg_folds else None
+        worst_pf = min(finite_pf_folds, key=lambda fold: (fold["pooled_profit_factor"], fold["omitted_year"])) if finite_pf_folds else None
+        time_pass = bool(
+            eligible_count >= int(GATE_CONFIG["min_eligible_years"])
+            and joint_ratio >= float(GATE_CONFIG["min_joint_positive_year_ratio"])
+            and loyo_ratio >= float(GATE_CONFIG["min_loyo_pass_ratio"])
+        )
+        time_status = "Insufficient" if eligible_count < int(GATE_CONFIG["min_eligible_years"]) else ("Pass" if time_pass else "Fail")
+        records.append({
+            "time_gate_pass": time_pass,
+            "time_gate_status": time_status,
+            "time_gate_unavailable_reason": None,
+            "time_stability_status": time_status,
+            "eligible_years": eligible_count,
+            "joint_positive_years": joint_count,
+            "joint_positive_year_ratio": joint_ratio,
+            "positive_year_ratio": joint_ratio,
+            "median_annual_avg_trade_return": float(eligible["avg_trade_return"].median()) if eligible_count else None,
+            "minimum_annual_avg_trade_return": float(eligible["avg_trade_return"].min()) if eligible_count else None,
+            "median_annual_profit_factor": float(eligible["profit_factor"].median()) if eligible_count else None,
+            "minimum_annual_profit_factor": float(eligible["profit_factor"].min()) if eligible_count else None,
+            "annual_median_trade_return": float(eligible["median_trade_return"].median()) if eligible_count else None,
+            "loyo_fold_count": loyo_count,
+            "loyo_pass_count": loyo_pass_count,
+            "loyo_pass_ratio": loyo_ratio,
+            "worst_loyo_avg_trade_return": worst_avg["pooled_avg_trade_return"] if worst_avg else None,
+            "worst_loyo_profit_factor": worst_pf["pooled_profit_factor"] if worst_pf else None,
+            "omitted_year_causing_worst_avg": worst_avg["omitted_year"] if worst_avg else None,
+            "omitted_year_causing_worst_pf": worst_pf["omitted_year"] if worst_pf else None,
+        })
+    return pd.concat([out.reset_index(drop=True), pd.DataFrame(records)], axis=1)
 
 
 def _adjacent_values(value: float | int, grid: list) -> list:
@@ -809,13 +1020,62 @@ def _adjacent_values(value: float | int, grid: list) -> list:
     return [grid[i] for i in (idx - 1, idx + 1) if 0 <= i < len(grid)]
 
 
-def _attach_parameter_stability(summary: pd.DataFrame) -> pd.DataFrame:
+def _canonical_outcome_value(value: object) -> object:
+    return None if pd.isna(value) else float(value)
+
+
+def _outcome_signature(row: object, annual_rows: Optional[pd.DataFrame]) -> Optional[tuple]:
+    if annual_rows is None or annual_rows.empty:
+        return None
+    overall = (
+        int(row.completed_trades),
+        _canonical_outcome_value(row.avg_trade_return),
+        _canonical_outcome_value(row.median_trade_return),
+        _canonical_outcome_value(row.trade_win_rate),
+        _canonical_outcome_value(row.profit_factor),
+    )
+    annual = tuple(
+        (
+            int(annual_row.entry_year),
+            int(annual_row.completed_trades),
+            _canonical_outcome_value(annual_row.avg_trade_return),
+            _canonical_outcome_value(annual_row.median_trade_return),
+            _canonical_outcome_value(annual_row.profit_factor),
+        )
+        for annual_row in annual_rows.sort_values("entry_year").itertuples(index=False)
+    )
+    return overall + annual
+
+
+def _row_edge_pass(row: object) -> bool:
+    return bool(
+        int(row.completed_trades) >= int(GATE_CONFIG["min_completed_trades"])
+        and not pd.isna(row.profit_factor)
+        and float(row.profit_factor) >= float(GATE_CONFIG["min_profit_factor"])
+        and float(row.avg_trade_return) > float(GATE_CONFIG["min_avg_trade_return"])
+    )
+
+
+def _attach_parameter_stability(
+    summary: pd.DataFrame,
+    strategy_year_summary: pd.DataFrame,
+    validation_reason: Optional[str] = None,
+) -> pd.DataFrame:
     out = summary.copy()
     signal_by_params = {
         (int(rule.params["score_lookback"]), float(rule.params["r20_min"]), float(rule.params["er20_min"])): rule.key
         for rule in SIGNAL_RULES
     }
     lookup = {(row.signal_key, row.entry_key, row.exit_key): row for row in out.itertuples(index=False)}
+    annual_groups = (
+        {key: group for key, group in strategy_year_summary.groupby("strategy_key", sort=False)}
+        if not validation_reason and strategy_year_summary is not None and not strategy_year_summary.empty
+        else {}
+    )
+    signatures = {
+        row.strategy_key: _outcome_signature(row, annual_groups.get(row.strategy_key))
+        for row in out.itertuples(index=False)
+    }
     records = []
     for row in out.itertuples(index=False):
         params = json.loads(row.signal_params)
@@ -833,18 +1093,44 @@ def _attach_parameter_stability(summary: pd.DataFrame) -> pd.DataFrame:
             neighbor = lookup.get((signal_key, row.entry_key, row.exit_key))
             if neighbor is not None:
                 neighbors.append(neighbor)
-        eligible = [n for n in neighbors if n.completed_trades >= GATE_CONFIG["min_completed_trades"]]
-        passed = [n for n in eligible if n.mandatory_gate_status == "Pass"]
-        pass_ratio = len(passed) / len(eligible) if eligible else 0.0
-        status = "Insufficient" if len(eligible) < GATE_CONFIG["min_eligible_neighbors"] else (
-            "Pass" if pass_ratio >= GATE_CONFIG["min_neighbor_pass_ratio"] else "Fail"
+        eligible = [n for n in neighbors if int(n.completed_trades) >= int(GATE_CONFIG["min_completed_trades"])]
+        raw_pass_count = sum(int(_row_edge_pass(n)) for n in eligible)
+        raw_ratio = raw_pass_count / len(eligible) if eligible else 0.0
+        reason = validation_reason
+        candidate_signature = signatures.get(row.strategy_key)
+        if reason is None and candidate_signature is None:
+            reason = "Effective neighbor outcomes are unavailable because annual strategy rows are missing."
+        effective = {}
+        if reason is None:
+            for neighbor in eligible:
+                signature = signatures.get(neighbor.strategy_key)
+                if signature is None or signature == candidate_signature:
+                    continue
+                effective.setdefault(signature, neighbor)
+        effective_count = len(effective)
+        effective_pass_count = sum(int(_row_edge_pass(n)) for n in effective.values())
+        effective_ratio = effective_pass_count / effective_count if effective_count else 0.0
+        parameter_pass = None if reason else bool(
+            effective_count >= int(GATE_CONFIG["min_eligible_neighbors"])
+            and effective_ratio >= float(GATE_CONFIG["min_effective_neighbor_pass_ratio"])
         )
-        medians = [float(n.median_trade_return) for n in eligible]
-        drawdowns = [float(n.trade_sequence_drawdown) for n in eligible]
+        status = "Not available" if reason else (
+            "Insufficient" if effective_count < int(GATE_CONFIG["min_eligible_neighbors"])
+            else ("Pass" if parameter_pass else "Fail")
+        )
+        medians = [float(n.median_trade_return) for n in eligible if not pd.isna(n.median_trade_return)]
+        drawdowns = [float(n.trade_sequence_drawdown) for n in eligible if not pd.isna(n.trade_sequence_drawdown)]
         records.append({
             "available_neighbors": len(neighbors),
             "eligible_neighbors": len(eligible),
-            "neighbor_pass_ratio": pass_ratio,
+            "neighbor_pass_ratio": raw_ratio,
+            "raw_eligible_neighbors": len(eligible),
+            "raw_neighbor_edge_pass_ratio": raw_ratio,
+            "effective_eligible_neighbors": effective_count if reason is None else None,
+            "effective_neighbor_edge_pass_ratio": effective_ratio if reason is None else None,
+            "parameter_gate_pass": parameter_pass,
+            "parameter_gate_status": status,
+            "parameter_gate_unavailable_reason": reason,
             "neighbor_median_return_min": min(medians) if medians else None,
             "neighbor_median_return_max": max(medians) if medians else None,
             "neighbor_drawdown_min": min(drawdowns) if drawdowns else None,
@@ -856,28 +1142,78 @@ def _attach_parameter_stability(summary: pd.DataFrame) -> pd.DataFrame:
 
 def _attach_robustness_tiers(summary: pd.DataFrame) -> pd.DataFrame:
     out = summary.copy()
-    tiers = []
-    ranks = []
+    records = []
     for row in out.itertuples(index=False):
-        if row.gate_sample != "Pass":
-            tier, rank = "Insufficient data", 0
-        elif row.mandatory_gate_status != "Pass":
-            tier, rank = "Not qualified", 1
-        elif row.parameter_stability_status == "Pass" and row.time_stability_status == "Pass":
-            tier, rank = "Tier A (regime unverified)", 4
-        elif row.parameter_stability_status == "Pass":
-            tier, rank = "Tier B", 3
+        gate_values = [
+            bool(row.sample_gate_pass),
+            bool(row.edge_gate_pass),
+            row.time_gate_pass is True,
+            row.parameter_gate_pass is True,
+        ]
+        qualified = all(gate_values)
+        unavailable = [
+            str(reason) for reason in (
+                getattr(row, "time_gate_unavailable_reason", None),
+                getattr(row, "parameter_gate_unavailable_reason", None),
+            ) if isinstance(reason, str) and reason.strip()
+        ]
+        failed_names = [
+            name for name, passed in zip(["Sample", "Edge", "Time", "Parameter"], gate_values) if not passed
+        ]
+        if qualified:
+            status = "Pass"
+            reason = "All mandatory provisional gates pass."
+        elif unavailable:
+            status = "Not available"
+            reason = " ".join(dict.fromkeys(unavailable))
+        elif not row.sample_gate_pass:
+            status = "Insufficient"
+            reason = f"Failed mandatory gates: {', '.join(failed_names)}."
         else:
-            tier, rank = "Tier C", 2
-        tiers.append(tier)
-        ranks.append(rank)
-    out["robustness_tier"] = tiers
-    out["robustness_tier_rank"] = ranks
+            status = "Fail"
+            reason = f"Failed mandatory gates: {', '.join(failed_names)}."
+        tier = "Qualified" if qualified else "Not qualified"
+        records.append({
+            "mandatory_gates_pass": qualified,
+            "mandatory_gates_passed": sum(int(value) for value in gate_values),
+            "mandatory_gate_status": status,
+            "qualification_tier": tier,
+            "qualification_reason": reason,
+            "qualification_tier_rank": 1 if qualified else 0,
+            "robustness_tier": tier,
+            "robustness_tier_rank": 1 if qualified else 0,
+        })
+    out = pd.concat([out.reset_index(drop=True), pd.DataFrame(records)], axis=1)
     out["regime_stability_status"] = "Not available"
     return out
 
 
-def build_period_analysis(trades: pd.DataFrame, skipped: pd.DataFrame) -> list[dict]:
+def rank_strategy_summary(summary: pd.DataFrame) -> pd.DataFrame:
+    """Apply the approved deterministic lexicographic production ranking."""
+    if summary.empty:
+        out = summary.copy()
+        out["qualification_rank"] = pd.Series(dtype=int)
+        return out
+    out = summary.copy()
+    out["__qualified"] = out["qualification_tier"].eq("Qualified")
+    out["__time"] = out["time_gate_pass"].map(lambda value: value is True)
+    out["__parameter"] = out["parameter_gate_pass"].map(lambda value: value is True)
+    columns = [
+        "__qualified", "__time", "__parameter", "loyo_pass_ratio", "joint_positive_year_ratio",
+        "effective_neighbor_edge_pass_ratio", "profit_factor", "avg_trade_return", "completed_trades",
+        "strategy_key",
+    ]
+    ascending = [False, False, False, False, False, False, False, False, False, True]
+    out = out.sort_values(columns, ascending=ascending, na_position="last", kind="mergesort").reset_index(drop=True)
+    out["qualification_rank"] = np.arange(1, len(out) + 1)
+    return out.drop(columns=["__qualified", "__time", "__parameter"])
+
+
+def build_period_analysis(
+    trades: pd.DataFrame,
+    skipped: pd.DataFrame,
+    strategy_year_summary: Optional[pd.DataFrame] = None,
+) -> list[dict]:
     periods = []
     available_entry = pd.to_datetime(trades.get("entry_date", pd.Series(dtype=str)), errors="coerce").dropna()
     available_start = available_entry.min().date().isoformat() if len(available_entry) else None
@@ -885,11 +1221,18 @@ def build_period_analysis(trades: pd.DataFrame, skipped: pd.DataFrame) -> list[d
     for spec in _entry_period_specs(trades):
         period_trades = _filter_by_entry_period(trades, spec["start"], spec["end"])
         period_skipped = _filter_by_entry_period(skipped, spec["start"], spec["end"])
+        period_year_summary = (
+            strategy_year_summary.copy()
+            if spec["key"] == "all" and strategy_year_summary is not None
+            else build_strategy_year_summary(period_trades)
+        )
         summary = summarize_trades(period_trades, period_skipped)
-        yearly = _yearly_trade_summaries(period_trades)
-        summary = _attach_time_stability(summary, yearly)
-        summary = _attach_parameter_stability(summary)
+        annual_validation_reason = validate_strategy_year_summary(period_year_summary, summary)
+        yearly = _strategy_year_details(period_year_summary, annual_validation_reason)
+        summary = _attach_time_stability(summary, period_year_summary, annual_validation_reason)
+        summary = _attach_parameter_stability(summary, period_year_summary, annual_validation_reason)
         summary = _attach_robustness_tiers(summary)
+        summary = rank_strategy_summary(summary)
         included_entry = pd.to_datetime(period_trades.get("entry_date", pd.Series(dtype=str)), errors="coerce").dropna()
         included_exit = pd.to_datetime(period_trades.get("exit_date", pd.Series(dtype=str)), errors="coerce").dropna()
         periods.append({
@@ -905,6 +1248,8 @@ def build_period_analysis(trades: pd.DataFrame, skipped: pd.DataFrame) -> list[d
             "realized_exit_start": included_exit.min().date().isoformat() if len(included_exit) else None,
             "realized_exit_end": included_exit.max().date().isoformat() if len(included_exit) else None,
             "included_completed_trades": int(len(period_trades)),
+            "qualification_data_status": "Available" if annual_validation_reason is None else "Not available",
+            "qualification_unavailable_reason": annual_validation_reason,
             "summary": _safe_records(summary),
             "yearly_details": _safe_records(yearly),
         })
@@ -1051,7 +1396,8 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     print(f"backtest_timing strategy_year_aggregation_sec={strategy_year_aggregation_sec:.3f}")
 
     stage_started = time.perf_counter()
-    period_analysis = build_period_analysis(trades, skipped)
+    period_analysis = build_period_analysis(trades, skipped, strategy_year_summary)
+    gate_analysis_sec = time.perf_counter() - stage_started
     summary = pd.DataFrame(period_analysis[0]["summary"]) if period_analysis else summarize_trades(trades, skipped)
     diagnostic_summary = (
         summarize_diagnostics(diagnostics)
@@ -1066,7 +1412,7 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     )
 
     recent_trades_df = trades.sort_values("entry_date", ascending=False).head(RECENT_TRADE_LIMIT) if not trades.empty else pd.DataFrame()
-    print(f"backtest_timing period_analysis_sec={time.perf_counter() - stage_started:.3f}")
+    print(f"backtest_timing gate_analysis_sec={gate_analysis_sec:.3f}")
 
     print(
         f"backtest_counts symbols={len(grouped)} features_rows={len(features)} "
@@ -1093,12 +1439,16 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
         "round_trip_cost": ROUND_TRIP_COST,
         "max_holding_days": MAX_HOLDING_DAYS,
         "gate_config": GATE_CONFIG,
+        "qualification_model": "Provisional trend-following Sample, Edge, Time, and effective Parameter gates. Median trade return and bootstrap analysis are diagnostic only.",
+        "qualification_data_status": period_analysis[0]["qualification_data_status"] if period_analysis else "Not available",
+        "qualification_unavailable_reason": period_analysis[0]["qualification_unavailable_reason"] if period_analysis else "Period analysis is unavailable.",
         "trade_count_total": int(len(trades)),
         "diagnostic_event_count": int(len(diagnostics)),
         "recent_trade_limit": RECENT_TRADE_LIMIT,
         **_strategy_year_metadata(strategy_year_summary),
         "timing_metadata": {
             "strategy_year_aggregation_sec": strategy_year_aggregation_sec,
+            "gate_analysis_sec": gate_analysis_sec,
         },
         "diagnostic_definitions": {
             "fwd_Nd": "Entry next open 기준으로 N거래일 뒤 close까지 보유했을 때의 단순 수익률입니다.",
@@ -1119,9 +1469,17 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
             "sum_trade_returns": "Arithmetic sum of completed net trade returns after round-trip cost. It is not a portfolio return.",
             "trade_sequence_drawdown": "Drawdown of the sequentially compounded completed-trade return series ordered by entry date. It is not portfolio drawdown and does not model overlapping positions.",
             "profit_factor": "Sum of positive completed net trade returns divided by the absolute sum of negative completed net trade returns.",
-            "parameter_stability": "Direct-neighbor consistency while holding entry and exit rules fixed and changing one adjacent Score Breakout grid value.",
-            "time_stability": "Consistency across entry-calendar-year cohorts using fully realized completed-trade outcomes.",
-            "strategy_year_summary": "Bounded completed-trade aggregates grouped by strategy_key and trade entry year. Annual median return remains diagnostic and is not an approved future positive-year gate.",
+            "eligible_entry_year": "A full calendar entry year with at least 100 completed trades. Partial years remain descriptive and are excluded from the Time Gate.",
+            "annual_joint_positive_year": "An eligible entry year with annual average trade return above zero and annual Profit Factor above 1.0. Annual median return is diagnostic only.",
+            "joint_positive_year_ratio": "Joint-positive eligible entry years divided by eligible entry years.",
+            "loyo_fold": "One eligible entry year is omitted and pooled completed trades, sum returns, gross profit, and gross loss are reconstructed from the remaining annual aggregates.",
+            "loyo_pass_ratio": "Passing leave-one-year-out folds divided by eligible folds. A fold passes with at least 100 trades, positive pooled average return, and pooled Profit Factor at least 1.2.",
+            "effective_neighbor": "A direct adjacent parameter neighbor after candidate-identical outcomes are removed and duplicate aggregate-plus-annual outcome signatures are counted once.",
+            "effective_neighbor_edge_pass_ratio": "Effective eligible neighbors passing completed trades at least 100, overall Profit Factor at least 1.2, and positive overall average return, divided by effective eligible neighbors.",
+            "parameter_stability": "Effective direct-neighbor edge consistency while holding entry and exit rules fixed and changing one adjacent Score Breakout grid value. Time is not part of the neighbor edge test.",
+            "time_stability": "Provisional in-sample consistency across eligible full entry-calendar-year cohorts and leave-one-year-out pooled reconstructions.",
+            "strategy_year_summary": "Bounded completed-trade aggregates grouped by strategy_key and trade entry year. Partial years and annual median return remain descriptive only.",
+            "qualification_limit": "Qualification uses provisional in-sample robustness gates and does not establish out-of-sample profitability. Bootstrap analysis is diagnostic only.",
         },
         "summary": _safe_records(summary),
         "period_analysis": period_analysis,
