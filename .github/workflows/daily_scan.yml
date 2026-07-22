@@ -45,6 +45,11 @@ jobs:
           rm -f docs/data/backtest_trades.csv docs/data/signal_diagnostics.csv docs/data/backtest_skipped.csv
           # Backtest Only owns these published outputs; discard compatibility updates from the daily run.
           git restore --worktree -- docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv
+          if git ls-files --error-unmatch docs/data/backtest_strategy_year_summary.csv >/dev/null 2>&1; then
+            git restore --worktree -- docs/data/backtest_strategy_year_summary.csv
+          else
+            rm -f docs/data/backtest_strategy_year_summary.csv
+          fi
           git restore --worktree -- docs/data/backtest_recent_trades.csv docs/data/signal_diagnostics_summary.csv docs/data/backtest_skipped_summary.csv
           git add config/aum.csv
           git add docs/data/latest.json docs/data/latest.csv docs/data/universe_current.csv docs/data/excluded_etfs_summary.csv
