@@ -309,12 +309,15 @@ def _apply_signal_rule(g: pd.DataFrame, signal_rule: SignalRule) -> pd.DataFrame
     return out
 
 
-def _simulate_one_symbol(g: pd.DataFrame, strategy: StrategyRule) -> tuple[list[dict], list[dict]]:
-    g = _apply_signal_rule(g.sort_values("date").reset_index(drop=True), strategy.signal)
+def _simulate_prepared_symbol(
+    g: pd.DataFrame,
+    strategy: StrategyRule,
+    signal_indices: list[int],
+) -> tuple[list[dict], list[dict]]:
+    """Simulate one exit rule using a prepared signal frame and entry indices."""
     if len(g) < 2:
         return [], []
 
-    signal_indices = strategy.entry.indices_fn(g)
     trades = []
     skipped = []
     next_allowed_idx = 0
@@ -417,6 +420,54 @@ def _simulate_one_symbol(g: pd.DataFrame, strategy: StrategyRule) -> tuple[list[
         next_allowed_idx = exit_idx + 1
 
     return trades, skipped
+
+
+def _simulate_one_symbol(g: pd.DataFrame, strategy: StrategyRule) -> tuple[list[dict], list[dict]]:
+    """Compatibility path that prepares one complete strategy independently."""
+    prepared = _apply_signal_rule(g.sort_values("date").reset_index(drop=True), strategy.signal)
+    signal_indices = strategy.entry.indices_fn(prepared)
+    return _simulate_prepared_symbol(prepared, strategy, signal_indices)
+
+
+def _simulate_symbol_strategies(
+    g: pd.DataFrame,
+    signal_rules: list[SignalRule] = SIGNAL_RULES,
+    entry_rules: list[EntryRule] = ENTRY_RULES,
+    exit_rules: list[ExitRule] = EXIT_RULES,
+    strategy_rules: list[StrategyRule] = STRATEGY_RULES,
+) -> tuple[list[dict], list[dict], int, int]:
+    """Reuse one symbol's sorted frame, signals, and entry indices across exits."""
+    prepared_base = g.sort_values("date").reset_index(drop=True)
+    if len(prepared_base) < 2:
+        return [], [], 0, 0
+
+    strategy_by_components = {
+        (strategy.signal.key, strategy.entry.key, strategy.exit.key): strategy
+        for strategy in strategy_rules
+    }
+    trades: list[dict] = []
+    skipped: list[dict] = []
+    signal_entry_pairs_evaluated = 0
+    exit_simulations_evaluated = 0
+
+    for signal_rule in signal_rules:
+        signal_frame = _apply_signal_rule(prepared_base, signal_rule)
+        for entry_rule in entry_rules:
+            signal_indices = entry_rule.indices_fn(signal_frame)
+            signal_entry_pairs_evaluated += 1
+            for exit_rule in exit_rules:
+                strategy = strategy_by_components[(signal_rule.key, entry_rule.key, exit_rule.key)]
+                trades_i, skipped_i = _simulate_prepared_symbol(signal_frame, strategy, signal_indices)
+                trades.extend(trades_i)
+                skipped.extend(skipped_i)
+                exit_simulations_evaluated += 1
+
+    return (
+        trades,
+        skipped,
+        signal_entry_pairs_evaluated,
+        exit_simulations_evaluated,
+    )
 
 
 def _max_drawdown(returns: pd.Series) -> float:
@@ -794,12 +845,15 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     grouped = list(features.groupby("symbol", sort=False)) if not features.empty else []
 
     stage_started = time.perf_counter()
+    signal_entry_pairs_evaluated = 0
+    exit_simulations_evaluated = 0
     if grouped:
-        for strategy in STRATEGY_RULES:
-            for _, g in grouped:
-                trades_i, skipped_i = _simulate_one_symbol(g, strategy)
-                all_trades.extend(trades_i)
-                all_skipped.extend(skipped_i)
+        for _, g in grouped:
+            trades_i, skipped_i, signal_entry_pairs_i, exit_simulations_i = _simulate_symbol_strategies(g)
+            all_trades.extend(trades_i)
+            all_skipped.extend(skipped_i)
+            signal_entry_pairs_evaluated += signal_entry_pairs_i
+            exit_simulations_evaluated += exit_simulations_i
     trades = pd.DataFrame(all_trades)
     skipped = pd.DataFrame(all_skipped)
     if not trades.empty:
@@ -843,6 +897,8 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
 
     print(
         f"backtest_counts symbols={len(grouped)} features_rows={len(features)} "
+        f"signal_entry_pairs_evaluated={signal_entry_pairs_evaluated} "
+        f"exit_simulations_evaluated={exit_simulations_evaluated} "
         f"completed_trade_rows={len(trades)} skipped_rows={len(skipped)} "
         f"diagnostic_rows={len(diagnostics)} strategies={len(STRATEGY_RULES)}"
     )
