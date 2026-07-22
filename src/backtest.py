@@ -40,6 +40,41 @@ DIAGNOSTIC_SUMMARY_COLUMNS = [
 ]
 RECENT_TRADE_LIMIT = 250
 ANALYSIS_SCHEMA_VERSION = 2
+STRATEGY_YEAR_BASIS = "entry_year"
+STRATEGY_YEAR_SUMMARY_COLUMNS = [
+    "strategy_key",
+    "strategy_label",
+    "score_lookback",
+    "r20_min",
+    "er20_min",
+    "entry_rule",
+    "exit_rule",
+    "entry_year",
+    "year_basis",
+    "year_period_start",
+    "year_period_end",
+    "first_entry_date",
+    "last_entry_date",
+    "first_exit_date",
+    "last_exit_date",
+    "is_partial_year",
+    "is_full_calendar_year",
+    "completed_trades",
+    "winning_trades",
+    "losing_trades",
+    "flat_trades",
+    "gross_profit",
+    "gross_loss_abs",
+    "sum_trade_returns",
+    "avg_trade_return",
+    "median_trade_return",
+    "profit_factor",
+    "win_rate",
+    "p10_trade_return",
+    "worst_trade_return",
+    "best_trade_return",
+    "avg_holding_days",
+]
 
 # Transparent research decision thresholds. These are serialized with every
 # backtest payload so the static UI never maintains a second threshold copy.
@@ -512,6 +547,139 @@ def _trade_metric_values(g: pd.DataFrame) -> dict:
     }
 
 
+def _signal_params(value: object) -> dict:
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str) or not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def build_strategy_year_summary(trades: pd.DataFrame) -> pd.DataFrame:
+    """Build one bounded row per observed strategy and completed-trade entry year."""
+    if trades.empty:
+        return pd.DataFrame(columns=STRATEGY_YEAR_SUMMARY_COLUMNS)
+
+    required = [
+        "strategy_key", "strategy_label", "signal_params", "entry_key", "exit_key",
+        "entry_date", "exit_date", "net_return", "holding_days",
+    ]
+    missing = set(required).difference(trades.columns)
+    if missing:
+        raise ValueError(f"Cannot build strategy-year summary; missing columns: {sorted(missing)}")
+
+    work = trades[required].copy()
+    work["entry_date"] = pd.to_datetime(work["entry_date"], errors="coerce")
+    work["exit_date"] = pd.to_datetime(work["exit_date"], errors="coerce")
+    work["net_return"] = pd.to_numeric(work["net_return"], errors="coerce")
+    work["holding_days"] = pd.to_numeric(work["holding_days"], errors="coerce")
+    invalid = work[["entry_date", "exit_date", "net_return", "holding_days"]].isna().any(axis=1)
+    if invalid.any():
+        raise ValueError(
+            f"Cannot build strategy-year summary; {int(invalid.sum())} completed trades have invalid dates, returns, or holding days"
+        )
+
+    available_start = work["entry_date"].min().normalize()
+    available_end = work["entry_date"].max().normalize()
+    work["entry_year"] = work["entry_date"].dt.year.astype(int)
+    work["winning_trades"] = (work["net_return"] > 0).astype(int)
+    work["losing_trades"] = (work["net_return"] < 0).astype(int)
+    work["flat_trades"] = (work["net_return"] == 0).astype(int)
+    work["gross_profit"] = work["net_return"].where(work["net_return"] > 0, 0.0)
+    work["gross_loss_abs"] = -work["net_return"].where(work["net_return"] < 0, 0.0)
+
+    identity = work.drop_duplicates("strategy_key")[
+        ["strategy_key", "strategy_label", "signal_params", "entry_key", "exit_key"]
+    ].copy()
+    params = identity["signal_params"].map(_signal_params)
+    identity["score_lookback"] = params.map(lambda value: value.get("score_lookback"))
+    identity["r20_min"] = params.map(lambda value: value.get("r20_min"))
+    identity["er20_min"] = params.map(lambda value: value.get("er20_min"))
+    identity = identity.rename(columns={"entry_key": "entry_rule", "exit_key": "exit_rule"})
+
+    grouped = work.groupby(["strategy_key", "entry_year"], sort=True, observed=True)
+    result = grouped.agg(
+        first_entry_date=("entry_date", "min"),
+        last_entry_date=("entry_date", "max"),
+        first_exit_date=("exit_date", "min"),
+        last_exit_date=("exit_date", "max"),
+        completed_trades=("net_return", "size"),
+        winning_trades=("winning_trades", "sum"),
+        losing_trades=("losing_trades", "sum"),
+        flat_trades=("flat_trades", "sum"),
+        gross_profit=("gross_profit", "sum"),
+        gross_loss_abs=("gross_loss_abs", "sum"),
+        sum_trade_returns=("net_return", "sum"),
+        avg_trade_return=("net_return", "mean"),
+        median_trade_return=("net_return", "median"),
+        worst_trade_return=("net_return", "min"),
+        best_trade_return=("net_return", "max"),
+        avg_holding_days=("holding_days", "mean"),
+    ).reset_index()
+    p10 = grouped["net_return"].quantile(0.10).rename("p10_trade_return").reset_index()
+    result = result.merge(p10, on=["strategy_key", "entry_year"], how="left", validate="one_to_one")
+    result = result.merge(identity, on="strategy_key", how="left", validate="many_to_one")
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        result["profit_factor"] = np.where(
+            result["gross_loss_abs"] > 0,
+            result["gross_profit"] / result["gross_loss_abs"],
+            np.where(result["gross_profit"] > 0, np.nan, 0.0),
+        )
+    result["win_rate"] = result["winning_trades"] / result["completed_trades"]
+    result["year_basis"] = STRATEGY_YEAR_BASIS
+
+    year_starts = pd.to_datetime(result["entry_year"].astype(str) + "-01-01")
+    year_ends = pd.to_datetime(result["entry_year"].astype(str) + "-12-31")
+    result["year_period_start"] = year_starts.where(year_starts >= available_start, available_start)
+    result["year_period_end"] = year_ends.where(year_ends <= available_end, available_end)
+    result["is_full_calendar_year"] = (
+        (result["year_period_start"] == year_starts)
+        & (result["year_period_end"] == year_ends)
+    )
+    result["is_partial_year"] = ~result["is_full_calendar_year"]
+
+    for column in [
+        "year_period_start", "year_period_end", "first_entry_date", "last_entry_date",
+        "first_exit_date", "last_exit_date",
+    ]:
+        result[column] = pd.to_datetime(result[column], errors="coerce").dt.strftime("%Y-%m-%d")
+
+    integer_columns = ["entry_year", "completed_trades", "winning_trades", "losing_trades", "flat_trades"]
+    result[integer_columns] = result[integer_columns].astype(int)
+    return result[STRATEGY_YEAR_SUMMARY_COLUMNS].sort_values(
+        ["strategy_key", "entry_year"]
+    ).reset_index(drop=True)
+
+
+def _strategy_year_metadata(strategy_year_summary: pd.DataFrame) -> dict:
+    if strategy_year_summary.empty:
+        return {
+            "strategy_year_summary_row_count": 0,
+            "strategy_year_min": None,
+            "strategy_year_max": None,
+            "strategy_year_basis": STRATEGY_YEAR_BASIS,
+            "partial_years": [],
+            "full_calendar_years": [],
+        }
+    return {
+        "strategy_year_summary_row_count": int(len(strategy_year_summary)),
+        "strategy_year_min": int(strategy_year_summary["entry_year"].min()),
+        "strategy_year_max": int(strategy_year_summary["entry_year"].max()),
+        "strategy_year_basis": STRATEGY_YEAR_BASIS,
+        "partial_years": sorted(
+            strategy_year_summary.loc[strategy_year_summary["is_partial_year"], "entry_year"].unique().astype(int).tolist()
+        ),
+        "full_calendar_years": sorted(
+            strategy_year_summary.loc[strategy_year_summary["is_full_calendar_year"], "entry_year"].unique().astype(int).tolist()
+        ),
+    }
+
+
 def _gate_fields(metrics: dict) -> dict:
     sample_pass = int(metrics["completed_trades"]) >= int(GATE_CONFIG["min_completed_trades"])
     median_pass = float(metrics["median_trade_return"]) >= float(GATE_CONFIG["min_median_trade_return"])
@@ -878,6 +1046,11 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     )
 
     stage_started = time.perf_counter()
+    strategy_year_summary = build_strategy_year_summary(trades)
+    strategy_year_aggregation_sec = time.perf_counter() - stage_started
+    print(f"backtest_timing strategy_year_aggregation_sec={strategy_year_aggregation_sec:.3f}")
+
+    stage_started = time.perf_counter()
     period_analysis = build_period_analysis(trades, skipped)
     summary = pd.DataFrame(period_analysis[0]["summary"]) if period_analysis else summarize_trades(trades, skipped)
     diagnostic_summary = (
@@ -905,6 +1078,7 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
 
     stage_started = time.perf_counter()
     summary.to_csv(data_path / "backtest_strategy_summary.csv", index=False)
+    strategy_year_summary.to_csv(data_path / "backtest_strategy_year_summary.csv", index=False)
     diagnostic_summary.to_csv(data_path / "signal_diagnostics_summary.csv", index=False)
     recent_trades_df.to_csv(data_path / "backtest_recent_trades.csv", index=False)
     skipped_summary.to_csv(data_path / "backtest_skipped_summary.csv", index=False)
@@ -922,6 +1096,10 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
         "trade_count_total": int(len(trades)),
         "diagnostic_event_count": int(len(diagnostics)),
         "recent_trade_limit": RECENT_TRADE_LIMIT,
+        **_strategy_year_metadata(strategy_year_summary),
+        "timing_metadata": {
+            "strategy_year_aggregation_sec": strategy_year_aggregation_sec,
+        },
         "diagnostic_definitions": {
             "fwd_Nd": "Entry next open 기준으로 N거래일 뒤 close까지 보유했을 때의 단순 수익률입니다.",
             "mfe_20d": "Maximum Favorable Excursion. Entry 이후 20거래일 동안 경험한 최대 유리한 가격 이동입니다. 높을수록 진입 후 위로 열렸던 공간이 큽니다.",
@@ -943,6 +1121,7 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
             "profit_factor": "Sum of positive completed net trade returns divided by the absolute sum of negative completed net trade returns.",
             "parameter_stability": "Direct-neighbor consistency while holding entry and exit rules fixed and changing one adjacent Score Breakout grid value.",
             "time_stability": "Consistency across entry-calendar-year cohorts using fully realized completed-trade outcomes.",
+            "strategy_year_summary": "Bounded completed-trade aggregates grouped by strategy_key and trade entry year. Annual median return remains diagnostic and is not an approved future positive-year gate.",
         },
         "summary": _safe_records(summary),
         "period_analysis": period_analysis,

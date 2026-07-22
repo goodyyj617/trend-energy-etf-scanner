@@ -65,7 +65,7 @@ jobs:
               git add -u -- "$raw_output"
             fi
           done
-          git add docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv
+          git add docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv docs/data/backtest_strategy_year_summary.csv
           git add docs/data/backtest_recent_trades.csv docs/data/signal_diagnostics_summary.csv docs/data/backtest_skipped_summary.csv
           git commit -m "Update backtest data" || echo "No changes to commit"
           git pull --rebase --autostash origin main

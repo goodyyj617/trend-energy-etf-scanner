@@ -59,7 +59,9 @@ def main() -> None:
     )
 
     print(f"Wrote {data_dir / 'backtest_summary.json'}")
+    print(f"Wrote {data_dir / 'backtest_strategy_year_summary.csv'}")
     print(f"strategies={len(backtest_payload.get('summary', []))}")
+    print(f"strategy_year_rows={backtest_payload.get('strategy_year_summary_row_count', 0)}")
     print(f"diagnostics={len(backtest_payload.get('diagnostic_summary', []))}")
     print(f"recent_trades={len(backtest_payload.get('recent_trades', []))}")
     print(f"as_of={as_of}")
