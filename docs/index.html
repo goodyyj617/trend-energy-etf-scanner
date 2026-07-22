@@ -128,6 +128,8 @@
         This page analyzes completed strategy trades as independent events. It is not a portfolio equity backtest.
         Sum of Trade Returns and Trade-Sequence DD are not portfolio return, CAGR, or portfolio drawdown because
         overlapping trades, capital allocation, exposure, and cash constraints are not modeled.
+        Qualification uses provisional in-sample robustness gates and does not establish out-of-sample profitability.
+        Median Trade Ret and bootstrap analysis are diagnostic only.
       </div>
       <p id="backtestMeta" class="sub-meta">Backtest loading...</p>
       <div class="definition-box how-to-read">
@@ -170,17 +172,25 @@
 
     <section class="table-wrap">
       <h2>Exit-Applied Strategy Leaderboard</h2>
-      <p class="section-note">Top candidates are ranked by tier, mandatory gates passed, Median Trade Ret, Profit Factor, lower absolute Trade-Sequence DD, then completed trades.</p>
+      <p class="section-note">Qualification is applied before deterministic lexicographic ranking: Time, Parameter, LOYO, joint-positive years, effective-neighbor edge, Profit Factor, average return, completed trades, then strategy key. Click a labeled metric header to sort the view.</p>
       <table id="leaderboardTopTable">
         <thead>
           <tr>
-            <th>Tier</th><th>Lookback</th><th>R20 Min</th><th>ER20 Min</th><th>Entry</th><th>Exit</th>
-            <th>Completed Trades</th><th>Avg Trade Ret</th><th>Median Trade Ret</th><th>Trade Win Rate</th>
-            <th>Sum of Trade Returns</th><th>Trade-Sequence DD</th><th>Profit Factor</th><th>Avg Days</th>
+            <th data-backtest-key="qualification_tier">Qualification Tier</th><th>Lookback</th><th>R20 Min</th><th>ER20 Min</th><th>Entry</th><th>Exit</th>
+            <th data-backtest-key="completed_trades">Completed Trades</th><th data-backtest-key="avg_trade_return">Avg Trade Ret</th>
+            <th data-backtest-key="median_trade_return">Median Trade Ret</th><th data-backtest-key="profit_factor">Profit Factor</th>
+            <th data-backtest-key="eligible_years">Eligible Years</th><th data-backtest-key="joint_positive_year_ratio">Joint-Positive-Year Ratio</th>
+            <th data-backtest-key="loyo_pass_ratio">LOYO Pass Ratio</th><th data-backtest-key="effective_neighbor_edge_pass_ratio">Effective Neighbor Edge Pass Ratio</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
+    </section>
+
+    <section class="table-wrap">
+      <h2>Separate Diagnostic Leaders</h2>
+      <p class="section-note">Each leader is calculated independently among Qualified strategies. Median Trade Ret is diagnostic and does not affect qualification.</p>
+      <div id="diagnosticLeaders" class="candidate-snapshot"></div>
     </section>
 
     <details class="table-wrap detail-panel">
@@ -188,10 +198,12 @@
       <table id="backtestSummaryTable">
         <thead>
           <tr>
-            <th>Tier</th><th>Gates</th><th>Signal</th><th>Entry</th><th>Exit</th><th>Completed Trades</th>
-            <th>Avg Trade Ret</th><th>Median Trade Ret</th><th>Trade Win Rate</th><th>Sum of Trade Returns</th>
-            <th>Trade-Sequence DD</th><th>Worst Trade Ret</th><th>10th Pctl Trade Ret</th><th>Profit Factor</th>
-            <th>Stop Hit Rate</th><th>Avg Days</th><th>Parameter Stability</th><th>Time Stability</th><th>Regime Stability</th>
+            <th data-backtest-key="qualification_tier">Qualification Tier</th><th>Gates</th><th>Signal</th><th>Entry</th><th>Exit</th>
+            <th data-backtest-key="completed_trades">Completed Trades</th><th data-backtest-key="avg_trade_return">Avg Trade Ret</th>
+            <th data-backtest-key="median_trade_return">Median Trade Ret</th><th data-backtest-key="profit_factor">Profit Factor</th>
+            <th data-backtest-key="eligible_years">Eligible Years</th><th data-backtest-key="joint_positive_year_ratio">Joint-Positive-Year Ratio</th>
+            <th data-backtest-key="loyo_pass_ratio">LOYO Pass Ratio</th><th data-backtest-key="effective_neighbor_edge_pass_ratio">Effective Neighbor Edge Pass Ratio</th>
+            <th>Trade Win Rate</th><th>Sum of Trade Returns</th><th>Trade-Sequence DD</th><th>Worst Trade Ret</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -203,8 +215,9 @@
       <table id="parameterDetailsTable">
         <thead>
           <tr>
-            <th>Candidate</th><th>Status</th><th>Available Neighbors</th><th>Eligible Neighbors</th>
-            <th>Neighbor Pass Ratio</th><th>Neighbor Median Ret Range</th><th>Neighbor Trade-Sequence DD Range</th>
+            <th>Candidate</th><th>Status</th><th>Available Neighbors</th><th>Raw Eligible Neighbors</th>
+            <th>Raw Neighbor Edge Pass Ratio</th><th>Effective Eligible Neighbors</th><th>Effective Neighbor Edge Pass Ratio</th>
+            <th>Neighbor Median Ret Range</th><th>Neighbor Trade-Sequence DD Range</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -215,7 +228,7 @@
       <summary>Entry-Year Stability Details</summary>
       <table id="yearlyDetailsTable">
         <thead>
-          <tr><th>Year</th><th>Status</th><th>Completed Trades</th><th>Avg Trade Ret</th><th>Median Trade Ret</th><th>Trade Win Rate</th><th>Profit Factor</th><th>Trade-Sequence DD</th></tr>
+          <tr><th>Entry Year</th><th>Coverage</th><th>Completed Trades</th><th>Avg Trade Ret</th><th>Median Trade Ret (diagnostic)</th><th>Profit Factor</th><th>Sum of Trade Returns</th><th>Eligible for Time Gate</th><th>Joint-Positive</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -275,7 +288,7 @@
         <div>
           <h3>Completed-trade results</h3>
           <p><b>Completed Trades:</b> Exit-applied trades with realized outcomes.</p>
-          <p><b>Avg / Median Trade Ret:</b> Mean or median completed net trade return.</p>
+          <p><b>Avg / Median Trade Ret:</b> Mean or median completed net trade return. Median Trade Ret is diagnostic and is not a qualification condition.</p>
           <p><b>Trade Win Rate:</b> Share of completed net trade returns above zero.</p>
           <p><b>Sum of Trade Returns:</b> Arithmetic sum of completed net trade returns; not portfolio return.</p>
           <p><b>Trade-Sequence DD:</b> Drawdown of the entry-date-ordered compounded trade sequence; not portfolio drawdown.</p>
@@ -283,9 +296,16 @@
           <p><b>Worst / 10th Pctl Trade Ret:</b> Worst and lower-tail completed net trade outcomes.</p>
           <p><b>Stop Hit Rate:</b> Share of completed trades exited by a price stop.</p>
           <p><b>Avg Days:</b> Mean trading-day holding length.</p>
-          <p><b>Parameter Stability:</b> Gate consistency across direct adjacent Score parameter neighbors with the same entry and exit.</p>
-          <p><b>Time Stability:</b> Positive-result consistency across eligible entry-calendar-year cohorts.</p>
-          <p><b>Robustness Tier:</b> Provisional transparent tier based on mandatory gates plus parameter and time stability. Regime is unverified in Phase 1.</p>
+          <p><b>Eligible entry year:</b> A full calendar entry year with at least 100 completed trades. Partial years remain visible but are excluded from the Time Gate.</p>
+          <p><b>Annual joint-positive year:</b> An eligible year with Avg Trade Ret above zero and Profit Factor above 1.0. Annual median return is diagnostic only.</p>
+          <p><b>Joint-positive-year ratio:</b> Joint-positive eligible years divided by eligible full entry years.</p>
+          <p><b>LOYO fold:</b> One eligible year is omitted and pooled completed trades, arithmetic sum returns, gross profit, and gross loss are reconstructed from the remaining annual aggregates.</p>
+          <p><b>LOYO pass ratio:</b> Passing LOYO folds divided by eligible folds; each fold needs at least 100 trades, positive average return, and Profit Factor at least 1.2.</p>
+          <p><b>Effective neighbor:</b> A direct adjacent Score parameter neighbor after candidate-identical outcomes are removed and duplicate aggregate-plus-annual outcome signatures are counted once.</p>
+          <p><b>Effective neighbor edge pass ratio:</b> Effective eligible neighbors passing the independent overall Sample and Edge conditions divided by effective eligible neighbors.</p>
+          <p><b>Qualification Tier:</b> Qualified only when Sample, Edge, Time, and effective Parameter gates all pass.</p>
+          <p><b>Bootstrap:</b> Diagnostic only; it does not affect production qualification or ranking.</p>
+          <p><b>Limit:</b> These are provisional in-sample robustness gates. Qualification does not establish out-of-sample profitability.</p>
         </div>
       </div>
     </details>

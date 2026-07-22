@@ -103,7 +103,7 @@ class ExitReuseEquivalenceTest(unittest.TestCase):
         config_path = Path(__file__).parents[1] / "config" / "universe.yml"
         config_text = config_path.read_text(encoding="utf-8")
         self.assertIn("backtest_generate_signal_diagnostics: false", config_text)
-        self.assertEqual(ANALYSIS_SCHEMA_VERSION, 2)
+        self.assertEqual(ANALYSIS_SCHEMA_VERSION, 3)
 
 
 if __name__ == "__main__":

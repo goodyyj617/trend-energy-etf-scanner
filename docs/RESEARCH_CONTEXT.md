@@ -72,24 +72,24 @@ Default event-level labels are explicit: Avg Trade Ret, Median Trade Ret, Trade 
 
 Signal Forward Diagnostics are not part of the default decision workflow. Backtest-only runs skip generating them by default with `backtest_generate_signal_diagnostics: false` to reduce runtime; completed-trade robustness outputs are unchanged. Set the config value to `true` only when forward-diagnostic research is specifically needed.
 
-### Phase 1 Gate Configuration and Tiers
+### Approved Provisional Trend-Following Gates
 
-Gate thresholds are defined once in `src/backtest.py`, serialized in `backtest_summary.json`, and displayed in the UI. Starting decision thresholds are:
+Gate thresholds are defined once in `src/backtest.py`, serialized in `backtest_summary.json`, and displayed in the UI:
 
-- `min_completed_trades = 100`
-- `min_bucket_trades = 10`
-- `min_eligible_neighbors = 2`
-- `min_profit_factor = 1.0`
-- `min_median_trade_return = 0.0`
-- `min_neighbor_pass_ratio = 0.60`
-- `min_positive_year_ratio = 0.60`
-- `min_positive_regime_ratio = 0.50`
+- Sample: overall completed trades `>= 100`.
+- Edge: overall Profit Factor `>= 1.2` and overall average trade return `> 0`.
+- Eligible entry year: full calendar entry year with annual completed trades `>= 100`; partial years remain descriptive.
+- Annual joint-positive year: annual average trade return `> 0` and annual Profit Factor `> 1.0`.
+- Time: at least 5 eligible years, joint-positive-year ratio `>= 0.60`, and LOYO pass ratio `>= 0.80`.
+- A LOYO fold passes when the remaining annual numerators reconstruct at least 100 pooled trades, positive pooled average return, and pooled Profit Factor `>= 1.2`.
+- Parameter: at least 2 behaviorally deduplicated effective direct neighbors and effective neighbor edge pass ratio `>= 0.60`. The neighbor edge test uses only Sample and Edge conditions; Time remains independent.
+- Final qualification: Sample, Edge, Time, and effective Parameter gates must all pass.
 
-These are transparent, revisable research decisions, not statistical proof. Phase 1 uses sample size, Median Trade Ret, and Profit Factor as mandatory gates. Trade-Sequence DD, Worst Trade Ret, and 10th-percentile Trade Ret are descriptive rather than hard-fail gates.
+Median Trade Ret, annual median return, win rate, bootstrap results, event-level downside, and risk fields remain diagnostic. No bootstrap or mandatory risk threshold is used. These are provisional in-sample robustness gates, not statistical proof or evidence of out-of-sample profitability.
 
-Candidate selection is deterministic: higher provisional tier, more mandatory gates passed, higher Median Trade Ret, higher Profit Factor, lower absolute Trade-Sequence DD, then more completed trades. The old weighted `robust_score` is not used.
+Candidate selection is deterministic and unweighted: Qualified first, then Time pass, Parameter pass, LOYO ratio, joint-positive-year ratio, effective neighbor edge ratio, overall Profit Factor, overall average return, completed trades, and finally `strategy_key` ascending. Qualification and ranking are separate.
 
-Parameter Stability uses direct adjacent Score Breakout grid neighbors while holding entry and exit rules fixed. Time Stability uses completed outcomes grouped by entry calendar year. Regime Stability is `Not available` because SPY history is not already present in the static pipeline; adding a new benchmark dependency is deferred.
+If the bounded strategy-year aggregate is missing or invalid, Time and effective Parameter gates are unavailable and the strategy cannot be Qualified. Regime Stability remains `Not available` because SPY history is not already present in the static pipeline; adding a new benchmark dependency is deferred.
 
 ## Data / GitHub Storage Constraints
 

@@ -226,6 +226,13 @@ class StrategyYearSummaryTest(unittest.TestCase):
             self.assertEqual(payload["partial_years"], [2020, 2022])
             self.assertEqual(payload["full_calendar_years"], [2021])
             self.assertGreaterEqual(payload["timing_metadata"]["strategy_year_aggregation_sec"], 0.0)
+            self.assertGreaterEqual(payload["timing_metadata"]["gate_analysis_sec"], 0.0)
+            self.assertEqual(payload["analysis_schema_version"], 3)
+            self.assertEqual(payload["qualification_data_status"], "Available")
+            self.assertIn("sample_gate_pass", payload["summary"][0])
+            self.assertIn("loyo_pass_ratio", payload["summary"][0])
+            self.assertIn("effective_neighbor_edge_pass_ratio", payload["summary"][0])
+            self.assertFalse(any(row["mandatory_gates_pass"] for row in payload["summary"]))
             self.assertEqual(
                 _strategy_year_metadata(generated),
                 {

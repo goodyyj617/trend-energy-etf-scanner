@@ -373,7 +373,8 @@ tr:hover {
   white-space: nowrap;
 }
 
-.gate-pass {
+.gate-pass,
+.gate-qualified {
   color: #86efac;
   border-color: rgba(34, 197, 94, 0.55);
 }
@@ -407,6 +408,15 @@ tr:hover {
 
 .candidate-row {
   cursor: pointer;
+}
+
+.candidate-row.qualified-candidate td:first-child {
+  border-left: 4px solid rgb(var(--good));
+  font-weight: 800;
+}
+
+.candidate-row.not-qualified-candidate td:first-child {
+  border-left: 4px solid rgba(239, 68, 68, 0.55);
 }
 
 .candidate-row.selected-candidate {
