@@ -124,10 +124,9 @@
   <section id="backtestPanel" class="tab-panel">
     <section class="active-help backtest-intro">
       <div class="analysis-warning">
-        <strong>Event-level analysis only.</strong>
-        This page analyzes completed strategy trades as independent events. It is not a portfolio equity backtest.
-        Sum of Trade Returns and Trade-Sequence DD are not portfolio return, CAGR, or portfolio drawdown because
-        overlapping trades, capital allocation, exposure, and cash constraints are not modeled.
+        <strong>Two separate research views.</strong>
+        Completed trades remain independent-event diagnostics. The canonical portfolio section models a hypothetical
+        cash-constrained USD 1,000 path. Aggregate Event Return Sum and Event-Sequence DD are non-portfolio diagnostics.
         Qualification uses provisional in-sample robustness gates and does not establish out-of-sample profitability.
         Median Trade Ret and bootstrap analysis are diagnostic only.
       </div>
@@ -138,7 +137,7 @@
         <span>2. Check that a candidate has enough completed trades.</span>
         <span>3. Compare Performance and Downside after the selected exit, stop, max holding, and cost.</span>
         <span>4. Prefer candidates that remain acceptable across neighboring parameters and entry-year buckets.</span>
-        <span>5. Portfolio-level CAGR and portfolio max drawdown remain future work.</span>
+        <span>5. Inspect the selected strategy's canonical portfolio path; portfolio metrics are diagnostic and do not change qualification.</span>
       </div>
     </section>
 
@@ -168,6 +167,22 @@
       <h2>Candidate Snapshot</h2>
       <div id="candidateSnapshot" class="candidate-snapshot"></div>
       <div id="componentSummary" class="component-grid"></div>
+    </section>
+
+    <section class="table-wrap portfolio-panel">
+      <h2>Hypothetical USD 1,000 Canonical Portfolio</h2>
+      <p class="section-note">canonical_equal_weight_active_v1 · selected-range calculations apply only to this published curve and do not recompute 540-strategy qualification.</p>
+      <div id="portfolioUnavailable" class="empty-state"></div>
+      <div class="portfolio-controls">
+        <label>Start <input id="portfolioStartDate" type="date"></label>
+        <label>End <input id="portfolioEndDate" type="date"></label>
+        <button id="portfolioApplyRange" type="button">Apply range</button>
+        <button id="portfolioResetRange" type="button">Reset</button>
+        <label><input id="portfolioLogScale" type="checkbox"> Log equity scale</label>
+      </div>
+      <div id="portfolioMetrics" class="candidate-snapshot"></div>
+      <div id="portfolioChart" class="portfolio-chart" role="img" aria-label="Strategy and SPY equity and drawdown chart"></div>
+      <p class="section-note">SPY stress shading: drawdown below −10% / −15% / −20%. Strategy and benchmark use both color and line style.</p>
     </section>
 
     <section class="table-wrap">
@@ -203,7 +218,7 @@
             <th data-backtest-key="median_trade_return">Median Trade Ret</th><th data-backtest-key="profit_factor">Profit Factor</th>
             <th data-backtest-key="eligible_years">Eligible Years</th><th data-backtest-key="joint_positive_year_ratio">Joint-Positive-Year Ratio</th>
             <th data-backtest-key="loyo_pass_ratio">LOYO Pass Ratio</th><th data-backtest-key="effective_neighbor_edge_pass_ratio">Effective Neighbor Edge Pass Ratio</th>
-            <th>Trade Win Rate</th><th>Sum of Trade Returns</th><th>Trade-Sequence DD</th><th>Worst Trade Ret</th>
+            <th>Trade Win Rate</th><th>Aggregate Event Return Sum<br><small>Non-portfolio diagnostic</small></th><th>Event-Sequence DD<br><small>Non-portfolio diagnostic</small></th><th>Worst Trade Ret</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -228,7 +243,7 @@
       <summary>Entry-Year Stability Details</summary>
       <table id="yearlyDetailsTable">
         <thead>
-          <tr><th>Entry Year</th><th>Coverage</th><th>Completed Trades</th><th>Avg Trade Ret</th><th>Median Trade Ret (diagnostic)</th><th>Profit Factor</th><th>Sum of Trade Returns</th><th>Eligible for Time Gate</th><th>Joint-Positive</th></tr>
+          <tr><th>Entry Year</th><th>Coverage</th><th>Completed Trades</th><th>Avg Trade Ret</th><th>Median Trade Ret (diagnostic)</th><th>Profit Factor</th><th>Aggregate Event Return Sum<br><small>Non-portfolio diagnostic</small></th><th>Eligible for Time Gate</th><th>Joint-Positive</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -290,8 +305,8 @@
           <p><b>Completed Trades:</b> Exit-applied trades with realized outcomes.</p>
           <p><b>Avg / Median Trade Ret:</b> Mean or median completed net trade return. Median Trade Ret is diagnostic and is not a qualification condition.</p>
           <p><b>Trade Win Rate:</b> Share of completed net trade returns above zero.</p>
-          <p><b>Sum of Trade Returns:</b> Arithmetic sum of completed net trade returns; not portfolio return.</p>
-          <p><b>Trade-Sequence DD:</b> Drawdown of the entry-date-ordered compounded trade sequence; not portfolio drawdown.</p>
+          <p><b>Aggregate Event Return Sum:</b> Arithmetic sum of completed net trade returns. Non-portfolio diagnostic.</p>
+          <p><b>Event-Sequence DD:</b> Drawdown of the entry-date-ordered compounded trade sequence. Non-portfolio diagnostic.</p>
           <p><b>Profit Factor:</b> Positive return sum divided by the absolute negative return sum.</p>
           <p><b>Worst / 10th Pctl Trade Ret:</b> Worst and lower-tail completed net trade outcomes.</p>
           <p><b>Stop Hit Rate:</b> Share of completed trades exited by a price stop.</p>

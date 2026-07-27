@@ -51,6 +51,8 @@ jobs:
             rm -f docs/data/backtest_strategy_year_summary.csv
           fi
           git restore --worktree -- docs/data/backtest_recent_trades.csv docs/data/signal_diagnostics_summary.csv docs/data/backtest_skipped_summary.csv
+          git restore --worktree -- docs/data/backtest_portfolio_strategy_summary.csv docs/data/backtest_portfolio_curve_manifest.json docs/data/backtest_benchmark_spy.json docs/data/backtest_portfolio_daily_returns.csv.gz
+          git restore --worktree -- docs/data/backtest_portfolio_curves
           git add config/aum.csv
           git add docs/data/latest.json docs/data/latest.csv docs/data/universe_current.csv docs/data/excluded_etfs_summary.csv
           git add docs/data/history || true

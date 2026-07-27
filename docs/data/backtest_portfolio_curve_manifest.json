@@ -1,0 +1,9 @@
+{
+  "status": "Not available",
+  "reason": "A full Backtest Only run is required after merge.",
+  "portfolio_model": "canonical_equal_weight_active_v1",
+  "initial_equity": 1000.0,
+  "curve_cap": 100,
+  "published_curve_count": 0,
+  "strategies": []
+}

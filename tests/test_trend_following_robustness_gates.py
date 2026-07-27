@@ -293,10 +293,18 @@ class RankingAndPresentationTest(unittest.TestCase):
             })
             for row in summary.itertuples(index=False)
         ])
-        production = pd.concat([summary.reset_index(drop=True), gate_fields], axis=1)
+        # Current committed schema-v3 summaries already contain production gate
+        # columns. Replace those fields with the independently recomputed values
+        # instead of creating duplicate column labels.
+        production = pd.concat([
+            summary.drop(columns=[column for column in gate_fields.columns if column in summary], errors="ignore")
+                .reset_index(drop=True),
+            gate_fields,
+        ], axis=1)
         production = _attach_time_stability(production, annual)
         production = _attach_parameter_stability(production, annual)
         production = _attach_robustness_tiers(production)
+        production = production.loc[:, ~production.columns.duplicated(keep="last")]
         production = rank_strategy_summary(production)
 
         self.assertEqual(len(production), len(summary))
