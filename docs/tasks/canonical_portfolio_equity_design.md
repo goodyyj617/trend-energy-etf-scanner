@@ -61,3 +61,60 @@ The model assumes fractional fills at observed adjusted prices and does not mode
 ## Post-merge validation
 
 Development uses deterministic fixtures, targeted integration and JavaScript tests, syntax/static checks, and browser fallback testing. It intentionally does not run the full ten-year workflow. After merge, run Backtest Only once and verify: 540 summary rows; the existing 42 Qualified keys and production leader are unchanged; curve count is at most 100; all reconciliation/no-borrowing invariants hold; SPY and selected curves share the intended dates; the compressed matrix stays below 45 MiB; and the static dashboard loads available curves.
+
+## Post-generation bounded audit
+
+Audit basis: generated commit `a294050`, using absolute and relative floating-point tolerances of `1e-9`. No full backtest was rerun.
+
+### Completeness and file bounds
+
+- Portfolio summary: 540 rows, 540 unique strategy keys, no missing or duplicate key versus the 540-row event summary.
+- Daily-return matrix: documented gzip CSV alternative, 2,333 sorted unique dates from 2017-04-11 through 2026-07-23 and 540 unique strategy columns. The wide layout has no duplicate date × strategy observation.
+- Manifest and curves: 41 unique manifest keys and 41 existing JSON files, below the 100-curve cap. The rank-1 strategy, all 41 currently Qualified strategies, and every tied diagnostic leader are published. No required key or path is missing.
+- SPY has exactly the matrix date range and 2,333 observations.
+- Exact sizes: `backtest_summary.json` 20,850,369 bytes; `backtest_strategy_summary.csv` 916,935 bytes; portfolio summary 376,976 bytes; manifest 84,961 bytes; SPY 340,946 bytes; daily-return matrix 6,683,374 bytes; 41 curve files 45,606,641 bytes total (1,085,929–1,136,582 bytes each).
+
+### Accounting and cross-output reconciliation
+
+- Across all 95,653 published curve rows, `equity = cash + invested`, non-negative cash and invested value, exposure in `[0, 1]`, integral non-negative position counts, return/cumulative-return reconstruction, non-decreasing peaks, and non-positive drawdown all pass.
+- Curve MDD, total costs, and annual turnover match the all-strategy summary. Daily cost also equals 0.1% of actual turnover notional on every published row; maximum absolute reconciliation error is `9.33e-15`.
+- Manifest summaries exactly match the portfolio summary. Strategy labels and common portfolio dates match across event, portfolio, matrix, manifest, and curve outputs.
+- All 540 matrix columns reconstruct ending equity, total return, CAGR, volatility, Sharpe, Sortino, Calmar, MDD, ES, and other return-path fields except two CDaR values. The two non-published `L40 / ER20 0.15 / 3D confirm / Low10` configurations reconstruct to `-0.23184643376102584`, versus stored `-0.2317839781893117`; the `6.25e-5` difference exceeds tolerance and is consistent with a quantile-boundary/tied-drawdown precision sensitivity, but is not silently accepted.
+- Full exposure, position, turnover, and cost reconstruction is possible only for the 41 published curves. The all-strategy return matrix intentionally contains returns only, so daily minimum exposure/positions and accounting for the other 499 strategies cannot be independently reconstructed from bounded outputs.
+- Fourteen of 41 published curves fail the explicit first-observation USD 1,000 check: their first close equity ranges from USD 1,001.460448 to USD 1,004.627783. All curves still reconstruct correctly from the separate USD 1,000 initial-equity assumption, but the daily output omits an explicit initial USD 1,000 observation.
+  - `score_bo_l10_rm002_erp005__first_signal__low10`: 1,001.460448435143; `score_bo_l10_rp000_erp005__first_signal__low10`: 1,001.460448435143.
+  - `score_bo_l10_rm002_erp010__first_signal__low10`: 1,001.862467594588; `score_bo_l10_rp000_erp010__first_signal__low10`: 1,001.862467594588.
+  - `score_bo_l10_rm002_erp015__first_signal__low10`: 1,002.394645909331; `score_bo_l10_rp000_erp015__first_signal__low10`: 1,002.394645909331.
+  - `score_bo_l20_rm002_erp005__first_signal__low10`: 1,001.934830357868; `score_bo_l20_rp000_erp005__first_signal__low10`: 1,001.934830357868.
+  - `score_bo_l20_rm002_erp010__first_signal__low10`: 1,001.934830357868; `score_bo_l20_rp000_erp010__first_signal__low10`: 1,001.934830357868.
+  - `score_bo_l20_rm002_erp015__first_signal__low10`: 1,002.870036057960; `score_bo_l20_rp000_erp015__first_signal__low10`: 1,002.870036057960.
+  - `score_bo_l20_rp002_erp010__first_signal__low10`: 1,004.627783131940; `score_bo_l20_rp002_erp015__first_signal__low10`: 1,004.627783131940.
+
+### Existing-result preservation
+
+- The pre-portfolio baseline is dated 2026-07-24, while the generated run is dated 2026-07-23. This changed input window prevents an exact same-input record comparison without rerunning the backtest.
+- Strategy count remains 540 and the primary strategy is unchanged. Total completed trades moved from 4,141,317 to 4,140,652; bounded skipped count moved from 22,869 to 22,760. Event aggregates/ranks consequently differ.
+- At `1e-9` tolerance, baseline-to-current differences affect 386 completed-trade counts, 516 average returns, 524 medians, 539 Profit Factors, and 323 ranks. These are cross-window differences, not same-input portfolio reconciliation failures.
+- Sample, Edge, and Parameter Gate pass flags are unchanged. One strategy, `score_bo_l20_rp002_erp005__first_signal__low10`, moved from joint-positive-year ratio `0.625` to `0.50`, failed Time Gate, and changed the Qualified count from 42 to 41. This is separated as data-window movement, not treated as proof of an implementation change.
+- The deterministic legacy-versus-reused simulator test passes for completed and skipped outputs. Exact preservation of all raw completed-trade records cannot be checked because raw events are intentionally not published.
+- The existing generated-data fixture still hard-codes 42 Qualified strategies and now fails with 41, so the fixture and its intended window contract require correction or explicit rebasing.
+
+### Execution sanity and anomalies
+
+- Targeted deterministic tests pass for gap exits before entries, intraday-stop cash delay, close-timed max hold, membership-change equal weighting, duplicate-symbol prevention, fractional shares, no borrowing/leverage, and split entry/exit costs. Source inspection confirms open allocation uses raw open prices; same-day high/low/close are not open-decision inputs.
+- Ending equity ranges from USD 713.524194 to USD 2,696.942484; CAGR from -3.5714% to 11.2817%; MDD from -54.3293% to -15.9839%; daily returns from -11.1553% to 18.7209%.
+- Published daily exposure ranges from 0 to 1 and active positions from 0 to 419. Across all summaries, maximum active positions ranges from 284 to 443 and maximum exposure is 1. The unpublished daily minimums are not present in the bounded matrix.
+- Annual turnover ranges from 29.7244× to 81.9249× and total transaction cost from USD 316.511324 to USD 974.709627. These high values are retained as findings; their turnover-cost reconciliation passes.
+- No non-finite summary/matrix value, non-positive ending equity, return at or below -100%, exposure above 1, negative published cash, equity below USD 10, or absolute daily discontinuity above 25% was found.
+
+### Benchmark and dashboard
+
+- SPY begins at USD 1,000; returns reconstruct equity; drawdown reconstructs from its running peak; and dates match the strategy display range. Missing values are dropped explicitly, and the JSON identifies Yahoo `auto_adjust=True` adjusted close as a dividend-adjusted proxy rather than an independently reconstructed total-return index.
+- With generated data, strategy/SPY equity and drawdown render as four SVG paths. Linear/log switching changes the equity path. A 2020-01-02–2020-12-31 range renormalizes to USD 1,000 and independently reproduces ending equity USD 1,318.536870, return 31.8537%, CAGR 31.9790%, MDD -7.9001%, worst day -5.1471%, and ES95 -2.4436%.
+- SPY stress shading renders all three levels in that range: 24 observations in the -10% to -15% band, 19 in the -15% to -20% band, and 19 below -20% (62 below -10% cumulatively). No `NaN`, `Infinity`, `undefined`, warning, or console error appears.
+- Event-sequence drawdown is absent from the portfolio-risk panel, and Aggregate Event Return Sum is labeled “Non-portfolio diagnostic.”
+- The unavailable-curve fallback is unsafe: selecting a non-published strategy shows the correct unavailable message but leaves the previously selected strategy’s SVG and metrics visible. The Regime Stability card also incorrectly says SPY history is absent despite the generated benchmark.
+
+Phase B must wait until the explicit initial observation, CDaR cross-output difference, stale unavailable-curve display, stale 42-count fixture, and stated bounded-verification gap are resolved or formally redefined.
+
+Portfolio output correction required
