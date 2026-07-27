@@ -10,6 +10,12 @@ import numpy as np
 import pandas as pd
 
 from .features import add_signal_surge_v0, compute_symbol_features
+from .portfolio import (
+    PORTFOLIO_MODEL_NAME,
+    build_portfolio_outputs,
+    write_portfolio_outputs,
+    write_unavailable_portfolio_outputs,
+)
 
 BASE_SIGNAL_COL = "signal_surge_v0"
 ACTIVE_SIGNAL_COL = "__active_signal"
@@ -356,13 +362,14 @@ def _simulate_prepared_symbol(
     g: pd.DataFrame,
     strategy: StrategyRule,
     signal_indices: list[int],
-) -> tuple[list[dict], list[dict]]:
+) -> tuple[list[dict], list[dict], list[dict]]:
     """Simulate one exit rule using a prepared signal frame and entry indices."""
     if len(g) < 2:
-        return [], []
+        return [], [], []
 
     trades = []
     skipped = []
+    open_positions = []
     next_allowed_idx = 0
 
     for signal_idx in signal_indices:
@@ -427,6 +434,24 @@ def _simulate_prepared_symbol(
                 active_stop = max(active_stop, raw_next_stop) if strategy.exit.use_trailing_max else raw_next_stop
 
         if exit_idx is None:
+            # Observe the first still-open lifecycle without changing the legacy
+            # simulator's subsequent iteration or any completed/skipped output.
+            if not open_positions:
+                open_positions.append({
+                    "strategy_key": strategy.key,
+                    "strategy_label": strategy.label,
+                    "signal_key": strategy.signal.key,
+                    "entry_key": strategy.entry.key,
+                    "exit_key": strategy.exit.key,
+                    "symbol": str(entry_row.get("symbol", "")),
+                    "entry_signal_date": signal_row["date"].date().isoformat(),
+                    "entry_date": entry_row["date"].date().isoformat(),
+                    "entry_price": float(entry_price),
+                    "exit_date": None,
+                    "exit_price": None,
+                    "exit_reason": "open_at_end",
+                    "stop_at_exit": float(active_stop),
+                })
             continue
 
         exit_row = g.iloc[exit_idx]
@@ -462,14 +487,15 @@ def _simulate_prepared_symbol(
         })
         next_allowed_idx = exit_idx + 1
 
-    return trades, skipped
+    return trades, skipped, open_positions
 
 
 def _simulate_one_symbol(g: pd.DataFrame, strategy: StrategyRule) -> tuple[list[dict], list[dict]]:
     """Compatibility path that prepares one complete strategy independently."""
     prepared = _apply_signal_rule(g.sort_values("date").reset_index(drop=True), strategy.signal)
     signal_indices = strategy.entry.indices_fn(prepared)
-    return _simulate_prepared_symbol(prepared, strategy, signal_indices)
+    trades, skipped, _ = _simulate_prepared_symbol(prepared, strategy, signal_indices)
+    return trades, skipped
 
 
 def _simulate_symbol_strategies(
@@ -478,11 +504,11 @@ def _simulate_symbol_strategies(
     entry_rules: list[EntryRule] = ENTRY_RULES,
     exit_rules: list[ExitRule] = EXIT_RULES,
     strategy_rules: list[StrategyRule] = STRATEGY_RULES,
-) -> tuple[list[dict], list[dict], int, int]:
+) -> tuple[list[dict], list[dict], list[dict], int, int]:
     """Reuse one symbol's sorted frame, signals, and entry indices across exits."""
     prepared_base = g.sort_values("date").reset_index(drop=True)
     if len(prepared_base) < 2:
-        return [], [], 0, 0
+        return [], [], [], 0, 0
 
     strategy_by_components = {
         (strategy.signal.key, strategy.entry.key, strategy.exit.key): strategy
@@ -490,6 +516,7 @@ def _simulate_symbol_strategies(
     }
     trades: list[dict] = []
     skipped: list[dict] = []
+    open_positions: list[dict] = []
     signal_entry_pairs_evaluated = 0
     exit_simulations_evaluated = 0
 
@@ -500,14 +527,16 @@ def _simulate_symbol_strategies(
             signal_entry_pairs_evaluated += 1
             for exit_rule in exit_rules:
                 strategy = strategy_by_components[(signal_rule.key, entry_rule.key, exit_rule.key)]
-                trades_i, skipped_i = _simulate_prepared_symbol(signal_frame, strategy, signal_indices)
+                trades_i, skipped_i, open_i = _simulate_prepared_symbol(signal_frame, strategy, signal_indices)
                 trades.extend(trades_i)
                 skipped.extend(skipped_i)
+                open_positions.extend(open_i)
                 exit_simulations_evaluated += 1
 
     return (
         trades,
         skipped,
+        open_positions,
         signal_entry_pairs_evaluated,
         exit_simulations_evaluated,
     )
@@ -1359,6 +1388,7 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     print(f"backtest_timing build_historical_features_sec={time.perf_counter() - stage_started:.3f}")
     all_trades: list[dict] = []
     all_skipped: list[dict] = []
+    all_open_positions: list[dict] = []
     all_diagnostics: list[dict] = []
     grouped = list(features.groupby("symbol", sort=False)) if not features.empty else []
 
@@ -1367,13 +1397,15 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     exit_simulations_evaluated = 0
     if grouped:
         for _, g in grouped:
-            trades_i, skipped_i, signal_entry_pairs_i, exit_simulations_i = _simulate_symbol_strategies(g)
+            trades_i, skipped_i, open_i, signal_entry_pairs_i, exit_simulations_i = _simulate_symbol_strategies(g)
             all_trades.extend(trades_i)
             all_skipped.extend(skipped_i)
+            all_open_positions.extend(open_i)
             signal_entry_pairs_evaluated += signal_entry_pairs_i
             exit_simulations_evaluated += exit_simulations_i
     trades = pd.DataFrame(all_trades)
     skipped = pd.DataFrame(all_skipped)
+    open_positions = pd.DataFrame(all_open_positions)
     if not trades.empty:
         trades = trades.sort_values(["entry_date", "strategy_key", "symbol"]).reset_index(drop=True)
     if not skipped.empty:
@@ -1419,6 +1451,19 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
     recent_trades_df = trades.sort_values("entry_date", ascending=False).head(RECENT_TRADE_LIMIT) if not trades.empty else pd.DataFrame()
     print(f"backtest_timing gate_analysis_sec={gate_analysis_sec:.3f}")
 
+    stage_started = time.perf_counter()
+    if {"date", "symbol", "open", "close"}.issubset(prices.columns):
+        portfolio_outputs = build_portfolio_outputs(
+            trades, open_positions, prices, summary, round_trip_cost=ROUND_TRIP_COST
+        )
+        portfolio_manifest = write_portfolio_outputs(portfolio_outputs, data_path)
+    else:
+        portfolio_manifest = write_unavailable_portfolio_outputs(
+            data_path, "Portfolio price columns are unavailable in this bounded run."
+        )
+    portfolio_analysis_sec = time.perf_counter() - stage_started
+    print(f"backtest_timing portfolio_analysis_sec={portfolio_analysis_sec:.3f}")
+
     print(
         f"backtest_counts symbols={len(grouped)} features_rows={len(features)} "
         f"signal_entry_pairs_evaluated={signal_entry_pairs_evaluated} "
@@ -1439,7 +1484,10 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
         "as_of": as_of,
         "entry_model": "Score breakout signal rules are entry candidate/trigger logic only. They are never used as exit signals.",
         "exit_model": "Every strategy uses a price stop plus a max holding cap. Stopless MaxHold-only strategies are intentionally disabled.",
-        "analysis_model": "Completed strategy trades are analyzed as independent events. This is not a portfolio equity backtest.",
+        "analysis_model": "Completed trades remain independent-event diagnostics. Investable-path diagnostics use the separate hypothetical canonical portfolio layer.",
+        "portfolio_model": PORTFOLIO_MODEL_NAME,
+        "portfolio_model_status": portfolio_manifest["status"],
+        "portfolio_model_definition": "Hypothetical USD 1,000, long-only, cash-constrained, fractional-share, equal-weight-active portfolio; membership changes rebalance at the next tradable open.",
         "period_filter_model": "Static preset summaries include completed trades whose entry_date is inside the requested inclusive period. Their realized exits may occur after the requested end date.",
         "round_trip_cost": ROUND_TRIP_COST,
         "max_holding_days": MAX_HOLDING_DAYS,
@@ -1454,6 +1502,7 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
         "timing_metadata": {
             "strategy_year_aggregation_sec": strategy_year_aggregation_sec,
             "gate_analysis_sec": gate_analysis_sec,
+            "portfolio_analysis_sec": portfolio_analysis_sec,
         },
         "diagnostic_definitions": {
             "fwd_Nd": "Entry next open 기준으로 N거래일 뒤 close까지 보유했을 때의 단순 수익률입니다.",
@@ -1485,6 +1534,8 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
             "time_stability": "Provisional in-sample consistency across eligible full entry-calendar-year cohorts and leave-one-year-out pooled reconstructions.",
             "strategy_year_summary": "Bounded completed-trade aggregates grouped by strategy_key and trade entry year. Partial years and annual median return remain descriptive only.",
             "qualification_limit": "Qualification uses provisional in-sample robustness gates and does not establish out-of-sample profitability. Bootstrap analysis is diagnostic only.",
+            "aggregate_event_return_sum": "Arithmetic sum of completed net trade returns. Non-portfolio diagnostic.",
+            "portfolio_equity": "Hypothetical equity under canonical_equal_weight_active_v1; it is not realized investor profit and is not a qualification or ranking input.",
         },
         "summary": _safe_records(summary),
         "period_analysis": period_analysis,

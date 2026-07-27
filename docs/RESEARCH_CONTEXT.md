@@ -122,3 +122,7 @@ If the bounded strategy-year aggregate is missing or invalid, Time and effective
 3. Tests/checks run
 4. Risks or remaining issues
 5. Next decisions for Classic ChatGPT
+
+# Canonical portfolio diagnostics
+
+`canonical_equal_weight_active_v1` adds a separate hypothetical USD 1,000, cash-constrained portfolio path for every strategy. It does not feed qualification or ranking. Independent-event Aggregate Event Return Sum and Event-Sequence DD remain non-portfolio diagnostics; portfolio return and drawdown must come from the canonical layer. See `docs/tasks/canonical_portfolio_equity_design.md`. A full Backtest Only run is required after merge to populate the bounded portfolio outputs.

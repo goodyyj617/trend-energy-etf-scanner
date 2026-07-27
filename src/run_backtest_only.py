@@ -31,6 +31,9 @@ def main() -> None:
     )
 
     symbols = universe.loc[universe["base_universe_eligible"], "symbol"].tolist()
+    # SPY is benchmark-only; the unchanged universe table still controls
+    # whether any symbol is tradable.
+    symbols = list(dict.fromkeys([*symbols, "SPY"]))
     prices = download_ohlcv(
         symbols,
         period=backtest_lookback_period,

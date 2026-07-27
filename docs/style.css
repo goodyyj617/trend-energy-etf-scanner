@@ -464,3 +464,7 @@ tr:hover {
     grid-template-columns: 1fr;
   }
 }
+.portfolio-controls { display:flex; flex-wrap:wrap; gap:.75rem; align-items:end; margin:1rem 0; }
+.portfolio-controls label { display:flex; gap:.4rem; align-items:center; }
+.portfolio-chart { width:100%; min-height:260px; overflow:hidden; background:#fff; border:1px solid #dbe3ec; border-radius:8px; }
+.portfolio-chart svg { width:100%; height:auto; display:block; }

@@ -1,0 +1,7 @@
+{
+  "status": "Not available",
+  "reason": "A full Backtest Only run is required after merge.",
+  "symbol": "SPY",
+  "initial_equity": 1000.0,
+  "series": []
+}

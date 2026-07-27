@@ -201,7 +201,7 @@ class StrategyYearSummaryTest(unittest.TestCase):
 
     def test_small_mocked_backtest_writes_bounded_csv_and_metadata(self) -> None:
         features = pd.DataFrame({"symbol": ["TEST"]})
-        simulated = (self.trades.to_dict(orient="records"), [], 2, 2)
+        simulated = (self.trades.to_dict(orient="records"), [], [], 2, 2)
         with tempfile.TemporaryDirectory() as temp_dir:
             with (
                 patch("src.backtest.build_historical_features", return_value=features),

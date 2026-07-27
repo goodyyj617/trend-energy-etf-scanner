@@ -1,5 +1,7 @@
 let payload = null;
 let backtestPayload = null;
+let portfolioManifest = null;
+let portfolioBenchmark = null;
 let rows = [];
 let activeTab = "scanner";
 let sortKey = "score";
@@ -74,7 +76,7 @@ const displayNames = {
   median_return: "Median Ret",
   median_trade_return: "Median Trade Ret",
   total_return: "Total Ret",
-  sum_trade_returns: "Sum of Trade Returns",
+  sum_trade_returns: "Aggregate Event Return Sum",
   max_drawdown: "Max DD",
   trade_sequence_drawdown: "Trade-Sequence DD",
   completed_trades: "Completed Trades",
@@ -418,6 +420,17 @@ async function init() {
     if (backtestRes.ok) backtestPayload = await backtestRes.json();
   } catch (err) {
     backtestPayload = { as_of: payload.as_of, summary: [], diagnostic_summary: [], recent_trades: [] };
+  }
+  try {
+    const [manifestRes, benchmarkRes] = await Promise.all([
+      fetch("data/backtest_portfolio_curve_manifest.json", { cache: "no-store" }),
+      fetch("data/backtest_benchmark_spy.json", { cache: "no-store" })
+    ]);
+    portfolioManifest = manifestRes.ok ? await manifestRes.json() : null;
+    portfolioBenchmark = benchmarkRes.ok ? await benchmarkRes.json() : null;
+  } catch (_err) {
+    portfolioManifest = null;
+    portfolioBenchmark = null;
   }
   buildGroupFilterOptions();
   applyPreset("basic");

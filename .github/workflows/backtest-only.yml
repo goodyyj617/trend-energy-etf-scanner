@@ -53,6 +53,11 @@ jobs:
             echo "Files larger than 45MB: $too_large"
             exit 1
           fi
+          curve_count=$(find docs/data/backtest_portfolio_curves -type f -name '*.json' | wc -l)
+          if [ "$curve_count" -gt 100 ]; then
+            echo "Published portfolio curve cap exceeded: $curve_count"
+            exit 1
+          fi
 
       - name: Commit backtest data
         run: |
@@ -67,6 +72,9 @@ jobs:
           done
           git add docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv docs/data/backtest_strategy_year_summary.csv
           git add docs/data/backtest_recent_trades.csv docs/data/signal_diagnostics_summary.csv docs/data/backtest_skipped_summary.csv
+          git add docs/data/backtest_portfolio_strategy_summary.csv docs/data/backtest_portfolio_curve_manifest.json
+          git add docs/data/backtest_benchmark_spy.json docs/data/backtest_portfolio_daily_returns.csv.gz
+          git add -A docs/data/backtest_portfolio_curves
           git commit -m "Update backtest data" || echo "No changes to commit"
           git pull --rebase --autostash origin main
           git push

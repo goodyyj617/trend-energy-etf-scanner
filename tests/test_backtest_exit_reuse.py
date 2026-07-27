@@ -82,7 +82,7 @@ class ExitReuseEquivalenceTest(unittest.TestCase):
             old_trades.extend(trades)
             old_skipped.extend(skipped)
 
-        new_trades, new_skipped, pair_count, exit_count = _simulate_symbol_strategies(
+        new_trades, new_skipped, new_open, pair_count, exit_count = _simulate_symbol_strategies(
             self.frame,
             signal_rules=self.signal_rules,
             entry_rules=self.entry_rules,
@@ -96,6 +96,7 @@ class ExitReuseEquivalenceTest(unittest.TestCase):
         self.assertEqual(len(old_skipped), len(new_skipped))
         self.assertEqual(self._canonical(old_trades), self._canonical(new_trades))
         self.assertEqual(self._canonical(old_skipped), self._canonical(new_skipped))
+        self.assertIsInstance(new_open, list)
         self.assertEqual(pair_count, len(self.signal_rules) * len(self.entry_rules))
         self.assertEqual(exit_count, len(self.strategy_rules))
 
