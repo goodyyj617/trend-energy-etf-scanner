@@ -280,7 +280,7 @@ class ParameterAndQualificationTest(unittest.TestCase):
 
 
 class RankingAndPresentationTest(unittest.TestCase):
-    def test_committed_bounded_aggregates_reproduce_approved_42_and_primary_candidate(self) -> None:
+    def test_committed_rolling_data_reconstructs_qualification_and_ranking_invariants(self) -> None:
         summary = pd.read_csv(ROOT / "docs" / "data" / "backtest_strategy_summary.csv")
         annual = pd.read_csv(ROOT / "docs" / "data" / "backtest_strategy_year_summary.csv")
         gate_fields = pd.DataFrame([
@@ -319,13 +319,39 @@ class RankingAndPresentationTest(unittest.TestCase):
             "effective_neighbor_edge_pass_ratio", "qualification_rank",
         }
         self.assertTrue(required.issubset(production.columns))
-        self.assertEqual(int(production.mandatory_gates_pass.sum()), 42)
-        self.assertEqual(
-            production.iloc[0].strategy_key,
-            "score_bo_l40_rm002_erp010__signal_3d_confirm__ma50",
+        gate_conjunction = (
+            production.sample_gate_pass
+            & production.edge_gate_pass
+            & production.time_gate_pass
+            & production.parameter_gate_pass
         )
-        self.assertEqual(production.iloc[0].qualification_tier, "Qualified")
-        self.assertLess(production.iloc[0].median_trade_return, 0)
+        pd.testing.assert_series_equal(
+            production.mandatory_gates_pass.reset_index(drop=True),
+            gate_conjunction.reset_index(drop=True),
+            check_names=False,
+        )
+        self.assertTrue(
+            (production.qualification_tier.eq("Qualified") == gate_conjunction).all()
+        )
+        stored_qualified = set(summary.loc[summary.qualification_tier.eq("Qualified"), "strategy_key"])
+        reconstructed_qualified = set(
+            production.loc[gate_conjunction, "strategy_key"]
+        )
+        self.assertEqual(reconstructed_qualified, stored_qualified)
+        self.assertEqual(
+            production.qualification_rank.tolist(),
+            list(range(1, len(production) + 1)),
+        )
+        stored_primary = summary.sort_values(
+            ["qualification_rank", "strategy_key"], kind="mergesort"
+        ).iloc[0].strategy_key
+        self.assertEqual(production.iloc[0].strategy_key, stored_primary)
+        self.assertEqual(
+            production[["strategy_key", "qualification_tier", "qualification_rank"]].to_dict("records"),
+            summary.sort_values(["qualification_rank", "strategy_key"], kind="mergesort")[
+                ["strategy_key", "qualification_tier", "qualification_rank"]
+            ].to_dict("records"),
+        )
         reranked = rank_strategy_summary(production.sample(frac=1, random_state=19))
         self.assertEqual(reranked.strategy_key.tolist(), production.strategy_key.tolist())
 

@@ -11,6 +11,8 @@ import pandas as pd
 
 from .features import add_signal_surge_v0, compute_symbol_features
 from .portfolio import (
+    CDAR_DEFINITION_VERSION,
+    PORTFOLIO_CURVE_SCHEMA_VERSION,
     PORTFOLIO_MODEL_NAME,
     build_portfolio_outputs,
     write_portfolio_outputs,
@@ -1486,6 +1488,8 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
         "exit_model": "Every strategy uses a price stop plus a max holding cap. Stopless MaxHold-only strategies are intentionally disabled.",
         "analysis_model": "Completed trades remain independent-event diagnostics. Investable-path diagnostics use the separate hypothetical canonical portfolio layer.",
         "portfolio_model": PORTFOLIO_MODEL_NAME,
+        "portfolio_curve_schema_version": PORTFOLIO_CURVE_SCHEMA_VERSION,
+        "portfolio_cdar_definition_version": CDAR_DEFINITION_VERSION,
         "portfolio_model_status": portfolio_manifest["status"],
         "portfolio_model_definition": "Hypothetical USD 1,000, long-only, cash-constrained, fractional-share, equal-weight-active portfolio; membership changes rebalance at the next tradable open.",
         "period_filter_model": "Static preset summaries include completed trades whose entry_date is inside the requested inclusive period. Their realized exits may occur after the requested end date.",
@@ -1536,6 +1540,8 @@ def run_backtests(prices: pd.DataFrame, universe: pd.DataFrame, cfg: dict, data_
             "qualification_limit": "Qualification uses provisional in-sample robustness gates and does not establish out-of-sample profitability. Bootstrap analysis is diagnostic only.",
             "aggregate_event_return_sum": "Arithmetic sum of completed net trade returns. Non-portfolio diagnostic.",
             "portfolio_equity": "Hypothetical equity under canonical_equal_weight_active_v1; it is not realized investor profit and is not a qualification or ranking input.",
+            "portfolio_initialization": "A schema-v2 non-session t0 observation immediately precedes the first economic session with USD 1,000 cash, zero exposure, positions, return, cost, and turnover. It is excluded from economic-period summary statistics.",
+            "conditional_drawdown_at_risk_95": "Mean of the worst max(1, n-floor(0.95*n)) finite negative-drawdown observations after sorting ascending. Zero drawdowns remain in the population; rank selection uses no interpolation and does not expand boundary ties.",
         },
         "summary": _safe_records(summary),
         "period_analysis": period_analysis,
