@@ -434,24 +434,25 @@ def _simulate_prepared_symbol(
                 active_stop = max(active_stop, raw_next_stop) if strategy.exit.use_trailing_max else raw_next_stop
 
         if exit_idx is None:
-            open_positions.append({
-                "strategy_key": strategy.key,
-                "strategy_label": strategy.label,
-                "signal_key": strategy.signal.key,
-                "entry_key": strategy.entry.key,
-                "exit_key": strategy.exit.key,
-                "symbol": str(entry_row.get("symbol", "")),
-                "entry_signal_date": signal_row["date"].date().isoformat(),
-                "entry_date": entry_row["date"].date().isoformat(),
-                "entry_price": float(entry_price),
-                "exit_date": None,
-                "exit_price": None,
-                "exit_reason": "open_at_end",
-                "stop_at_exit": float(active_stop),
-            })
-            # With one-position-per-symbol semantics no later signal can enter
-            # before the bounded data window ends.
-            break
+            # Observe the first still-open lifecycle without changing the legacy
+            # simulator's subsequent iteration or any completed/skipped output.
+            if not open_positions:
+                open_positions.append({
+                    "strategy_key": strategy.key,
+                    "strategy_label": strategy.label,
+                    "signal_key": strategy.signal.key,
+                    "entry_key": strategy.entry.key,
+                    "exit_key": strategy.exit.key,
+                    "symbol": str(entry_row.get("symbol", "")),
+                    "entry_signal_date": signal_row["date"].date().isoformat(),
+                    "entry_date": entry_row["date"].date().isoformat(),
+                    "entry_price": float(entry_price),
+                    "exit_date": None,
+                    "exit_price": None,
+                    "exit_reason": "open_at_end",
+                    "stop_at_exit": float(active_stop),
+                })
+            continue
 
         exit_row = g.iloc[exit_idx]
         gross_return = exit_price / entry_price - 1
