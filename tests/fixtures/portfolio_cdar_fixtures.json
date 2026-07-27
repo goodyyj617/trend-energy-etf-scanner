@@ -1,0 +1,44 @@
+[
+  {
+    "name": "no_drawdown",
+    "values": [0, 0, 0],
+    "repeat_zeros": 0,
+    "expected": 0
+  },
+  {
+    "name": "one_drawdown",
+    "values": [-0.2],
+    "repeat_zeros": 0,
+    "expected": -0.2
+  },
+  {
+    "name": "repeated_boundary_ties",
+    "values": [-0.2, -0.2, -0.2],
+    "repeat_zeros": 37,
+    "expected": -0.2
+  },
+  {
+    "name": "distinct_tail",
+    "values": [-0.4, -0.3, -0.2, -0.1],
+    "repeat_zeros": 36,
+    "expected": -0.35
+  },
+  {
+    "name": "zeros_mixed_with_drawdowns",
+    "values": [-0.2],
+    "repeat_zeros": 9,
+    "expected": -0.2
+  },
+  {
+    "name": "exact_95_percent_boundary",
+    "values": [-0.5, -0.4, -0.3, -0.2, -0.1],
+    "repeat_zeros": 95,
+    "expected": -0.3
+  },
+  {
+    "name": "interpolation_sensitive_sample_size",
+    "values": [-0.3, -0.2],
+    "repeat_zeros": 19,
+    "expected": -0.25
+  }
+]

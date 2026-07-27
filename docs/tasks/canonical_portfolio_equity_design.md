@@ -60,7 +60,7 @@ The model assumes fractional fills at observed adjusted prices and does not mode
 
 ## Post-merge validation
 
-Development uses deterministic fixtures, targeted integration and JavaScript tests, syntax/static checks, and browser fallback testing. It intentionally does not run the full ten-year workflow. After merge, run Backtest Only once and verify: 540 summary rows; the existing 42 Qualified keys and production leader are unchanged; curve count is at most 100; all reconciliation/no-borrowing invariants hold; SPY and selected curves share the intended dates; the compressed matrix stays below 45 MiB; and the static dashboard loads available curves.
+Development uses deterministic fixtures, targeted integration and JavaScript tests, syntax/static checks, and browser fallback testing. It intentionally does not run the full ten-year workflow. After merge, run Backtest Only once and verify: 540 summary rows; the rolling Qualified key set and production leader reconstruct exactly from the documented gates and lexicographic ranking without assuming a fixed count or key; curve count is at most 100; all reconciliation/no-borrowing invariants hold; SPY and selected curves share the intended dates; the compressed matrix stays below 45 MiB; and the static dashboard loads available curves.
 
 ## Post-generation bounded audit
 
@@ -118,3 +118,63 @@ Audit basis: generated commit `a294050`, using absolute and relative floating-po
 Phase B must wait until the explicit initial observation, CDaR cross-output difference, stale unavailable-curve display, stale 42-count fixture, and stated bounded-verification gap are resolved or formally redefined.
 
 Portfolio output correction required
+
+## Development correction
+
+The historical audit above is retained unchanged from commit `38aed93`. This section records the bounded correction; it does not reinterpret the old generated files as corrected output and it does not authorize Phase B.
+
+### Explicit initialization observation
+
+The fourteen failures were representation defects. The simulator serialized only normal session-close rows, so a strategy that earned a positive first-session return after its immediate entry cost could first appear above USD 1,000. The economic return and cost were valid; the initial cash-only state was absent. This was not floating-point formatting or publication corruption. SPY happened to show USD 1,000 on its first normal price row because it is normalized to that close, but it also lacked a separately identifiable initialization observation.
+
+Curve schema version 2 adds a non-economic `initialization` row before the first `trading_session` row. Its timestamp is one microsecond before UTC midnight of the first economic session. It is an initialization timestamp, not a tradable date and not an extra market session. The state is: equity USD 1,000, cash USD 1,000, invested value zero, gross exposure zero, active positions zero, daily and cumulative return zero, running peak USD 1,000, drawdown zero, cost zero, and turnover zero. SPY uses the same convention.
+
+Changing only the old first equity cell would have broken return, peak, drawdown, cash/invested, cost, and ending-equity reconciliation. Instead, the old economic rows are preserved after t0. Summary calculations explicitly exclude initialization rows, so the economic start/end dates and CAGR elapsed-day count are unchanged. The daily-return matrix includes the zero-return t0 row so every curve still reconstructs from USD 1,000. Selected-range calculations include t0 only when the range begins at the first economic session; later ranges rebase their first selected economic observation as before.
+
+### Deterministic CDaR
+
+The old calculation used a linearly interpolated 5% quantile followed by an inclusive `drawdown <= cutoff` membership test. Reconstructing drawdowns from serialized daily returns can shift nearly tied boundary values by tiny floating-point amounts. That threshold-sensitive membership caused the two unpublished `L40 / ER20 0.15 / 3D confirm / Low10` summary differences found in the audit. The sign and daily-observation basis were otherwise consistent.
+
+`negative_drawdown_fixed_tail_count_v1` is now the shared production definition in Python and the dashboard:
+
+- Input is the series of daily negative drawdown values, including zero-peak observations; it is not a drawdown-episode series or positive magnitude.
+- At confidence `c`, finite inputs are sorted ascending and `k = max(1, n - floor(c * n + 1e-12))`.
+- The result is the arithmetic mean of exactly the first `k` observations. There is no quantile interpolation, cutoff comparison, or expansion for ties at the boundary.
+- Numeric missing and non-finite inputs are filtered consistently. Values above `1e-9` are rejected as invalid positive drawdowns; smaller positive floating-point residue is normalized to zero.
+- The reported sign is non-positive. An empty input or an all-zero input returns zero; a one-observation tail returns that observation.
+
+Python and JavaScript consume the same exhaustive fixture file covering no drawdown, one drawdown, boundary ties, distinct tails, mixed zeros, an exact 95% boundary, and an interpolation-sensitive sample size. Schema and CDaR definition versions are written to the run metadata, manifest, strategy curve payloads, and benchmark payload. Version-1 curves fail closed in the dashboard until regenerated.
+
+### Dashboard state and rolling qualification
+
+The stale display occurred because an unavailable selection wrote only a message and did not clear the previously loaded curve. Loading requests also had no selection identity, so a late response could repaint an older choice. Selection now clears strategy metrics, selected-range metrics, SVG paths, date values, and benchmark comparison immediately; range and scale controls are disabled. Published curves restore those elements only after schema and payload validation. A monotonically increasing selection token plus `AbortController` prevents late, failed, or superseded responses from repainting. Not-published, missing-file, failed-load, malformed/empty, outdated-schema, and benchmark-unavailable states have distinct messages.
+
+The rolling-data test no longer asserts 42 or names an eternally Qualified key. It independently reconstructs mandatory gate conjunction, tier, Qualified key set, contiguous deterministic ranks, the lexicographic primary candidate, and row-order invariance from the committed data. The observed 42 to 41 movement came from the rolling input window and one Time Gate result; it was not caused by the portfolio layer or a gate-definition/ranking change.
+
+### Bounded correction results
+
+No full ten-year Backtest Only workflow was run. The pre-correction column refers to the generated files audited in commit `38aed93`; the corrected-development column refers to deterministic production-path fixtures and tests. Values that require all 540 regenerated production curves are deliberately marked for the single post-merge regeneration rather than inferred from old schema-1 files.
+
+| Check | Pre-correction generated output | Corrected development | Post-merge requirement |
+| --- | ---: | ---: | --- |
+| Published curves whose first observable equity is not USD 1,000 | 14 | 0 | Recheck all published curves |
+| CDaR reconstruction mismatches | 2 / 540 | 0 across shared Python/JavaScript fixtures | Recheck all 540 summaries |
+| Stale dashboard-state failures | 1 confirmed path | 0 | Recheck generated available/unpublished selections |
+| Asynchronous stale-response failures | Not protected | 0 across A/B/unpublished/rapid-switch fixtures | Browser smoke test |
+| Qualified strategies | 41 current rolling rows; old test expected 42 | 41, derived without a fixed count | Confirm gate/rank invariants, not a fixed count |
+| Accounting reconciliation mismatches | 0 | 0 | Recheck all published curves |
+| Cash below zero | 0 | 0 | Recheck all published curves |
+| Gross exposure above one | 0 | 0 | Recheck all published curves |
+| Invested value below zero | 0 | 0 | Recheck all published curves |
+| Positive drawdown | 0 | 0 | Recheck all published curves |
+| Running-peak decreases | 0 | 0 | Recheck all published curves |
+| Daily-return/equity reconstruction mismatches | 0 | 0 | Recheck all 540 matrix columns |
+| Non-finite portfolio values | 0 | 0 | Recheck summaries, matrix, and curves |
+| Missing published curve files | 0 | 0 | Recheck manifest/files |
+| Duplicate manifest strategy keys | 0 | 0 | Recheck manifest |
+
+Targeted portfolio/accounting, earliest-entry, immediate-cost, multiple-position, flat-cash, SPY initialization, ending-equity/CAGR preservation, publication/manifest, CDaR parity, completed/skipped trade reuse, qualification/ranking invariants, dashboard-state, asynchronous selection, syntax, and actual-browser fail-safe checks pass. The browser also confirms that current schema-1 generated curves leave no stale chart, metric, range, or invalid numeric text and produce no console warning/error.
+
+The development correction changes representation and risk-metric determinism only. It does not change signals, entries, exits, stops, holding periods, costs, universe, backtest period, completed-trade economics, gates, ranking, portfolio allocation, or the canonical model name. One full Backtest Only run remains required after merge, followed by the complete bounded audit. Phase B remains blocked until that regenerated audit reports zero required mismatches.
+
+Ready to merge and regenerate

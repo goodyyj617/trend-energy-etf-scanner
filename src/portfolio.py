@@ -15,9 +15,14 @@ PORTFOLIO_MODEL_NAME = "canonical_equal_weight_active_v1"
 PORTFOLIO_INITIAL_CAPITAL = 1_000.0
 PORTFOLIO_CURVE_CAP = 100
 PORTFOLIO_DAILY_MATRIX_NAME = "backtest_portfolio_daily_returns.csv.gz"
+PORTFOLIO_CURVE_SCHEMA_VERSION = 2
+CDAR_DEFINITION_VERSION = "negative_drawdown_fixed_tail_count_v1"
+INITIALIZATION_OBSERVATION = "initialization"
+TRADING_SESSION_OBSERVATION = "trading_session"
 
 PORTFOLIO_CURVE_COLUMNS = [
     "date",
+    "observation_type",
     "strategy_key",
     "portfolio_equity",
     "cash_value",
@@ -85,6 +90,40 @@ FLOAT_EPSILON = 1e-9
 
 class PortfolioInvariantError(RuntimeError):
     pass
+
+
+def initialization_timestamp(first_session: object) -> str:
+    """Return a non-session timestamp immediately before the first session."""
+    timestamp = pd.Timestamp(first_session)
+    timestamp = (
+        timestamp.tz_localize("UTC")
+        if timestamp.tzinfo is None
+        else timestamp.tz_convert("UTC")
+    )
+    timestamp = timestamp.normalize() - pd.Timedelta(microseconds=1)
+    return timestamp.isoformat().replace("+00:00", "Z")
+
+
+def _initialization_row(strategy_key: Optional[str], first_session: object, initial_capital: float) -> dict:
+    return {
+        "date": initialization_timestamp(first_session),
+        "observation_type": INITIALIZATION_OBSERVATION,
+        "strategy_key": strategy_key,
+        "portfolio_equity": float(initial_capital),
+        "cash_value": float(initial_capital),
+        "invested_value": 0.0,
+        "gross_exposure": 0.0,
+        "active_position_count": 0,
+        "daily_portfolio_return": 0.0,
+        "transaction_cost_paid": 0.0,
+        "turnover": 0.0,
+    }
+
+
+def economic_curve(curve: pd.DataFrame) -> pd.DataFrame:
+    if curve.empty or "observation_type" not in curve.columns:
+        return curve.copy()
+    return curve.loc[curve["observation_type"] != INITIALIZATION_OBSERVATION].copy()
 
 
 @dataclass(frozen=True)
@@ -280,7 +319,7 @@ def simulate_canonical_portfolio(
     cash = float(initial_capital)
     previous_equity = float(initial_capital)
     pending_membership_rebalance = False
-    rows = []
+    rows = [_initialization_row(strategy_key, panel.dates[0], initial_capital)]
 
     def execute_exit(event: dict) -> tuple[float, float]:
         nonlocal cash
@@ -402,6 +441,7 @@ def simulate_canonical_portfolio(
         gross_exposure = invested_value / equity if equity > 0 else 0.0
         rows.append({
             "date": pd.Timestamp(date).date().isoformat(),
+            "observation_type": TRADING_SESSION_OBSERVATION,
             "strategy_key": strategy_key,
             "portfolio_equity": equity,
             "cash_value": cash,
@@ -431,23 +471,30 @@ def expected_shortfall(returns: pd.Series, confidence: float) -> float:
 
 
 def conditional_drawdown_at_risk(drawdowns: pd.Series, confidence: float = 0.95) -> float:
-    clean = pd.to_numeric(drawdowns, errors="coerce").dropna()
+    if not 0 < confidence < 1:
+        raise ValueError("confidence must be between zero and one")
+    clean = pd.to_numeric(drawdowns, errors="coerce")
+    clean = clean.loc[np.isfinite(clean)].astype(float)
     if clean.empty:
         return 0.0
-    cutoff = clean.quantile(1.0 - confidence, interpolation="linear")
-    tail = clean.loc[clean <= cutoff]
-    return float(tail.mean()) if len(tail) else float(cutoff)
+    if (clean > FLOAT_EPSILON).any():
+        raise ValueError("drawdown values cannot be positive")
+    clean = clean.clip(upper=0.0)
+    ordered = np.sort(clean.to_numpy(dtype=float))
+    tail_count = max(1, len(ordered) - math.floor(confidence * len(ordered) + 1e-12))
+    return float(ordered[:tail_count].mean())
 
 
 def _period_returns(curve: pd.DataFrame, frequency: str) -> pd.Series:
     if curve.empty:
         return pd.Series(dtype=float)
     work = curve.copy()
-    work.index = pd.to_datetime(work["date"])
+    work.index = pd.to_datetime(work["date"], format="mixed", utc=True)
     return (1.0 + work["daily_portfolio_return"]).resample(frequency).prod() - 1.0
 
 
 def _drawdown_episode_metrics(curve: pd.DataFrame, initial_capital: float) -> dict:
+    curve = economic_curve(curve)
     if curve.empty:
         return {
             "maximum_drawdown": 0.0,
@@ -457,7 +504,7 @@ def _drawdown_episode_metrics(curve: pd.DataFrame, initial_capital: float) -> di
             "max_drawdown_duration_days": 0,
             "longest_time_under_water_days": 0,
         }
-    dates = pd.to_datetime(curve["date"]).reset_index(drop=True)
+    dates = pd.to_datetime(curve["date"], format="mixed", utc=True).reset_index(drop=True)
     equity = pd.to_numeric(curve["portfolio_equity"], errors="coerce").reset_index(drop=True)
     drawdown = pd.to_numeric(curve["drawdown"], errors="coerce").reset_index(drop=True)
     trough_index = int(drawdown.idxmin())
@@ -513,7 +560,8 @@ def summarize_portfolio_curve(
     *,
     initial_capital: float = PORTFOLIO_INITIAL_CAPITAL,
 ) -> dict:
-    if curve.empty:
+    economic = economic_curve(curve)
+    if economic.empty:
         return {
             **{column: None for column in PORTFOLIO_SUMMARY_COLUMNS},
             "strategy_key": strategy_key,
@@ -521,9 +569,9 @@ def summarize_portfolio_curve(
             "portfolio_model": PORTFOLIO_MODEL_NAME,
             "initial_equity": initial_capital,
         }
-    dates = pd.to_datetime(curve["date"])
-    daily = pd.to_numeric(curve["daily_portfolio_return"], errors="coerce").fillna(0.0)
-    ending = float(curve["portfolio_equity"].iloc[-1])
+    dates = pd.to_datetime(economic["date"], format="mixed", utc=True)
+    daily = pd.to_numeric(economic["daily_portfolio_return"], errors="coerce").fillna(0.0)
+    ending = float(economic["portfolio_equity"].iloc[-1])
     elapsed_days = max(int((dates.iloc[-1] - dates.iloc[0]).days), 0)
     years = elapsed_days / 365.25 if elapsed_days > 0 else 0.0
     total_return = ending / initial_capital - 1.0
@@ -533,13 +581,13 @@ def summarize_portfolio_curve(
     sharpe = float(daily.mean() / daily_std * math.sqrt(252.0)) if daily_std > 0 else None
     downside_deviation = float(np.sqrt(np.mean(np.square(np.minimum(daily.to_numpy(dtype=float), 0.0)))))
     sortino = float(daily.mean() / downside_deviation * math.sqrt(252.0)) if downside_deviation > 0 else None
-    drawdown_metrics = _drawdown_episode_metrics(curve, initial_capital)
+    drawdown_metrics = _drawdown_episode_metrics(economic, initial_capital)
     maximum_drawdown = drawdown_metrics["maximum_drawdown"]
     calmar = cagr / abs(maximum_drawdown) if maximum_drawdown < 0 else None
-    weekly = _period_returns(curve, "W-FRI")
-    monthly = _period_returns(curve, "ME")
-    gross_exposure = pd.to_numeric(curve["gross_exposure"], errors="coerce").fillna(0.0)
-    active_positions = pd.to_numeric(curve["active_position_count"], errors="coerce").fillna(0.0)
+    weekly = _period_returns(economic, "W-FRI")
+    monthly = _period_returns(economic, "ME")
+    gross_exposure = pd.to_numeric(economic["gross_exposure"], errors="coerce").fillna(0.0)
+    active_positions = pd.to_numeric(economic["active_position_count"], errors="coerce").fillna(0.0)
     return {
         "strategy_key": strategy_key,
         "strategy_label": strategy_label,
@@ -555,8 +603,8 @@ def summarize_portfolio_curve(
         "sortino_ratio": sortino,
         "calmar_ratio": calmar,
         **drawdown_metrics,
-        "ulcer_index": float(np.sqrt(np.mean(np.square(curve["drawdown"].to_numpy(dtype=float))))),
-        "conditional_drawdown_at_risk_95": conditional_drawdown_at_risk(curve["drawdown"], 0.95),
+        "ulcer_index": float(np.sqrt(np.mean(np.square(economic["drawdown"].to_numpy(dtype=float))))),
+        "conditional_drawdown_at_risk_95": conditional_drawdown_at_risk(economic["drawdown"], 0.95),
         "worst_daily_return": float(daily.min()),
         "worst_weekly_return": float(weekly.min()) if len(weekly) else 0.0,
         "worst_monthly_return": float(monthly.min()) if len(monthly) else 0.0,
@@ -570,8 +618,8 @@ def summarize_portfolio_curve(
         "average_active_positions": float(active_positions.mean()),
         "maximum_active_positions": int(active_positions.max()),
         "percent_days_in_cash": float((active_positions == 0).mean()),
-        "annual_turnover": float(curve["turnover"].sum() / years) if years > 0 else 0.0,
-        "total_transaction_cost": float(curve["transaction_cost_paid"].sum()),
+        "annual_turnover": float(economic["turnover"].sum() / years) if years > 0 else 0.0,
+        "total_transaction_cost": float(economic["transaction_cost_paid"].sum()),
     }
 
 
@@ -583,6 +631,9 @@ def build_spy_benchmark(panel: PricePanel, symbol: str = "SPY") -> dict:
             "reason": f"{symbol} adjusted close history is unavailable.",
             "symbol": symbol,
             "initial_equity": PORTFOLIO_INITIAL_CAPITAL,
+            "curve_schema_version": PORTFOLIO_CURVE_SCHEMA_VERSION,
+            "cdar_definition_version": CDAR_DEFINITION_VERSION,
+            "publication_state": "not_generated",
             "series": [],
         }
     closes = pd.Series(panel.closes[:, column], index=panel.dates, dtype=float).dropna()
@@ -593,6 +644,9 @@ def build_spy_benchmark(panel: PricePanel, symbol: str = "SPY") -> dict:
             "reason": f"{symbol} adjusted close history has no valid observations.",
             "symbol": symbol,
             "initial_equity": PORTFOLIO_INITIAL_CAPITAL,
+            "curve_schema_version": PORTFOLIO_CURVE_SCHEMA_VERSION,
+            "cdar_definition_version": CDAR_DEFINITION_VERSION,
+            "publication_state": "not_generated",
             "series": [],
         }
     normalized = closes / closes.iloc[0] * PORTFOLIO_INITIAL_CAPITAL
@@ -605,16 +659,30 @@ def build_spy_benchmark(panel: PricePanel, symbol: str = "SPY") -> dict:
         "symbol": symbol,
         "price_convention": "Yahoo Finance auto_adjust=True adjusted close proxy; dividends are vendor-adjusted where available.",
         "initial_equity": PORTFOLIO_INITIAL_CAPITAL,
+        "curve_schema_version": PORTFOLIO_CURVE_SCHEMA_VERSION,
+        "cdar_definition_version": CDAR_DEFINITION_VERSION,
+        "publication_state": "benchmark",
+        "initialization_timestamp": initialization_timestamp(closes.index[0]),
         "start_date": closes.index[0].date().isoformat(),
         "end_date": closes.index[-1].date().isoformat(),
         "series": [
             {
+                "date": initialization_timestamp(closes.index[0]),
+                "observation_type": INITIALIZATION_OBSERVATION,
+                "benchmark_equity": PORTFOLIO_INITIAL_CAPITAL,
+                "benchmark_daily_return": 0.0,
+                "benchmark_drawdown": 0.0,
+            },
+            *[
+            {
                 "date": date.date().isoformat(),
+                "observation_type": TRADING_SESSION_OBSERVATION,
                 "benchmark_equity": float(equity),
                 "benchmark_daily_return": float(day_return),
                 "benchmark_drawdown": float(dd),
             }
             for date, equity, day_return, dd in zip(closes.index, normalized, daily, drawdown)
+            ],
         ],
     }
 
@@ -678,7 +746,12 @@ def build_portfolio_outputs(
 
     summaries = []
     curves = {}
-    return_columns = {"date": [date.date().isoformat() for date in panel.dates]}
+    matrix_dates = (
+        [initialization_timestamp(panel.dates[0]), *[date.date().isoformat() for date in panel.dates]]
+        if len(panel.dates)
+        else []
+    )
+    return_columns = {"date": matrix_dates}
     for strategy_row in strategy_summary.sort_values("qualification_rank").itertuples(index=False):
         parts = []
         if strategy_row.strategy_key in completed_group_keys:
@@ -700,14 +773,16 @@ def build_portfolio_outputs(
         ))
         return_columns[strategy_row.strategy_key] = (
             curve["daily_portfolio_return"].to_numpy(dtype=float)
-            if len(curve) == len(panel.dates)
-            else np.zeros(len(panel.dates), dtype=float)
+            if len(curve) == len(panel.dates) + 1
+            else np.zeros(len(matrix_dates), dtype=float)
         )
         if strategy_row.strategy_key in published_key_set:
             curves[strategy_row.strategy_key] = curve
 
     return {
         "model": PORTFOLIO_MODEL_NAME,
+        "curve_schema_version": PORTFOLIO_CURVE_SCHEMA_VERSION,
+        "cdar_definition_version": CDAR_DEFINITION_VERSION,
         "initial_capital": PORTFOLIO_INITIAL_CAPITAL,
         "round_trip_cost": round_trip_cost,
         "half_turnover_cost": round_trip_cost / 2.0,
@@ -757,6 +832,9 @@ def write_portfolio_outputs(outputs: dict, data_path: Path) -> dict:
         curve_payload = {
             "status": "Available",
             "portfolio_model": outputs["model"],
+            "curve_schema_version": outputs["curve_schema_version"],
+            "cdar_definition_version": outputs["cdar_definition_version"],
+            "publication_state": "published",
             "strategy_key": strategy_key,
             "initial_equity": outputs["initial_capital"],
             "series": _safe_records(curve[PORTFOLIO_CURVE_COLUMNS]),
@@ -777,6 +855,12 @@ def write_portfolio_outputs(outputs: dict, data_path: Path) -> dict:
         "status": "Available",
         "reason": None,
         "portfolio_model": outputs["model"],
+        "curve_schema_version": outputs["curve_schema_version"],
+        "cdar_definition_version": outputs["cdar_definition_version"],
+        "publication_state": "bounded",
+        "initialization_timestamp": (
+            outputs["daily_returns"]["date"].iloc[0] if len(outputs["daily_returns"]) else None
+        ),
         "initial_equity": outputs["initial_capital"],
         "start_date": outputs["start_date"],
         "end_date": outputs["end_date"],
@@ -809,12 +893,18 @@ def write_unavailable_portfolio_outputs(data_path: Path, reason: str) -> dict:
         "reason": reason,
         "symbol": "SPY",
         "initial_equity": PORTFOLIO_INITIAL_CAPITAL,
+        "curve_schema_version": PORTFOLIO_CURVE_SCHEMA_VERSION,
+        "cdar_definition_version": CDAR_DEFINITION_VERSION,
+        "publication_state": "not_generated",
         "series": [],
     }
     manifest = {
         "status": "Not available",
         "reason": reason,
         "portfolio_model": PORTFOLIO_MODEL_NAME,
+        "curve_schema_version": PORTFOLIO_CURVE_SCHEMA_VERSION,
+        "cdar_definition_version": CDAR_DEFINITION_VERSION,
+        "publication_state": "not_generated",
         "initial_equity": PORTFOLIO_INITIAL_CAPITAL,
         "curve_cap": PORTFOLIO_CURVE_CAP,
         "published_curve_count": 0,

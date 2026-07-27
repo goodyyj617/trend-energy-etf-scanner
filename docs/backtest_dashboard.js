@@ -23,6 +23,9 @@ let backtestSortKey = null;
 let backtestSortDir = -1;
 let portfolioCurveCache = new Map();
 let selectedPortfolioCurve = null;
+let portfolioSelectionToken = 0;
+let portfolioAbortController = null;
+const requiredPortfolioCurveSchema = 2;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -268,7 +271,9 @@ function renderComponentSummary(candidate) {
       `LOYO pass count / ratio: <b>${integerFmt(candidate.loyo_pass_count)} / ${pct(candidate.loyo_pass_ratio)}</b>`
     ]),
     componentCard("Regime Stability", candidate.regime_stability_status, [
-      "SPY history is not present in the current static pipeline; deferred without adding a dependency."
+      portfolioBenchmark?.status === "Available"
+        ? "SPY is available as a benchmark-only adjusted-close proxy in the canonical portfolio chart."
+        : "SPY benchmark data is not available."
     ])
   ].join("");
 }
@@ -461,12 +466,20 @@ renderBacktest = function completedTradeRenderBacktest() {
 
 function portfolioRangeMetrics(series) {
   if (!Array.isArray(series) || !series.length) return null;
-  const start = Number(series[0].portfolio_equity);
-  if (!Number.isFinite(start) || start <= 0) return null;
+  const economic = series.filter(row => row.observation_type !== "initialization");
+  if (!economic.length) return null;
+  const hasInitialization = series[0]?.observation_type === "initialization";
+  const start = Number(hasInitialization ? series[0].portfolio_equity : economic[0].portfolio_equity);
+  if (!Number.isFinite(start) || start <= 0 || series.some(row => !Number.isFinite(Number(row.portfolio_equity)))) return null;
+  let previousEquity = start;
   const normalized = series.map((row, index) => {
     const equity = Number(row.portfolio_equity) / start * 1000;
-    const previous = index ? Number(series[index - 1].portfolio_equity) : start;
-    return { ...row, normalized_equity: equity, normalized_return: index ? Number(row.portfolio_equity) / previous - 1 : 0 };
+    const isInitialization = row.observation_type === "initialization";
+    const normalizedReturn = isInitialization || (!hasInitialization && index === 0)
+      ? 0
+      : Number(row.portfolio_equity) / previousEquity - 1;
+    previousEquity = Number(row.portfolio_equity);
+    return { ...row, normalized_equity: equity, normalized_return: normalizedReturn };
   });
   let peak = 1000;
   let maximumDrawdown = 0;
@@ -475,9 +488,10 @@ function portfolioRangeMetrics(series) {
     row.normalized_drawdown = row.normalized_equity / peak - 1;
     maximumDrawdown = Math.min(maximumDrawdown, row.normalized_drawdown);
   });
-  const days = Math.max((new Date(normalized.at(-1).date) - new Date(normalized[0].date)) / 86400000, 0);
+  const normalizedEconomic = normalized.filter(row => row.observation_type !== "initialization");
+  const days = Math.max((new Date(normalizedEconomic.at(-1).date) - new Date(normalizedEconomic[0].date)) / 86400000, 0);
   const ending = normalized.at(-1).normalized_equity;
-  const sortedReturns = normalized.map(row => row.normalized_return).sort((a, b) => a - b);
+  const sortedReturns = normalizedEconomic.map(row => row.normalized_return).sort((a, b) => a - b);
   const tailCount = Math.max(1, Math.ceil(sortedReturns.length * .05));
   return {
     series: normalized, starting_equity: 1000, ending_equity: ending,
@@ -485,8 +499,22 @@ function portfolioRangeMetrics(series) {
     cagr: days > 0 ? Math.pow(ending / 1000, 365.25 / days) - 1 : 0,
     maximum_drawdown: maximumDrawdown,
     worst_daily_return: Math.min(...sortedReturns),
-    daily_expected_shortfall_95: sortedReturns.slice(0, tailCount).reduce((a, b) => a + b, 0) / tailCount
+    daily_expected_shortfall_95: sortedReturns.slice(0, tailCount).reduce((a, b) => a + b, 0) / tailCount,
+    conditional_drawdown_at_risk_95: conditionalDrawdownAtRisk(
+      normalizedEconomic.map(row => row.normalized_drawdown),
+      .95
+    )
   };
+}
+
+function conditionalDrawdownAtRisk(drawdowns, confidence = .95) {
+  if (!(confidence > 0 && confidence < 1)) throw new Error("confidence must be between zero and one");
+  const clean = (drawdowns || []).map(Number).filter(Number.isFinite);
+  if (!clean.length) return 0;
+  if (clean.some(value => value > 1e-9)) throw new Error("drawdown values cannot be positive");
+  const normalized = clean.map(value => Math.min(value, 0)).sort((a, b) => a - b);
+  const tailCount = Math.max(1, normalized.length - Math.floor(confidence * normalized.length + 1e-12));
+  return normalized.slice(0, tailCount).reduce((sum, value) => sum + value, 0) / tailCount;
 }
 
 function svgPath(points, x, y) {
@@ -538,7 +566,10 @@ function applyPortfolioRange() {
   if (!selectedPortfolioCurve?.series?.length) return;
   const start = document.getElementById("portfolioStartDate")?.value;
   const end = document.getElementById("portfolioEndDate")?.value;
-  const rows = selectedPortfolioCurve.series.filter(row => (!start || row.date >= start) && (!end || row.date <= end));
+  const initialization = selectedPortfolioCurve.series.find(row => row.observation_type === "initialization");
+  const economic = selectedPortfolioCurve.series.filter(row => row.observation_type !== "initialization");
+  const rows = economic.filter(row => (!start || row.date >= start) && (!end || row.date <= end));
+  if (initialization && rows.length && rows[0] === economic[0]) rows.unshift(initialization);
   const metrics = portfolioRangeMetrics(rows);
   const host = document.getElementById("portfolioMetrics");
   if (!metrics) {
@@ -554,8 +585,8 @@ function applyPortfolioRange() {
     snapshotCard("Maximum drawdown", pct(metrics.maximum_drawdown)),
     snapshotCard("Worst day", pct(metrics.worst_daily_return)),
     snapshotCard("ES 95", pct(metrics.daily_expected_shortfall_95)),
+    snapshotCard("CDaR 95", pct(metrics.conditional_drawdown_at_risk_95)),
     snapshotCard("Calmar (full)", numFmt(fullSummary.calmar_ratio, 2)),
-    snapshotCard("CDaR 95 (full)", pct(fullSummary.conditional_drawdown_at_risk_95)),
     snapshotCard("Longest underwater (full)", `${integerFmt(fullSummary.longest_time_under_water_days)} days`),
     snapshotCard("Average gross exposure (full)", pct(fullSummary.average_gross_exposure)),
     snapshotCard("Maximum active positions (full)", integerFmt(fullSummary.maximum_active_positions))
@@ -563,36 +594,143 @@ function applyPortfolioRange() {
   drawPortfolioChart(metrics, portfolioBenchmark?.status === "Available" ? portfolioBenchmark.series : []);
 }
 
-async function renderPortfolioForCandidate(candidate) {
+function setPortfolioControlsEnabled(enabled) {
+  for (const id of [
+    "portfolioStartDate", "portfolioEndDate", "portfolioApplyRange",
+    "portfolioResetRange", "portfolioLogScale"
+  ]) {
+    const element = document.getElementById(id);
+    if (element) element.disabled = !enabled;
+  }
+}
+
+function clearPortfolioSelection(message = "") {
+  selectedPortfolioCurve = null;
   const unavailable = document.getElementById("portfolioUnavailable");
+  const metrics = document.getElementById("portfolioMetrics");
+  const chart = document.getElementById("portfolioChart");
+  const start = document.getElementById("portfolioStartDate");
+  const end = document.getElementById("portfolioEndDate");
+  if (unavailable) unavailable.textContent = message;
+  if (metrics) metrics.innerHTML = "";
+  if (chart) chart.innerHTML = "";
+  if (start) { start.value = ""; start.min = ""; start.max = ""; }
+  if (end) { end.value = ""; end.min = ""; end.max = ""; }
+  setPortfolioControlsEnabled(false);
+}
+
+function validatePortfolioCurvePayload(payload, strategyKey) {
+  if (!payload || payload.status !== "Available" || payload.strategy_key !== strategyKey) {
+    return "malformed";
+  }
+  if (finiteNumber(payload.curve_schema_version, 0) < requiredPortfolioCurveSchema) {
+    return "outdated";
+  }
+  if (!Array.isArray(payload.series) || !payload.series.length) return "empty";
+  const first = payload.series[0];
+  const economic = payload.series.filter(row => row.observation_type !== "initialization");
+  const near = (value, expected) => {
+    const number = finiteNumber(value);
+    return number !== null && Math.abs(number - expected) <= 1e-9;
+  };
+  if (
+    first.observation_type !== "initialization"
+    || !near(first.portfolio_equity, 1000)
+    || !near(first.cash_value, 1000)
+    || !near(first.invested_value, 0)
+    || !near(first.gross_exposure, 0)
+    || !near(first.active_position_count, 0)
+    || !near(first.daily_portfolio_return, 0)
+    || !near(first.cumulative_return, 0)
+    || !near(first.running_peak_equity, 1000)
+    || !near(first.drawdown, 0)
+    || !near(first.transaction_cost_paid, 0)
+    || !near(first.turnover, 0)
+    || !economic.length
+    || new Date(first.date) >= new Date(economic[0].date)
+    || payload.series.some(row => finiteNumber(row.portfolio_equity) === null)
+  ) {
+    return "malformed";
+  }
+  return null;
+}
+
+async function renderPortfolioForCandidate(candidate) {
+  const requestToken = ++portfolioSelectionToken;
+  if (portfolioAbortController) portfolioAbortController.abort();
+  portfolioAbortController = null;
+  clearPortfolioSelection("");
+
   if (!candidate || portfolioManifest?.status !== "Available") {
-    if (unavailable) unavailable.textContent = portfolioManifest?.reason || "Canonical portfolio curves are not available until the next full Backtest Only run.";
-    selectedPortfolioCurve = null;
-    document.getElementById("portfolioMetrics").innerHTML = "";
-    document.getElementById("portfolioChart").innerHTML = "";
+    clearPortfolioSelection(portfolioManifest?.reason || "Canonical portfolio curves are not available until the next full Backtest Only run.");
+    return;
+  }
+  if (finiteNumber(portfolioManifest.curve_schema_version, 0) < requiredPortfolioCurveSchema) {
+    clearPortfolioSelection("Portfolio curve schema is outdated. Regenerate Backtest Only outputs.");
     return;
   }
   const entry = portfolioManifest.strategies?.find(item => item.strategy_key === candidate.strategy_key);
   if (!entry) {
-    if (unavailable) unavailable.textContent = "This strategy does not have a published bounded curve.";
+    clearPortfolioSelection("Portfolio curve not published under the bounded publication policy.");
     return;
   }
-  if (unavailable) unavailable.textContent = portfolioBenchmark?.status === "Available" ? "" : (portfolioBenchmark?.reason || "SPY benchmark unavailable.");
+
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  portfolioAbortController = controller;
   try {
     if (!portfolioCurveCache.has(candidate.strategy_key)) {
-      const response = await fetch(`data/backtest_portfolio_curves/${entry.file}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("curve unavailable");
-      portfolioCurveCache.set(candidate.strategy_key, await response.json());
+      const response = await fetch(
+        `data/backtest_portfolio_curves/${entry.file}`,
+        { cache: "no-store", ...(controller ? { signal: controller.signal } : {}) }
+      );
+      if (!response.ok) {
+        const error = new Error(response.status === 404 ? "missing" : "failed");
+        error.code = response.status === 404 ? "missing" : "failed";
+        throw error;
+      }
+      const payload = await response.json();
+      const validation = validatePortfolioCurvePayload(payload, candidate.strategy_key);
+      if (validation) {
+        const error = new Error(validation);
+        error.code = validation;
+        throw error;
+      }
+      portfolioCurveCache.set(candidate.strategy_key, payload);
     }
-    selectedPortfolioCurve = portfolioCurveCache.get(candidate.strategy_key);
-    const dates = selectedPortfolioCurve.series.map(row => row.date);
+    if (requestToken !== portfolioSelectionToken) return;
+    const loadedCurve = portfolioCurveCache.get(candidate.strategy_key);
+    const validation = validatePortfolioCurvePayload(loadedCurve, candidate.strategy_key);
+    if (validation) {
+      const error = new Error(validation);
+      error.code = validation;
+      throw error;
+    }
+    selectedPortfolioCurve = loadedCurve;
+    const economicDates = selectedPortfolioCurve.series
+      .filter(row => row.observation_type !== "initialization")
+      .map(row => row.date);
     const start = document.getElementById("portfolioStartDate");
     const end = document.getElementById("portfolioEndDate");
-    if (start && dates.length) { start.min = dates[0]; start.max = dates.at(-1); start.value = dates[0]; }
-    if (end && dates.length) { end.min = dates[0]; end.max = dates.at(-1); end.value = dates.at(-1); }
+    if (start && economicDates.length) { start.min = economicDates[0]; start.max = economicDates.at(-1); start.value = economicDates[0]; }
+    if (end && economicDates.length) { end.min = economicDates[0]; end.max = economicDates.at(-1); end.value = economicDates.at(-1); }
+    setPortfolioControlsEnabled(true);
+    const unavailable = document.getElementById("portfolioUnavailable");
+    if (unavailable) {
+      unavailable.textContent = portfolioBenchmark?.status === "Available"
+        ? ""
+        : `SPY benchmark unavailable: ${portfolioBenchmark?.reason || "No benchmark data."}`;
+    }
     applyPortfolioRange();
-  } catch (_err) {
-    if (unavailable) unavailable.textContent = "The selected bounded curve could not be loaded.";
+  } catch (error) {
+    if (requestToken !== portfolioSelectionToken || error?.name === "AbortError") return;
+    const messages = {
+      missing: "Portfolio curve file missing unexpectedly.",
+      failed: "Portfolio curve load failed.",
+      outdated: "Portfolio curve schema is outdated. Regenerate Backtest Only outputs.",
+      malformed: "Portfolio curve response is malformed.",
+      empty: "Portfolio curve response is empty."
+    };
+    clearPortfolioSelection(messages[error?.code] || "Portfolio curve load failed.");
   }
 }
 
@@ -600,8 +738,9 @@ document.getElementById("portfolioApplyRange")?.addEventListener("click", applyP
 document.getElementById("portfolioLogScale")?.addEventListener("change", applyPortfolioRange);
 document.getElementById("portfolioResetRange")?.addEventListener("click", () => {
   if (!selectedPortfolioCurve?.series?.length) return;
-  document.getElementById("portfolioStartDate").value = selectedPortfolioCurve.series[0].date;
-  document.getElementById("portfolioEndDate").value = selectedPortfolioCurve.series.at(-1).date;
+  const economic = selectedPortfolioCurve.series.filter(row => row.observation_type !== "initialization");
+  document.getElementById("portfolioStartDate").value = economic[0].date;
+  document.getElementById("portfolioEndDate").value = economic.at(-1).date;
   applyPortfolioRange();
 });
 
