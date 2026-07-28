@@ -43,6 +43,17 @@ def trade(symbol="AAA", entry="2024-01-02", exit_date="2024-01-04", exit_price=1
 
 
 class CanonicalPortfolioTests(unittest.TestCase):
+    def test_price_panel_arrays_are_independent_and_writable(self):
+        panel = build_price_panel(prices(symbols=("AAA", "BBB"), periods=3))
+
+        self.assertTrue(panel.opens.flags.writeable)
+        self.assertTrue(panel.closes.flags.writeable)
+        self.assertFalse(np.shares_memory(panel.opens, panel.closes))
+
+        original_close = panel.closes[0, 0]
+        panel.opens[0, 0] = panel.opens[0, 0] + 1
+        self.assertEqual(panel.closes[0, 0], original_close)
+
     def test_flat_cash_and_initial_equity(self):
         curve = simulate_canonical_portfolio(pd.DataFrame(), build_price_panel(prices()), round_trip_cost=.002)
         self.assertEqual(curve.iloc[0].observation_type, INITIALIZATION_OBSERVATION)
