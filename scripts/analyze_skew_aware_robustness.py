@@ -57,7 +57,45 @@ CONCENTRATION_OUTPUT = TASKS / "skew_aware_concentration_summary.csv"
 CRASH_EPISODE_OUTPUT = TASKS / "crash_avoidance_episode_summary.csv"
 CRASH_STRATEGY_OUTPUT = TASKS / "crash_avoidance_strategy_summary.csv"
 PARETO_OUTPUT = TASKS / "skew_aware_pareto_candidates.csv"
+BEHAVIOR_GROUP_OUTPUT = TASKS / "skew_aware_behavior_group_summary.csv"
 REPORT_OUTPUT = TASKS / "skew_aware_robustness_analysis.md"
+
+COMPARISON_SCOPE = "comparison"
+SENSITIVITY_SCOPE = "block_sensitivity"
+PRIMARY_DETAIL_SCOPE = "primary_detailed"
+PRIMARY_EXTRA_SEED = SEED + 1
+
+# Historical PR #16 v1 results retained solely for the required before/after
+# methodology audit. These values are not inputs to the corrected analysis.
+PRIOR_BEHAVIOR_GROUP_COUNT = 360
+PRIOR_STRICT_FRONTIER_GROUP_COUNT = 17
+PRIOR_TOLERANCE_FRONTIER_GROUP_COUNT = 16
+PRIOR_SPLIT_FRONTIER_GROUPS = ["B027", "B147", "B167", "B298", "B300"]
+PRIOR_LABEL_FRONTIER_FLAGS = {
+    "score_bo_l40_rp002_erp010__signal_3d_confirm__ma50": (True, True),
+    "score_bo_l10_rm002_erp010__first_signal__low10": (False, False),
+    "score_bo_l20_rm002_erp015__first_signal__low10": (False, False),
+    "score_bo_l20_rp000_erp010__first_signal__low10": (True, False),
+    "score_bo_l40_rm002_erp015__signal_3d_confirm__ma50": (True, False),
+    "score_bo_l40_rp000_erp015__signal_3d_confirm__low20": (True, False),
+    "score_bo_l40_rp002_erp005__signal_3d_confirm__ma50": (True, False),
+}
+PRIOR_B280_BOOTSTRAP = [
+    {
+        "label": "production primary (10,000 label-seeded paths)",
+        "prob_cagr_above_zero": 0.8878,
+        "prob_cagr_above_spy": 0.0337,
+        "cagr_5pct": -0.0163220057759,
+        "mdd_magnitude_95pct": 0.39657431614,
+    },
+    {
+        "label": "equivalent label (5,000 label-seeded paths)",
+        "prob_cagr_above_zero": 0.8908,
+        "prob_cagr_above_spy": 0.0304,
+        "cagr_5pct": -0.0162351180892,
+        "mdd_magnitude_95pct": 0.397243368203,
+    },
+]
 
 
 def finite_array(values: Iterable[float]) -> np.ndarray:
@@ -500,14 +538,6 @@ def behavior_groups(
     return pd.DataFrame(rows).sort_values("strategy_key").reset_index(drop=True), mapping
 
 
-def stable_rng(strategy_key: str, mean_block_length: int) -> np.random.Generator:
-    digest = hashlib.sha256(
-        f"{SEED}|{strategy_key}|{mean_block_length}".encode("utf-8")
-    ).digest()
-    words = np.frombuffer(digest[:16], dtype="<u4")
-    return np.random.default_rng(np.random.SeedSequence([SEED, *map(int, words)]))
-
-
 def stationary_bootstrap_indices(
     observation_count: int,
     path_count: int,
@@ -525,6 +555,27 @@ def stationary_bootstrap_indices(
         fresh = rng.integers(0, observation_count, size=path_count, dtype=np.int32)
         indices[:, column] = np.where(restart, fresh, continuation)
     return indices
+
+
+def bootstrap_index_matrix_hash(indices: np.ndarray) -> str:
+    normalized = np.ascontiguousarray(indices, dtype="<i4")
+    shape = np.asarray(normalized.shape, dtype="<i8").tobytes()
+    return hashlib.sha256(b"stationary-bootstrap-v1|" + shape + normalized.tobytes()).hexdigest()
+
+
+def common_bootstrap_indices(
+    observation_count: int,
+    path_count: int,
+    mean_block_length: int,
+    *,
+    seed: int = SEED,
+) -> np.ndarray:
+    return stationary_bootstrap_indices(
+        observation_count,
+        path_count,
+        mean_block_length,
+        np.random.default_rng(seed),
+    )
 
 
 def _bootstrap_chunk_metrics(
@@ -585,21 +636,28 @@ def stationary_bootstrap_summary(
     spy_returns: np.ndarray,
     years: float,
     *,
+    indices: np.ndarray,
     mean_block_length: int = PRIMARY_BLOCK_LENGTH,
-    path_count: int = PRIMARY_BOOTSTRAP_PATHS,
+    seed: int = SEED,
+    bootstrap_scope: str = COMPARISON_SCOPE,
+    pareto_input: bool = True,
+    behavior_group_id: str = "",
+    behavior_group_representative: str = "",
+    behavior_group_member_count: int = 1,
+    comparison_index_matrix_hash: str = "",
+    additional_index_matrix_hash: str = "",
     chunk_size: int = 250,
 ) -> dict[str, Any]:
     if len(strategy_returns) != len(spy_returns):
         raise ValueError("strategy/SPY bootstrap length mismatch")
-    rng = stable_rng(strategy_key, mean_block_length)
+    if indices.ndim != 2 or indices.shape[1] != len(strategy_returns):
+        raise ValueError("bootstrap index matrix shape mismatch")
+    path_count = int(indices.shape[0])
     collected: dict[str, list[np.ndarray]] = defaultdict(list)
-    all_indices = stationary_bootstrap_indices(
-        len(strategy_returns), path_count, mean_block_length, rng
-    )
     for start in range(0, path_count, chunk_size):
-        indices = all_indices[start : start + chunk_size]
+        chunk_indices = indices[start : start + chunk_size]
         values = _bootstrap_chunk_metrics(
-            strategy_returns, spy_returns, indices, years
+            strategy_returns, spy_returns, chunk_indices, years
         )
         for field, array in values.items():
             collected[field].append(array)
@@ -611,10 +669,18 @@ def stationary_bootstrap_summary(
     calmar = result["calmar"]
     row: dict[str, Any] = {
         "strategy_key": strategy_key,
-        "seed": SEED,
+        "bootstrap_scope": bootstrap_scope,
+        "pareto_input": pareto_input,
+        "behavior_group_id": behavior_group_id,
+        "behavior_group_representative": behavior_group_representative,
+        "behavior_group_member_count": behavior_group_member_count,
+        "seed": seed,
         "mean_block_length": mean_block_length,
         "bootstrap_paths": path_count,
         "path_observations": len(strategy_returns),
+        "index_matrix_hash": bootstrap_index_matrix_hash(indices),
+        "comparison_index_matrix_hash": comparison_index_matrix_hash,
+        "additional_index_matrix_hash": additional_index_matrix_hash,
         "prob_ending_equity_above_1000": float(np.mean(ending > INITIAL_EQUITY)),
         "prob_cagr_above_zero": float(np.mean(cagr > 0)),
         "prob_cagr_above_spy": float(np.mean(cagr > result["spy_cagr"])),
@@ -644,6 +710,71 @@ def stationary_bootstrap_summary(
                 np.nanquantile(values, quantile / 100.0)
             )
     return row
+
+
+def bootstrap_behavior_groups(
+    return_matrix: pd.DataFrame,
+    behavior: pd.DataFrame,
+    behavior_mapping: dict[str, list[str]],
+    selected_strategy_keys: Iterable[str],
+    spy_returns: np.ndarray,
+    years: float,
+    *,
+    indices: np.ndarray,
+    mean_block_length: int,
+    bootstrap_scope: str,
+    seed: int = SEED,
+    pareto_input: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame, int]:
+    selected = set(selected_strategy_keys)
+    behavior_by_key = behavior.set_index("strategy_key")
+    label_rows: list[dict[str, Any]] = []
+    group_rows: list[dict[str, Any]] = []
+    computation_count = 0
+    matrix_hash = bootstrap_index_matrix_hash(indices)
+
+    for group_id, all_members in sorted(behavior_mapping.items()):
+        selected_members = sorted(selected.intersection(all_members))
+        if not selected_members:
+            continue
+        representative = str(
+            behavior_by_key.loc[selected_members[0], "behavior_group_representative"]
+        )
+        if representative not in selected_members:
+            raise ValueError(
+                f"{group_id}: canonical representative is not in selected population"
+            )
+        summary = stationary_bootstrap_summary(
+            representative,
+            return_matrix[representative].to_numpy(dtype=float),
+            spy_returns,
+            years,
+            indices=indices,
+            mean_block_length=mean_block_length,
+            seed=seed,
+            bootstrap_scope=bootstrap_scope,
+            pareto_input=pareto_input,
+            behavior_group_id=group_id,
+            behavior_group_representative=representative,
+            behavior_group_member_count=len(all_members),
+            comparison_index_matrix_hash=(
+                matrix_hash if bootstrap_scope == COMPARISON_SCOPE else ""
+            ),
+        )
+        computation_count += 1
+        group_rows.append(
+            {
+                **summary,
+                "strategy_key": representative,
+                "member_strategy_keys": ";".join(sorted(all_members)),
+            }
+        )
+        for member in selected_members:
+            label_rows.append({**summary, "strategy_key": member})
+
+    label_frame = pd.DataFrame(label_rows)
+    group_frame = pd.DataFrame(group_rows)
+    return label_frame, group_frame, computation_count
 
 
 def stress_path_metrics(
@@ -1181,9 +1312,11 @@ def pareto_frontier(
     frame: pd.DataFrame,
     dimensions: dict[str, str],
     tolerances: dict[str, float] | None = None,
+    *,
+    key_column: str = "strategy_key",
 ) -> tuple[set[str], dict[str, int]]:
     tolerances = tolerances or {field: 0.0 for field in dimensions}
-    rows = frame.set_index("strategy_key")
+    rows = frame.set_index(key_column)
     frontier: set[str] = set()
     dominator_counts: dict[str, int] = {}
     for key, candidate in rows.iterrows():
@@ -1213,6 +1346,27 @@ def pareto_frontier(
         if dominators == 0:
             frontier.add(str(key))
     return frontier, dominator_counts
+
+
+def group_leader_tags(
+    frame: pd.DataFrame,
+    leader_specs: dict[str, tuple[str, str]],
+    *,
+    key_column: str = "behavior_group_id",
+) -> dict[str, list[str]]:
+    tags: dict[str, list[str]] = defaultdict(list)
+    for name, (field, direction) in leader_specs.items():
+        values = pd.to_numeric(frame[field], errors="coerce")
+        valid = values.notna()
+        if not valid.any():
+            continue
+        target = values[valid].max() if direction == "max" else values[valid].min()
+        for key in frame.loc[
+            valid & np.isclose(values, target, atol=1e-12, rtol=1e-12),
+            key_column,
+        ]:
+            tags[str(key)].append(name)
+    return tags
 
 
 def _safe_csv(frame: pd.DataFrame, path: Path, sort_columns: list[str]) -> None:
@@ -1422,6 +1576,7 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
     )
 
     behavior, behavior_mapping = behavior_groups(matrix)
+    behavior_labels = behavior.copy()
     summary_rows = []
     episode_cache: dict[str, list[dict[str, Any]]] = {}
     concentration_summary = []
@@ -1492,8 +1647,8 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
             concentration_rows.extend(stress_rows)
 
     summary = pd.DataFrame(summary_rows)
-    behavior = behavior.set_index("strategy_key")
-    summary = summary.join(behavior, on="strategy_key")
+    behavior_index = behavior.set_index("strategy_key")
+    summary = summary.join(behavior_index, on="strategy_key")
 
     spy_std = float(np.std(spy_returns, ddof=1))
     spy_sharpe = float(
@@ -1582,29 +1737,73 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
     crash_detail = pd.DataFrame(crash_rows)
     crash_aggregate = aggregate_crash_rows(crash_detail)
 
-    bootstrap_rows = []
-    for number, key in enumerate(sorted(qualified_keys), start=1):
-        paths = (
-            max(bootstrap_paths, PRIMARY_CANDIDATE_PATHS)
-            if key == primary_key
-            else bootstrap_paths
+    comparison_indices = common_bootstrap_indices(
+        len(dates), bootstrap_paths, PRIMARY_BLOCK_LENGTH, seed=SEED
+    )
+    comparison_index_hash = bootstrap_index_matrix_hash(comparison_indices)
+    print(
+        "bootstrap comparison "
+        f"groups={len(set(behavior_index.loc[qualified_keys, 'behavior_group_id']))} "
+        f"paths={bootstrap_paths} block={PRIMARY_BLOCK_LENGTH} "
+        f"index_hash={comparison_index_hash}",
+        flush=True,
+    )
+    comparison_bootstrap, comparison_group_bootstrap, comparison_computations = (
+        bootstrap_behavior_groups(
+            matrix,
+            behavior_labels,
+            behavior_mapping,
+            qualified_keys,
+            spy_returns,
+            years,
+            indices=comparison_indices,
+            mean_block_length=PRIMARY_BLOCK_LENGTH,
+            bootstrap_scope=COMPARISON_SCOPE,
+            seed=SEED,
+            pareto_input=True,
         )
-        print(
-            f"bootstrap block=20 strategy={number}/{len(qualified_keys)} "
-            f"paths={paths} key={key}",
-            flush=True,
-        )
-        bootstrap_rows.append(
+    )
+
+    primary_group_id = str(behavior_index.loc[primary_key, "behavior_group_id"])
+    primary_representative = str(
+        behavior_index.loc[primary_key, "behavior_group_representative"]
+    )
+    primary_members = behavior_mapping[primary_group_id]
+    primary_extra_paths = max(
+        PRIMARY_CANDIDATE_PATHS - bootstrap_paths,
+        0,
+    )
+    primary_extra_indices = common_bootstrap_indices(
+        len(dates),
+        primary_extra_paths,
+        PRIMARY_BLOCK_LENGTH,
+        seed=PRIMARY_EXTRA_SEED,
+    )
+    primary_detailed_indices = np.vstack(
+        [comparison_indices, primary_extra_indices]
+    )
+    primary_detail = pd.DataFrame(
+        [
             stationary_bootstrap_summary(
-                key,
-                matrix[key].to_numpy(dtype=float),
+                primary_key,
+                matrix[primary_representative].to_numpy(dtype=float),
                 spy_returns,
                 years,
-                mean_block_length=20,
-                path_count=paths,
+                indices=primary_detailed_indices,
+                mean_block_length=PRIMARY_BLOCK_LENGTH,
+                seed=SEED,
+                bootstrap_scope=PRIMARY_DETAIL_SCOPE,
+                pareto_input=False,
+                behavior_group_id=primary_group_id,
+                behavior_group_representative=primary_representative,
+                behavior_group_member_count=len(primary_members),
+                comparison_index_matrix_hash=comparison_index_hash,
+                additional_index_matrix_hash=bootstrap_index_matrix_hash(
+                    primary_extra_indices
+                ),
             )
-        )
-    bootstrap = pd.DataFrame(bootstrap_rows)
+        ]
+    )
 
     concentration_frame = pd.DataFrame(concentration_summary)
     summary = summary.merge(psr_dsr[[
@@ -1628,7 +1827,7 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
         how="left",
     )
     summary = summary.merge(
-        bootstrap.loc[bootstrap["mean_block_length"].eq(20), [
+        comparison_bootstrap[[
             "strategy_key",
             "prob_cagr_above_zero",
             "cagr_5pct",
@@ -1651,6 +1850,17 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
     ]
     summary = summary.merge(crash10, on="strategy_key", how="left")
 
+    concentration_long = pd.DataFrame(concentration_rows)
+    year_loo = concentration_long.loc[
+        concentration_long["scenario_type"].eq("leave_one_full_calendar_year_out")
+    ]
+    worst_year_loo = (
+        year_loo.groupby("strategy_key", sort=True)["cagr"].min().rename(
+            "worst_full_year_loo_cagr"
+        )
+    )
+    summary = summary.merge(worst_year_loo, on="strategy_key", how="left")
+
     qualified_summary = summary.loc[
         summary["strategy_key"].isin(qualified_set)
     ].copy()
@@ -1670,8 +1880,36 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
         "maximum_drawdown"
     ]
     qualified_summary["cdar_95_magnitude"] = -qualified_summary["cdar_95"]
-    strict_frontier, strict_dominators = pareto_frontier(
-        qualified_summary, pareto_dimensions
+    for group_id, group in qualified_summary.groupby(
+        "behavior_group_id", sort=True
+    ):
+        for field in pareto_dimensions:
+            values = pd.to_numeric(group[field], errors="raise").to_numpy(
+                dtype=float
+            )
+            if not np.allclose(
+                values,
+                values[0],
+                atol=1e-12,
+                rtol=1e-12,
+                equal_nan=True,
+            ):
+                raise ValueError(
+                    f"{group_id}: behavior-equivalent Pareto metric differs: {field}"
+                )
+    qualified_group_summary = qualified_summary.loc[
+        qualified_summary["strategy_key"].eq(
+            qualified_summary["behavior_group_representative"]
+        )
+    ].copy()
+    qualified_group_count = qualified_summary["behavior_group_id"].nunique()
+    if len(qualified_group_summary) != qualified_group_count:
+        raise ValueError("Qualified behavior groups do not have one canonical representative")
+
+    strict_group_frontier, strict_dominators = pareto_frontier(
+        qualified_group_summary,
+        pareto_dimensions,
+        key_column="behavior_group_id",
     )
     tolerances = {
         "cagr": 0.0001,
@@ -1685,28 +1923,61 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
         "longest_time_under_water_days": 5.0,
         "cost_2x_cagr_drop": 0.0001,
     }
-    tolerant_frontier, tolerant_dominators = pareto_frontier(
-        qualified_summary, pareto_dimensions, tolerances
+    tolerant_group_frontier, tolerant_dominators = pareto_frontier(
+        qualified_group_summary,
+        pareto_dimensions,
+        tolerances,
+        key_column="behavior_group_id",
     )
 
-    sensitivity_keys = sorted(strict_frontier | tolerant_frontier | {primary_key})
-    for key in sensitivity_keys:
-        for block in [5, 60]:
-            print(
-                f"bootstrap sensitivity block={block} key={key}",
-                flush=True,
-            )
-            bootstrap_rows.append(
-                stationary_bootstrap_summary(
-                    key,
-                    matrix[key].to_numpy(dtype=float),
-                    spy_returns,
-                    years,
-                    mean_block_length=block,
-                    path_count=bootstrap_paths,
-                )
-            )
-    bootstrap = pd.DataFrame(bootstrap_rows)
+    sensitivity_group_ids = (
+        strict_group_frontier | tolerant_group_frontier | {primary_group_id}
+    )
+    sensitivity_keys = sorted(
+        qualified_summary.loc[
+            qualified_summary["behavior_group_id"].isin(sensitivity_group_ids),
+            "strategy_key",
+        ]
+    )
+    sensitivity_frames = []
+    sensitivity_group_frames = []
+    sensitivity_computations = 0
+    sensitivity_index_hashes: dict[int, str] = {
+        PRIMARY_BLOCK_LENGTH: comparison_index_hash
+    }
+    for block in [5, 60]:
+        sensitivity_indices = common_bootstrap_indices(
+            len(dates), bootstrap_paths, block, seed=SEED
+        )
+        sensitivity_hash = bootstrap_index_matrix_hash(sensitivity_indices)
+        sensitivity_index_hashes[block] = sensitivity_hash
+        print(
+            "bootstrap sensitivity "
+            f"groups={len(sensitivity_group_ids)} paths={bootstrap_paths} "
+            f"block={block} index_hash={sensitivity_hash}",
+            flush=True,
+        )
+        label_frame, group_frame, computations = bootstrap_behavior_groups(
+            matrix,
+            behavior_labels,
+            behavior_mapping,
+            sensitivity_keys,
+            spy_returns,
+            years,
+            indices=sensitivity_indices,
+            mean_block_length=block,
+            bootstrap_scope=SENSITIVITY_SCOPE,
+            seed=SEED,
+            pareto_input=False,
+        )
+        sensitivity_frames.append(label_frame)
+        sensitivity_group_frames.append(group_frame)
+        sensitivity_computations += computations
+    bootstrap = pd.concat(
+        [comparison_bootstrap, *sensitivity_frames, primary_detail],
+        ignore_index=True,
+        sort=False,
+    )
 
     leader_specs = {
         "highest_cagr": ("cagr", "max"),
@@ -1730,14 +2001,7 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
         "lowest_cost_sensitivity": ("cost_2x_cagr_drop", "min"),
         "largest_behavioral_equivalence_group": ("behavior_group_size", "max"),
     }
-    leader_tags: dict[str, list[str]] = defaultdict(list)
-    for name, (field, direction) in leader_specs.items():
-        values = pd.to_numeric(qualified_summary[field], errors="coerce")
-        target = values.max() if direction == "max" else values.min()
-        for key in qualified_summary.loc[
-            np.isclose(values, target, atol=1e-12, rtol=1e-12), "strategy_key"
-        ]:
-            leader_tags[str(key)].append(name)
+    leader_tags = group_leader_tags(qualified_group_summary, leader_specs)
 
     only_dimension: dict[str, list[str]] = defaultdict(list)
     for removed in pareto_dimensions:
@@ -1746,63 +2010,146 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
             for field, direction in pareto_dimensions.items()
             if field != removed
         }
-        reduced_frontier, _ = pareto_frontier(qualified_summary, reduced)
-        for key in reduced_frontier - strict_frontier:
-            only_dimension[key].append(removed)
+        reduced_frontier, _ = pareto_frontier(
+            qualified_group_summary,
+            reduced,
+            key_column="behavior_group_id",
+        )
+        for group_id in reduced_frontier - strict_group_frontier:
+            only_dimension[group_id].append(removed)
 
+    if len(worst_year_loo):
+        group_year_loo = qualified_group_summary.set_index("behavior_group_id")[
+            "worst_full_year_loo_cagr"
+        ]
+        best_worst = float(group_year_loo.max())
+        for group_id in group_year_loo.index[
+            np.isclose(group_year_loo, best_worst, atol=1e-12, rtol=1e-12)
+        ]:
+            leader_tags[str(group_id)].append("best_worst_full_year_loo")
+
+    group_by_id = qualified_group_summary.set_index("behavior_group_id")
     pareto_rows = []
     for row in qualified_summary.itertuples(index=False):
         key = str(row.strategy_key)
+        group_id = str(row.behavior_group_id)
+        group_row = group_by_id.loc[group_id]
+        comparison_categories = [
+            (
+                "comparison bootstrap majority positive"
+                if float(group_row["prob_cagr_above_zero"]) >= 0.5
+                else "comparison bootstrap majority non-positive"
+            ),
+            (
+                "comparison bootstrap negative 5th-percentile CAGR"
+                if float(group_row["cagr_5pct"]) < 0
+                else "comparison bootstrap non-negative 5th-percentile CAGR"
+            ),
+            (
+                "strict behavior-path frontier"
+                if group_id in strict_group_frontier
+                else "not strict behavior-path frontier"
+            ),
+            (
+                "tolerance behavior-path frontier"
+                if group_id in tolerant_group_frontier
+                else "not tolerance behavior-path frontier"
+            ),
+        ]
         pareto_rows.append(
             {
                 "strategy_key": key,
                 "qualification_rank": row.qualification_rank,
-                "strict_pareto_frontier": key in strict_frontier,
-                "tolerance_pareto_frontier": key in tolerant_frontier,
-                "strict_dominator_count": strict_dominators[key],
-                "tolerance_dominator_count": tolerant_dominators[key],
-                "frontier_if_dimension_removed": ";".join(sorted(only_dimension[key])),
-                "leader_objectives": ";".join(sorted(leader_tags[key])),
-                "behavior_group_id": row.behavior_group_id,
-                "behavior_group_size": row.behavior_group_size,
+                "pareto_unit": "behavioral_path",
+                "strict_pareto_frontier": group_id in strict_group_frontier,
+                "tolerance_pareto_frontier": group_id in tolerant_group_frontier,
+                "strict_dominator_count": strict_dominators[group_id],
+                "tolerance_dominator_count": tolerant_dominators[group_id],
+                "frontier_if_dimension_removed": ";".join(
+                    sorted(only_dimension[group_id])
+                ),
+                "leader_objectives": ";".join(sorted(leader_tags[group_id])),
+                "descriptive_categories": ";".join(comparison_categories),
+                "behavior_group_id": group_id,
+                "behavior_group_representative": (
+                    group_row["behavior_group_representative"]
+                ),
+                "behavior_group_member_count": int(group_row["behavior_group_size"]),
+                "behavior_group_size": int(group_row["behavior_group_size"]),
                 **{
-                    field: getattr(row, field)
+                    field: group_row[field]
                     for field in pareto_dimensions
                 },
             }
         )
     pareto = pd.DataFrame(pareto_rows)
 
-    # Worst full-year LOO leader derives from the long-form stress table.
-    concentration_long = pd.DataFrame(concentration_rows)
-    year_loo = concentration_long.loc[
-        concentration_long["scenario_type"].eq("leave_one_full_calendar_year_out")
-    ]
-    worst_year_loo = (
-        year_loo.groupby("strategy_key", sort=True)["cagr"].min().rename(
-            "worst_full_year_loo_cagr"
-        )
+    strict_frontier = set(
+        pareto.loc[pareto["strict_pareto_frontier"], "strategy_key"]
     )
-    summary = summary.merge(worst_year_loo, on="strategy_key", how="left")
-    if len(worst_year_loo):
-        best_worst = float(worst_year_loo.max())
-        for key in worst_year_loo.index[
-            np.isclose(worst_year_loo, best_worst, atol=1e-12, rtol=1e-12)
-        ]:
-            leader_tags[str(key)].append("best_worst_full_year_loo")
-        pareto["leader_objectives"] = pareto.apply(
-            lambda row: ";".join(sorted(set(filter(None, [
-                *str(row["leader_objectives"]).split(";"),
-                *(
-                    ["best_worst_full_year_loo"]
-                    if row["strategy_key"] in worst_year_loo.index[
-                        np.isclose(worst_year_loo, best_worst, atol=1e-12, rtol=1e-12)
-                    ]
-                    else []
-                ),
-            ])))),
-            axis=1,
-        )
+    tolerant_frontier = set(
+        pareto.loc[pareto["tolerance_pareto_frontier"], "strategy_key"]
+    )
+
+    group_rows = []
+    comparison_group_by_id = comparison_group_bootstrap.set_index(
+        "behavior_group_id"
+    )
+    pareto_by_group = pareto.drop_duplicates("behavior_group_id").set_index(
+        "behavior_group_id"
+    )
+    for group_id, members in sorted(behavior_mapping.items()):
+        representative = sorted(members)[0]
+        meta = behavior_index.loc[representative]
+        row: dict[str, Any] = {
+            "behavior_group_id": group_id,
+            "representative_strategy_key": representative,
+            "member_count": len(members),
+            "member_strategy_keys": ";".join(sorted(members)),
+            "normalized_return_hash": meta["normalized_return_hash"],
+            "qualified_member_count": len(set(members).intersection(qualified_set)),
+        }
+        if group_id in comparison_group_by_id.index:
+            comparison_row = comparison_group_by_id.loc[group_id]
+            row.update(
+                {
+                    field: comparison_row[field]
+                    for field in comparison_group_bootstrap.columns
+                    if field
+                    not in {
+                        "strategy_key",
+                        "behavior_group_id",
+                        "behavior_group_representative",
+                        "behavior_group_member_count",
+                        "member_strategy_keys",
+                    }
+                }
+            )
+            row.update(
+                {
+                    "pareto_unit": "behavioral_path",
+                    "strict_pareto_frontier": group_id in strict_group_frontier,
+                    "tolerance_pareto_frontier": group_id
+                    in tolerant_group_frontier,
+                    "strict_dominator_count": strict_dominators[group_id],
+                    "tolerance_dominator_count": tolerant_dominators[group_id],
+                    "frontier_if_dimension_removed": ";".join(
+                        sorted(only_dimension[group_id])
+                    ),
+                    "leader_objectives": ";".join(
+                        sorted(leader_tags[group_id])
+                    ),
+                    "descriptive_categories": pareto_by_group.loc[
+                        group_id, "descriptive_categories"
+                    ],
+                    **{
+                        field: group_by_id.loc[group_id, field]
+                        for field in pareto_dimensions
+                    },
+                }
+            )
+        group_rows.append(row)
+    behavior_group_summary = pd.DataFrame(group_rows)
 
     return {
         "inputs": inputs,
@@ -1815,16 +2162,24 @@ def build_analysis(*, bootstrap_paths: int = PRIMARY_BOOTSTRAP_PATHS) -> dict[st
         "crash_detail": crash_detail,
         "crash_aggregate": crash_aggregate,
         "pareto": pareto,
+        "behavior_group_summary": behavior_group_summary,
         "spy_episodes": spy_episodes,
         "behavior_mapping": behavior_mapping,
         "primary_key": primary_key,
+        "primary_group_id": primary_group_id,
         "strict_frontier": strict_frontier,
         "tolerant_frontier": tolerant_frontier,
+        "strict_group_frontier": strict_group_frontier,
+        "tolerant_group_frontier": tolerant_group_frontier,
         "cost_sensitivity": cost_sensitivity,
         "pareto_tolerances": tolerances,
         "spy_sharpe": spy_sharpe,
         "raw_expected_max_sharpe": raw_expected_max,
         "dedup_expected_max_sharpe": dedup_expected_max,
+        "comparison_index_hash": comparison_index_hash,
+        "sensitivity_index_hashes": sensitivity_index_hashes,
+        "comparison_bootstrap_computations": comparison_computations,
+        "sensitivity_bootstrap_computations": sensitivity_computations,
     }
 
 
@@ -1837,12 +2192,13 @@ def write_outputs(result: dict[str, Any]) -> None:
     crash_detail = result["crash_detail"]
     crash_aggregate = result["crash_aggregate"]
     pareto = result["pareto"]
+    behavior_group_summary = result["behavior_group_summary"]
 
     _safe_csv(summary, SUMMARY_OUTPUT, ["qualification_rank", "strategy_key"])
     _safe_csv(
         bootstrap,
         BOOTSTRAP_OUTPUT,
-        ["mean_block_length", "strategy_key"],
+        ["bootstrap_scope", "mean_block_length", "strategy_key"],
     )
     _safe_csv(psr_dsr, PSR_DSR_OUTPUT, ["strategy_key"])
     concentration = concentration_long.merge(
@@ -1868,6 +2224,11 @@ def write_outputs(result: dict[str, Any]) -> None:
         PARETO_OUTPUT,
         ["strict_pareto_frontier", "tolerance_pareto_frontier", "strategy_key"],
     )
+    _safe_csv(
+        behavior_group_summary,
+        BEHAVIOR_GROUP_OUTPUT,
+        ["behavior_group_id"],
+    )
     write_report(result)
 
 
@@ -1881,13 +2242,133 @@ def _num(value: float, digits: int = 3) -> str:
 
 def _leader_table(pareto: pd.DataFrame) -> str:
     rows = []
-    for row in pareto.loc[pareto["leader_objectives"].astype(str).ne("")].sort_values(
-        ["strategy_key"], kind="mergesort"
-    ).itertuples(index=False):
+    leaders = pareto.loc[pareto["leader_objectives"].astype(str).ne("")].copy()
+    leaders["member_strategy_keys"] = leaders.groupby(
+        "behavior_group_id", sort=True
+    )["strategy_key"].transform(lambda values: ";".join(sorted(values)))
+    leaders = leaders.drop_duplicates("behavior_group_id").sort_values(
+        ["behavior_group_id"], kind="mergesort"
+    )
+    for row in leaders.itertuples(index=False):
         rows.append(
-            f"| `{row.strategy_key}` | {str(row.leader_objectives).replace(';', ', ')} |"
+            f"| `{row.behavior_group_id}` | `{row.behavior_group_representative}` | "
+            f"{str(row.member_strategy_keys).replace(';', '<br>')} | "
+            f"{str(row.leader_objectives).replace(';', ', ')} |"
         )
-    return "\n".join(rows) if rows else "| None | None |"
+    return "\n".join(rows) if rows else "| None | None | None | None |"
+
+
+def _frontier_group_list(
+    group_ids: Iterable[str], behavior_group_summary: pd.DataFrame
+) -> str:
+    indexed = behavior_group_summary.set_index("behavior_group_id")
+    values = []
+    for group_id in sorted(group_ids):
+        row = indexed.loc[group_id]
+        values.append(
+            f"`{group_id}` (`{row['representative_strategy_key']}`, "
+            f"{int(row['member_count'])} label{'s' if int(row['member_count']) != 1 else ''})"
+        )
+    return ", ".join(values)
+
+
+def _methodology_correction_section(result: dict[str, Any]) -> str:
+    pareto = result["pareto"].set_index("strategy_key")
+    bootstrap = result["bootstrap"]
+    changed_rows = []
+    for key, (prior_strict, prior_tolerance) in PRIOR_LABEL_FRONTIER_FLAGS.items():
+        row = pareto.loc[key]
+        corrected_strict = bool(row["strict_pareto_frontier"])
+        corrected_tolerance = bool(row["tolerance_pareto_frontier"])
+        if (
+            corrected_strict != prior_strict
+            or corrected_tolerance != prior_tolerance
+        ):
+            changed_rows.append(
+                f"| `{key}` | `{row['behavior_group_id']}` | "
+                f"{'yes' if prior_strict else 'no'} / "
+                f"{'yes' if prior_tolerance else 'no'} | "
+                f"{'yes' if corrected_strict else 'no'} / "
+                f"{'yes' if corrected_tolerance else 'no'} |"
+            )
+
+    b280_comparison = bootstrap.loc[
+        bootstrap["behavior_group_id"].eq("B280")
+        & bootstrap["bootstrap_scope"].eq(COMPARISON_SCOPE)
+    ].drop_duplicates(
+        [
+            "prob_cagr_above_zero",
+            "prob_cagr_above_spy",
+            "cagr_5pct",
+            "mdd_magnitude_95pct",
+        ]
+    )
+    if len(b280_comparison) != 1:
+        raise ValueError("B280 comparison bootstrap is not behavior invariant")
+    corrected = b280_comparison.iloc[0]
+    b280_rows = [
+        (
+            f"| Prior: {row['label']} | "
+            f"{_pct(row['prob_cagr_above_zero'])} | "
+            f"{_pct(row['prob_cagr_above_spy'])} | "
+            f"{_pct(row['cagr_5pct'])} | "
+            f"{_pct(row['mdd_magnitude_95pct'])} |"
+        )
+        for row in PRIOR_B280_BOOTSTRAP
+    ]
+    b280_rows.append(
+        "| Corrected common comparison (both labels, 5,000 paths) | "
+        f"{_pct(float(corrected['prob_cagr_above_zero']))} | "
+        f"{_pct(float(corrected['prob_cagr_above_spy']))} | "
+        f"{_pct(float(corrected['cagr_5pct']))} | "
+        f"{_pct(float(corrected['mdd_magnitude_95pct']))} |"
+    )
+
+    primary_group_id = result["primary_group_id"]
+    corrected_primary_strict = primary_group_id in result["strict_group_frontier"]
+    corrected_primary_tolerance = (
+        primary_group_id in result["tolerant_group_frontier"]
+    )
+    group_count = len(result["behavior_group_summary"])
+    corrected_strict_count = len(result["strict_group_frontier"])
+    corrected_tolerance_count = len(result["tolerant_group_frontier"])
+    sensitivity_hashes = result["sensitivity_index_hashes"]
+
+    return f"""## 14. Methodological correction: behavior-path-invariant bootstrap and Pareto
+
+The prior implementation was reproducible for a given label, but it was label-dependent: `strategy_key` entered the RNG seed, so reproducibility alone did not guarantee invariance to renaming, duplicate labels, or column order. The correction establishes the same {group_count} deterministic 1e-12-quantized behavioral groups before bootstrap, selects the lexicographically smallest key as representative, computes each selected path once, and maps the exact serialized result back to every member.
+
+| Before/after item | Prior PR #16 method | Corrected method |
+| --- | ---: | ---: |
+| Behavioral groups | {PRIOR_BEHAVIOR_GROUP_COUNT} | {group_count} |
+| Strict frontier groups represented | {PRIOR_STRICT_FRONTIER_GROUP_COUNT} | {corrected_strict_count} |
+| Tolerance frontier groups represented | {PRIOR_TOLERANCE_FRONTIER_GROUP_COUNT} | {corrected_tolerance_count} |
+| Qualified comparison bootstrap computations | 42 label-level runs | {result['comparison_bootstrap_computations']} behavior-path runs |
+| Production-primary strict / tolerance status | no / no | {'yes' if corrected_primary_strict else 'no'} / {'yes' if corrected_primary_tolerance else 'no'} |
+| Final research outcome | Additional out-of-sample data required | Additional out-of-sample data required |
+
+The group counts are unchanged because the normalized-return definition was already correct; the timing and statistical unit changed. Under the prior label output, groups {', '.join(f'`{value}`' for value in PRIOR_SPLIT_FRONTIER_GROUPS)} had at least one strict or tolerance flag split between identical members. All corrected group members now have identical flags and dominator counts.
+
+Label-level frontier changes:
+
+| Strategy | Group | Prior strict / tolerance | Corrected strict / tolerance |
+| --- | --- | ---: | ---: |
+{chr(10).join(changed_rows)}
+
+Using “any prior member was on the frontier” only to compare group presence, strict group membership did not change. Two true tolerance-frontier group statuses changed while the total remained 16: `B320` changed from no to yes and `B340` changed from yes to no. The other prior split groups retained their group-level presence but now map one coherent result to every member.
+
+B280 before and after:
+
+| Result | P(CAGR > 0) | P(CAGR > SPY) | 5th pct CAGR | 95th pct MDD magnitude |
+| --- | ---: | ---: | ---: | ---: |
+{chr(10).join(b280_rows)}
+
+Both B280 labels now receive the same comparison bootstrap statistics, strict/tolerance flags (no/no), dominator counts (1/1), and comparison-derived descriptive categories. The production primary's separate 10,000-path detailed diagnostic remains separately labeled and does not enter Pareto analysis. Its frontier status did not change.
+
+No separate objective changed its winning behavioral group. Some label-level leader tags changed because every member of a winning group now inherits the same group result; this removes arbitrary label selection without changing the economic leader. Block-sensitivity common-matrix hashes are block 5 `{sensitivity_hashes[5]}`, block 20 `{sensitivity_hashes[20]}`, and block 60 `{sensitivity_hashes[60]}`; every matrix uses seed {SEED} and {PRIMARY_BOOTSTRAP_PATHS:,} paths.
+
+The correction changes Monte Carlo estimates and two tolerance-group memberships, but it does not change production logic, the production rank, or the research conclusion.
+"""
 
 
 def write_report(result: dict[str, Any]) -> None:
@@ -1899,10 +2380,17 @@ def write_report(result: dict[str, Any]) -> None:
     crash_detail = result["crash_detail"]
     crash_aggregate = result["crash_aggregate"]
     pareto = result["pareto"]
+    behavior_group_summary = result["behavior_group_summary"]
     primary_key = result["primary_key"]
     primary = summary.loc[primary_key]
+    primary_comparison_boot = bootstrap.loc[
+        bootstrap["strategy_key"].eq(primary_key)
+        & bootstrap["bootstrap_scope"].eq(COMPARISON_SCOPE)
+        & bootstrap["mean_block_length"].eq(20)
+    ].iloc[0]
     primary_boot = bootstrap.loc[
         bootstrap["strategy_key"].eq(primary_key)
+        & bootstrap["bootstrap_scope"].eq(PRIMARY_DETAIL_SCOPE)
         & bootstrap["mean_block_length"].eq(20)
     ].iloc[0]
     primary_psr = psr.loc[primary_key]
@@ -1925,10 +2413,13 @@ def write_report(result: dict[str, Any]) -> None:
             f"{row['prior_peak_date']} | {row['onset_date']} | {row['trough_date']} | "
             f"{row['recovery_date'] or 'open'} | {row['nested_within_episode_ids'] or 'none'} |"
         )
-    strict = sorted(result["strict_frontier"])
-    tolerant = sorted(result["tolerant_frontier"])
+    strict = sorted(result["strict_group_frontier"])
+    tolerant = sorted(result["tolerant_group_frontier"])
     sensitivity = bootstrap.loc[
         bootstrap["strategy_key"].eq(primary_key)
+        & bootstrap["bootstrap_scope"].isin(
+            [COMPARISON_SCOPE, SENSITIVITY_SCOPE]
+        )
     ].sort_values("mean_block_length")
     sensitivity_lines = []
     for row in sensitivity.itertuples(index=False):
@@ -2022,15 +2513,15 @@ Raw trade-level winner concentration and ETF-level profit attribution are unavai
 
 ## 4. Stationary block bootstrap
 
-The stationary bootstrap uses economic daily returns, geometric block lengths with restart probability `1 / mean_block_length`, fixed root seed {SEED}, observed path length {validation['economic_observations']}, and percentile intervals. Strategy and SPY use identical block indices within every relative-performance path, preserving contemporaneous dependence. Missing observations are not filled because validation requires a complete common matrix. Partial calendar years remain in the daily bootstrap as observed economic returns; annual gate eligibility is not reused here. CAGR uses the observed calendar span. Block-boundary splicing and regime non-stationarity remain limitations, and reported probabilities are not guaranteed future probabilities.
+The stationary bootstrap uses economic daily returns, geometric block lengths with restart probability `1 / mean_block_length`, fixed root seed {SEED}, observed path length {validation['economic_observations']}, and percentile intervals. Behavioral equivalence is established before bootstrap computation. The 42 Qualified labels reduce to {pareto['behavior_group_id'].nunique()} unique Qualified return paths, and each path is bootstrapped exactly once for the comparison. Every path uses the same block-20 index matrix (`{result['comparison_index_hash']}`), and strategy and SPY use those same indices within every relative-performance path, preserving contemporaneous dependence. Missing observations are not filled because validation requires a complete common matrix. Partial calendar years remain in the daily bootstrap as observed economic returns; annual gate eligibility is not reused here. CAGR uses the observed calendar span. Block-boundary splicing and regime non-stationarity remain limitations, and reported probabilities are not guaranteed future probabilities.
 
-Every Qualified strategy uses at least {PRIMARY_BOOTSTRAP_PATHS:,} paths at mean block length 20. The primary uses {int(primary_boot['bootstrap_paths']):,}. Primary sensitivity:
+The cross-candidate comparison uses {PRIMARY_BOOTSTRAP_PATHS:,} paths at mean block length 20 for every Qualified behavioral path and is the only bootstrap input to Pareto analysis. The production primary retains a separate {int(primary_boot['bootstrap_paths']):,}-path diagnostic: its first {PRIMARY_BOOTSTRAP_PATHS:,} rows are the common comparison matrix, and the additional {PRIMARY_CANDIDATE_PATHS - PRIMARY_BOOTSTRAP_PATHS:,} rows use fixed seed {PRIMARY_EXTRA_SEED}. The detailed diagnostic is not a Pareto input. Primary sensitivity:
 
 | Mean block | Paths | P(CAGR > 0) | 5th pct CAGR | 95th pct MDD magnitude |
 | ---: | ---: | ---: | ---: | ---: |
 {chr(10).join(sensitivity_lines)}
 
-Primary block-20 results: P(ending equity > USD 1,000) {_pct(float(primary_boot['prob_ending_equity_above_1000']))}, P(CAGR > 0) {_pct(float(primary_boot['prob_cagr_above_zero']))}, jointly resampled P(CAGR > SPY) {_pct(float(primary_boot['prob_cagr_above_spy']))}, 5th-percentile ending equity USD {float(primary_boot['ending_equity_5pct']):,.2f}, 5th-percentile CAGR {_pct(float(primary_boot['cagr_5pct']))}, 95th-percentile MDD magnitude {_pct(float(primary_boot['mdd_magnitude_95pct']))}, and 5th-percentile Calmar {_num(float(primary_boot['calmar_5pct']))}.
+Primary detailed block-20 results: P(ending equity > USD 1,000) {_pct(float(primary_boot['prob_ending_equity_above_1000']))}, P(CAGR > 0) {_pct(float(primary_boot['prob_cagr_above_zero']))}, jointly resampled P(CAGR > SPY) {_pct(float(primary_boot['prob_cagr_above_spy']))}, 5th-percentile ending equity USD {float(primary_boot['ending_equity_5pct']):,.2f}, 5th-percentile CAGR {_pct(float(primary_boot['cagr_5pct']))}, 95th-percentile MDD magnitude {_pct(float(primary_boot['mdd_magnitude_95pct']))}, and 5th-percentile Calmar {_num(float(primary_boot['calmar_5pct']))}. Its common-comparison values are P(CAGR > 0) {_pct(float(primary_comparison_boot['prob_cagr_above_zero']))}, P(CAGR > SPY) {_pct(float(primary_comparison_boot['prob_cagr_above_spy']))}, 5th-percentile CAGR {_pct(float(primary_comparison_boot['cagr_5pct']))}, and 95th-percentile MDD magnitude {_pct(float(primary_comparison_boot['mdd_magnitude_95pct']))}.
 
 ## 5. PSR, DSR, and selection bias
 
@@ -2069,7 +2560,7 @@ Exposure below 100% at onset is evidence of avoiding some risk before the thresh
 - Daily skewness {_num(float(primary['daily_return_skewness']))}; excess kurtosis {_num(float(primary['daily_return_excess_kurtosis']))}.
 - Behavioral group `{primary['behavior_group_id']}` contains {int(primary['behavior_group_size'])} numerically equivalent parameter paths.
 - Cost sensitivity: observed CAGR {_pct(float(primary['cagr']))}, 1.5x-cost CAGR {_pct(float(primary['cost_1_5x_cagr']))}, 2x-cost CAGR {_pct(float(primary['cost_2x_cagr']))}; 2x ending equity USD {float(primary['cost_2x_ending_equity']):,.2f}, MDD {_pct(float(primary['cost_2x_maximum_drawdown']))}, and Calmar {_num(float(primary['cost_2x_calmar']))}. This is a deterministic fixed-membership/turnover-path reconstruction using the exact daily cost load, not a new portfolio simulation.
-- Strict Pareto frontier: {'yes' if primary_key in result['strict_frontier'] else 'no'}; tolerance frontier: {'yes' if primary_key in result['tolerant_frontier'] else 'no'}.
+- Strict Pareto frontier: {'yes' if result['primary_group_id'] in result['strict_group_frontier'] else 'no'}; tolerance frontier: {'yes' if result['primary_group_id'] in result['tolerant_group_frontier'] else 'no'}.
 
 Primary crash table:
 
@@ -2087,21 +2578,21 @@ No cost threshold is introduced and no production cost assumption changes.
 
 ## 10. Candidate comparison and Pareto analysis
 
-Separate leaders:
+Separate leaders are determined at the behavioral-path level. When a winning path has duplicate parameter labels, the table lists the deterministic representative and all Qualified member labels:
 
-| Strategy | Leader objective(s) |
-| --- | --- |
+| Behavior group | Representative | Qualified member labels | Leader objective(s) |
+| --- | --- | --- | --- |
 {_leader_table(pareto)}
 
-Strict dominance requires no worse performance in all ten declared dimensions and strict improvement in at least one. The strict frontier contains {len(strict)} strategies:
+Strict dominance requires no worse performance in all ten declared dimensions and strict improvement in at least one. Parameter labels within one group cannot dominate each other. The strict frontier contains {len(strict)} behavioral paths:
 
-{', '.join(f'`{key}`' for key in strict)}
+{_frontier_group_list(strict, behavior_group_summary)}
 
-The tolerance frontier uses 1 bp for CAGR/bootstrap CAGR/cost sensitivity, 0.001 for DSR and portfolio/crash-return risk rates, 0.01 for crash capture, and 5 days for time under water. It contains {len(tolerant)} strategies:
+The tolerance frontier uses 1 bp for CAGR/bootstrap CAGR/cost sensitivity, 0.001 for DSR and portfolio/crash-return risk rates, 0.01 for crash capture, and 5 days for time under water. It contains {len(tolerant)} behavioral paths:
 
-{', '.join(f'`{key}`' for key in tolerant)}
+{_frontier_group_list(tolerant, behavior_group_summary)}
 
-The Pareto CSV reports every Qualified strategy, strict/tolerance frontier flags, dominator counts, dimensions whose removal alone would restore frontier membership, separate leader tags, and behavioral-equivalence groups. No weighted or lexicographic robustness score is constructed.
+The Pareto CSV retains every Qualified strategy label for compatibility, but `pareto_unit` is `behavioral_path`. Group flags, dominator counts, dimension-removal diagnostics, leader objectives, and comparison-bootstrap fields are mapped exactly to all member labels. Duplicate labels are parameter descriptions, not independent economic candidates. No weighted or lexicographic robustness score is constructed.
 
 The crash dimensions use the aggregate 10% SPY-episode population: mean relative protection is maximized and worst loss capture is minimized. This avoids counting nested 15% and 20% observations again in the same Pareto dimension. Block-length sensitivity is nevertheless reported for the union of strict and tolerance frontier strategies plus the production primary.
 
@@ -2144,9 +2635,11 @@ A later protocol should freeze signals, gates, portfolio rules, candidate set, a
 
 ## 13. Reproducibility and boundaries
 
-All result tables are produced by `scripts/analyze_skew_aware_robustness.py` from committed bounded outputs. Deterministic tests cover bootstrap indices and shared SPY sampling, t0 exclusion, equity/MDD/CDaR/ES/time-under-water, drawdown/crash episodes and nesting, loss capture, exposure decay, concentration/removal, PSR/DSR, behavioral deduplication, Pareto tolerance, cost sensitivity, deterministic ordering, and input row-order invariance.
+All result tables are produced by `scripts/analyze_skew_aware_robustness.py` from committed bounded outputs. Deterministic tests cover common bootstrap indices and hashes, shared strategy/SPY sampling, exact group-result mapping, key-renaming and column-order invariance, primary-detail separation, duplicate-count-invariant group Pareto, group-level leaders, t0 exclusion, equity/MDD/CDaR/ES/time-under-water, drawdown/crash episodes and nesting, loss capture, exposure decay, concentration/removal, PSR/DSR, cost sensitivity, deterministic CSV ordering, production metric parity, and production-file immutability.
 
 No full Backtest Only workflow was run. No raw event-level data were published. No signal, parameter grid, entry, exit, stop, max-hold, transaction-cost assumption, universe, allocation model, backtest period, Sample/Edge/Time/Parameter Gate, qualification tier, production ranking, UI, or risk gate changed.
+
+{_methodology_correction_section(result)}
 
 Additional out-of-sample data required
 """
@@ -2184,8 +2677,12 @@ def main() -> int:
             {
                 "outcome": "Additional out-of-sample data required",
                 "qualified_count": result["validation"]["qualified_count"],
-                "strict_frontier_count": len(result["strict_frontier"]),
-                "tolerance_frontier_count": len(result["tolerant_frontier"]),
+                "strict_behavior_group_frontier_count": len(
+                    result["strict_group_frontier"]
+                ),
+                "tolerance_behavior_group_frontier_count": len(
+                    result["tolerant_group_frontier"]
+                ),
                 "outputs": [
                     str(path.relative_to(ROOT))
                     for path in [
@@ -2197,6 +2694,7 @@ def main() -> int:
                         CRASH_EPISODE_OUTPUT,
                         CRASH_STRATEGY_OUTPUT,
                         PARETO_OUTPUT,
+                        BEHAVIOR_GROUP_OUTPUT,
                     ]
                 ],
             },

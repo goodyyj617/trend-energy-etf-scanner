@@ -1,4 +1,6 @@
+import csv
 import math
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,10 +10,22 @@ import numpy as np
 import pandas as pd
 
 from scripts.analyze_skew_aware_robustness import (
+    BEHAVIOR_GROUP_OUTPUT,
+    BOOTSTRAP_OUTPUT,
+    COMPARISON_SCOPE,
     INITIAL_EQUITY,
+    PARETO_OUTPUT,
+    REPORT_OUTPUT,
+    ROOT,
+    SEED,
+    SUMMARY_OUTPUT,
+    _safe_csv,
     _bootstrap_chunk_metrics,
     aggregate_crash_rows,
     behavior_groups,
+    bootstrap_behavior_groups,
+    bootstrap_index_matrix_hash,
+    common_bootstrap_indices,
     conditional_drawdown_at_risk,
     concentration_and_stress_rows,
     construct_spy_crash_episodes,
@@ -23,12 +37,14 @@ from scripts.analyze_skew_aware_robustness import (
     expected_maximum_sharpe,
     expected_shortfall,
     first_threshold_delay,
+    group_leader_tags,
     load_inputs,
     longest_underwater_observations,
     normalized_return_hash,
     pareto_frontier,
     psr_probability,
     stationary_bootstrap_indices,
+    stationary_bootstrap_summary,
     stress_path_metrics,
     validate_inputs,
 )
@@ -68,6 +84,387 @@ class StationaryBootstrapTest(unittest.TestCase):
         expected = INITIAL_EQUITY * np.prod(1.0 + strategy[indices], axis=1)
         np.testing.assert_allclose(result["ending_equity"], expected)
         np.testing.assert_allclose(result["cagr"], expected / INITIAL_EQUITY - 1.0)
+
+
+class BehaviorPathInvariantMethodTest(unittest.TestCase):
+    @staticmethod
+    def fixture() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, list[str]], np.ndarray]:
+        matrix = pd.DataFrame(
+            {
+                "alpha": [0.01, -0.02, 0.03, 0.00, 0.01, -0.01, 0.02, 0.00],
+                "alpha_duplicate": [
+                    0.01,
+                    -0.02,
+                    0.03,
+                    0.00,
+                    0.01,
+                    -0.01,
+                    0.02,
+                    0.00,
+                ],
+                "beta": [0.00, 0.01, -0.01, 0.02, 0.00, 0.01, -0.02, 0.01],
+            }
+        )
+        behavior, mapping = behavior_groups(matrix)
+        spy = np.array([0.005, -0.01, 0.01, 0.00, 0.004, -0.004, 0.01, 0.00])
+        return matrix, behavior, mapping, spy
+
+    def test_01_identical_paths_form_one_behavior_group(self) -> None:
+        _, behavior, _, _ = self.fixture()
+        indexed = behavior.set_index("strategy_key")
+        self.assertEqual(
+            indexed.loc["alpha", "behavior_group_id"],
+            indexed.loc["alpha_duplicate", "behavior_group_id"],
+        )
+        self.assertEqual(indexed.loc["alpha", "behavior_group_size"], 2)
+
+    def test_02_identical_paths_are_bootstrapped_once(self) -> None:
+        matrix, behavior, mapping, spy = self.fixture()
+        indices = common_bootstrap_indices(8, 40, 3)
+        _, group_rows, computations = bootstrap_behavior_groups(
+            matrix,
+            behavior,
+            mapping,
+            matrix.columns,
+            spy,
+            1.0,
+            indices=indices,
+            mean_block_length=3,
+            bootstrap_scope=COMPARISON_SCOPE,
+            pareto_input=True,
+        )
+        self.assertEqual(computations, 2)
+        self.assertEqual(len(group_rows), 2)
+
+    def test_03_identical_paths_receive_exact_serialized_summaries(self) -> None:
+        matrix, behavior, mapping, spy = self.fixture()
+        labels, _, _ = bootstrap_behavior_groups(
+            matrix,
+            behavior,
+            mapping,
+            matrix.columns,
+            spy,
+            1.0,
+            indices=common_bootstrap_indices(8, 40, 3),
+            mean_block_length=3,
+            bootstrap_scope=COMPARISON_SCOPE,
+            pareto_input=True,
+        )
+        pair = labels.loc[labels["strategy_key"].str.startswith("alpha")].sort_values(
+            "strategy_key"
+        )
+        pd.testing.assert_series_equal(
+            pair.iloc[0].drop(labels="strategy_key"),
+            pair.iloc[1].drop(labels="strategy_key"),
+            check_names=False,
+            check_exact=True,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mapped.csv"
+            _safe_csv(labels, path, ["strategy_key"])
+            with path.open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            alpha_rows = [row for row in rows if row["strategy_key"].startswith("alpha")]
+            for field in alpha_rows[0]:
+                if field != "strategy_key":
+                    self.assertEqual(alpha_rows[0][field], alpha_rows[1][field])
+
+    def test_04_strategy_key_rename_does_not_change_bootstrap(self) -> None:
+        returns = np.array([0.01, -0.02, 0.03, 0.00, 0.01, -0.01])
+        spy = returns / 2
+        indices = common_bootstrap_indices(len(returns), 50, 3)
+        left = stationary_bootstrap_summary(
+            "old_name", returns, spy, 1.0, indices=indices, mean_block_length=3
+        )
+        right = stationary_bootstrap_summary(
+            "new_name", returns, spy, 1.0, indices=indices, mean_block_length=3
+        )
+        left.pop("strategy_key")
+        right.pop("strategy_key")
+        self.assertEqual(left, right)
+
+    def test_05_strategy_column_shuffle_does_not_change_results(self) -> None:
+        matrix, behavior, mapping, spy = self.fixture()
+        indices = common_bootstrap_indices(8, 40, 3)
+        left, _, _ = bootstrap_behavior_groups(
+            matrix,
+            behavior,
+            mapping,
+            matrix.columns,
+            spy,
+            1.0,
+            indices=indices,
+            mean_block_length=3,
+            bootstrap_scope=COMPARISON_SCOPE,
+        )
+        shuffled = matrix[["beta", "alpha_duplicate", "alpha"]]
+        shuffled_behavior, shuffled_mapping = behavior_groups(shuffled)
+        right, _, _ = bootstrap_behavior_groups(
+            shuffled,
+            shuffled_behavior,
+            shuffled_mapping,
+            shuffled.columns,
+            spy,
+            1.0,
+            indices=indices,
+            mean_block_length=3,
+            bootstrap_scope=COMPARISON_SCOPE,
+        )
+        pd.testing.assert_frame_equal(
+            left.sort_values("strategy_key").reset_index(drop=True),
+            right.sort_values("strategy_key").reset_index(drop=True),
+        )
+
+    def test_06_all_groups_use_same_comparison_index_matrix(self) -> None:
+        matrix, behavior, mapping, spy = self.fixture()
+        labels, _, _ = bootstrap_behavior_groups(
+            matrix,
+            behavior,
+            mapping,
+            matrix.columns,
+            spy,
+            1.0,
+            indices=common_bootstrap_indices(8, 40, 3),
+            mean_block_length=3,
+            bootstrap_scope=COMPARISON_SCOPE,
+        )
+        self.assertEqual(labels["index_matrix_hash"].nunique(), 1)
+
+    def test_07_comparison_index_hash_is_reproducible(self) -> None:
+        left = common_bootstrap_indices(20, 30, 5, seed=SEED)
+        right = common_bootstrap_indices(20, 30, 5, seed=SEED)
+        self.assertEqual(
+            bootstrap_index_matrix_hash(left),
+            bootstrap_index_matrix_hash(right),
+        )
+
+    def test_08_strategy_and_spy_use_the_exact_same_indices(self) -> None:
+        strategy = np.arange(10, dtype=float) / 100
+        spy = strategy + 1.0
+        indices = common_bootstrap_indices(10, 25, 4)
+        np.testing.assert_array_equal(strategy[indices] + 1.0, spy[indices])
+
+    def test_09_primary_prefix_matches_common_comparison_indices(self) -> None:
+        comparison = common_bootstrap_indices(12, 50, 4, seed=SEED)
+        extra = common_bootstrap_indices(12, 50, 4, seed=SEED + 1)
+        detailed = np.vstack([comparison, extra])
+        np.testing.assert_array_equal(detailed[: len(comparison)], comparison)
+
+    def test_10_primary_extra_paths_do_not_enter_pareto(self) -> None:
+        comparison = pd.DataFrame(
+            {
+                "strategy_key": ["primary", "other"],
+                "growth": [0.9, 0.8],
+                "risk": [0.2, 0.3],
+                "pareto_input": [True, True],
+            }
+        )
+        detailed = pd.DataFrame(
+            {
+                "strategy_key": ["primary"],
+                "growth": [0.1],
+                "risk": [0.9],
+                "pareto_input": [False],
+            }
+        )
+        before, _ = pareto_frontier(
+            comparison, {"growth": "max", "risk": "min"}
+        )
+        combined = pd.concat([comparison, detailed], ignore_index=True)
+        after, _ = pareto_frontier(
+            combined.loc[combined["pareto_input"]],
+            {"growth": "max", "risk": "min"},
+        )
+        self.assertEqual(before, after)
+
+    def test_11_identical_labels_share_strict_pareto_flag(self) -> None:
+        groups = pd.DataFrame(
+            {
+                "behavior_group_id": ["G1", "G2"],
+                "growth": [1.0, 0.8],
+                "risk": [0.2, 0.4],
+            }
+        )
+        frontier, _ = pareto_frontier(
+            groups,
+            {"growth": "max", "risk": "min"},
+            key_column="behavior_group_id",
+        )
+        mapped = {"a": "G1" in frontier, "a_duplicate": "G1" in frontier}
+        self.assertEqual(mapped["a"], mapped["a_duplicate"])
+
+    def test_12_identical_labels_share_tolerance_pareto_flag(self) -> None:
+        groups = pd.DataFrame(
+            {
+                "behavior_group_id": ["G1", "G2"],
+                "growth": [1.0, 0.99995],
+                "risk": [0.2, 0.20005],
+            }
+        )
+        frontier, _ = pareto_frontier(
+            groups,
+            {"growth": "max", "risk": "min"},
+            {"growth": 0.0001, "risk": 0.0001},
+            key_column="behavior_group_id",
+        )
+        mapped = {"a": "G1" in frontier, "a_duplicate": "G1" in frontier}
+        self.assertEqual(mapped["a"], mapped["a_duplicate"])
+
+    def test_13_labels_in_same_group_cannot_dominate_each_other(self) -> None:
+        groups = pd.DataFrame(
+            {
+                "behavior_group_id": ["G1", "G2"],
+                "growth": [1.0, 0.8],
+                "risk": [0.2, 0.4],
+            }
+        )
+        _, counts = pareto_frontier(
+            groups,
+            {"growth": "max", "risk": "min"},
+            key_column="behavior_group_id",
+        )
+        self.assertEqual(counts["G1"], 0)
+        self.assertEqual(counts["G2"], 1)
+
+    def test_14_group_frontier_is_invariant_to_duplicate_label_count(self) -> None:
+        base = pd.DataFrame(
+            {"behavior_group_id": ["G1", "G2"], "growth": [1.0, 0.8]}
+        )
+        duplicated_labels = pd.concat(
+            [base, base.loc[base["behavior_group_id"].eq("G1")]],
+            ignore_index=True,
+        )
+        left, _ = pareto_frontier(
+            base, {"growth": "max"}, key_column="behavior_group_id"
+        )
+        right, _ = pareto_frontier(
+            duplicated_labels.drop_duplicates("behavior_group_id"),
+            {"growth": "max"},
+            key_column="behavior_group_id",
+        )
+        self.assertEqual(left, right)
+
+    def test_15_adding_duplicate_label_does_not_change_frontier(self) -> None:
+        matrix, behavior, _, _ = self.fixture()
+        base = pd.DataFrame(
+            {
+                "strategy_key": ["alpha", "beta"],
+                "growth": [1.0, 0.8],
+            }
+        ).merge(behavior[["strategy_key", "behavior_group_id"]], on="strategy_key")
+        with_duplicate = pd.concat(
+            [
+                base,
+                pd.DataFrame(
+                    {
+                        "strategy_key": ["alpha_duplicate"],
+                        "growth": [1.0],
+                        "behavior_group_id": [
+                            behavior.set_index("strategy_key").loc[
+                                "alpha_duplicate", "behavior_group_id"
+                            ]
+                        ],
+                    }
+                ),
+            ],
+            ignore_index=True,
+        )
+        left, _ = pareto_frontier(
+            base.drop_duplicates("behavior_group_id"),
+            {"growth": "max"},
+            key_column="behavior_group_id",
+        )
+        right, _ = pareto_frontier(
+            with_duplicate.drop_duplicates("behavior_group_id"),
+            {"growth": "max"},
+            key_column="behavior_group_id",
+        )
+        self.assertEqual(left, right)
+
+    def test_16_leader_tags_are_behavior_group_level(self) -> None:
+        groups = pd.DataFrame(
+            {
+                "behavior_group_id": ["G1", "G2"],
+                "growth": [1.0, 0.8],
+            }
+        )
+        tags = group_leader_tags(groups, {"highest_growth": ("growth", "max")})
+        self.assertEqual(tags["G1"], ["highest_growth"])
+        self.assertNotIn("G2", tags)
+
+    def test_17_fixed_seed_synthetic_analysis_is_reproducible(self) -> None:
+        matrix, behavior, mapping, spy = self.fixture()
+
+        def run() -> tuple[pd.DataFrame, pd.DataFrame]:
+            return bootstrap_behavior_groups(
+                matrix,
+                behavior,
+                mapping,
+                matrix.columns,
+                spy,
+                1.0,
+                indices=common_bootstrap_indices(8, 40, 3, seed=SEED),
+                mean_block_length=3,
+                bootstrap_scope=COMPARISON_SCOPE,
+            )[:2]
+
+        left_labels, left_groups = run()
+        right_labels, right_groups = run()
+        pd.testing.assert_frame_equal(left_labels, right_labels)
+        pd.testing.assert_frame_equal(left_groups, right_groups)
+
+    def test_18_existing_production_metric_parity_is_unchanged(self) -> None:
+        research = pd.read_csv(SUMMARY_OUTPUT).set_index("strategy_key")
+        production = pd.read_csv(
+            ROOT / "docs" / "data" / "backtest_portfolio_strategy_summary.csv"
+        ).set_index("strategy_key")
+        common = sorted(set(research.index).intersection(production.index))
+        np.testing.assert_allclose(
+            research.loc[common, "ending_equity"],
+            production.loc[common, "ending_equity"],
+            atol=1e-9,
+            rtol=1e-9,
+        )
+
+    def test_19_generated_csv_ordering_is_deterministic(self) -> None:
+        bootstrap = pd.read_csv(BOOTSTRAP_OUTPUT)
+        expected_bootstrap = bootstrap.sort_values(
+            ["bootstrap_scope", "mean_block_length", "strategy_key"],
+            kind="mergesort",
+        ).reset_index(drop=True)
+        pd.testing.assert_frame_equal(bootstrap, expected_bootstrap)
+        groups = pd.read_csv(BEHAVIOR_GROUP_OUTPUT)
+        self.assertEqual(
+            groups["behavior_group_id"].tolist(),
+            sorted(groups["behavior_group_id"]),
+        )
+
+    def test_20_no_production_output_or_gate_file_is_modified(self) -> None:
+        completed = subprocess.run(
+            [
+                "git",
+                "diff",
+                "--name-only",
+                "HEAD",
+                "--",
+                "src",
+                "docs/data",
+                ".github",
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.stdout.strip(), "")
+        for output in [
+            REPORT_OUTPUT,
+            SUMMARY_OUTPUT,
+            BOOTSTRAP_OUTPUT,
+            PARETO_OUTPUT,
+            BEHAVIOR_GROUP_OUTPUT,
+        ]:
+            self.assertTrue(output.is_relative_to(ROOT / "docs" / "tasks"))
 
 
 class PathMetricTest(unittest.TestCase):
