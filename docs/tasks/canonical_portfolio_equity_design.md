@@ -178,3 +178,69 @@ Targeted portfolio/accounting, earliest-entry, immediate-cost, multiple-position
 The development correction changes representation and risk-metric determinism only. It does not change signals, entries, exits, stops, holding periods, costs, universe, backtest period, completed-trade economics, gates, ranking, portfolio allocation, or the canonical model name. One full Backtest Only run remains required after merge, followed by the complete bounded audit. Phase B remains blocked until that regenerated audit reports zero required mismatches.
 
 Ready to merge and regenerate
+
+## Final regenerated-output bounded audit
+
+Audit basis: regenerated main commit `0bcfa77`, `as_of=2026-07-27`, curve schema 2, and CDaR definition `negative_drawdown_fixed_tail_count_v1`. Absolute and relative floating-point tolerances are `1e-9`. The audit read committed bounded outputs only; it did not download data or rerun Backtest Only.
+
+### Completeness and file bounds
+
+- Portfolio and event summaries each contain 540 rows and 540 unique, exactly matching strategy keys. The documented gzip CSV matrix alternative contains 540 strategy columns and 2,333 unique sorted rows: one t0 row at `2017-04-16T23:59:59.999999Z` plus 2,332 economic dates from 2017-04-17 through 2026-07-27. Duplicate date × strategy observations and duplicate strategy columns are zero.
+- The bounded manifest contains 42 unique keys and exactly 42 curve files. Missing manifest files, orphan files, and publication-set differences are zero. All 42 currently Qualified strategies, the independently reconstructed rank-1 strategy `score_bo_l40_rm002_erp010__signal_3d_confirm__ma50`, and every required tied diagnostic leader are published; the cap of 100 is not binding.
+- SPY contains the same 2,333 rows and economic date range.
+- Exact sizes are: `backtest_summary.json` 20,852,765 bytes; event strategy summary 916,965; strategy-year summary 2,694,339; portfolio strategy summary 376,467; manifest 87,173; SPY 427,410; compressed daily-return matrix 6,679,861; recent trades 164,805; skipped summary 77,836; and 42 curve files 50,331,312 bytes total.
+
+### Explicit t0 and economic preservation
+
+- All 42 published curves, totaling 97,986 rows, begin with the schema-v2 `initialization` observation. Initial-equity mismatches, initialization-field mismatches, t0 return/cost/turnover mismatches, and rows where t0 does not precede the first economic session are all zero.
+- Every strategy t0 has equity and cash USD 1,000, invested value/exposure/positions zero, cumulative and daily return zero, running peak USD 1,000, drawdown zero, cost zero, and turnover zero. All 540 matrix t0 returns are zero.
+- SPY t0 has equity USD 1,000, zero return, zero drawdown, and precedes its first `trading_session` row.
+- Economic start/end dates remain 2017-04-17 and 2026-07-27. CAGR elapsed-period mismatches and ending-equity economic-preservation mismatches are zero. Removing t0 and compounding subsequent economic returns reconstructs every documented ending equity.
+- t0 has zero cost and turnover. Economic daily cost totals and turnover totals reconcile to the summaries, so no transaction cost was shifted into initialization. Full entry/exit events are intentionally not published, but source is unchanged after PR #15 and deterministic completed/skipped-event reuse tests pass.
+
+### Accounting, path, and cross-output reconciliation
+
+- Across all published rows, accounting, negative cash, negative invested value, leverage, non-integral/negative active positions, decreasing peak, positive drawdown, drawdown reconstruction, daily-return reconstruction, cumulative-return reconstruction, and matrix-return mismatch counts are zero.
+- Maximum absolute errors are `4.55e-13` for `equity - cash - invested`, `1.02e-14` for cost versus 0.1% of turnover notional, and `1.00e-16` for curve-versus-matrix daily returns. Running peak, drawdown, daily/cumulative returns, MDD, peak/trough/recovery dates, duration, time under water, cost, turnover, exposure, positions, and cash-day summary fields all reconcile.
+- For all 540 strategies, every path-observable portfolio-summary field reconstructs from the matrix: dates, ending equity, total return, CAGR, volatility, Sharpe, Sortino, Calmar, MDD and episode dates/durations, ulcer index, CDaR, daily/weekly/monthly worst returns, ES95/ES99, skewness, and excess kurtosis. Mismatch count is zero and maximum absolute discrepancy is `1.37e-10`.
+- Manifest-embedded summaries exactly match the portfolio CSV. Exposure, positions, cash, turnover, cost, and concurrent-symbol membership cannot be independently reconstructed for the 498 unpublished strategies because the bounded all-strategy matrix contains returns only. Published curves cover those accounting fields, while deterministic simulator tests cover duplicate-symbol prevention.
+
+### CDaR
+
+- All 540 strategies were independently reconstructed from negative daily drawdowns using exactly `k = max(1, n - floor(0.95*n + 1e-12))` worst sorted finite observations, with zero drawdowns retained, no interpolation or boundary-tie expansion, small positive residue clamped at `1e-9`, and non-finite values filtered.
+- Portfolio-summary CDaR mismatches, published-curve CDaR mismatches, and production-versus-independent implementation mismatches are all zero. Maximum summary discrepancy is `1.82e-14`; production-versus-independent maximum discrepancy is zero.
+- Python and JavaScript consume the same seven deterministic fixtures for no drawdown, a single observation, repeated boundary ties, distinct tails, mixed zeros, an exact 95% boundary, and an interpolation-sensitive sample size. Both suites pass; fixture mismatch count is zero. Dashboard selected-period CDaR uses the same fixed-tail convention.
+
+### Qualification, ranking, and event preservation
+
+- The current rolling Qualified count is 42. Independent reconstruction of Sample, Edge, Time, Parameter, mandatory conjunction, qualification tier, contiguous ranks, lexicographic ordering, and shuffled-input ordering has zero mismatch. No portfolio field occurs in the production ranking tuple.
+- The prior audited 2026-07-23 output had 41 Qualified strategies. `score_bo_l20_rp002_erp005__first_signal__low10` re-entered after its rolling Time Gate result changed; Sample, Edge, and Parameter gates did not change. The primary candidate remains `score_bo_l40_rm002_erp010__signal_3d_confirm__ma50`.
+- Relative to the prior output, strategy count remains 540; completed trades moved from 4,140,652 to 4,141,153 and bounded skipped count from 22,760 to 22,747. Changes affected 468 completed-trade counts, 535 averages, 531 medians, 539 Profit Factors, and 290 ranks. Gate configuration is identical.
+- A first post-merge generation and the final committed generation both have `as_of=2026-07-27`; vendor/input refresh changed event aggregates between those two data-only commits, but all four gate flags, Qualified set, and primary candidate remained identical. Commits after the PR #15 merge changed only `docs/data`; strategy, configuration, workflow, and dashboard code did not change. These are data-window/vendor movements, not portfolio-layer changes.
+
+### Anomaly scan
+
+- Across all 540 summaries, ending equity ranges from USD 721.949213 to USD 2,748.675745; CAGR from -3.4514% to 11.5169%; MDD from -54.3293% to -16.2171%; CDaR from -51.3398% to -13.9977%; and matrix daily returns from -11.1553% to 18.7209%.
+- Published daily exposure ranges from 0 to 1 and active positions from 0 to 419. Across all summaries, every maximum exposure is 1 and maximum active positions range from 284 to 443. All-strategy daily minima remain unavailable outside published curves.
+- Annual turnover ranges from 29.7724× to 81.9584× and total transaction cost from USD 313.849879 to USD 965.633322. These remain high descriptive values, but their daily notional/cost reconciliation passes and no new threshold is imposed.
+- Non-finite summary/matrix values, non-positive ending equity, daily return at or below -100%, empty economic series, published negative cash/invested value, exposure above one, positive drawdown, decreasing peak, return/equity failures, missing curve files, duplicate manifest keys, and benchmark-alignment failures are all zero.
+
+### Benchmark and production dashboard
+
+- SPY adjusted-close proxy has explicit schema-v2 t0, no missing numeric observation, exact return/equity and drawdown reconstruction, and exact economic-date alignment. Its documented Yahoo `auto_adjust=True` convention remains unchanged; it is a vendor-adjusted proxy, not an independently reconstructed dividend index. Excluding t0 preserves the economic elapsed period.
+- With actual regenerated data, the primary strategy and SPY render as four SVG paths: strategy/SPY equity and strategy/SPY drawdown. Linear-to-log switching changes the equity path without removing any path.
+- The selected range 2020-01-02 through 2020-12-31 renormalizes strategy and SPY to USD 1,000. Independent strategy results are ending equity USD 1,318.537257, return 31.8537%, CAGR 31.9790%, MDD -7.9001%, worst day -5.1471%, ES95 -2.4436%, and CDaR -6.8471%; displayed rounded values agree. SPY independently ends at USD 1,172.352144 with MDD -33.7173%.
+- Full-period SPY shading renders 183 observations in the -10% to -15% band, 150 in the -15% to -20% band, and 56 at or below -20%. The selected 2020 range renders 24, 19, and 19 respectively.
+- A→B→unpublished C→A selection with actual files clears chart, all selected-strategy metrics, date values, and controls for C, then restores only A. The exact bounded-publication message is shown. Failed, missing, malformed, empty, missing-benchmark, and late-response cases—including rapid A/B/C/A switching—pass the deterministic JavaScript suite.
+- No NaN, Infinity, undefined, stale value, warning, or console error appears. The range control begins on the first economic date, so t0 is not presented as a market-return day. Event-Sequence DD is absent from the portfolio-risk section and Aggregate Event Return Sum is labeled `Non-portfolio diagnostic`.
+
+### Documented non-material limitations
+
+- The committed all-strategy matrix is the documented gzip CSV alternative, not the Parquet filename mentioned in the audit request.
+- The bounded matrix cannot expose unpublished per-day cash, positions, exposure, turnover, costs, or symbol membership, and raw completed/skipped event records remain intentionally unpublished.
+- The SVG chart has no tooltip implementation for any observation, so there is no t0 tooltip to validate. t0 remains explicit in data, excluded from economic date controls and period math, and contributes zero return. This UI limitation does not affect portfolio reconstruction, qualification, or Phase B statistical inputs.
+- The high turnover and cost ranges are retained as model outputs. They reconcile and are not promoted into gates or silently repaired.
+
+All previously material failures—missing observable USD 1,000 initialization, two all-strategy CDaR mismatches, stale unavailable-curve state, late-response risk, and fixed Qualified-count testing—now pass against regenerated production outputs. Phase B may begin, subject to the non-material bounded-data and tooltip limitations above.
+
+Ready for Phase B with documented non-material anomalies
