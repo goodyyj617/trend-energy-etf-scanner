@@ -1,0 +1,180 @@
+{
+  "manifest_version": "1.0.0",
+  "cohort_id": "oos-0001",
+  "status": "proposed",
+  "repository": {
+    "full_name": "goodyyj617/trend-energy-etf-scanner",
+    "url": "https://github.com/goodyyj617/trend-energy-etf-scanner",
+    "default_branch": "main"
+  },
+  "source_main_commit": "f719886282b4f53b8caccea248092e496e6f67c0",
+  "created_at_utc": "2026-07-28T17:30:13Z",
+  "activation_rule": {
+    "type": "first_completed_trade_after_manifest_merge",
+    "description": "OOS begins on the date of the first completed trade observed after this manifest has merged to main. No earlier decision, trade, portfolio mark, or outcome may be backfilled into the cohort.",
+    "manifest_merged_at_utc": null,
+    "activation_completed_trade_date": null,
+    "pre_merge_positions_are_oos_eligible": false
+  },
+  "strategy_source": {
+    "authoritative_artifact": "docs/data/backtest_summary.json",
+    "artifact_as_of": "2026-07-27",
+    "selection_contract": "The unique row with qualification_rank equal to 1 and qualification_tier equal to Qualified under src/backtest.py::rank_strategy_summary.",
+    "strategy_registry": "src/backtest.py::STRATEGY_RULES",
+    "ranking_implementation": "src/backtest.py::rank_strategy_summary",
+    "corroborating_artifacts": [
+      "docs/data/backtest_strategy_summary.csv",
+      "docs/data/backtest_portfolio_curve_manifest.json"
+    ]
+  },
+  "strategy_keys": [
+    "score_bo_l40_rm002_erp010__signal_3d_confirm__ma50"
+  ],
+  "strategy_parameter_fingerprints": {
+    "score_bo_l40_rm002_erp010__signal_3d_confirm__ma50": {
+      "algorithm": "sha256",
+      "canonicalization": "UTF-8 JSON with sorted keys, no insignificant whitespace, and ensure_ascii=false",
+      "sha256": "f206b9f717b9c808876b3e0a571f566d1632e065675720820ac4afa1c070db21",
+      "parameter_snapshot": {
+        "strategy_key": "score_bo_l40_rm002_erp010__signal_3d_confirm__ma50",
+        "signal_key": "score_bo_l40_rm002_erp010",
+        "signal_params": {
+          "family": "score_breakout",
+          "score_lookback": 40,
+          "r20_min": -0.02,
+          "er20_min": 0.1,
+          "close_filter": "close > ma50"
+        },
+        "entry_key": "signal_3d_confirm",
+        "exit_key": "ma50",
+        "max_holding_days": 63
+      }
+    }
+  },
+  "universe_definition": {
+    "membership_type": "rule_frozen_dynamic_membership",
+    "description": "Freeze the universe construction and daily eligibility rules, not a historical constituent list. Every OOS decision must record the realized daily universe snapshot and its provenance.",
+    "sources": [
+      "config/universe.yml",
+      "config/aum.csv",
+      "config/exclusions.yml",
+      "config/manual_overrides.csv",
+      "src/universe.py::build_base_universe",
+      "src/backtest.py::build_historical_features"
+    ],
+    "rules": {
+      "aum_top_n": 500,
+      "dollar_volume_top_n": 500,
+      "min_history_days": 180,
+      "min_close": 5,
+      "min_avg_dollar_vol_20": 3000000,
+      "min_avg_dollar_vol_63": 5000000,
+      "base_eligibility": "AUM-ranked Nasdaq Trader ETF candidates after configured name exclusions and manual overrides.",
+      "daily_eligibility": "base_universe_eligible and all configured history, price, dollar-volume, and dollar-volume-rank conditions."
+    }
+  },
+  "transaction_cost_definition": {
+    "source": "src/backtest.py::ROUND_TRIP_COST",
+    "round_trip_rate": 0.002,
+    "event_return_application": "Subtract 0.002 from each completed trade gross return.",
+    "portfolio_application": "Charge 0.001 of each entry, exit, or membership-rebalance turnover notional.",
+    "slippage_model": "No separate slippage model."
+  },
+  "benchmark_definition": {
+    "symbol": "SPY",
+    "source": "src/portfolio.py::build_spy_benchmark",
+    "price_source": "Yahoo Finance through src/prices.py::download_ohlcv",
+    "price_convention": "auto_adjust=true adjusted-close proxy with actions=false",
+    "normalization": "USD 1000 at the first economic observation, preceded by a zero-return initialization observation.",
+    "date_alignment": "Exact economic-date equality; no benchmark forward fill."
+  },
+  "portfolio_model_definition": {
+    "name": "canonical_equal_weight_active_v1",
+    "source": "src/portfolio.py::simulate_canonical_portfolio",
+    "initial_capital_usd": 1000.0,
+    "long_only": true,
+    "cash_constrained": true,
+    "fractional_shares": true,
+    "allocation": "Equal weight across all active positions after membership changes.",
+    "rebalance_timing": "Next tradable open after a membership change, subject to the existing event ordering.",
+    "borrowing": false,
+    "leverage": false,
+    "curve_schema_version": 2,
+    "cdar_definition_version": "negative_drawdown_fixed_tail_count_v1"
+  },
+  "data_conventions": {
+    "price_interval": "1d",
+    "use_adjusted_prices": true,
+    "vendor": "Yahoo Finance via yfinance",
+    "actions": false,
+    "market_date_representation": "ISO-8601 session date without an inferred intraday timestamp",
+    "signal_observation": "End-of-session values under the frozen signal definition",
+    "entry_timing": "Next trading-session open after the frozen entry trigger",
+    "exit_timing": "Existing stop/gap/open/intraday/max-hold event ordering",
+    "trade_year_basis": "entry_year",
+    "raw_and_derived_separation_required": true
+  },
+  "no_backfill": true,
+  "append_only": true,
+  "correction_policy": {
+    "overwrite_allowed": false,
+    "description": "Never edit or delete a recorded OOS observation. Append a correction record that identifies the superseded record, correction reason, corrected payload, source revision, and correction provenance.",
+    "effective_view": "Derived metrics apply the latest valid correction chain while preserving every original and correction record."
+  },
+  "provenance": {
+    "source_commit_role": "The immutable pre-design main baseline. Future main commits are allowed only when all frozen semantic and input-definition fingerprints still match.",
+    "git_blob_shas": {
+      "src/backtest.py": "984bcbc40fe6356d3d09109d381983ec49a5fb45",
+      "src/features.py": "ebc82a6fe3b8f37a00b6ca25f27d607940ca40d5",
+      "src/portfolio.py": "ac770dfa22b50952adbea66a28edb4173afde41c",
+      "src/universe.py": "760f388fa98fd6194c57c3c41b7f90704694efb8",
+      "src/prices.py": "aae85f744cfa24e09c691786013372c06f947235",
+      "config/universe.yml": "decb4071c5c78918004b0b8fb9902d08d12bf595",
+      "config/aum.csv": "0c13b8c6bf21fc9a68f89efa74c804b242304959",
+      "config/exclusions.yml": "f20ad32321852911b1ee3b879133e8a770170a87",
+      "config/manual_overrides.csv": "a0fe92cc43079612525daa43861dc4fd671d3f3b",
+      "docs/data/backtest_summary.json": "13470c4a37631e6c01c215a2e89a52e202b20a97",
+      "docs/data/backtest_strategy_summary.csv": "9777d15728521ad1d2d8f586c7b366ace135bf86",
+      "docs/data/backtest_portfolio_curve_manifest.json": "b7f35179afd32586edb13c2e78b2c1fcc679fc66",
+      "docs/data/backtest_portfolio_strategy_summary.csv": "ed11ad844e9603eaf3bb0fddd6573231d3aca908",
+      "docs/data/backtest_benchmark_spy.json": "79b6b1dd176060d7d928cda2a19936a2793530d4",
+      ".github/workflows/daily_scan.yml": "cc82b4d9b59e930822bd69ff5809625dc74a7e5b",
+      ".github/workflows/backtest-only.yml": "c91eec694507f050a907e8e12dfae4768ca84509"
+    },
+    "required_per_observation": [
+      "cohort_id",
+      "manifest_version",
+      "record_id",
+      "record_type",
+      "economic_date",
+      "observed_at_utc",
+      "collector_commit_sha",
+      "strategy_parameter_fingerprint",
+      "input_artifact_hashes",
+      "universe_snapshot_hash",
+      "vendor_and_price_conventions"
+    ]
+  },
+  "unresolved_items": [
+    {
+      "id": "activation-merge-fact",
+      "blocking": true,
+      "description": "The manifest merge commit and merge timestamp do not exist yet and must be recorded by an append-only activation event after merge."
+    },
+    {
+      "id": "activation-first-completed-trade",
+      "blocking": true,
+      "description": "The first eligible completed-trade date after merge is not yet observable and must not be synthesized."
+    },
+    {
+      "id": "collector-implementation",
+      "blocking": true,
+      "description": "No append-only OOS collector, ledger, fail-closed workflow, or derived-metric builder exists in this design-only PR."
+    },
+    {
+      "id": "maturity-threshold-registration",
+      "blocking": true,
+      "description": "Minimum elapsed-session, completed-trade, and calendar-coverage thresholds must be approved and registered before activation without consulting OOS outcomes."
+    }
+  ]
+}
