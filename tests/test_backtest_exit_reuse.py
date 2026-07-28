@@ -1,17 +1,21 @@
 import json
 import unittest
+import warnings
 from pathlib import Path
 
 import pandas as pd
 
 from src.backtest import (
+    ACTIVE_SIGNAL_COL,
     ANALYSIS_SCHEMA_VERSION,
     EntryRule,
     ExitRule,
     SignalRule,
     StrategyRule,
+    _breakout_after_signal_indices,
     _first_signal_indices,
     _signal_2d_indices,
+    _signal_3d_indices,
     _simulate_one_symbol,
     _simulate_symbol_strategies,
 )
@@ -99,6 +103,36 @@ class ExitReuseEquivalenceTest(unittest.TestCase):
         self.assertIsInstance(new_open, list)
         self.assertEqual(pair_count, len(self.signal_rules) * len(self.entry_rules))
         self.assertEqual(exit_count, len(self.strategy_rules))
+
+    def test_boolean_shift_semantics_and_outputs_are_warning_free(self) -> None:
+        prepared = self.frame.sort_values("date").reset_index(drop=True).copy()
+        prepared[ACTIVE_SIGNAL_COL] = prepared["fixture_signal"]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            first = _first_signal_indices(prepared)
+            confirm_2d = _signal_2d_indices(prepared)
+            confirm_3d = _signal_3d_indices(prepared)
+            breakout = _breakout_after_signal_indices(prepared)
+            trades, skipped, open_positions, pair_count, exit_count = (
+                _simulate_symbol_strategies(
+                    self.frame,
+                    signal_rules=self.signal_rules,
+                    entry_rules=self.entry_rules,
+                    exit_rules=self.exit_rules,
+                    strategy_rules=self.strategy_rules,
+                )
+            )
+
+        self.assertEqual(first, [1, 5, 8])
+        self.assertEqual(confirm_2d, [2, 6, 9])
+        self.assertEqual(confirm_3d, [])
+        self.assertEqual(breakout, [])
+        self.assertEqual(len(trades), 3)
+        self.assertEqual(len(skipped), 1)
+        self.assertEqual(len(open_positions), 2)
+        self.assertEqual(pair_count, 2)
+        self.assertEqual(exit_count, 4)
 
     def test_diagnostics_default_and_schema_version_are_unchanged(self) -> None:
         config_path = Path(__file__).parents[1] / "config" / "universe.yml"

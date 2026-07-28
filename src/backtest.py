@@ -255,28 +255,28 @@ SIGNAL_RULES: list[SignalRule] = build_score_breakout_signal_rules()
 
 def _first_signal_indices(g: pd.DataFrame) -> list[int]:
     signal = g[ACTIVE_SIGNAL_COL].fillna(False).astype(bool)
-    prev = signal.shift(1).fillna(False).astype(bool)
+    prev = signal.shift(1, fill_value=False).astype(bool)
     return g.index[signal & (~prev)].tolist()
 
 
 def _signal_2d_indices(g: pd.DataFrame) -> list[int]:
     signal = g[ACTIVE_SIGNAL_COL].fillna(False).astype(bool)
-    prev1 = signal.shift(1).fillna(False).astype(bool)
-    prev2 = signal.shift(2).fillna(False).astype(bool)
+    prev1 = signal.shift(1, fill_value=False).astype(bool)
+    prev2 = signal.shift(2, fill_value=False).astype(bool)
     return g.index[signal & prev1 & (~prev2)].tolist()
 
 
 def _signal_3d_indices(g: pd.DataFrame) -> list[int]:
     signal = g[ACTIVE_SIGNAL_COL].fillna(False).astype(bool)
-    prev1 = signal.shift(1).fillna(False).astype(bool)
-    prev2 = signal.shift(2).fillna(False).astype(bool)
-    prev3 = signal.shift(3).fillna(False).astype(bool)
+    prev1 = signal.shift(1, fill_value=False).astype(bool)
+    prev2 = signal.shift(2, fill_value=False).astype(bool)
+    prev3 = signal.shift(3, fill_value=False).astype(bool)
     return g.index[signal & prev1 & prev2 & (~prev3)].tolist()
 
 
 def _breakout_after_signal_indices(g: pd.DataFrame) -> list[int]:
     signal = g[ACTIVE_SIGNAL_COL].fillna(False).astype(bool)
-    prev = signal.shift(1).fillna(False).astype(bool)
+    prev = signal.shift(1, fill_value=False).astype(bool)
     first_signal_indices = g.index[signal & (~prev)].tolist()
     close = pd.to_numeric(g["close"], errors="coerce")
     prior_high5 = pd.to_numeric(g["high"], errors="coerce").shift(1).rolling(5).max()

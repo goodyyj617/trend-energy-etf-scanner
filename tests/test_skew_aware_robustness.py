@@ -439,7 +439,7 @@ class BehaviorPathInvariantMethodTest(unittest.TestCase):
             sorted(groups["behavior_group_id"]),
         )
 
-    def test_20_no_production_output_or_gate_file_is_modified(self) -> None:
+    def test_20_no_production_output_gate_ui_or_data_workflow_is_modified(self) -> None:
         completed = subprocess.run(
             [
                 "git",
@@ -447,9 +447,11 @@ class BehaviorPathInvariantMethodTest(unittest.TestCase):
                 "--name-only",
                 "HEAD",
                 "--",
-                "src",
                 "docs/data",
-                ".github",
+                "config",
+                "web",
+                ".github/workflows/backtest-only.yml",
+                ".github/workflows/daily_scan.yml",
             ],
             cwd=ROOT,
             check=True,

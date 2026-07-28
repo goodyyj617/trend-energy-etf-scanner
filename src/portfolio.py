@@ -177,8 +177,8 @@ def build_price_panel(
     return PricePanel(
         dates=pd.DatetimeIndex(dates),
         symbols=tuple(str(symbol) for symbol in symbols),
-        opens=open_frame.to_numpy(dtype=float),
-        closes=close_frame.to_numpy(dtype=float),
+        opens=open_frame.to_numpy(dtype=float, copy=True),
+        closes=close_frame.to_numpy(dtype=float, copy=True),
         symbol_to_column={str(symbol): index for index, symbol in enumerate(symbols)},
         date_to_row={pd.Timestamp(date).normalize(): index for index, date in enumerate(dates)},
     )
