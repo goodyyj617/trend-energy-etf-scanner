@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from statistics import NormalDist
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -14,12 +15,15 @@ from scripts.analyze_skew_aware_robustness import (
     BOOTSTRAP_OUTPUT,
     COMPARISON_SCOPE,
     INITIAL_EQUITY,
+    NUMERIC_ATOL,
+    NUMERIC_RTOL,
     PARETO_OUTPUT,
     REPORT_OUTPUT,
     ROOT,
     SEED,
     SUMMARY_OUTPUT,
     _safe_csv,
+    align_matching_snapshot_ending_equity,
     _bootstrap_chunk_metrics,
     aggregate_crash_rows,
     behavior_groups,
@@ -413,18 +417,90 @@ class BehaviorPathInvariantMethodTest(unittest.TestCase):
         pd.testing.assert_frame_equal(left_labels, right_labels)
         pd.testing.assert_frame_equal(left_groups, right_groups)
 
-    def test_18_existing_production_metric_parity_is_unchanged(self) -> None:
-        research = pd.read_csv(SUMMARY_OUTPUT).set_index("strategy_key")
-        production = pd.read_csv(
-            ROOT / "docs" / "data" / "backtest_portfolio_strategy_summary.csv"
-        ).set_index("strategy_key")
-        common = sorted(set(research.index).intersection(production.index))
-        np.testing.assert_allclose(
-            research.loc[common, "ending_equity"],
-            production.loc[common, "ending_equity"],
-            atol=1e-9,
-            rtol=1e-9,
+    @staticmethod
+    def ending_equity_snapshot_fixture() -> tuple[pd.DataFrame, pd.DataFrame]:
+        matrix = pd.DataFrame(
+            {
+                "alpha": [0.10, -0.05, 0.02],
+                "beta": [-0.03, 0.04, 0.01],
+            }
         )
+        ending = INITIAL_EQUITY * (1.0 + matrix).prod(axis=0)
+        portfolio = pd.DataFrame(
+            {
+                "strategy_key": ["beta", "alpha"],
+                "ending_equity": [ending["beta"], ending["alpha"]],
+            }
+        )
+        return matrix, portfolio
+
+    def test_18_matching_snapshot_ending_equity_is_preserved(self) -> None:
+        matrix, portfolio = self.ending_equity_snapshot_fixture()
+        with patch.object(
+            pd,
+            "read_csv",
+            side_effect=AssertionError("matching-snapshot parity must not read live files"),
+        ):
+            aligned = align_matching_snapshot_ending_equity(matrix, portfolio)
+
+        self.assertEqual(aligned["strategy_key"].tolist(), matrix.columns.tolist())
+        np.testing.assert_allclose(
+            aligned["research_ending_equity"],
+            aligned["canonical_ending_equity"],
+            atol=NUMERIC_ATOL,
+            rtol=NUMERIC_RTOL,
+        )
+
+    def test_18a_matching_snapshot_rejects_missing_or_duplicate_keys(self) -> None:
+        matrix, portfolio = self.ending_equity_snapshot_fixture()
+        duplicate_matrix = pd.DataFrame(
+            [[0.01, 0.02], [0.03, 0.04]],
+            columns=["alpha", "alpha"],
+        )
+        duplicate_portfolio = pd.concat(
+            [portfolio, portfolio.loc[portfolio["strategy_key"].eq("alpha")]],
+            ignore_index=True,
+        )
+        cases = [
+            (
+                "missing portfolio key",
+                matrix,
+                portfolio.loc[portfolio["strategy_key"].eq("alpha")],
+                "missing from portfolio summary: beta",
+            ),
+            (
+                "extra portfolio key",
+                matrix,
+                pd.concat(
+                    [
+                        portfolio,
+                        pd.DataFrame(
+                            {"strategy_key": ["gamma"], "ending_equity": [1000.0]}
+                        ),
+                    ],
+                    ignore_index=True,
+                ),
+                "missing from return matrix: gamma",
+            ),
+            (
+                "duplicate matrix key",
+                duplicate_matrix,
+                portfolio.loc[portfolio["strategy_key"].eq("alpha")],
+                "duplicate strategy keys in return matrix: alpha",
+            ),
+            (
+                "duplicate portfolio key",
+                matrix,
+                duplicate_portfolio,
+                "duplicate strategy keys in portfolio summary: alpha",
+            ),
+        ]
+        for label, candidate_matrix, candidate_portfolio, message in cases:
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(ValueError, message):
+                    align_matching_snapshot_ending_equity(
+                        candidate_matrix, candidate_portfolio
+                    )
 
     def test_19_generated_csv_ordering_is_deterministic(self) -> None:
         bootstrap = pd.read_csv(BOOTSTRAP_OUTPUT)
