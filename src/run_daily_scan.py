@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from .backtest import run_backtests
 from .features import compute_latest_features
 from .prices import download_ohlcv
 from .signal_history import add_signal_history
@@ -79,14 +78,6 @@ def main() -> None:
     latest.to_csv(data_dir / "latest.csv", index=False)
     latest.to_csv(history_dir / f"{as_of}.csv", index=False)
 
-    backtest_payload = run_backtests(
-        prices=prices,
-        universe=universe,
-        cfg=cfg,
-        data_dir=data_dir,
-        as_of=as_of,
-    )
-
     payload = {
         "as_of": as_of,
         "row_count": int(len(latest)),
@@ -99,8 +90,6 @@ def main() -> None:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
     print(f"Wrote {data_dir / 'latest.json'}")
-    print(f"Wrote {data_dir / 'backtest_summary.json'}")
-    print(f"backtest_rules={len(backtest_payload.get('summary', []))}")
     print(
         f"as_of={as_of} "
         f"rows={payload['row_count']} "
