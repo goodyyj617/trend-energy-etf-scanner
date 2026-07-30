@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 
 from .backtest import run_backtests
-from .prices import download_ohlcv
+from .prices import download_ohlcv, filter_completed_daily_bars
 from .run_daily_scan import ROOT, load_config
 from .universe import build_base_universe
 
 
-def main() -> None:
+def main(*, now: datetime | None = None) -> None:
     cfg = load_config()
     scanner_lookback_period = str(cfg.get("lookback_period", "1y"))
     backtest_lookback_period = str(
@@ -39,19 +40,35 @@ def main() -> None:
         period=backtest_lookback_period,
         interval=str(cfg["price_interval"]),
     )
+    prices, bar_provenance = filter_completed_daily_bars(prices, now=now)
+
+    print(
+        "[BAR] "
+        f"new_york_evaluation_time={bar_provenance['new_york_evaluation_time']}"
+    )
+    print(
+        "[BAR] "
+        f"safe_latest_daily_bar_date={bar_provenance['safe_latest_daily_bar_date']}"
+    )
+    print(f"[BAR] downloaded_max_date={bar_provenance['downloaded_max_date']}")
+    print(f"[BAR] retained_max_date={bar_provenance['retained_max_date']}")
+    print(f"[BAR] rows_removed={bar_provenance['rows_removed']}")
 
     if prices.empty:
-        raise RuntimeError("No price data downloaded. Check symbols, internet access, or yfinance availability.")
+        raise RuntimeError(
+            "No completed daily price bars remain after filtering "
+            f"(safe latest date: {bar_provenance['safe_latest_daily_bar_date']})."
+        )
 
     price_dates = pd.to_datetime(prices["date"], errors="coerce").dropna()
     price_min_ts = price_dates.min()
     as_of_ts = price_dates.max()
     as_of = str(as_of_ts.date()) if pd.notna(as_of_ts) else "unknown"
 
-    print(f"downloaded_price_min={price_min_ts.date() if pd.notna(price_min_ts) else 'unknown'}")
-    print(f"downloaded_price_max={as_of}")
-    print(f"downloaded_symbols={prices['symbol'].nunique()}")
-    print(f"downloaded_ohlcv_rows={len(prices)}")
+    print(f"retained_price_min={price_min_ts.date() if pd.notna(price_min_ts) else 'unknown'}")
+    print(f"retained_price_max={as_of}")
+    print(f"retained_symbols={prices['symbol'].nunique()}")
+    print(f"retained_ohlcv_rows={len(prices)}")
 
     backtest_payload = run_backtests(
         prices=prices,

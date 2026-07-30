@@ -3,7 +3,8 @@ name: Backtest Only
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 18 * * 1-5"
+    - cron: "30 20 * * 1-5"
+      timezone: "America/New_York"
 
 permissions:
   contents: write
