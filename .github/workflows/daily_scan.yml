@@ -23,6 +23,12 @@ jobs:
         with:
           persist-credentials: true
 
+      - name: Capture generated-data source revision
+        run: |
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          echo "SOURCE_SHA=${SOURCE_SHA}" >> "${GITHUB_ENV}"
+          echo "generated_data_source_sha=${SOURCE_SHA}"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -56,6 +62,16 @@ jobs:
           git add config/aum.csv
           git add docs/data/latest.json docs/data/latest.csv docs/data/universe_current.csv docs/data/excluded_etfs_summary.csv
           git add docs/data/history || true
-          git commit -m "Update ETF scan data" || echo "No changes to commit"
-          git pull --rebase --autostash origin main
-          git push
+          if git diff --cached --quiet; then
+            echo "No Daily ETF Scan data changes to publish."
+            exit 0
+          fi
+          python scripts/verify_data_publish_base.py --source-sha "${SOURCE_SHA}"
+          git commit -m "Update ETF scan data" -m "Generated-From: ${SOURCE_SHA}"
+          GENERATED_PARENT_SHA="$(git rev-parse HEAD^)"
+          echo "generated_data_parent_sha=${GENERATED_PARENT_SHA}"
+          if [ "${GENERATED_PARENT_SHA}" != "${SOURCE_SHA}" ]; then
+            echo "Generated commit parent mismatch: expected ${SOURCE_SHA}, observed ${GENERATED_PARENT_SHA}." >&2
+            exit 1
+          fi
+          git push origin HEAD:main
