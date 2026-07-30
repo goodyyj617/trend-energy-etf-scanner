@@ -326,12 +326,30 @@ def test_protocol_serialization_and_manifest_fingerprint_are_deterministic() -> 
 
 def test_manifest_remains_proposed_with_only_required_blockers() -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    protocol = load_protocol()
     activation = manifest["activation"]
     blocker_ids = {item["id"] for item in manifest["unresolved_items"]}
+    protocol_merge = protocol["contract_baseline"]
 
     assert manifest["manifest_version"] == "2.1.0"
     assert manifest["status"] == "proposed"
     assert activation["approved_evaluation_protocol_version"] == PROTOCOL_VERSION
+    assert activation["contract_merge"] == {
+        "commit": CONTRACT_MERGE_COMMIT,
+        "merged_at_utc": CONTRACT_MERGED_AT_UTC,
+    }
+    assert manifest["contract_merge_provenance"]["commit"] == (
+        activation["contract_merge"]["commit"]
+    )
+    assert manifest["contract_merge_provenance"]["merged_at_utc"] == (
+        activation["contract_merge"]["merged_at_utc"]
+    )
+    assert protocol_merge["contract_merge_commit"] == (
+        activation["contract_merge"]["commit"]
+    )
+    assert protocol_merge["contract_merged_at_utc"] == (
+        activation["contract_merge"]["merged_at_utc"]
+    )
     assert activation["collector_implementation_activation"] == {
         "commit": None,
         "activated_at_utc": None,
@@ -342,12 +360,29 @@ def test_manifest_remains_proposed_with_only_required_blockers() -> None:
         "recorded_at_utc": None,
     }
     assert activation["activation_event_recorded"] is False
+    assert protocol["activation_state"]["oos_collection_started"] is False
     assert "evaluation-protocol-and-maturity-thresholds" not in blocker_ids
+    assert "contract-merge-fact" not in blocker_ids
     assert blocker_ids == {
-        "contract-merge-fact",
         "collector-implementation-and-activation",
         "first-eligible-ex-ante-decision",
     }
+
+
+def test_current_manifest_and_protocol_document_do_not_claim_merge_is_future() -> None:
+    manifest_text = MANIFEST_PATH.read_text(encoding="utf-8").casefold()
+    design_text = DESIGN_PATH.read_text(encoding="utf-8").casefold()
+    current_text = manifest_text + "\n" + design_text
+
+    for stale_claim in (
+        "merge commit and timestamp do not exist yet",
+        "merge commit and timestamp remain null",
+        "pr #18 contract merge: unresolved",
+        "future pr #18 merge",
+    ):
+        assert stale_claim not in current_text
+    assert CONTRACT_MERGE_COMMIT in current_text
+    assert CONTRACT_MERGED_AT_UTC.casefold() in current_text
 
 
 def test_protocol_contract_is_design_only_and_does_not_read_mutable_outputs() -> None:

@@ -11,8 +11,8 @@
   "provenance_timeline_interpretation": {
     "initial_design": "The initial design existed on 2026-07-28.",
     "selection_snapshot_pinning": "The current selection snapshot could not have been pinned before its generated-data commit existed.",
-    "contract_authority": "The preregistration contract becomes authoritative only when PR #18 is merged.",
-    "future_merge_fact": "The actual PR #18 merge commit and timestamp remain null until a later activation event records them."
+    "contract_authority": "The preregistration contract became authoritative when PR #18 merged.",
+    "contract_merge_fact": "PR #18 merged as f60f46e9c7bb4006ea8be22e76b5230b71dde1d5 at 2026-07-30T15:47:40Z, making the contract authoritative without activating OOS collection."
   },
   "candidate_designation": {
     "selection_snapshot_label": "Current Backtest Qualified rank-1 candidate at the pinned selection snapshot",
@@ -51,8 +51,8 @@
     "model": "first_eligible_ex_ante_decision_recorded_after_collector_activation",
     "description": "PR #18 proposes the contract and immutable selection snapshot only. Genuine OOS eligibility begins with the first eligible ex-ante decision immutably recorded after a separately reviewed collector is activated.",
     "contract_merge": {
-      "commit": null,
-      "merged_at_utc": null
+      "commit": "f60f46e9c7bb4006ea8be22e76b5230b71dde1d5",
+      "merged_at_utc": "2026-07-30T15:47:40Z"
     },
     "collector_implementation_activation": {
       "commit": null,
@@ -319,16 +319,11 @@
     }
   },
   "contract_merge_provenance": {
-    "role": "The later PR #18 contract merge identifies when this proposal entered main. It does not exist in this design-only branch and is not the calculation source or generated-data commit.",
-    "commit": null,
-    "merged_at_utc": null
+    "role": "This is the authoritative PR #18 preregistration-contract merge. It is distinct from the calculation source and generated-data commit, is neither the collector implementation commit nor the collector activation commit, did not start OOS collection, and did not create an eligible ex-ante decision.",
+    "commit": "f60f46e9c7bb4006ea8be22e76b5230b71dde1d5",
+    "merged_at_utc": "2026-07-30T15:47:40Z"
   },
   "unresolved_items": [
-    {
-      "id": "contract-merge-fact",
-      "blocking": true,
-      "description": "The PR #18 contract merge commit and timestamp do not exist yet and must be recorded by a later activation event."
-    },
     {
       "id": "collector-implementation-and-activation",
       "blocking": true,

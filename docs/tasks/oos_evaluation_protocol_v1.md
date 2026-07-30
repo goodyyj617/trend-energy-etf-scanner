@@ -6,7 +6,7 @@ This document approves `oos-eval-v1.0.0` for cohort `oos-0001` before any collec
 
 PR #18 merged as `f60f46e9c7bb4006ea8be22e76b5230b71dde1d5` at `2026-07-30T15:47:40Z`. That merge made the preregistration contract authoritative. It did not activate OOS collection, is not the collector activation commit, and did not create an eligible OOS decision. OOS has still not started.
 
-The protocol status is `approved_pre_activation`. The cohort manifest remains `proposed`; collector activation and first-decision facts remain unresolved.
+The known PR #18 merge fact is recorded identically in both the manifest and this protocol. Recording it resolves only the contract-merge provenance blocker. The protocol status is `approved_pre_activation` and the cohort manifest remains `proposed`; it does not activate the collector. OOS remains inactive until a separately reviewed collector is activated, and the first eligible ex-ante decision remains unresolved.
 
 ## Conjunctive maturity conditions
 
