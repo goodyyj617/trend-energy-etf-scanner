@@ -429,14 +429,14 @@ class RankingAndPresentationTest(unittest.TestCase):
         self.assertIn("Partial", dashboard)
         self.assertIn("LOYO Pass Ratio", page)
 
-    def test_workflow_ownership_and_raw_output_policy_are_unchanged(self) -> None:
+    def test_backtest_workflow_owns_backtest_outputs(self) -> None:
         backtest_workflow = (ROOT / ".github" / "workflows" / "backtest-only.yml").read_text(encoding="utf-8")
         daily_workflow = (ROOT / ".github" / "workflows" / "daily_scan.yml").read_text(encoding="utf-8")
         self.assertIn("git add docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv docs/data/backtest_strategy_year_summary.csv", backtest_workflow)
-        self.assertIn("git restore --worktree -- docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv", daily_workflow)
+        self.assertNotIn("git restore", daily_workflow)
         for raw in ["backtest_trades.csv", "signal_diagnostics.csv", "backtest_skipped.csv"]:
             self.assertIn(raw, backtest_workflow)
-            self.assertIn(raw, daily_workflow)
+            self.assertNotIn(raw, daily_workflow)
             self.assertFalse((ROOT / "docs" / "data" / raw).exists())
 
     def test_schema_version_is_incremented_for_gate_contract(self) -> None:

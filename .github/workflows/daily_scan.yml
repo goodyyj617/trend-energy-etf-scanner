@@ -23,6 +23,12 @@ jobs:
         with:
           persist-credentials: true
 
+      - name: Capture generated-data source revision
+        run: |
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          echo "SOURCE_SHA=${SOURCE_SHA}" >> "${GITHUB_ENV}"
+          echo "generated_data_source_sha=${SOURCE_SHA}"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -42,20 +48,19 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          rm -f docs/data/backtest_trades.csv docs/data/signal_diagnostics.csv docs/data/backtest_skipped.csv
-          # Backtest Only owns these published outputs; discard compatibility updates from the daily run.
-          git restore --worktree -- docs/data/backtest_summary.json docs/data/backtest_strategy_summary.csv
-          if git ls-files --error-unmatch docs/data/backtest_strategy_year_summary.csv >/dev/null 2>&1; then
-            git restore --worktree -- docs/data/backtest_strategy_year_summary.csv
-          else
-            rm -f docs/data/backtest_strategy_year_summary.csv
-          fi
-          git restore --worktree -- docs/data/backtest_recent_trades.csv docs/data/signal_diagnostics_summary.csv docs/data/backtest_skipped_summary.csv
-          git restore --worktree -- docs/data/backtest_portfolio_strategy_summary.csv docs/data/backtest_portfolio_curve_manifest.json docs/data/backtest_benchmark_spy.json docs/data/backtest_portfolio_daily_returns.csv.gz
-          git restore --worktree -- docs/data/backtest_portfolio_curves
           git add config/aum.csv
           git add docs/data/latest.json docs/data/latest.csv docs/data/universe_current.csv docs/data/excluded_etfs_summary.csv
           git add docs/data/history || true
-          git commit -m "Update ETF scan data" || echo "No changes to commit"
-          git pull --rebase --autostash origin main
-          git push
+          if git diff --cached --quiet; then
+            echo "No Daily ETF Scan data changes to publish."
+            exit 0
+          fi
+          python scripts/verify_data_publish_base.py --source-sha "${SOURCE_SHA}"
+          git commit -m "Update ETF scan data" -m "Generated-From: ${SOURCE_SHA}"
+          GENERATED_PARENT_SHA="$(git rev-parse HEAD^)"
+          echo "generated_data_parent_sha=${GENERATED_PARENT_SHA}"
+          if [ "${GENERATED_PARENT_SHA}" != "${SOURCE_SHA}" ]; then
+            echo "Generated commit parent mismatch: expected ${SOURCE_SHA}, observed ${GENERATED_PARENT_SHA}." >&2
+            exit 1
+          fi
+          git push origin HEAD:main

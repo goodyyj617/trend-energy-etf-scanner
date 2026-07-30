@@ -1483,6 +1483,66 @@ def load_inputs() -> dict[str, Any]:
     }
 
 
+def align_matching_snapshot_ending_equity(
+    return_matrix: pd.DataFrame,
+    portfolio_summary: pd.DataFrame,
+) -> pd.DataFrame:
+    required_columns = {"strategy_key", "ending_equity"}
+    missing_columns = sorted(required_columns - set(portfolio_summary.columns))
+    if missing_columns:
+        raise ValueError(
+            "portfolio summary missing required columns: " + ", ".join(missing_columns)
+        )
+
+    matrix_keys = pd.Index(return_matrix.columns)
+    portfolio_keys = pd.Index(portfolio_summary["strategy_key"])
+    for source, keys in [
+        ("return matrix", matrix_keys),
+        ("portfolio summary", portfolio_keys),
+    ]:
+        duplicates = sorted(
+            str(key) for key in keys[keys.duplicated(keep=False)].unique()
+        )
+        if duplicates:
+            raise ValueError(
+                f"duplicate strategy keys in {source}: " + ", ".join(duplicates)
+            )
+
+    matrix_key_set = set(matrix_keys)
+    portfolio_key_set = set(portfolio_keys)
+    missing_from_portfolio = sorted(
+        str(key) for key in matrix_key_set - portfolio_key_set
+    )
+    missing_from_matrix = sorted(
+        str(key) for key in portfolio_key_set - matrix_key_set
+    )
+    if missing_from_portfolio or missing_from_matrix:
+        details = []
+        if missing_from_portfolio:
+            details.append(
+                "missing from portfolio summary: " + ", ".join(missing_from_portfolio)
+            )
+        if missing_from_matrix:
+            details.append(
+                "missing from return matrix: " + ", ".join(missing_from_matrix)
+            )
+        raise ValueError("strategy key mismatch (" + "; ".join(details) + ")")
+
+    research_ending = INITIAL_EQUITY * (1.0 + return_matrix).prod(axis=0)
+    canonical_ending = (
+        portfolio_summary.set_index("strategy_key")
+        .loc[matrix_keys, "ending_equity"]
+        .astype(float)
+    )
+    return pd.DataFrame(
+        {
+            "strategy_key": matrix_keys,
+            "research_ending_equity": research_ending.to_numpy(dtype=float),
+            "canonical_ending_equity": canonical_ending.to_numpy(dtype=float),
+        }
+    )
+
+
 def validate_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     event = inputs["event"]
     matrix = inputs["matrix"]
@@ -1494,12 +1554,16 @@ def validate_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     reconstructed = reconstruct_qualification(event, inputs["annual"])
     canonical = canonical_audit()
     canonical_failures = critical_failures(canonical)
-    ending = INITIAL_EQUITY * (1.0 + matrix).prod(axis=0)
-    stored = inputs["portfolio"].set_index("strategy_key").loc[
-        matrix.columns, "ending_equity"
-    ]
+    ending_parity = align_matching_snapshot_ending_equity(
+        matrix, inputs["portfolio"]
+    )
     reconstruction_error = float(
-        np.max(np.abs(ending.to_numpy(dtype=float) - stored.to_numpy(dtype=float)))
+        np.max(
+            np.abs(
+                ending_parity["research_ending_equity"].to_numpy(dtype=float)
+                - ending_parity["canonical_ending_equity"].to_numpy(dtype=float)
+            )
+        )
     )
     errors = []
     if matrix.shape[1] != 540 or len(set(matrix.columns)) != 540:
@@ -1522,7 +1586,9 @@ def validate_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
         errors.append("ranking_reconstruction")
     if reconstructed["ranked_keys"] != reconstructed["shuffled_ranked_keys"]:
         errors.append("ranking_row_order")
-    if reconstruction_error > NUMERIC_ATOL + NUMERIC_RTOL * float(stored.abs().max()):
+    if reconstruction_error > NUMERIC_ATOL + NUMERIC_RTOL * float(
+        ending_parity["canonical_ending_equity"].abs().max()
+    ):
         errors.append("ending_equity_reconstruction")
     errors.extend(canonical_failures)
     return {
