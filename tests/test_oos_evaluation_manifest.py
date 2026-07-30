@@ -9,11 +9,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "config" / "oos_evaluation_manifest.json"
+PROTOCOL_PATH = ROOT / "config" / "oos_evaluation_protocol_v1.json"
 DESIGN_PATH = ROOT / "docs" / "tasks" / "append_only_oos_evaluation_design.md"
 
 GENERATED_DATA_COMMIT = "e844f557820c0987eeea96424e261c6fde085a51"
 CALCULATION_SOURCE_COMMIT = "5b23b5d6070f4924e1afc53e7561c007663a0f0b"
 STRATEGY_KEY = "score_bo_l40_rm002_erp010__signal_3d_confirm__ma50"
+CONTRACT_MERGE_COMMIT = "f60f46e9c7bb4006ea8be22e76b5230b71dde1d5"
+CONTRACT_MERGED_AT_UTC = "2026-07-30T15:47:40Z"
 EXPECTED_SELECTION_ARTIFACTS = {
     "docs/data/backtest_summary.json": {
         "git_blob_sha": "24e0fb2fed68f642d3a48b899949c62ffd157de1",
@@ -34,6 +37,27 @@ EXPECTED_SELECTION_ARTIFACTS = {
         ),
     },
 }
+EXPECTED_FROZEN_SOURCE_BLOBS = {
+    "src/backtest.py": "984bcbc40fe6356d3d09109d381983ec49a5fb45",
+    "src/features.py": "ebc82a6fe3b8f37a00b6ca25f27d607940ca40d5",
+    "src/portfolio.py": "ac770dfa22b50952adbea66a28edb4173afde41c",
+    "src/universe.py": "760f388fa98fd6194c57c3c41b7f90704694efb8",
+    "src/prices.py": "d2707fb66570e9397b9eb51ec45074228e4cd65a",
+    "config/universe.yml": "decb4071c5c78918004b0b8fb9902d08d12bf595",
+    "config/exclusions.yml": "f20ad32321852911b1ee3b879133e8a770170a87",
+    "config/manual_overrides.csv": "a0fe92cc43079612525daa43861dc4fd671d3f3b",
+}
+EXPECTED_OPERATIONAL_SOURCE_BLOBS = {
+    ".github/workflows/daily_scan.yml": "f7f90158433408d691bb5d785bbf3c6cdfbe1cbf",
+    ".github/workflows/backtest-only.yml": (
+        "512650574bfca27068f088f0ee788fc982d5e740"
+    ),
+    "scripts/verify_data_publish_base.py": (
+        "e630394f5946901746c315654c95f5bd1bd3188c"
+    ),
+    "src/run_daily_scan.py": "4ab81ec06afb98fdd622645f04c9de6013c26683",
+    "src/run_backtest_only.py": "0ea7023b833fdbbff89b9fd5681301375c095839",
+}
 REQUIRED_FIELDS = {
     "manifest_version",
     "cohort_id",
@@ -44,6 +68,7 @@ REQUIRED_FIELDS = {
     "candidate_designation",
     "candidate",
     "activation",
+    "evaluation_protocol",
     "append_only",
     "no_backfill",
     "correction_policy",
@@ -85,7 +110,7 @@ def test_schema_and_exact_pinned_provenance() -> None:
     manifest = load_manifest()
 
     assert REQUIRED_FIELDS.issubset(manifest)
-    assert manifest["manifest_version"] == "2.0.0"
+    assert manifest["manifest_version"] == "2.1.0"
     assert manifest["cohort_id"] == "oos-0001"
     assert manifest["status"] == "proposed"
     assert manifest["append_only"] is True
@@ -117,8 +142,16 @@ def test_schema_and_exact_pinned_provenance() -> None:
         assert re.fullmatch(r"[0-9a-f]{40}", commit)
 
     contract_merge = manifest["contract_merge_provenance"]
-    assert contract_merge["commit"] is None
-    assert contract_merge["merged_at_utc"] is None
+    assert contract_merge["commit"] == CONTRACT_MERGE_COMMIT
+    assert contract_merge["merged_at_utc"] == CONTRACT_MERGED_AT_UTC
+    assert "authoritative PR #18 preregistration-contract merge" in contract_merge[
+        "role"
+    ]
+    assert "neither the collector implementation commit nor the collector activation commit" in (
+        contract_merge["role"]
+    )
+    assert "did not start OOS collection" in contract_merge["role"]
+    assert "did not create an eligible ex-ante decision" in contract_merge["role"]
 
 
 def test_provenance_timeline_does_not_imply_premature_activation() -> None:
@@ -143,15 +176,19 @@ def test_provenance_timeline_does_not_imply_premature_activation() -> None:
     assert "could not have been pinned before" in timeline[
         "selection_snapshot_pinning"
     ]
-    assert "authoritative only when PR #18 is merged" in timeline[
+    assert "became authoritative when PR #18 merged" in timeline[
         "contract_authority"
     ]
-    assert "remain null until a later activation event" in timeline[
-        "future_merge_fact"
+    assert CONTRACT_MERGE_COMMIT in timeline["contract_merge_fact"]
+    assert CONTRACT_MERGED_AT_UTC in timeline["contract_merge_fact"]
+    assert "without activating OOS collection" in timeline[
+        "contract_merge_fact"
     ]
 
-    assert manifest["contract_merge_provenance"]["merged_at_utc"] is None
-    assert activation["contract_merge"]["merged_at_utc"] is None
+    assert manifest["contract_merge_provenance"]["merged_at_utc"] == (
+        CONTRACT_MERGED_AT_UTC
+    )
+    assert activation["contract_merge"]["merged_at_utc"] == CONTRACT_MERGED_AT_UTC
     assert activation["collector_implementation_activation"][
         "activated_at_utc"
     ] is None
@@ -185,6 +222,9 @@ def test_candidate_identity_and_parameter_fingerprint_are_consistent() -> None:
         "round_trip_cost": 0.002,
     }
     assert parameter_fingerprint["algorithm"] == "sha256"
+    assert parameter_fingerprint["sha256"] == (
+        "5f7364c0cd3fb5c327db30d7b881970ed8dcefb87bdb06697bdbbd47729353aa"
+    )
     assert re.fullmatch(r"[0-9a-f]{64}", parameter_fingerprint["sha256"])
     assert canonical_sha256(snapshot) == parameter_fingerprint["sha256"]
 
@@ -218,6 +258,9 @@ def test_embedded_selection_row_is_the_immutable_source_of_truth() -> None:
     assert selected["time_gate_pass"] is True
     assert selected["parameter_gate_pass"] is True
     assert fingerprint["algorithm"] == "sha256"
+    assert fingerprint["sha256"] == (
+        "29a22ac630f3acfe462e5c3cbb9037e1563fc1498f761c8fdd1826dcfd23162d"
+    )
     assert canonical_sha256(selected) == fingerprint["sha256"]
 
     artifacts = evidence["selection_artifacts"]
@@ -238,6 +281,9 @@ def test_semantic_snapshot_fingerprint_and_source_blobs_are_valid() -> None:
     snapshot = fingerprint["snapshot"]
 
     assert fingerprint["algorithm"] == "sha256"
+    assert fingerprint["sha256"] == (
+        "1d31be17d656cd86eedb34d1ca64e5172e1491a371d4907bfa6f18fffb551b92"
+    )
     assert canonical_sha256(snapshot) == fingerprint["sha256"]
     assert snapshot["strategy_identity"]["strategy_key"] == STRATEGY_KEY
     assert snapshot["transaction_cost"]["round_trip_rate"] == 0.002
@@ -252,6 +298,10 @@ def test_semantic_snapshot_fingerprint_and_source_blobs_are_valid() -> None:
     }
 
     assert frozen["source_blobs"]
+    assert {
+        path: source["git_blob_sha"]
+        for path, source in frozen["source_blobs"].items()
+    } == EXPECTED_FROZEN_SOURCE_BLOBS
     for path, source in frozen["source_blobs"].items():
         assert path
         assert source["commit"] == CALCULATION_SOURCE_COMMIT
@@ -305,6 +355,10 @@ def test_operational_baselines_require_explicit_compatibility_check() -> None:
         "src/run_backtest_only.py",
     }
     assert set(operational["source_blobs"]) == expected_paths
+    assert {
+        path: source["git_blob_sha"]
+        for path, source in operational["source_blobs"].items()
+    } == EXPECTED_OPERATIONAL_SOURCE_BLOBS
     for source in operational["source_blobs"].values():
         assert re.fullmatch(r"[0-9a-f]{40}", source["git_blob_sha"])
         assert source["role"]
@@ -319,14 +373,14 @@ def test_proposed_status_keeps_every_activation_fact_unresolved() -> None:
         "first_eligible_ex_ante_decision_recorded_after_collector_activation"
     )
     assert activation["contract_merge"] == {
-        "commit": None,
-        "merged_at_utc": None,
+        "commit": CONTRACT_MERGE_COMMIT,
+        "merged_at_utc": CONTRACT_MERGED_AT_UTC,
     }
     assert activation["collector_implementation_activation"] == {
         "commit": None,
         "activated_at_utc": None,
     }
-    assert activation["approved_evaluation_protocol_version"] is None
+    assert activation["approved_evaluation_protocol_version"] == "oos-eval-v1.0.0"
     assert activation["first_eligible_ex_ante_decision"] == {
         "record_id": None,
         "economic_date": None,
@@ -341,11 +395,29 @@ def test_proposed_status_keeps_every_activation_fact_unresolved() -> None:
     assert blockers
     assert all(item["blocking"] is True for item in blockers)
     assert {item["id"] for item in blockers} == {
-        "contract-merge-fact",
         "collector-implementation-and-activation",
-        "evaluation-protocol-and-maturity-thresholds",
         "first-eligible-ex-ante-decision",
     }
+
+
+def test_manifest_references_exact_approved_protocol_fingerprint() -> None:
+    manifest = load_manifest()
+    protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
+    reference = manifest["evaluation_protocol"]
+
+    assert reference == {
+        "protocol_version": "oos-eval-v1.0.0",
+        "path": "config/oos_evaluation_protocol_v1.json",
+        "status": "approved_pre_activation",
+        "canonical_sha256": (
+            "e2b84b905c513ee73dfd36f918ce6723aa847570849ee65ddcba4a862b4ab5f5"
+        ),
+        "canonicalization": (
+            "UTF-8 JSON with sorted keys, no insignificant whitespace, "
+            "ensure_ascii=false, and allow_nan=false"
+        ),
+    }
+    assert canonical_sha256(protocol) == reference["canonical_sha256"]
 
 
 def test_candidate_terminology_cannot_imply_live_approval() -> None:
