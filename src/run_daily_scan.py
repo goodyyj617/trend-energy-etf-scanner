@@ -27,6 +27,13 @@ def to_jsonable(df: pd.DataFrame) -> list[dict]:
     return clean.to_dict(orient="records")
 
 
+def _update_aum_cache_safely() -> None:
+    try:
+        update_aum_csv()
+    except Exception as e:
+        print(f"[AUM] update failed, continuing scan with existing config/aum.csv: {e}")
+
+
 def main() -> None:
     cfg = load_config()
 
@@ -35,17 +42,7 @@ def main() -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     history_dir.mkdir(parents=True, exist_ok=True)
 
-    auto_aum_cfg = cfg.get("auto_aum", {})
-    if auto_aum_cfg.get("enabled", False):
-        try:
-            update_aum_csv(
-                aum_csv=ROOT / "config" / "aum.csv",
-                exclusions_yml=ROOT / "config" / "exclusions.yml",
-                max_new_per_run=int(auto_aum_cfg.get("max_new_per_run", 200)),
-                refresh_existing=bool(auto_aum_cfg.get("refresh_existing", False)),
-            )
-        except Exception as e:
-            print(f"[AUM] update failed, continuing scan with existing config/aum.csv: {e}")
+    _update_aum_cache_safely()
 
     universe = build_base_universe(
         aum_csv=ROOT / "config" / "aum.csv",
