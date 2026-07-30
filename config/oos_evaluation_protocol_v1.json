@@ -1,0 +1,224 @@
+{
+  "protocol_version": "oos-eval-v1.0.0",
+  "cohort_id": "oos-0001",
+  "status": "approved_pre_activation",
+  "purpose": "Preregister evidence-availability rules and a deterministic first evaluation cutoff before any OOS collection or outcome inspection.",
+  "contract_baseline": {
+    "contract_merge_commit": "f60f46e9c7bb4006ea8be22e76b5230b71dde1d5",
+    "contract_merged_at_utc": "2026-07-30T15:47:40Z",
+    "contract_became_authoritative": true,
+    "oos_collection_activated": false,
+    "is_collector_activation_commit": false,
+    "eligible_oos_decision_created": false,
+    "interpretation": "The PR #18 merge made the preregistration contract authoritative. It did not activate collection, is not a collector activation commit, and did not create an eligible OOS decision."
+  },
+  "activation_state": {
+    "collector_implementation_commit": null,
+    "collector_activation_commit": null,
+    "collector_activated_at_utc": null,
+    "first_eligible_ex_ante_decision_id": null,
+    "first_eligible_ex_ante_decision_date": null,
+    "first_eligible_ex_ante_decision_recorded_at_utc": null,
+    "oos_collection_started": false
+  },
+  "maturity": {
+    "meaning": "Evidence availability for review only; not a profitability result, qualification gate, production approval, deployment decision, or rejection decision.",
+    "all_conditions_required": true,
+    "allowed_labels": [
+      "Immature",
+      "Mature for review"
+    ],
+    "forbidden_labels": [
+      "Pass",
+      "Fail",
+      "Qualified",
+      "Production approved",
+      "Deploy",
+      "Reject"
+    ],
+    "requirements": {
+      "completed_trades": {
+        "minimum_completed_trades": 100,
+        "required": true,
+        "definition": "One effective-view completed trade belonging to oos-0001, originating from an eligible post-activation ex-ante decision, with a valid append-only outcome record and a realized exit under frozen strategy rules.",
+        "count_once_in_effective_correction_view": true,
+        "excluded": [
+          "skipped entries",
+          "pre-activation positions",
+          "cancelled intentions",
+          "duplicate records",
+          "open positions",
+          "retrospectively reconstructed trades",
+          "records with unresolved integrity conflicts"
+        ]
+      },
+      "eligible_sessions": {
+        "minimum_eligible_sessions": 252,
+        "required": true,
+        "unit": "distinct post-activation market session",
+        "maximum_count_per_economic_date": 1,
+        "requirements": [
+          "valid immutable session decision snapshot",
+          "realized eligible-universe snapshot hash",
+          "required dynamic-input hashes",
+          "valid portfolio state or portfolio mark",
+          "no unresolved record conflict"
+        ],
+        "symbol_signal_and_trade_counts_do_not_multiply_sessions": true
+      },
+      "elapsed_time": {
+        "minimum_elapsed_calendar_months": 12,
+        "required": true,
+        "measured_from": "economic date of the first eligible post-activation ex-ante decision",
+        "passes_when": "evaluation cutoff is at least 12 calendar months after the first eligible decision date",
+        "high_trade_count_cannot_substitute": true
+      },
+      "session_coverage": {
+        "minimum_valid_session_coverage_ratio": 0.98,
+        "required": true,
+        "numerator": "valid eligible sessions",
+        "denominator": "expected market sessions from the first eligible decision through the evaluation cutoff",
+        "missing_sessions_count_as_valid": false,
+        "interpolation_allowed": false,
+        "reconstruction_allowed": false,
+        "required_diagnostics": [
+          "missing-session count",
+          "longest missing-session gap"
+        ],
+        "unresolved_conflicts_prevent_maturity": true,
+        "market_calendar_must_be_frozen_before_activation": true,
+        "market_calendar_source": null,
+        "market_calendar_version": null,
+        "perfect_coverage_required": false
+      }
+    },
+    "integrity_preconditions": {
+      "unresolved_duplicate_conflicts": 0,
+      "unresolved_correction_conflicts": 0,
+      "unresolved_identity_conflicts": 0
+    }
+  },
+  "evaluation_trigger": {
+    "type": "first_month_end_after_all_maturity_conditions_are_met",
+    "discretionary_evaluation_date_allowed": false,
+    "maturity_evaluated_only_at_calendar_month_end": true,
+    "economic_cutoff": "last completed market session on or before the calendar month-end",
+    "rules": [
+      "If all thresholds are first reached during a month, wait until that calendar month-end.",
+      "The first mature snapshot is immutable and is never replaced by a later, more favorable cutoff.",
+      "Subsequent monitoring snapshots identify themselves as later follow-ups and never overwrite the primary maturity snapshot."
+    ],
+    "primary_snapshot_immutable": true,
+    "follow_up_snapshots_must_be_identified": true
+  },
+  "interim_reporting": {
+    "allowed_after_collector_activation": true,
+    "cadence": "monthly",
+    "required_label": "Immature — descriptive monitoring only",
+    "prohibited_uses": [
+      "change the candidate",
+      "change the protocol",
+      "change maturity thresholds",
+      "change strategy semantics",
+      "present results as OOS validation",
+      "trigger production approval",
+      "choose a more favorable evaluation cutoff"
+    ]
+  },
+  "open_position_policy": {
+    "remain_open_at_cutoff": true,
+    "synthetic_or_forced_exit_allowed": false,
+    "count_as_completed_trade": false,
+    "included_in_completed_trade_metrics": false,
+    "included_in_portfolio_mark_to_market_metrics": true,
+    "required_reporting": [
+      "open-position count",
+      "gross exposure",
+      "net exposure",
+      "unrealized P&L",
+      "oldest open-position age",
+      "capital allocated to open positions"
+    ],
+    "later_realized_exit_policy": "Append a later outcome record; never rewrite the earlier evaluation snapshot."
+  },
+  "missing_session_policy": {
+    "counts_as_eligible_session": false,
+    "decision_backfill_allowed": false,
+    "listed_in_data_quality_diagnostics": true,
+    "remains_in_coverage_denominator": true,
+    "interpolation_allowed": false,
+    "later_outage_or_correction_record_allowed": true,
+    "later_record_cannot_claim_ex_ante_capture": true,
+    "vendor_corrections_are_append_only": true,
+    "original_observation_rewrite_allowed": false
+  },
+  "locked_reporting_set": {
+    "interpretation": "Locked reporting definitions, not automatic approval gates.",
+    "data_sufficiency_and_integrity": [
+      "completed-trade count",
+      "eligible-session count",
+      "elapsed calendar months",
+      "expected-session count",
+      "valid-session coverage ratio",
+      "missing-session count",
+      "longest missing-session gap",
+      "correction count",
+      "unresolved-conflict count",
+      "open-position count"
+    ],
+    "canonical_portfolio_metrics": [
+      "initial equity",
+      "ending equity",
+      "net total return",
+      "CAGR when at least 252 eligible sessions exist",
+      "annualized volatility",
+      "Sharpe ratio under the existing repository convention",
+      "maximum drawdown",
+      "existing CDaR 95 definition",
+      "Calmar ratio when mathematically defined",
+      "turnover",
+      "total transaction costs",
+      "average gross exposure",
+      "maximum gross exposure",
+      "SPY return on exact common economic dates",
+      "net excess return versus SPY"
+    ],
+    "completed_trade_diagnostics": [
+      "completed trades",
+      "trade win rate",
+      "mean net trade return",
+      "median net trade return",
+      "Profit Factor",
+      "worst trade",
+      "10th-percentile trade return",
+      "average holding period",
+      "stop-exit rate",
+      "maximum-hold exit rate"
+    ],
+    "post_outcome_metric_addition_policy": "A metric added after OOS results are observed requires a separately versioned secondary analysis protocol."
+  },
+  "protocol_change_control": {
+    "before_activation": {
+      "reviewed_pull_request_required": true,
+      "version_change_required": true,
+      "documented_rationale_required": true
+    },
+    "after_activation": {
+      "thresholds_immutable_for_cohort": true,
+      "primary_evaluation_trigger_immutable_for_cohort": true,
+      "retroactive_primary_evaluation_change_allowed": false,
+      "exploratory_or_sensitivity_analysis_requires_new_protocol_version": true,
+      "material_strategy_or_economic_change_requires_new_cohort": true,
+      "later_backtest_rankings_may_modify_cohort_or_protocol": false
+    }
+  },
+  "scope": {
+    "design_and_configuration_only": true,
+    "collector_implemented": false,
+    "collector_activated": false,
+    "oos_ledger_created": false,
+    "oos_outcomes_inspected": false,
+    "performance_gate_added": false,
+    "production_approval_added": false
+  }
+}

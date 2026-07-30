@@ -1,5 +1,5 @@
 {
-  "manifest_version": "2.0.0",
+  "manifest_version": "2.1.0",
   "cohort_id": "oos-0001",
   "status": "proposed",
   "repository": {
@@ -58,7 +58,7 @@
       "commit": null,
       "activated_at_utc": null
     },
-    "approved_evaluation_protocol_version": null,
+    "approved_evaluation_protocol_version": "oos-eval-v1.0.0",
     "first_eligible_ex_ante_decision": {
       "record_id": null,
       "economic_date": null,
@@ -69,6 +69,13 @@
     "pre_activation_positions_are_eligible": false,
     "outcome_eligibility": "An outcome is OOS-eligible only when it references an eligible post-activation ex-ante decision record.",
     "no_retrospective_backfill": true
+  },
+  "evaluation_protocol": {
+    "protocol_version": "oos-eval-v1.0.0",
+    "path": "config/oos_evaluation_protocol_v1.json",
+    "status": "approved_pre_activation",
+    "canonical_sha256": "e2b84b905c513ee73dfd36f918ce6723aa847570849ee65ddcba4a862b4ab5f5",
+    "canonicalization": "UTF-8 JSON with sorted keys, no insignificant whitespace, ensure_ascii=false, and allow_nan=false"
   },
   "append_only": true,
   "no_backfill": true,
@@ -326,11 +333,6 @@
       "id": "collector-implementation-and-activation",
       "blocking": true,
       "description": "No append-only collector, activation mechanism, empty-ledger validation, or collector activation commit exists in this design-only PR."
-    },
-    {
-      "id": "evaluation-protocol-and-maturity-thresholds",
-      "blocking": true,
-      "description": "A reviewed implementation must approve an evaluation-protocol version and maturity thresholds without consulting OOS outcomes."
     },
     {
       "id": "first-eligible-ex-ante-decision",

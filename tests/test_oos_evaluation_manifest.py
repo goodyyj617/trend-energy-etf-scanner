@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "config" / "oos_evaluation_manifest.json"
+PROTOCOL_PATH = ROOT / "config" / "oos_evaluation_protocol_v1.json"
 DESIGN_PATH = ROOT / "docs" / "tasks" / "append_only_oos_evaluation_design.md"
 
 GENERATED_DATA_COMMIT = "e844f557820c0987eeea96424e261c6fde085a51"
@@ -44,6 +45,7 @@ REQUIRED_FIELDS = {
     "candidate_designation",
     "candidate",
     "activation",
+    "evaluation_protocol",
     "append_only",
     "no_backfill",
     "correction_policy",
@@ -85,7 +87,7 @@ def test_schema_and_exact_pinned_provenance() -> None:
     manifest = load_manifest()
 
     assert REQUIRED_FIELDS.issubset(manifest)
-    assert manifest["manifest_version"] == "2.0.0"
+    assert manifest["manifest_version"] == "2.1.0"
     assert manifest["cohort_id"] == "oos-0001"
     assert manifest["status"] == "proposed"
     assert manifest["append_only"] is True
@@ -326,7 +328,7 @@ def test_proposed_status_keeps_every_activation_fact_unresolved() -> None:
         "commit": None,
         "activated_at_utc": None,
     }
-    assert activation["approved_evaluation_protocol_version"] is None
+    assert activation["approved_evaluation_protocol_version"] == "oos-eval-v1.0.0"
     assert activation["first_eligible_ex_ante_decision"] == {
         "record_id": None,
         "economic_date": None,
@@ -343,9 +345,28 @@ def test_proposed_status_keeps_every_activation_fact_unresolved() -> None:
     assert {item["id"] for item in blockers} == {
         "contract-merge-fact",
         "collector-implementation-and-activation",
-        "evaluation-protocol-and-maturity-thresholds",
         "first-eligible-ex-ante-decision",
     }
+
+
+def test_manifest_references_exact_approved_protocol_fingerprint() -> None:
+    manifest = load_manifest()
+    protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
+    reference = manifest["evaluation_protocol"]
+
+    assert reference == {
+        "protocol_version": "oos-eval-v1.0.0",
+        "path": "config/oos_evaluation_protocol_v1.json",
+        "status": "approved_pre_activation",
+        "canonical_sha256": (
+            "e2b84b905c513ee73dfd36f918ce6723aa847570849ee65ddcba4a862b4ab5f5"
+        ),
+        "canonicalization": (
+            "UTF-8 JSON with sorted keys, no insignificant whitespace, "
+            "ensure_ascii=false, and allow_nan=false"
+        ),
+    }
+    assert canonical_sha256(protocol) == reference["canonical_sha256"]
 
 
 def test_candidate_terminology_cannot_imply_live_approval() -> None:
