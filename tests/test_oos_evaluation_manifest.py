@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 
@@ -38,7 +39,8 @@ REQUIRED_FIELDS = {
     "cohort_id",
     "status",
     "repository",
-    "created_at_utc",
+    "initial_design_created_at_utc",
+    "provenance_timeline_interpretation",
     "candidate_designation",
     "candidate",
     "activation",
@@ -72,6 +74,13 @@ def canonical_sha256(value: object) -> str:
     return hashlib.sha256(serialized).hexdigest()
 
 
+def parse_utc(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    assert parsed.tzinfo is not None
+    assert parsed.utcoffset() == timezone.utc.utcoffset(parsed)
+    return parsed
+
+
 def test_schema_and_exact_pinned_provenance() -> None:
     manifest = load_manifest()
 
@@ -81,6 +90,7 @@ def test_schema_and_exact_pinned_provenance() -> None:
     assert manifest["status"] == "proposed"
     assert manifest["append_only"] is True
     assert manifest["no_backfill"] is True
+    assert "created_at_utc" not in manifest
 
     categories = manifest["provenance_categories"]
     assert set(categories) == PROVENANCE_CATEGORIES
@@ -91,6 +101,9 @@ def test_schema_and_exact_pinned_provenance() -> None:
     assert frozen["calculation_source_commit"] == CALCULATION_SOURCE_COMMIT
     assert operational["baseline_source_commit"] == CALCULATION_SOURCE_COMMIT
     assert evidence["generated_data_commit"] == GENERATED_DATA_COMMIT
+    assert evidence["generated_data_commit_created_at_utc"] == (
+        "2026-07-30T15:09:14Z"
+    )
     assert evidence["generated_from_source_commit"] == CALCULATION_SOURCE_COMMIT
     assert evidence["generated_commit_direct_parent_verified"] is True
     assert evidence["artifact_as_of"] == "2026-07-29"
@@ -106,6 +119,46 @@ def test_schema_and_exact_pinned_provenance() -> None:
     contract_merge = manifest["contract_merge_provenance"]
     assert contract_merge["commit"] is None
     assert contract_merge["merged_at_utc"] is None
+
+
+def test_provenance_timeline_does_not_imply_premature_activation() -> None:
+    manifest = load_manifest()
+    evidence = manifest["provenance_categories"][
+        "immutable_candidate_selection_evidence"
+    ]
+    activation = manifest["activation"]
+
+    initial_design_time = parse_utc(manifest["initial_design_created_at_utc"])
+    generated_data_time = parse_utc(
+        evidence["generated_data_commit_created_at_utc"]
+    )
+    artifact_as_of = date.fromisoformat(evidence["artifact_as_of"])
+
+    assert manifest["initial_design_created_at_utc"] == "2026-07-28T17:30:13Z"
+    assert initial_design_time < generated_data_time
+    assert artifact_as_of <= generated_data_time.date()
+
+    timeline = manifest["provenance_timeline_interpretation"]
+    assert "initial design existed on 2026-07-28" in timeline["initial_design"]
+    assert "could not have been pinned before" in timeline[
+        "selection_snapshot_pinning"
+    ]
+    assert "authoritative only when PR #18 is merged" in timeline[
+        "contract_authority"
+    ]
+    assert "remain null until a later activation event" in timeline[
+        "future_merge_fact"
+    ]
+
+    assert manifest["contract_merge_provenance"]["merged_at_utc"] is None
+    assert activation["contract_merge"]["merged_at_utc"] is None
+    assert activation["collector_implementation_activation"][
+        "activated_at_utc"
+    ] is None
+    assert activation["first_eligible_ex_ante_decision"][
+        "recorded_at_utc"
+    ] is None
+    assert activation["activation_event_recorded"] is False
 
 
 def test_candidate_identity_and_parameter_fingerprint_are_consistent() -> None:

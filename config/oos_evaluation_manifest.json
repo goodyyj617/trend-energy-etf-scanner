@@ -7,7 +7,13 @@
     "url": "https://github.com/goodyyj617/trend-energy-etf-scanner",
     "default_branch": "main"
   },
-  "created_at_utc": "2026-07-28T17:30:13Z",
+  "initial_design_created_at_utc": "2026-07-28T17:30:13Z",
+  "provenance_timeline_interpretation": {
+    "initial_design": "The initial design existed on 2026-07-28.",
+    "selection_snapshot_pinning": "The current selection snapshot could not have been pinned before its generated-data commit existed.",
+    "contract_authority": "The preregistration contract becomes authoritative only when PR #18 is merged.",
+    "future_merge_fact": "The actual PR #18 merge commit and timestamp remain null until a later activation event records them."
+  },
   "candidate_designation": {
     "selection_snapshot_label": "Current Backtest Qualified rank-1 candidate at the pinned selection snapshot",
     "cohort_label": "Frozen OOS evaluation candidate",
@@ -194,6 +200,7 @@
       "classification": "Immutable historical evidence identifying why this candidate was selected at preregistration. Later Backtest runs and rank changes do not mutate or invalidate this cohort.",
       "artifact_as_of": "2026-07-29",
       "generated_data_commit": "e844f557820c0987eeea96424e261c6fde085a51",
+      "generated_data_commit_created_at_utc": "2026-07-30T15:09:14Z",
       "generated_from_source_commit": "5b23b5d6070f4924e1afc53e7561c007663a0f0b",
       "generated_commit_direct_parent_verified": true,
       "selection_contract": "The unique row with qualification_rank equal to 1 and qualification_tier equal to Qualified under the Backtest ranking function src/backtest.py::rank_strategy_summary at this pinned snapshot.",

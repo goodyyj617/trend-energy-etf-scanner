@@ -21,6 +21,16 @@ The immutable selection facts are:
 
 The generated-data commit is a direct child of the calculation source commit. The proposed PR #18 contract merge is a different, later provenance fact and does not exist yet. No future merge commit or timestamp is synthesized.
 
+## Provenance timeline
+
+1. Initial design creation: `2026-07-28T17:30:13Z`.
+2. Selected Backtest artifact `as_of`: `2026-07-29`.
+3. Provenance-safe generated-data commit: `e844f557820c0987eeea96424e261c6fde085a51`, created at `2026-07-30T15:09:14Z`.
+4. PR #18 contract merge: unresolved and not yet authoritative.
+5. Collector activation and first eligible ex-ante decision: unresolved.
+
+The initial design predates the evidence, but the current selection snapshot could not have been pinned before the generated-data commit existed. The preregistration contract becomes authoritative only when PR #18 is eventually merged. The real merge commit and timestamp remain null until a later activation event records them; the branch update commit is not used as that future merge fact. None of the dates before the eventual PR #18 merge constitute OOS activation.
+
 ## Candidate identity
 
 The candidate parameter fingerprint covers this complete resolved identity:
