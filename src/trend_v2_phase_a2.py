@@ -94,7 +94,9 @@ def sha256_file(path: Path) -> str:
 
 def _git_head(root: Path) -> str:
     return subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=root, text=True
+        ["git", "-c", f"safe.directory={root.as_posix()}", "rev-parse", "HEAD"],
+        cwd=root,
+        text=True,
     ).strip()
 
 
@@ -182,6 +184,7 @@ def collect_and_freeze_snapshot(
     collection_time = now or datetime.now(timezone.utc)
     if collection_time.tzinfo is None or collection_time.utcoffset() is None:
         raise ValueError("collection time must be timezone-aware")
+    collector_commit = source_code_commit or _git_head(root)
 
     config_dir = root / "config"
     paths = {
@@ -250,7 +253,7 @@ def collect_and_freeze_snapshot(
     cfg = _load_universe_config(paths["universe_config"])
     manifest: dict[str, Any] = {
         "schema_version": SNAPSHOT_SCHEMA_VERSION,
-        "source_code_commit": source_code_commit or _git_head(root),
+        "source_code_commit": collector_commit,
         "utc_collection_time": collection_time.astimezone(timezone.utc).isoformat(),
         "retained_minimum_economic_date": dates.min().date().isoformat(),
         "retained_maximum_economic_date": dates.max().date().isoformat(),
