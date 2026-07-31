@@ -1397,6 +1397,9 @@ def run_phase_a_signal_comparison(
     lifecycle_frames = []
     metric_rows = []
     curve_frames = []
+    # Phase A permits only the canonical construction rule, so build its price
+    # panel once and reuse it across every signal/control path.
+    price_panel = build_price_panel(ordered)
     for key, events in signal_events.items():
         lifecycle = simulate_signal_lifecycles(
             ordered,
@@ -1407,10 +1410,10 @@ def run_phase_a_signal_comparison(
         )
         if not lifecycle.empty:
             lifecycle_frames.append(lifecycle)
-        curve = selected.portfolio_construction.construct(
+        curve = simulate_canonical_portfolio(
             lifecycle,
-            ordered,
-            round_trip_cost,
+            price_panel,
+            round_trip_cost=round_trip_cost,
         )
         curve_with_key = curve.copy()
         curve_with_key["strategy_key"] = key

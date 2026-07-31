@@ -15,7 +15,7 @@ import pandas as pd
 import yaml
 
 from .backtest import build_historical_features
-from .portfolio import PORTFOLIO_INITIAL_CAPITAL
+from .portfolio import PricePanel, build_price_panel, simulate_canonical_portfolio
 from .postprocess_groups import classify_group
 from .prices import download_ohlcv, filter_completed_daily_bars
 from .trend_v2 import (
@@ -25,7 +25,6 @@ from .trend_v2 import (
     SCORE_LOOKBACK_GRID,
     PhaseAComparisonResult,
     classify_score_breakout,
-    default_phase_a_components,
     run_phase_a_signal_comparison,
 )
 from .universe import build_base_universe
@@ -582,7 +581,7 @@ def holm_adjust(raw_p_values: Mapping[str, float], *, alpha: float = HOLM_ALPHA)
 
 def _restricted_curve(
     comparison: PhaseAComparisonResult,
-    features: pd.DataFrame,
+    panel: PricePanel,
     strategy_key: str,
     asset_group: str,
 ) -> pd.DataFrame:
@@ -594,8 +593,8 @@ def _restricted_curve(
             lifecycles["strategy_key"].astype(str).eq(strategy_key)
             & lifecycles["asset_group"].fillna("unknown").astype(str).eq(asset_group)
         ]
-    curve = default_phase_a_components().portfolio_construction.construct(
-        selected, features, ROUND_TRIP_COST
+    curve = simulate_canonical_portfolio(
+        selected, panel, round_trip_cost=ROUND_TRIP_COST
     )
     curve = curve.copy()
     curve["strategy_key"] = strategy_key
@@ -613,10 +612,11 @@ def build_asset_group_concentration(
         lifecycle["strategy_key"].astype(str).isin([score_key, comparator_key])
     ] if not lifecycle.empty else lifecycle
     groups = sorted(relevant["asset_group"].fillna("unknown").astype(str).unique().tolist())
+    panel = build_price_panel(features)
     effects: list[dict[str, Any]] = []
     for group in groups:
-        score_curve = _restricted_curve(comparison, features, score_key, group)
-        comparator_curve = _restricted_curve(comparison, features, comparator_key, group)
+        score_curve = _restricted_curve(comparison, panel, score_key, group)
+        comparator_curve = _restricted_curve(comparison, panel, comparator_key, group)
         curves = pd.concat([score_curve, comparator_curve], ignore_index=True)
         common = paired_daily_returns(curves, score_key, comparator_key)
         effects.append(
