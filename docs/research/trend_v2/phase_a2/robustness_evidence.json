@@ -1,0 +1,730 @@
+{
+  "candidate_evidence": {
+    "score_breakout_l10": {
+      "asset_group_concentration_diagnostics": {
+        "additivity_claimed": false,
+        "comparator": "prior_price_high_l20",
+        "dominant_effect_share": 0.4706906236857056,
+        "dominant_group": "Commodity",
+        "effect_by_asset_group": [
+          {
+            "annualized_mean_daily_return_effect": -0.0032883560877490494,
+            "asset_group": "Bond"
+          },
+          {
+            "annualized_mean_daily_return_effect": 0.030286340746037352,
+            "asset_group": "Commodity"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.0040593849587937806,
+            "asset_group": "Country / Region"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.01575177114350407,
+            "asset_group": "Crypto"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.002162206168965875,
+            "asset_group": "Factor / Style"
+          },
+          {
+            "annualized_mean_daily_return_effect": 0.019660349200182083,
+            "asset_group": "Global Equity"
+          },
+          {
+            "annualized_mean_daily_return_effect": 0.014397784368740486,
+            "asset_group": "Industry / Theme"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.013702508892451648,
+            "asset_group": "Other"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.004324705913732322,
+            "asset_group": "REIT / Infra"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.008456038235990525,
+            "asset_group": "Sector"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.021680430547666413,
+            "asset_group": "US Equity"
+          }
+        ],
+        "measure": "non_additive_group_restricted_portfolio_annualized_mean_daily_return_effect",
+        "missing_or_unclassified_group_share": 0.16677766149747883,
+        "positive_effect_total": 0.06434447431495993
+      },
+      "corrected_evidence_pass": false,
+      "date_block_bootstrap_paired_effect_confidence_interval": [
+        -0.02513247367312998,
+        0.005316671816869968
+      ],
+      "event_count_comparability": true,
+      "executable_trigger_count_comparability": true,
+      "leave_one_year_out_result_count": 9,
+      "leave_one_year_out_stability_ratio": 1.0,
+      "multiple_testing_adjusted_p_value": 1.0,
+      "walk_forward_fold_count": 6,
+      "walk_forward_improvement_ratio": 0.3333333333333333
+    },
+    "score_breakout_l20": {
+      "asset_group_concentration_diagnostics": {
+        "additivity_claimed": false,
+        "comparator": "prior_price_high_l20",
+        "dominant_effect_share": 0.3590095522057907,
+        "dominant_group": "Industry / Theme",
+        "effect_by_asset_group": [
+          {
+            "annualized_mean_daily_return_effect": 0.002377848813876265,
+            "asset_group": "Bond"
+          },
+          {
+            "annualized_mean_daily_return_effect": 0.017788361933509085,
+            "asset_group": "Commodity"
+          },
+          {
+            "annualized_mean_daily_return_effect": 0.004912990956271704,
+            "asset_group": "Country / Region"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.0028569795952723353,
+            "asset_group": "Crypto"
+          },
+          {
+            "annualized_mean_daily_return_effect": 0.011334769656788837,
+            "asset_group": "Factor / Style"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.009051475105577045,
+            "asset_group": "Global Equity"
+          },
+          {
+            "annualized_mean_daily_return_effect": 0.021016146160584007,
+            "asset_group": "Industry / Theme"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.0185928841571962,
+            "asset_group": "Other"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.024099980098938347,
+            "asset_group": "REIT / Infra"
+          },
+          {
+            "annualized_mean_daily_return_effect": 0.0011091219823724289,
+            "asset_group": "Sector"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.005230937156322333,
+            "asset_group": "US Equity"
+          }
+        ],
+        "measure": "non_additive_group_restricted_portfolio_annualized_mean_daily_return_effect",
+        "missing_or_unclassified_group_share": 0.16801350862380895,
+        "positive_effect_total": 0.058539239503402334
+      },
+      "corrected_evidence_pass": false,
+      "date_block_bootstrap_paired_effect_confidence_interval": [
+        -0.0088930760539191,
+        0.015311751380588618
+      ],
+      "event_count_comparability": true,
+      "executable_trigger_count_comparability": true,
+      "leave_one_year_out_result_count": 9,
+      "leave_one_year_out_stability_ratio": 0.7777777777777778,
+      "multiple_testing_adjusted_p_value": 0.9172165566886623,
+      "walk_forward_fold_count": 6,
+      "walk_forward_improvement_ratio": 0.5
+    },
+    "score_breakout_l40": {
+      "asset_group_concentration_diagnostics": {
+        "additivity_claimed": false,
+        "comparator": "prior_price_high_l20",
+        "dominant_effect_share": 0.9304714693893614,
+        "dominant_group": "Bond",
+        "effect_by_asset_group": [
+          {
+            "annualized_mean_daily_return_effect": 0.004107770984809608,
+            "asset_group": "Bond"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.022030999495140664,
+            "asset_group": "Commodity"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.0058166817832238735,
+            "asset_group": "Country / Region"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.09701273638525579,
+            "asset_group": "Crypto"
+          },
+          {
+            "annualized_mean_daily_return_effect": 0.00030694899312309117,
+            "asset_group": "Factor / Style"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.029443283154479076,
+            "asset_group": "Global Equity"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.0009939228780102597,
+            "asset_group": "Industry / Theme"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.02959238675085947,
+            "asset_group": "Other"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.07993346908522718,
+            "asset_group": "REIT / Infra"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.0463099351620973,
+            "asset_group": "Sector"
+          },
+          {
+            "annualized_mean_daily_return_effect": -0.013839037697045553,
+            "asset_group": "US Equity"
+          }
+        ],
+        "measure": "non_additive_group_restricted_portfolio_annualized_mean_daily_return_effect",
+        "missing_or_unclassified_group_share": 0.1707395498392283,
+        "positive_effect_total": 0.004414719977932699
+      },
+      "corrected_evidence_pass": false,
+      "date_block_bootstrap_paired_effect_confidence_interval": [
+        -0.030148130722144447,
+        0.007895026036262659
+      ],
+      "event_count_comparability": true,
+      "executable_trigger_count_comparability": true,
+      "leave_one_year_out_result_count": 9,
+      "leave_one_year_out_stability_ratio": 1.0,
+      "multiple_testing_adjusted_p_value": 1.0,
+      "walk_forward_fold_count": 6,
+      "walk_forward_improvement_ratio": 0.5
+    }
+  },
+  "complete_calendar_years": [
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "date_block_bootstrap": {
+    "score_breakout_l10": {
+      "block_rule": "stationary_bootstrap_geometric_blocks",
+      "common_date_count": 2513,
+      "common_end_date": "2026-07-30",
+      "common_start_date": "2016-08-01",
+      "confidence_interval_95": [
+        -0.02513247367312998,
+        0.005316671816869968
+      ],
+      "index_matrix_sha256": "832bc074f7687444ed13100e2ae37b08557b2011228044719c58cea93466f46f",
+      "mean_block_length": 20,
+      "paired_annualized_effect_estimate": -0.00915435805792206,
+      "path_count": 5000,
+      "seed": 260731,
+      "unadjusted_one_sided_p_value": 0.890621875624875
+    },
+    "score_breakout_l20": {
+      "block_rule": "stationary_bootstrap_geometric_blocks",
+      "common_date_count": 2513,
+      "common_end_date": "2026-07-30",
+      "common_start_date": "2016-08-01",
+      "confidence_interval_95": [
+        -0.0088930760539191,
+        0.015311751380588618
+      ],
+      "index_matrix_sha256": "ae4ac14f3d3d06d77db66b1c123c56b8a65c582f45923b7871eefeadfaa4c991",
+      "mean_block_length": 20,
+      "paired_annualized_effect_estimate": 0.0030997005040958024,
+      "path_count": 5000,
+      "seed": 260732,
+      "unadjusted_one_sided_p_value": 0.3057388522295541
+    },
+    "score_breakout_l40": {
+      "block_rule": "stationary_bootstrap_geometric_blocks",
+      "common_date_count": 2513,
+      "common_end_date": "2026-07-30",
+      "common_start_date": "2016-08-01",
+      "confidence_interval_95": [
+        -0.030148130722144447,
+        0.007895026036262659
+      ],
+      "index_matrix_sha256": "b3e35d85dad174a8c2928767f3dd899348f8ea181cb6a3e58fdd935f9fe412a4",
+      "mean_block_length": 20,
+      "paired_annualized_effect_estimate": -0.011338742035267307,
+      "path_count": 5000,
+      "seed": 260733,
+      "unadjusted_one_sided_p_value": 0.8692261547690462
+    }
+  },
+  "leave_one_year_out": {
+    "score_breakout_l10": {
+      "case_count": 9,
+      "cases": [
+        {
+          "annualized_mean_daily_return_effect": -0.009502540376358089,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.010850873674418898,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2018
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.01209980504643012,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2019
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.009561776057793162,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2020
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.009772656092749452,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2021
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.0011402495490831393,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2022
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.008128462230262897,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2023
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.010588070726562147,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2024
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.01034390924961971,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2025
+        }
+      ],
+      "full_sample_comparator": "prior_price_high_l20",
+      "full_sample_effect": -0.00915435805792206,
+      "passing_case_count": 9,
+      "reversing_omitted_years": [],
+      "stability_ratio": 1.0
+    },
+    "score_breakout_l20": {
+      "case_count": 9,
+      "cases": [
+        {
+          "annualized_mean_daily_return_effect": 0.002377333174073704,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": 8.575943463421708e-05,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2018
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.001326613757695523,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2019
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.0002936390546275829,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": false,
+          "omitted_year": 2020
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.0025814884352379835,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2021
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.011543320405282099,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2022
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.0003706187693120862,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": false,
+          "omitted_year": 2023
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.00493296055101738,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2024
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.005226412515964605,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2025
+        }
+      ],
+      "full_sample_comparator": "prior_price_high_l20",
+      "full_sample_effect": 0.0030997005040958024,
+      "passing_case_count": 7,
+      "reversing_omitted_years": [
+        2020,
+        2023
+      ],
+      "stability_ratio": 0.7777777777777778
+    },
+    "score_breakout_l40": {
+      "case_count": 9,
+      "cases": [
+        {
+          "annualized_mean_daily_return_effect": -0.010270015499849225,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.01612277120657698,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2018
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.012471418212946091,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2019
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.016143204027355345,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2020
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.00944600082635879,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2021
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.0012087550841492828,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2022
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.01575403428145045,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2023
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.008920776819017082,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2024
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.01334730696329015,
+          "comparator_recomputed_without_year": "prior_price_high_l20",
+          "directionally_stable": true,
+          "omitted_year": 2025
+        }
+      ],
+      "full_sample_comparator": "prior_price_high_l20",
+      "full_sample_effect": -0.011338742035267307,
+      "passing_case_count": 9,
+      "reversing_omitted_years": [],
+      "stability_ratio": 1.0
+    }
+  },
+  "multiple_testing": {
+    "adjustment_family": [
+      "score_breakout_l10",
+      "score_breakout_l20",
+      "score_breakout_l40"
+    ],
+    "method": "Holm",
+    "rejection_threshold": 0.05,
+    "results": {
+      "score_breakout_l10": {
+        "adjusted_p_value": 1.0,
+        "holm_rank": 3,
+        "pass": false,
+        "raw_p_value": 0.890621875624875
+      },
+      "score_breakout_l20": {
+        "adjusted_p_value": 0.9172165566886623,
+        "holm_rank": 1,
+        "pass": false,
+        "raw_p_value": 0.3057388522295541
+      },
+      "score_breakout_l40": {
+        "adjusted_p_value": 1.0,
+        "holm_rank": 2,
+        "pass": false,
+        "raw_p_value": 0.8692261547690462
+      }
+    }
+  },
+  "placebo": {
+    "method": "circular_eligible_session_index",
+    "per_symbol_executable_trigger_counts_preserved": true,
+    "requested_offset": 63
+  },
+  "schema_version": "trend_v2_phase_a2_analysis_v1",
+  "stronger_deterministic_comparator": {
+    "score_breakout_l10": "prior_price_high_l20",
+    "score_breakout_l20": "prior_price_high_l20",
+    "score_breakout_l40": "prior_price_high_l20"
+  },
+  "walk_forward": {
+    "score_breakout_l10": {
+      "fold_count": 6,
+      "folds": [
+        {
+          "annualized_mean_daily_return_effect": -0.005514971972116991,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2020-12-31",
+          "test_start_date": "2020-01-02",
+          "test_year": 2020,
+          "training_end_date": "2019-12-31",
+          "training_end_year": 2019,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.0036068506898874197,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2021-12-31",
+          "test_start_date": "2021-01-04",
+          "test_year": 2021,
+          "training_end_date": "2020-12-31",
+          "training_end_year": 2020,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.08137712079494852,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2022-12-30",
+          "test_start_date": "2022-01-03",
+          "test_year": 2022,
+          "training_end_date": "2021-12-31",
+          "training_end_year": 2021,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.018440767089892826,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2023-12-29",
+          "test_start_date": "2023-01-03",
+          "test_year": 2023,
+          "training_end_date": "2022-12-31",
+          "training_end_year": 2022,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.003709230607932046,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": true,
+          "test_end_date": "2024-12-31",
+          "test_start_date": "2024-01-02",
+          "test_year": 2024,
+          "training_end_date": "2023-12-31",
+          "training_end_year": 2023,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.0016134593293250549,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": true,
+          "test_end_date": "2025-12-31",
+          "test_start_date": "2025-01-02",
+          "test_year": 2025,
+          "training_end_date": "2024-12-31",
+          "training_end_year": 2024,
+          "training_start_year": 2017
+        }
+      ],
+      "improvement_ratio": 0.3333333333333333,
+      "improving_fold_count": 2
+    },
+    "score_breakout_l20": {
+      "fold_count": 6,
+      "folds": [
+        {
+          "annualized_mean_daily_return_effect": 0.03341174557411498,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": true,
+          "test_end_date": "2020-12-31",
+          "test_start_date": "2020-01-02",
+          "test_year": 2020,
+          "training_end_date": "2019-12-31",
+          "training_end_year": 2019,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.007749214344125676,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": true,
+          "test_end_date": "2021-12-31",
+          "test_start_date": "2021-01-04",
+          "test_year": 2021,
+          "training_end_date": "2020-12-31",
+          "training_end_year": 2020,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.072993798366356,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2022-12-30",
+          "test_start_date": "2022-01-03",
+          "test_year": 2022,
+          "training_end_date": "2021-12-31",
+          "training_end_year": 2021,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.03451303056698401,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": true,
+          "test_end_date": "2023-12-29",
+          "test_start_date": "2023-01-03",
+          "test_year": 2023,
+          "training_end_date": "2022-12-31",
+          "training_end_year": 2022,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.013348716028006136,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2024-12-31",
+          "test_start_date": "2024-01-02",
+          "test_year": 2024,
+          "training_end_date": "2023-12-31",
+          "training_end_year": 2023,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.016151296627340602,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2025-12-31",
+          "test_start_date": "2025-01-02",
+          "test_year": 2025,
+          "training_end_date": "2024-12-31",
+          "training_end_year": 2024,
+          "training_start_year": 2017
+        }
+      ],
+      "improvement_ratio": 0.5,
+      "improving_fold_count": 3
+    },
+    "score_breakout_l40": {
+      "fold_count": 6,
+      "folds": [
+        {
+          "annualized_mean_daily_return_effect": 0.031578586431606104,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": true,
+          "test_end_date": "2020-12-31",
+          "test_start_date": "2020-01-02",
+          "test_year": 2020,
+          "training_end_date": "2019-12-31",
+          "training_end_year": 2019,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.028320836770752034,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2021-12-31",
+          "test_start_date": "2021-01-04",
+          "test_year": 2021,
+          "training_end_date": "2020-12-31",
+          "training_end_year": 2020,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.10262970013657793,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2022-12-30",
+          "test_start_date": "2022-01-03",
+          "test_year": 2022,
+          "training_end_date": "2021-12-31",
+          "training_end_year": 2021,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.028628483377182507,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": true,
+          "test_end_date": "2023-12-29",
+          "test_start_date": "2023-01-03",
+          "test_year": 2023,
+          "training_end_date": "2022-12-31",
+          "training_end_year": 2022,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": -0.033033263281067926,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": false,
+          "test_end_date": "2024-12-31",
+          "test_start_date": "2024-01-02",
+          "test_year": 2024,
+          "training_end_date": "2023-12-31",
+          "training_end_year": 2023,
+          "training_start_year": 2017
+        },
+        {
+          "annualized_mean_daily_return_effect": 0.006842787693195481,
+          "comparator_selected_using_training_only": "prior_price_high_l20",
+          "improved": true,
+          "test_end_date": "2025-12-31",
+          "test_start_date": "2025-01-02",
+          "test_year": 2025,
+          "training_end_date": "2024-12-31",
+          "training_end_year": 2024,
+          "training_start_year": 2017
+        }
+      ],
+      "improvement_ratio": 0.5,
+      "improving_fold_count": 3
+    }
+  }
+}

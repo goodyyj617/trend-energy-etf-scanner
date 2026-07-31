@@ -850,40 +850,94 @@ def render_result_markdown(summary: Mapping[str, Any], robustness: Mapping[str, 
         f"## Empirical classification: {classification['classification']}",
         "",
         str(classification["reason"]),
+        (
+            "Inconclusive means score breakout remains exploratory and unresolved: the evidence "
+            "does not justify either retaining it as a validated incremental rule or removing it "
+            "as rejected. The transition rule therefore proceeds to Phase B1 with one representative "
+            "score lookback and the best simple deterministic comparator."
+        ),
         "This is provisional in-sample empirical research, not production approval and not genuine OOS evidence.",
         "",
         "## Frozen input",
         "",
         f"- Economic dates: {summary['snapshot_date_range']['minimum']} through {summary['snapshot_date_range']['maximum']}",
         f"- Snapshot SHA-256: `{summary['complete_snapshot_sha256']}`",
+        f"- Collector source commit: `{summary['snapshot_source_code_commit']}`",
+        f"- Empirical analysis source commit: `{summary['analysis_code_commit']}`",
         f"- Retained/requested symbols: {summary['data_coverage']['retained_symbol_count']}/{summary['data_coverage']['requested_symbol_count']}",
         f"- Failed or empty symbols: {', '.join(summary['data_coverage']['failed_or_empty_symbols']) or 'none'}",
         "",
         "## Portfolio comparison",
         "",
-        "| Signal | CAGR | CAGR / SPY | MDD | CDaR95 | Calmar | Recovery days | Turnover | Costs | Raw signals | Executable triggers | Completed trades |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Signal | CAGR | CAGR / SPY | MDD | abs(MDD) / SPY | CDaR95 | abs(CDaR95) / SPY | Calmar | Calmar / SPY | Recovery days | Turnover | Costs | Raw signals | Executable triggers | Completed trades |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for key, row in ((score_key, score), ("trend_filter_only", trend), ("prior_price_high_l20", price)):
+    portfolio_keys = [
+        "score_breakout_l10",
+        "score_breakout_l20",
+        "score_breakout_l40",
+        "trend_filter_only",
+        "prior_price_high_l20",
+        "signal_surge_v0",
+    ]
+    for key in portfolio_keys:
+        row = metrics[key]
         lines.append(
             f"| {key} | {pct(row['strategy_cagr'])} | {float(row['strategy_cagr_spy_ratio']):.3f} | "
-            f"{pct(row['strategy_maximum_drawdown'])} | {pct(row['strategy_cdar95'])} | "
-            f"{float(row['strategy_calmar']):.3f} | {int(row['strategy_recovery_duration_days'])} | "
+            f"{pct(row['strategy_maximum_drawdown'])} | {float(row['maximum_drawdown_spy_ratio']):.3f} | "
+            f"{pct(row['strategy_cdar95'])} | {float(row['cdar95_spy_ratio']):.3f} | "
+            f"{float(row['strategy_calmar']):.3f} | {float(row['calmar_spy_ratio']):.3f} | "
+            f"{int(row['strategy_recovery_duration_days'])} | "
             f"{float(row['annual_turnover']):.3f} | {float(row['total_transaction_cost']):.2f} | "
             f"{int(row['raw_boolean_signal_count'])} | {int(row['executable_trigger_count'])} | "
             f"{int(row['completed_lifecycle_count'])} |"
         )
+    lines.extend([
+        "",
+        (
+            f"The representative {score_key} produced a {pct(score['strategy_cagr'])} CAGR versus "
+            f"{pct(trend['strategy_cagr'])} for trend-only and {pct(price['strategy_cagr'])} for "
+            "the prior-price-high comparator. It improved return over both, but its drawdown, "
+            "CDaR95, Calmar, and recovery were worse than prior-price-high, and its CAGR retained "
+            f"only {float(score['strategy_cagr_spy_ratio']):.3f} of SPY rather than the provisional 0.80 objective."
+        ),
+        "The legacy signal is shown only as a historical diagnostic baseline.",
+        "",
+        "## Robustness evidence",
+        "",
+        "| Score | Stronger comparator | Walk-forward improved | LOYO stable | Reversing years | Annualized paired effect | 95% CI | Raw one-sided p | Holm-adjusted p | Pass | Dominant group/share | Missing/unclassified share |",
+        "|---|---|---:|---:|---|---:|---|---:|---:|---|---|---:|",
+    ])
+    for lookback in SCORE_LOOKBACK_GRID:
+        key = f"score_breakout_l{lookback}"
+        candidate = robustness["candidate_evidence"][key]
+        candidate_boot = robustness["date_block_bootstrap"][key]
+        candidate_loyo = robustness["leave_one_year_out"][key]
+        candidate_correction = robustness["multiple_testing"]["results"][key]
+        candidate_concentration = candidate["asset_group_concentration_diagnostics"]
+        lines.append(
+            f"| {key} | {robustness['stronger_deterministic_comparator'][key]} | "
+            f"{robustness['walk_forward'][key]['improving_fold_count']}/{candidate['walk_forward_fold_count']} "
+            f"({candidate['walk_forward_improvement_ratio']:.3f}) | "
+            f"{candidate_loyo['passing_case_count']}/{candidate['leave_one_year_out_result_count']} "
+            f"({candidate['leave_one_year_out_stability_ratio']:.3f}) | "
+            f"{candidate_loyo['reversing_omitted_years']} | "
+            f"{pct(candidate_boot['paired_annualized_effect_estimate'])} | "
+            f"[{pct(candidate_boot['confidence_interval_95'][0])}, {pct(candidate_boot['confidence_interval_95'][1])}] | "
+            f"{candidate_boot['unadjusted_one_sided_p_value']:.6f} | "
+            f"{candidate_correction['adjusted_p_value']:.6f} | "
+            f"{str(candidate_correction['pass']).lower()} | "
+            f"{candidate_concentration['dominant_group']} / {candidate_concentration['dominant_effect_share']:.3f} | "
+            f"{candidate_concentration['missing_or_unclassified_group_share']:.3f} |"
+        )
     lines.extend(
         [
             "",
-            "## Robustness evidence",
-            "",
-            f"- Walk-forward: {evidence['walk_forward_fold_count']} folds; improvement ratio {evidence['walk_forward_improvement_ratio']:.3f}.",
-            f"- Leave-one-year-out: {robustness['leave_one_year_out'][score_key]['passing_case_count']}/{evidence['leave_one_year_out_result_count']} stable; ratio {evidence['leave_one_year_out_stability_ratio']:.3f}; reversing years: {robustness['leave_one_year_out'][score_key]['reversing_omitted_years']}.",
-            f"- Paired stationary bootstrap: annualized effect {pct(boot['paired_annualized_effect_estimate'])}; 95% CI [{pct(boot['confidence_interval_95'][0])}, {pct(boot['confidence_interval_95'][1])}]; raw one-sided p={boot['unadjusted_one_sided_p_value']:.6f}; seed={boot['seed']}; index hash `{boot['index_matrix_sha256']}`.",
-            f"- Holm correction across {len(SCORE_LOOKBACK_GRID)} score lookbacks: adjusted p={correction['adjusted_p_value']:.6f}; alpha={HOLM_ALPHA:.2f}; pass={str(correction['pass']).lower()}.",
-            f"- Asset-group concentration ({concentration['measure']}): dominant group={concentration['dominant_group']}; dominant positive-effect share={concentration['dominant_effect_share']:.3f}; missing/unclassified share={concentration['missing_or_unclassified_group_share']:.3f}. The group-restricted effects are not additive contributions.",
-            f"- Placebo comparability: circular eligible-session-index shift offset {PLACEBO_SHIFT_BARS}; executable-trigger counts preserved={str(evidence['executable_trigger_count_comparability']).lower()}.",
+            f"Bootstrap uses 5,000 stationary-bootstrap paths with mean block length 20. The representative seed is {boot['seed']} and index hash is `{boot['index_matrix_sha256']}`; every candidate's seed and index hash are recorded in `robustness_evidence.json`.",
+            f"Holm correction covers all {len(SCORE_LOOKBACK_GRID)} tested score lookbacks at alpha {HOLM_ALPHA:.2f}; no unadjusted result is used as final evidence.",
+            f"Asset-group concentration is `{concentration['measure']}`. Group-restricted effects are a non-additive concentration diagnostic, not additive contributions.",
+            f"The circular eligible-session-index placebo uses requested offset {PLACEBO_SHIFT_BARS}; per-symbol executable-trigger counts are preserved={str(evidence['executable_trigger_count_comparability']).lower()}.",
+            "Every walk-forward fold and LOYO omission is reported separately in `robustness_evidence.json`.",
             "",
             "## Phase B1 transition",
             "",
@@ -897,6 +951,38 @@ def render_result_markdown(summary: Mapping[str, Any], robustness: Mapping[str, 
         ]
     )
     return "\n".join(lines)
+
+
+def refresh_phase_a2_reports(root: Path, snapshot_dir: Path) -> dict[str, Any]:
+    """Regenerate summary prose from committed empirical CSV/JSON evidence."""
+    summary_path = snapshot_dir / "phase_a2_summary.json"
+    robustness_path = snapshot_dir / "robustness_evidence.json"
+    metrics_path = snapshot_dir / "portfolio_metrics.csv"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    robustness = json.loads(robustness_path.read_text(encoding="utf-8"))
+    manifest = json.loads((snapshot_dir / "input_manifest.json").read_text(encoding="utf-8"))
+    metrics = pd.read_csv(metrics_path)
+    summary.setdefault("snapshot_source_code_commit", manifest["source_code_commit"])
+    summary.setdefault("analysis_code_commit", _git_head(root.resolve()))
+    selected_keys = [
+        "score_breakout_l10",
+        "score_breakout_l20",
+        "score_breakout_l40",
+        "trend_filter_only",
+        "prior_price_high_l20",
+        "signal_surge_v0",
+    ]
+    summary["selected_metrics"] = {
+        key: _metric_record(metrics, key) for key in selected_keys
+    }
+    _write_json(summary_path, summary)
+    (snapshot_dir / "RESULT.md").write_text(
+        render_result_markdown(summary, robustness), encoding="utf-8", newline="\n"
+    )
+    (root / "docs" / "research" / "trend_v2" / "CURRENT_STATE.md").write_text(
+        render_current_state(summary), encoding="utf-8", newline="\n"
+    )
+    return summary
 
 
 def render_current_state(summary: Mapping[str, Any]) -> str:
@@ -987,10 +1073,19 @@ def run_empirical_phase_a2(
     )
     requested = list(frozen.manifest["requested_symbols"])
     retained = list(frozen.manifest["retained_symbols"])
-    selected_keys = [representative, "trend_filter_only", "prior_price_high_l20"]
+    selected_keys = [
+        "score_breakout_l10",
+        "score_breakout_l20",
+        "score_breakout_l40",
+        "trend_filter_only",
+        "prior_price_high_l20",
+        "signal_surge_v0",
+    ]
     summary: dict[str, Any] = {
         "schema_version": ANALYSIS_SCHEMA_VERSION,
         "classification": classification,
+        "snapshot_source_code_commit": frozen.manifest["source_code_commit"],
+        "analysis_code_commit": _git_head(root.resolve()),
         "representative_score_key": representative,
         "complete_snapshot_sha256": frozen.manifest["complete_snapshot_sha256"],
         "snapshot_date_range": {
