@@ -527,6 +527,7 @@ class BehaviorPathInvariantMethodTest(unittest.TestCase):
                 "config",
                 ":(exclude)config/oos_evaluation_manifest.json",
                 ":(exclude)config/oos_evaluation_protocol_v1.json",
+                ":(exclude)config/trend_v2/**",
                 "web",
                 ".github/workflows/backtest-only.yml",
                 ".github/workflows/daily_scan.yml",
