@@ -183,6 +183,7 @@ class PhaseAComparisonResult:
     lifecycles: pd.DataFrame
     trade_diagnostics: pd.DataFrame
     portfolio_metrics: pd.DataFrame
+    portfolio_daily_returns: pd.DataFrame
     classification: Mapping[str, object]
     methodology: Mapping[str, object]
 
@@ -453,6 +454,80 @@ def within_symbol_shifted_events(
     return result
 
 
+def within_symbol_circular_shifted_events(
+    frame: pd.DataFrame,
+    events: pd.Series,
+    eligible_events: pd.Series,
+    *,
+    shift_bars: int = PLACEBO_SHIFT_BARS,
+) -> tuple[pd.Series, dict[str, int]]:
+    """Circularly shift executable triggers on each symbol's eligible sessions.
+
+    The fixed offset is tried first.  If its circular boundary makes two shifted
+    impulses adjacent (and therefore one executable trigger), later offsets are
+    tried deterministically until the exact per-symbol trigger count is restored.
+    """
+    if shift_bars <= 0:
+        raise ValueError("shift_bars must be positive")
+    event_mask = _bool_series(events, frame.index)
+    eligible_mask = _bool_series(eligible_events, frame.index)
+    result = pd.Series(False, index=frame.index, dtype=bool)
+    resolved_offsets: dict[str, int] = {}
+    for symbol, group in frame.groupby("symbol", sort=True):
+        ordered = group.sort_values("date")
+        source = event_mask.loc[ordered.index].reset_index(drop=True)
+        source_positions = _first_true_indices(source)
+        target_count = len(source_positions)
+        if target_count == 0:
+            resolved_offsets[str(symbol)] = int(shift_bars)
+            continue
+        eligible_positions = np.flatnonzero(
+            eligible_mask.loc[ordered.index].to_numpy(dtype=bool)
+        )
+        eligible_position_set = set(int(value) for value in eligible_positions)
+        if any(position not in eligible_position_set for position in source_positions):
+            raise ValueError(
+                f"circular placebo source trigger is not eligible for {symbol}"
+            )
+        if target_count > len(eligible_positions):
+            raise ValueError(
+                f"cannot circularly shift {target_count} executable triggers for "
+                f"{symbol} across {len(eligible_positions)} eligible sessions"
+            )
+        rank_by_position = {
+            int(position): rank for rank, position in enumerate(eligible_positions)
+        }
+        source_ranks = np.asarray(
+            [rank_by_position[int(position)] for position in source_positions],
+            dtype=np.int64,
+        )
+        eligible_count = len(eligible_positions)
+        base_offset = int(shift_bars) % eligible_count
+        selected: np.ndarray | None = None
+        selected_offset: int | None = None
+        for increment in range(eligible_count):
+            offset = (base_offset + increment) % eligible_count
+            candidate_positions = np.sort(
+                eligible_positions[(source_ranks + offset) % eligible_count]
+            )
+            # An impulse mask has exactly one executable trigger per true value
+            # iff no selected positions are adjacent.  Checking the sorted
+            # positions avoids allocating and scanning a full symbol-length
+            # Boolean series for every candidate circular offset.
+            if target_count == 1 or bool(np.all(np.diff(candidate_positions) > 1)):
+                selected = candidate_positions
+                selected_offset = offset
+                break
+        if selected is None or selected_offset is None:
+            raise ValueError(
+                f"cannot preserve {target_count} executable triggers for {symbol} "
+                "with a circular eligible-session-index shift"
+            )
+        result.loc[ordered.index.to_numpy()[selected]] = True
+        resolved_offsets[str(symbol)] = int(selected_offset)
+    return result, resolved_offsets
+
+
 def _first_true_indices(signal: pd.Series) -> list[int]:
     values = _bool_series(signal, signal.index).reset_index(drop=True)
     previous = values.shift(1, fill_value=False).astype(bool)
@@ -706,6 +781,7 @@ def simulate_signal_lifecycles(
                 "entry_date": entry_date,
                 "entry_price": float(entry_price),
                 "initial_stop": float(components.initial_stop.initial_stop(signal_row)),
+                "asset_group": str(signal_row.get("asset_group", "unknown")),
                 "entry_rule": components.entry.key,
                 "initial_stop_rule": components.initial_stop.key,
                 "trailing_exit_rule": components.trailing_exit.key,
@@ -1176,9 +1252,14 @@ def phase_a_methodology(
             "trend_filter_only",
             f"prior_price_high_l{PRICE_BREAKOUT_LOOKBACK}",
             "frequency_matched_random_within_symbol",
-            f"within_symbol_shifted_signal_{PLACEBO_SHIFT_BARS}_bars",
+            f"within_symbol_circular_eligible_session_shift_{PLACEBO_SHIFT_BARS}",
         ],
         "random_seeds": [int(seed) for seed in random_seeds],
+        "shifted_placebo": {
+            "method": "circular_eligible_session_index",
+            "requested_offset": int(PLACEBO_SHIFT_BARS),
+            "count_contract": "exact_per_symbol_executable_trigger_count",
+        },
         "entry": components.entry.key,
         "initial_stop": components.initial_stop.key,
         "trailing_exit": components.trailing_exit.key,
@@ -1270,9 +1351,12 @@ def run_phase_a_signal_comparison(
                 "shift_edge_loss_executable_trigger_count": np.nan,
             }
         shifted_key = f"{rule.key}__shift_{PLACEBO_SHIFT_BARS}"
-        shifted_events = within_symbol_shifted_events(
-            ordered, signal_events[rule.key], shift_bars=PLACEBO_SHIFT_BARS
-        ) & eligible_control
+        shifted_events, resolved_offsets = within_symbol_circular_shifted_events(
+            ordered,
+            signal_events[rule.key],
+            eligible_control,
+            shift_bars=PLACEBO_SHIFT_BARS,
+        )
         signal_events[shifted_key] = shifted_events
         source_counts = signal_event_counts(
             ordered, signal_events[rule.key], selected.entry
@@ -1298,6 +1382,11 @@ def run_phase_a_signal_comparison(
                 source_counts["executable_trigger_count"]
                 == shifted_counts["executable_trigger_count"]
             ),
+            "shift_method": "circular_eligible_session_index",
+            "shift_requested_offset": int(PLACEBO_SHIFT_BARS),
+            "shift_resolved_offsets": json.dumps(
+                resolved_offsets, sort_keys=True, separators=(",", ":")
+            ),
         }
     for key, values in signal_events.items():
         if key not in observations:
@@ -1307,6 +1396,10 @@ def run_phase_a_signal_comparison(
     diagnostic_summary = summarize_signal_diagnostics(diagnostics)
     lifecycle_frames = []
     metric_rows = []
+    curve_frames = []
+    # Phase A permits only the canonical construction rule, so build its price
+    # panel once and reuse it across every signal/control path.
+    price_panel = build_price_panel(ordered)
     for key, events in signal_events.items():
         lifecycle = simulate_signal_lifecycles(
             ordered,
@@ -1317,11 +1410,14 @@ def run_phase_a_signal_comparison(
         )
         if not lifecycle.empty:
             lifecycle_frames.append(lifecycle)
-        curve = selected.portfolio_construction.construct(
+        curve = simulate_canonical_portfolio(
             lifecycle,
-            ordered,
-            round_trip_cost,
+            price_panel,
+            round_trip_cost=round_trip_cost,
         )
+        curve_with_key = curve.copy()
+        curve_with_key["strategy_key"] = key
+        curve_frames.append(curve_with_key)
         counts = signal_event_counts(ordered, events, selected.entry)
         completed_lifecycles = (
             int(lifecycle["exit_date"].notna().sum())
@@ -1338,6 +1434,7 @@ def run_phase_a_signal_comparison(
         )
     lifecycles = pd.concat(lifecycle_frames, ignore_index=True) if lifecycle_frames else pd.DataFrame()
     portfolio_metrics = pd.DataFrame(metric_rows)
+    portfolio_daily_returns = pd.concat(curve_frames, ignore_index=True)
     classification = classify_score_breakout(
         portfolio_metrics,
         diagnostic_summary,
@@ -1359,6 +1456,7 @@ def run_phase_a_signal_comparison(
         lifecycles=lifecycles,
         trade_diagnostics=summarize_trade_diagnostics(lifecycles),
         portfolio_metrics=portfolio_metrics,
+        portfolio_daily_returns=portfolio_daily_returns,
         classification=classification,
         methodology=methodology,
     )
