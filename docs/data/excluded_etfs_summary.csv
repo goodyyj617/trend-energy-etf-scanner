@@ -8,6 +8,7 @@ BITA,iShares Bitcoin Premium Income ETF,premium income,covered_call_option_incom
 BITY,Amplify Bitcoin 2% Monthly Option Income ETF,option income,covered_call_option_income,unknown
 BPI,Grayscale Bitcoin Premium Income ETF,premium income,covered_call_option_income,unknown
 BUCK,Simplify Treasury Option Income ETF,option income,covered_call_option_income,unknown
+CDPI,Columbia High Dividend Premium Income ETF,premium income,covered_call_option_income,unknown
 CEPI,REX Crypto Equity Premium Income ETF,premium income,covered_call_option_income,unknown
 DDDD,YieldMax U.S. Stocks Target Double Distribution ETF,yieldmax,covered_call_option_income,unknown
 ETTY,Amplify Ethereum 3% Monthly Option Income ETF,option income,covered_call_option_income,unknown
@@ -30,6 +31,7 @@ OCTJ,Innovator Premium Income 30 Barrier ETF - October,premium income,covered_ca
 ODTE,VegaShares SPX NDX RTY Premium Income ETF,premium income,covered_call_option_income,unknown
 PAPI,Parametric Equity Premium Income ETF,premium income,covered_call_option_income,unknown
 RDTY,YieldMax R2000 0DTE Covered Strategy ETF,yieldmax,covered_call_option_income,unknown
+RECI,Columbia Research Enhanced Core Premium Income ETF,premium income,covered_call_option_income,unknown
 SCEP,Sterling Capital Hedged Equity Premium Income ETF,premium income,covered_call_option_income,unknown
 SEPI,Shelton Equity Premium Income ETF,premium income,covered_call_option_income,unknown
 SOLM,Amplify Solana 3% Monthly Option Income ETF,option income,covered_call_option_income,unknown
