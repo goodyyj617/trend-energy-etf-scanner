@@ -9,6 +9,7 @@ For tasks explicitly related to Trend Strategy v2, also read:
 - `docs/research/trend_v2/CHARTER.md`
 - `docs/research/trend_v2/DECISIONS.md`
 - `docs/research/trend_v2/SEARCH_PROTOCOL.md`
+- `docs/research/trend_v2/PRODUCT_REQUIREMENTS.md`
 - `docs/research/trend_v2/CURRENT_STATE.md`
 
 Treat those repository files, rather than prior chat history, as the
@@ -58,6 +59,18 @@ For Trend Strategy v2 tasks:
 - Compare strategy results with SPY on exact common economic dates.
 - Do not implement or activate an OOS collector unless the task explicitly requests it.
 - Preserve legacy v1 behavior unless a task explicitly authorizes a migration.
+
+## Product direction
+
+- The primary deliverable is a reusable web backtest and strategy-comparison tool, not a one-off preferred strategy run.
+- The web UI must allow the user to configure signals and economic backtest rules without source-code edits.
+- Strategy execution, metric calculation, robustness validation, and candidate selection must be separate layers.
+- Stored strategy results must be reusable under new evaluation profiles without rerunning an unchanged economic path.
+- Non-compensatory gates, Pareto selection, epsilon tolerance, and robustness vetoes are the default comparison mode.
+- User-adjustable metric weights may be offered only as a clearly labeled exploratory comparison view and must not silently replace the default decision mode.
+- The visible web interface must be Korean-first.
+- Every acronym and metric shown in the UI must link to a dedicated explanation containing the exact formula, variable definitions, a numerical example, interpretation, assumptions, and limitations.
+- Read `PRODUCT_REQUIREMENTS.md` before changing the web UI, research architecture, result persistence, metric engine, or selection logic.
 
 ## Generated data
 
