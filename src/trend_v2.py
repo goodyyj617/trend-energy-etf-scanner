@@ -510,9 +510,11 @@ def within_symbol_circular_shifted_events(
             candidate_positions = np.sort(
                 eligible_positions[(source_ranks + offset) % eligible_count]
             )
-            candidate = pd.Series(False, index=range(len(ordered)), dtype=bool)
-            candidate.iloc[candidate_positions] = True
-            if len(_first_true_indices(candidate)) == target_count:
+            # An impulse mask has exactly one executable trigger per true value
+            # iff no selected positions are adjacent.  Checking the sorted
+            # positions avoids allocating and scanning a full symbol-length
+            # Boolean series for every candidate circular offset.
+            if target_count == 1 or bool(np.all(np.diff(candidate_positions) > 1)):
                 selected = candidate_positions
                 selected_offset = offset
                 break
