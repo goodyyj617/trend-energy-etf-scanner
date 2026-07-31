@@ -1,5 +1,6 @@
 import unittest
 import warnings
+from dataclasses import replace
 
 import numpy as np
 import pandas as pd
@@ -15,6 +16,9 @@ from src.trend_v2 import (
     SignalRule,
     TrailingExitRule,
     UniverseEligibilityRule,
+    LEGACY_SCANNER_TREND_FILTER_CONTROL_V0,
+    PRIMARY_PHASE_A_TREND_FILTER,
+    add_phase_a_price_trend_features,
     build_score_breakout_rules,
     build_signal_diagnostics,
     classify_score_breakout,
@@ -23,6 +27,7 @@ from src.trend_v2 import (
     evaluate_signal_observations,
     frequency_matched_random_events,
     make_score_breakout_rule,
+    signal_event_counts,
     run_phase_a_signal_comparison,
     simulate_signal_lifecycles,
     within_symbol_shifted_events,
@@ -77,7 +82,30 @@ class PhaseAArchitectureTests(unittest.TestCase):
         self.assertIsInstance(components.trailing_exit, TrailingExitRule)
         self.assertIsInstance(components.position_sizing, PositionSizingRule)
         self.assertIsInstance(components.portfolio_construction, PortfolioConstructionRule)
+        self.assertEqual(components.trend_filter.key, "price_above_rising_ma200_v0")
+        self.assertEqual(components.position_sizing.key, "canonical_equal_weight_active_v1")
         self.assertEqual(components.position_sizing.target_weights(["AAA", "BBB"]), {"AAA": 0.5, "BBB": 0.5})
+
+    def test_primary_trend_filter_is_independent_of_score_and_trend_energy(self) -> None:
+        frame = feature_fixture(260)
+        prepared = add_phase_a_price_trend_features(frame)
+        baseline = PRIMARY_PHASE_A_TREND_FILTER.evaluate(frame)
+        changed = frame.copy()
+        for column in ("score", "te63", "te126", "r20", "r63", "r126", "er20", "er63"):
+            changed[column] = np.linspace(-1_000_000.0, 1_000_000.0, len(changed))
+        changed_prepared = add_phase_a_price_trend_features(changed)
+
+        pd.testing.assert_series_equal(
+            prepared["phase_a_ma200"], changed_prepared["phase_a_ma200"]
+        )
+        pd.testing.assert_series_equal(
+            prepared["phase_a_ma200_slope_20"],
+            changed_prepared["phase_a_ma200_slope_20"],
+        )
+        pd.testing.assert_series_equal(
+            baseline,
+            PRIMARY_PHASE_A_TREND_FILTER.evaluate(changed),
+        )
 
     def test_legacy_scanner_decomposition_reconstructs_v1_exactly(self) -> None:
         frame = feature_fixture(5)
@@ -98,6 +126,15 @@ class PhaseAArchitectureTests(unittest.TestCase):
                 "v2_risk_atr20_pct",
                 "v2_risk_stop_distance_pct",
             }.issubset(decomposed.columns)
+        )
+        self.assertEqual(
+            LEGACY_SCANNER_TREND_FILTER_CONTROL_V0.key,
+            "legacy_scanner_trend_filter_control_v0",
+        )
+        pd.testing.assert_series_equal(
+            LEGACY_SCANNER_TREND_FILTER_CONTROL_V0.evaluate(frame),
+            decomposed["v2_trend_filter"],
+            check_names=False,
         )
 
     def test_score_breakout_has_one_numeric_parameter_and_ignores_r20_er20(self) -> None:
@@ -136,6 +173,28 @@ class PhaseAArchitectureTests(unittest.TestCase):
             decomposed.loc[observations.index, "signal_surge_v0"],
             check_names=False,
         )
+        self.assertIn("legacy_scanner_trend_filter_control_v0", observations)
+
+    def test_unsupported_position_sizing_fails_closed(self) -> None:
+        components = default_phase_a_components()
+        unsupported = replace(
+            components,
+            position_sizing=PositionSizingRule(
+                "unsupported_volatility_sizing",
+                "Unsupported fixture",
+                lambda symbols: {str(symbol): 1.0 / len(symbols) for symbol in symbols},
+            ),
+        )
+        frame = feature_fixture(20).loc[lambda value: value["symbol"] == "AAA"].copy()
+        events = pd.Series(False, index=frame.index)
+        events.iloc[5] = True
+        with self.assertRaisesRegex(ValueError, "fixed canonical equal weight"):
+            simulate_signal_lifecycles(
+                frame,
+                events,
+                strategy_key="unsupported",
+                components=unsupported,
+            )
 
 
 class PhaseASignalControlTests(unittest.TestCase):
@@ -150,7 +209,61 @@ class PhaseASignalControlTests(unittest.TestCase):
         second = frequency_matched_random_events(frame, target, eligible, seed=1729)
         pd.testing.assert_series_equal(first, second)
         for symbol, group in frame.groupby("symbol"):
-            self.assertEqual(int(first.loc[group.index].sum()), int(target.loc[group.index].sum()))
+            target_counts = signal_event_counts(
+                group,
+                target.loc[group.index],
+                default_phase_a_components().entry,
+            )
+            random_counts = signal_event_counts(
+                group,
+                first.loc[group.index],
+                default_phase_a_components().entry,
+            )
+            self.assertEqual(
+                random_counts["executable_trigger_count"],
+                target_counts["executable_trigger_count"],
+            )
+            self.assertEqual(
+                random_counts["raw_boolean_signal_count"],
+                target_counts["executable_trigger_count"],
+            )
+
+    def test_random_matching_prevents_adjacent_event_collapse(self) -> None:
+        frame = feature_fixture(12).loc[lambda value: value["symbol"] == "AAA"].copy()
+        target = pd.Series(False, index=frame.index)
+        target.iloc[[0, 1, 3, 4]] = True
+        random_events = frequency_matched_random_events(
+            frame,
+            target,
+            pd.Series(True, index=frame.index),
+            seed=3253,
+        )
+        target_counts = signal_event_counts(
+            frame, target, default_phase_a_components().entry
+        )
+        random_counts = signal_event_counts(
+            frame, random_events, default_phase_a_components().entry
+        )
+        self.assertEqual(target_counts["raw_boolean_signal_count"], 4)
+        self.assertEqual(target_counts["executable_trigger_count"], 2)
+        self.assertEqual(random_counts["raw_boolean_signal_count"], 2)
+        self.assertEqual(random_counts["executable_trigger_count"], 2)
+        chosen = np.flatnonzero(random_events.to_numpy(dtype=bool))
+        self.assertTrue(all(right - left > 1 for left, right in zip(chosen, chosen[1:])))
+
+    def test_random_matching_fails_when_exact_trigger_count_is_impossible(self) -> None:
+        frame = feature_fixture(6).loc[lambda value: value["symbol"] == "AAA"].copy()
+        target = pd.Series(False, index=frame.index)
+        target.iloc[[0, 2, 4]] = True
+        eligible = pd.Series(False, index=frame.index)
+        eligible.iloc[:3] = True
+        with self.assertRaisesRegex(ValueError, "requested 3, maximum isolated eligible dates 2"):
+            frequency_matched_random_events(
+                frame,
+                target,
+                eligible,
+                seed=5003,
+            )
 
     def test_shift_placebo_never_crosses_symbol_boundaries(self) -> None:
         frame = feature_fixture(8)
@@ -225,9 +338,34 @@ class PhaseAEndToEndTests(unittest.TestCase):
             "maximum_drawdown_spy_ratio": 0.70,
             "cdar95_spy_ratio": 0.75,
             "calmar_spy_ratio": 1.10,
+            "raw_boolean_signal_count": 200,
+            "executable_trigger_count": 120,
+            "completed_lifecycle_count": 80,
         }
 
-    def test_classifier_has_deterministic_retain_and_reject_paths(self) -> None:
+    @staticmethod
+    def _robustness_evidence(
+        *,
+        improvement_ratio: float = 0.75,
+        interval: tuple[float, float] = (-0.001, 0.02),
+        adjusted_p_value: float = 0.01,
+    ) -> dict:
+        return {
+            "walk_forward_fold_count": 6,
+            "walk_forward_improvement_ratio": improvement_ratio,
+            "leave_one_year_out_result_count": 8,
+            "leave_one_year_out_stability_ratio": 1.0,
+            "date_block_bootstrap_paired_effect_confidence_interval": interval,
+            "multiple_testing_adjusted_p_value": adjusted_p_value,
+            "asset_group_concentration_diagnostics": {
+                "dominant_group": "broad_equity",
+                "dominant_effect_share": 0.40,
+            },
+            "event_count_comparability": True,
+            "executable_trigger_count_comparability": True,
+        }
+
+    def _classification_fixture(self) -> tuple[dict, list[dict], pd.DataFrame]:
         score = self._metric(
             "score_breakout_l20", "score_breakout", cagr=0.12, mdd=-0.12,
             cdar=-0.08, calmar=1.0, recovery=80,
@@ -239,13 +377,48 @@ class PhaseAEndToEndTests(unittest.TestCase):
             self._metric("shift", "shifted_placebo", parent="score_breakout_l20", cagr=0.08, mdd=-0.17, cdar=-0.12, calmar=0.5, recovery=130),
         ]
         summary = pd.DataFrame([{"signal_key": "score_breakout_l20", "signal_count": 200}])
-        retained = classify_score_breakout(pd.DataFrame([score, *weaker]), summary)
+        return score, weaker, summary
+
+    def test_classifier_missing_robustness_evidence_is_inconclusive(self) -> None:
+        score, weaker, summary = self._classification_fixture()
+        result = classify_score_breakout(pd.DataFrame([score, *weaker]), summary)
+        self.assertEqual(result["classification"], "Inconclusive")
+        self.assertIn("walk_forward_fold_count", result["missing_robustness_evidence"])
+        self.assertIn("Missing or invalid robustness evidence", result["reason"])
+
+    def test_classifier_complete_but_nonpassing_evidence_is_inconclusive(self) -> None:
+        score, weaker, summary = self._classification_fixture()
+        evidence = self._robustness_evidence(adjusted_p_value=0.20)
+        result = classify_score_breakout(
+            pd.DataFrame([score, *weaker]),
+            summary,
+            robustness_evidence=evidence,
+        )
+        self.assertEqual(result["classification"], "Inconclusive")
+        self.assertIn("Complete evidence was supplied", result["reason"])
+
+    def test_classifier_passing_robustness_evidence_retains(self) -> None:
+        score, weaker, summary = self._classification_fixture()
+        retained = classify_score_breakout(
+            pd.DataFrame([score, *weaker]),
+            summary,
+            robustness_evidence=self._robustness_evidence(),
+        )
         self.assertEqual(retained["classification"], "Retain")
 
+    def test_classifier_adverse_robustness_evidence_rejects(self) -> None:
+        score, weaker, summary = self._classification_fixture()
         dominated_score = {**score, "strategy_cagr": 0.05, "strategy_calmar": 0.3,
                            "strategy_maximum_drawdown": -0.20, "strategy_cdar95": -0.15,
                            "strategy_recovery_duration_days": 180}
-        rejected = classify_score_breakout(pd.DataFrame([dominated_score, *weaker]), summary)
+        rejected = classify_score_breakout(
+            pd.DataFrame([dominated_score, *weaker]),
+            summary,
+            robustness_evidence=self._robustness_evidence(
+                improvement_ratio=0.25,
+                interval=(-0.02, 0.001),
+            ),
+        )
         self.assertEqual(rejected["classification"], "Reject")
 
     def test_comparison_uses_shared_rules_and_returns_bounded_classification(self) -> None:
@@ -259,7 +432,13 @@ class PhaseAEndToEndTests(unittest.TestCase):
             )
 
         self.assertEqual(result.classification["classification"], "Inconclusive")
-        self.assertIn("common SPY years", result.classification["reason"])
+        self.assertIn("Missing or invalid robustness evidence", result.classification["reason"])
+        self.assertIn("walk_forward_fold_count", result.classification["missing_robustness_evidence"])
+        self.assertEqual(result.methodology["trend_filter"], "price_above_rising_ma200_v0")
+        self.assertEqual(
+            result.methodology["trend_filter_sensitivity_control"],
+            "legacy_scanner_trend_filter_control_v0",
+        )
         self.assertEqual(result.methodology["score_breakout_numeric_parameter"], "score_lookback")
         self.assertEqual(result.methodology["r20_er20_role"], "diagnostics_and_ranking_only")
         self.assertIsNone(result.methodology["fixed_holding_period_exit"])
@@ -283,8 +462,19 @@ class PhaseAEndToEndTests(unittest.TestCase):
             "strategy_recovery_duration_days",
             "annual_turnover",
             "total_transaction_cost",
+            "raw_boolean_signal_count",
+            "executable_trigger_count",
+            "completed_lifecycle_count",
         ):
             self.assertIn(column, result.portfolio_metrics)
+        shifted = result.portfolio_metrics.loc[
+            result.portfolio_metrics["variant"] == "shifted_placebo"
+        ].iloc[0]
+        self.assertGreaterEqual(int(shifted["shift_edge_loss_raw_count"]), 0)
+        self.assertIn(
+            bool(shifted["executable_trigger_count_matches_parent"]),
+            (True, False),
+        )
         if not result.lifecycles.empty:
             for column in (
                 "entry_rule",

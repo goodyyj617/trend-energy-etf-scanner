@@ -25,6 +25,25 @@ FREQUENCY_MATCHED_RANDOM_SEEDS = (1729, 3253, 5003, 7919, 10427)
 FORWARD_RETURN_HORIZONS = (1, 3, 5, 10, 20)
 EXCURSION_HORIZON = 20
 ROUND_TRIP_COST = 0.002
+PRIMARY_TREND_MA_LENGTH = 200
+PRIMARY_TREND_SLOPE_LENGTH = 20
+CANONICAL_EQUAL_WEIGHT_KEY = "canonical_equal_weight_active_v1"
+MIN_WALK_FORWARD_FOLDS = 3
+MIN_LOYO_RESULTS = 3
+MIN_LOYO_STABILITY_RATIO = 1.0
+BOOTSTRAP_MATERIAL_EFFECT_TOLERANCE = 0.002
+MULTIPLE_TESTING_ADJUSTED_ALPHA = 0.05
+MAX_DOMINANT_ASSET_GROUP_EFFECT_SHARE = 0.50
+REQUIRED_ROBUSTNESS_EVIDENCE_FIELDS = (
+    "walk_forward_fold_count",
+    "walk_forward_improvement_ratio",
+    "leave_one_year_out_result_count",
+    "leave_one_year_out_stability_ratio",
+    "date_block_bootstrap_paired_effect_confidence_interval",
+    "asset_group_concentration_diagnostics",
+    "event_count_comparability",
+    "executable_trigger_count_comparability",
+)
 
 
 FrameRule = Callable[[pd.DataFrame], pd.Series]
@@ -180,6 +199,49 @@ def legacy_scanner_trend_filter(frame: pd.DataFrame) -> pd.Series:
     )
 
 
+LEGACY_SCANNER_TREND_FILTER_CONTROL_V0 = FilterRule(
+    "legacy_scanner_trend_filter_control_v0",
+    "Sensitivity-only control decomposed from the legacy signal_surge_v0 Boolean.",
+    legacy_scanner_trend_filter,
+)
+
+
+def add_phase_a_price_trend_features(frame: pd.DataFrame) -> pd.DataFrame:
+    """Compute the fixed price-only Phase A filter without touching v1 features."""
+    if "symbol" not in frame or "date" not in frame or "close" not in frame:
+        raise ValueError("Phase A price trend features require symbol, date, and close")
+    out = frame.copy()
+    out["phase_a_ma200"] = np.nan
+    out["phase_a_ma200_slope_20"] = np.nan
+    for _, group in out.groupby("symbol", sort=False):
+        ordered = group.sort_values("date")
+        close = _numeric(ordered, "close")
+        ma200 = close.rolling(
+            PRIMARY_TREND_MA_LENGTH,
+            min_periods=PRIMARY_TREND_MA_LENGTH,
+        ).mean()
+        slope = ma200 / ma200.shift(PRIMARY_TREND_SLOPE_LENGTH) - 1.0
+        out.loc[ordered.index, "phase_a_ma200"] = ma200.to_numpy(dtype=float)
+        out.loc[ordered.index, "phase_a_ma200_slope_20"] = slope.to_numpy(dtype=float)
+    out["phase_a_price_trend_filter"] = (
+        (_numeric(out, "close") > _numeric(out, "phase_a_ma200"))
+        & (_numeric(out, "phase_a_ma200_slope_20") > 0)
+    )
+    return out
+
+
+def phase_a_price_only_trend_filter(frame: pd.DataFrame) -> pd.Series:
+    prepared = add_phase_a_price_trend_features(frame)
+    return prepared["phase_a_price_trend_filter"]
+
+
+PRIMARY_PHASE_A_TREND_FILTER = FilterRule(
+    "price_above_rising_ma200_v0",
+    "Fixed price-only control: close above MA200 and MA200 20-session slope above zero.",
+    phase_a_price_only_trend_filter,
+)
+
+
 def decompose_legacy_scanner(frame: pd.DataFrame) -> pd.DataFrame:
     """Expose the legacy Boolean's filter, trigger, ranking, and risk pieces."""
     out = add_signal_surge_v0(frame)
@@ -200,6 +262,14 @@ def decompose_legacy_scanner(frame: pd.DataFrame) -> pd.DataFrame:
         & out["v2_trend_filter"]
         & out["v2_trigger_signal"]
         & out["v2_risk_gate"]
+    )
+    return out
+
+
+def prepare_phase_a_features(frame: pd.DataFrame) -> pd.DataFrame:
+    out = add_phase_a_price_trend_features(decompose_legacy_scanner(frame))
+    out[LEGACY_SCANNER_TREND_FILTER_CONTROL_V0.key] = (
+        LEGACY_SCANNER_TREND_FILTER_CONTROL_V0.evaluate(out)
     )
     return out
 
@@ -291,12 +361,15 @@ def evaluate_signal_observations(
     missing = required.difference(frame.columns)
     if missing:
         raise ValueError(f"signal observations missing columns: {sorted(missing)}")
-    work = decompose_legacy_scanner(frame).sort_values(["symbol", "date"]).copy()
+    work = prepare_phase_a_features(frame).sort_values(["symbol", "date"]).copy()
     eligible = components.universe.evaluate(work)
     trend = components.trend_filter.evaluate(work)
     observations = work[["date", "symbol"]].copy()
     observations["universe_eligible"] = eligible
     observations["trend_filter"] = trend
+    observations[LEGACY_SCANNER_TREND_FILTER_CONTROL_V0.key] = work[
+        LEGACY_SCANNER_TREND_FILTER_CONTROL_V0.key
+    ]
     for rule in signal_rules:
         trigger = rule.evaluate(work)
         if rule.role == "legacy_baseline":
@@ -313,23 +386,53 @@ def frequency_matched_random_events(
     *,
     seed: int,
 ) -> pd.Series:
-    """Sample the same per-symbol event counts from the same eligible dates."""
+    """Match per-symbol first-event executable triggers with isolated random dates."""
     target = _bool_series(target_events, frame.index)
     eligible = _bool_series(eligible_events, frame.index)
     result = pd.Series(False, index=frame.index, dtype=bool)
     for symbol, group in frame.groupby("symbol", sort=True):
         ordered = group.sort_values("date")
-        target_count = int(target.loc[ordered.index].sum())
-        candidate_indices = ordered.index[eligible.loc[ordered.index]].to_numpy()
-        if target_count > len(candidate_indices):
-            raise ValueError(f"cannot frequency-match {symbol}: insufficient eligible dates")
+        target_values = target.loc[ordered.index].reset_index(drop=True)
+        target_count = len(_first_true_indices(target_values))
         if target_count == 0:
             continue
         digest = hashlib.sha256(f"{seed}:{symbol}".encode("utf-8")).digest()
         symbol_seed = int.from_bytes(digest[:8], "big", signed=False)
         rng = np.random.default_rng(symbol_seed)
-        chosen = rng.choice(candidate_indices, size=target_count, replace=False)
-        result.loc[chosen] = True
+        eligible_positions = np.flatnonzero(
+            eligible.loc[ordered.index].to_numpy(dtype=bool)
+        )
+        maximum_isolated_positions: list[int] = []
+        run_start = 0
+        while run_start < len(eligible_positions):
+            run_end = run_start + 1
+            while (
+                run_end < len(eligible_positions)
+                and eligible_positions[run_end] == eligible_positions[run_end - 1] + 1
+            ):
+                run_end += 1
+            run = eligible_positions[run_start:run_end]
+            offset = int(rng.integers(0, 2)) if len(run) % 2 == 0 else 0
+            maximum_isolated_positions.extend(run[offset::2].tolist())
+            run_start = run_end
+        if target_count > len(maximum_isolated_positions):
+            raise ValueError(
+                f"cannot frequency-match executable triggers for {symbol}: "
+                f"requested {target_count}, maximum isolated eligible dates "
+                f"{len(maximum_isolated_positions)}"
+            )
+        rng.shuffle(maximum_isolated_positions)
+        chosen_positions = sorted(maximum_isolated_positions[:target_count])
+        chosen_indices = ordered.index.to_numpy()[chosen_positions]
+        result.loc[chosen_indices] = True
+        matched_count = len(
+            _first_true_indices(result.loc[ordered.index].reset_index(drop=True))
+        )
+        if matched_count != target_count:
+            raise RuntimeError(
+                f"random executable-trigger matching failed for {symbol}: "
+                f"expected {target_count}, observed {matched_count}"
+            )
     return result
 
 
@@ -354,6 +457,24 @@ def _first_true_indices(signal: pd.Series) -> list[int]:
     values = _bool_series(signal, signal.index).reset_index(drop=True)
     previous = values.shift(1, fill_value=False).astype(bool)
     return values.index[values & ~previous].tolist()
+
+
+def signal_event_counts(
+    frame: pd.DataFrame,
+    events: pd.Series,
+    entry_rule: EntryRule,
+) -> dict[str, int]:
+    event_mask = _bool_series(events, frame.index)
+    executable_count = 0
+    for _, group in frame.groupby("symbol", sort=False):
+        ordered = group.sort_values("date")
+        executable_count += len(
+            entry_rule.signal_indices(event_mask.loc[ordered.index].reset_index(drop=True))
+        )
+    return {
+        "raw_boolean_signal_count": int(event_mask.sum()),
+        "executable_trigger_count": int(executable_count),
+    }
 
 
 def _equal_weights(symbols: Sequence[str]) -> dict[str, float]:
@@ -384,11 +505,7 @@ def default_phase_a_components() -> PhaseAComponents:
             "Use the supplied historical eligible_universe state without reconstruction.",
             lambda frame: frame.get("eligible_universe", False),
         ),
-        trend_filter=FilterRule(
-            "legacy_scanner_trend_filter_control_v0",
-            "Provisional Phase A control decomposed from signal_surge_v0; not the final v2 filter.",
-            legacy_scanner_trend_filter,
-        ),
+        trend_filter=PRIMARY_PHASE_A_TREND_FILTER,
         entry=EntryRule(
             "first_event_next_open",
             "Enter at the next valid session open after the first event in a run.",
@@ -405,16 +522,31 @@ def default_phase_a_components() -> PhaseAComponents:
             lambda row: _number(row, "low20"),
         ),
         position_sizing=PositionSizingRule(
-            "equal_weight_active",
-            "Equal weight all active positions after membership changes.",
+            CANONICAL_EQUAL_WEIGHT_KEY,
+            "Fixed canonical equal weight; not an optimized or interchangeable Phase A component.",
             _equal_weights,
         ),
         portfolio_construction=PortfolioConstructionRule(
-            "canonical_equal_weight_active_v1",
+            CANONICAL_EQUAL_WEIGHT_KEY,
             "Reuse the canonical equal-weight active portfolio simulator.",
             _canonical_portfolio,
         ),
     )
+
+
+def validate_phase_a_components(components: PhaseAComponents) -> None:
+    if components.position_sizing.key != CANONICAL_EQUAL_WEIGHT_KEY:
+        raise ValueError(
+            "Phase A supports only fixed canonical equal weight; unsupported position sizing "
+            f"rule: {components.position_sizing.key}"
+        )
+    if components.portfolio_construction.key != CANONICAL_EQUAL_WEIGHT_KEY:
+        raise ValueError(
+            "Phase A supports only canonical_equal_weight_active_v1 portfolio construction"
+        )
+    probe = components.position_sizing.target_weights(("A", "B"))
+    if probe != {"A": 0.5, "B": 0.5}:
+        raise ValueError("Phase A canonical sizing declaration does not produce equal weights")
 
 
 def build_signal_diagnostics(
@@ -525,6 +657,7 @@ def simulate_signal_lifecycles(
     round_trip_cost: float = ROUND_TRIP_COST,
 ) -> pd.DataFrame:
     """Apply the common Phase A rules without a fixed holding-period exit."""
+    validate_phase_a_components(components)
     if round_trip_cost < 0:
         raise ValueError("round_trip_cost cannot be negative")
     work = features.copy()
@@ -777,10 +910,111 @@ def _dominates(left: Mapping[str, object], right: Mapping[str, object]) -> bool:
     return bool(no_worse and strict)
 
 
+def _candidate_robustness_evidence(
+    robustness_evidence: Mapping[str, object] | None,
+    strategy_key: str,
+) -> Mapping[str, object]:
+    if robustness_evidence is None:
+        return {}
+    candidate = robustness_evidence.get(strategy_key)
+    return candidate if isinstance(candidate, Mapping) else robustness_evidence
+
+
+def _missing_or_invalid_robustness_fields(evidence: Mapping[str, object]) -> list[str]:
+    missing = [
+        field
+        for field in REQUIRED_ROBUSTNESS_EVIDENCE_FIELDS
+        if field not in evidence or evidence.get(field) is None
+    ]
+    if (
+        "multiple_testing_adjusted_p_value" not in evidence
+        and "corrected_evidence_pass" not in evidence
+    ):
+        missing.append("multiple_testing_adjusted_p_value_or_corrected_evidence_pass")
+    if (
+        "multiple_testing_adjusted_p_value" in evidence
+        and not _finite(evidence.get("multiple_testing_adjusted_p_value"))
+    ):
+        missing.append("multiple_testing_adjusted_p_value (invalid)")
+    if "corrected_evidence_pass" in evidence and not isinstance(
+        evidence.get("corrected_evidence_pass"), (bool, np.bool_)
+    ):
+        missing.append("corrected_evidence_pass (invalid)")
+    numeric_fields = (
+        "walk_forward_fold_count",
+        "walk_forward_improvement_ratio",
+        "leave_one_year_out_result_count",
+        "leave_one_year_out_stability_ratio",
+    )
+    for field in numeric_fields:
+        if field in evidence and not _finite(evidence.get(field)):
+            missing.append(f"{field} (invalid)")
+    interval = evidence.get("date_block_bootstrap_paired_effect_confidence_interval")
+    if interval is not None:
+        valid_interval = (
+            isinstance(interval, Sequence)
+            and not isinstance(interval, (str, bytes))
+            and len(interval) == 2
+            and all(_finite(value) for value in interval)
+            and float(interval[0]) <= float(interval[1])
+        )
+        if not valid_interval:
+            missing.append(
+                "date_block_bootstrap_paired_effect_confidence_interval (invalid)"
+            )
+    asset_groups = evidence.get("asset_group_concentration_diagnostics")
+    if asset_groups is not None:
+        if not isinstance(asset_groups, Mapping) or not _finite(
+            asset_groups.get("dominant_effect_share")
+        ):
+            missing.append("asset_group_concentration_diagnostics (invalid)")
+    for field in ("event_count_comparability", "executable_trigger_count_comparability"):
+        if field in evidence and not isinstance(evidence.get(field), (bool, np.bool_)):
+            missing.append(f"{field} (invalid)")
+    return list(dict.fromkeys(missing))
+
+
+def _robustness_outcomes(evidence: Mapping[str, object]) -> tuple[bool, bool]:
+    interval = evidence["date_block_bootstrap_paired_effect_confidence_interval"]
+    lower, upper = float(interval[0]), float(interval[1])
+    corrected_pass = (
+        bool(evidence["corrected_evidence_pass"])
+        if "corrected_evidence_pass" in evidence
+        else float(evidence["multiple_testing_adjusted_p_value"])
+        <= MULTIPLE_TESTING_ADJUSTED_ALPHA
+    )
+    asset_share = abs(
+        float(evidence["asset_group_concentration_diagnostics"]["dominant_effect_share"])
+    )
+    common_pass = bool(
+        int(evidence["walk_forward_fold_count"]) >= MIN_WALK_FORWARD_FOLDS
+        and int(evidence["leave_one_year_out_result_count"]) >= MIN_LOYO_RESULTS
+        and float(evidence["leave_one_year_out_stability_ratio"])
+        >= MIN_LOYO_STABILITY_RATIO
+        and corrected_pass
+        and asset_share <= MAX_DOMINANT_ASSET_GROUP_EFFECT_SHARE
+        and bool(evidence["event_count_comparability"])
+        and bool(evidence["executable_trigger_count_comparability"])
+    )
+    improvement_ratio = float(evidence["walk_forward_improvement_ratio"])
+    retain_support = bool(
+        common_pass
+        and improvement_ratio > 0.50
+        and lower >= -BOOTSTRAP_MATERIAL_EFFECT_TOLERANCE
+    )
+    reject_support = bool(
+        common_pass
+        and improvement_ratio <= 0.50
+        and upper <= BOOTSTRAP_MATERIAL_EFFECT_TOLERANCE
+    )
+    return retain_support, reject_support
+
+
 def classify_score_breakout(
     portfolio_metrics: pd.DataFrame,
     signal_summary: pd.DataFrame,
     *,
+    robustness_evidence: Mapping[str, object] | None = None,
     minimum_common_years: float = 5.0,
     minimum_score_signals: int = 100,
 ) -> dict[str, object]:
@@ -788,6 +1022,20 @@ def classify_score_breakout(
     score_rows = portfolio_metrics.loc[portfolio_metrics["variant"] == "score_breakout"]
     if score_rows.empty:
         return {"classification": "Inconclusive", "reason": "No score-breakout result was supplied."}
+    evidence_by_key: dict[str, Mapping[str, object]] = {}
+    for key in score_rows["strategy_key"].astype(str):
+        evidence = _candidate_robustness_evidence(robustness_evidence, key)
+        missing = _missing_or_invalid_robustness_fields(evidence)
+        if missing:
+            return {
+                "classification": "Inconclusive",
+                "reason": (
+                    f"Missing or invalid robustness evidence for {key}: "
+                    f"{', '.join(missing)}."
+                ),
+                "missing_robustness_evidence": missing,
+            }
+        evidence_by_key[key] = evidence
     counts = signal_summary.set_index("signal_key")["signal_count"].to_dict() if not signal_summary.empty else {}
     adequate = score_rows.loc[
         (pd.to_numeric(score_rows["common_years"], errors="coerce") >= minimum_common_years)
@@ -806,17 +1054,59 @@ def classify_score_breakout(
     price = next((row for row in records.values() if row.get("variant") == "prior_price_high"), None)
     if trend is None or price is None:
         return {"classification": "Inconclusive", "reason": "A deterministic comparator is missing."}
+    count_fields = (
+        "raw_boolean_signal_count",
+        "executable_trigger_count",
+        "completed_lifecycle_count",
+    )
+    for comparator in (trend, price):
+        if any(not _finite(comparator.get(field)) for field in count_fields):
+            return {
+                "classification": "Inconclusive",
+                "reason": (
+                    "Signal/execution count diagnostics are incomplete for "
+                    f"{comparator.get('strategy_key')}."
+                ),
+            }
 
     retain_candidates: list[tuple[int, str]] = []
     reject_flags: list[bool] = []
     for score in adequate.to_dict(orient="records"):
         key = str(score["strategy_key"])
+        if any(not _finite(score.get(field)) for field in count_fields):
+            return {
+                "classification": "Inconclusive",
+                "reason": f"Signal/execution count diagnostics are incomplete for {key}.",
+            }
         placebo = portfolio_metrics.loc[
             (portfolio_metrics["parent_signal_key"] == key)
             & portfolio_metrics["variant"].isin(["frequency_matched_random", "shifted_placebo"])
         ]
         if placebo.empty or set(placebo["variant"]) != {"frequency_matched_random", "shifted_placebo"}:
             return {"classification": "Inconclusive", "reason": f"Placebo evidence is incomplete for {key}."}
+        if any(
+            not _finite(row.get(field))
+            for row in placebo.to_dict(orient="records")
+            for field in count_fields
+        ):
+            return {
+                "classification": "Inconclusive",
+                "reason": f"Placebo count diagnostics are incomplete for {key}.",
+            }
+        score_executable = int(score["executable_trigger_count"])
+        mismatched = placebo.loc[
+            pd.to_numeric(placebo["executable_trigger_count"], errors="coerce")
+            != score_executable
+        ]
+        if not mismatched.empty:
+            mismatch_keys = sorted(mismatched["strategy_key"].astype(str).tolist())
+            return {
+                "classification": "Inconclusive",
+                "reason": (
+                    f"Executable-trigger comparability failed for {key}: "
+                    f"{', '.join(mismatch_keys)}."
+                ),
+            }
         placebo_medians = []
         for _, group in placebo.groupby("variant", sort=True):
             median = group.select_dtypes(include=[np.number]).median(numeric_only=True).to_dict()
@@ -829,9 +1119,12 @@ def classify_score_breakout(
         )
         dominates_all = _dominates(score, trend) and _dominates(score, price)
         dominates_all &= all(_dominates(score, median) for median in placebo_medians)
-        if passes_spy and dominates_all:
+        retain_support, reject_support = _robustness_outcomes(evidence_by_key[key])
+        if passes_spy and dominates_all and retain_support:
             retain_candidates.append((int(score["score_lookback"]), key))
         reject_flags.append(
+            reject_support
+            and
             (_dominates(trend, score) or _dominates(price, score))
             and any(_dominates(median, score) for median in placebo_medians)
         )
@@ -850,7 +1143,11 @@ def classify_score_breakout(
         }
     return {
         "classification": "Inconclusive",
-        "reason": "Adequate evidence exists, but neither the Retain nor Reject rule is satisfied.",
+        "reason": (
+            "Complete evidence was supplied, but the preregistered portfolio, "
+            "robustness, and control-comparability conditions do not jointly "
+            "support Retain or Reject."
+        ),
     }
 
 
@@ -862,9 +1159,16 @@ def phase_a_methodology(
     round_trip_cost: float,
 ) -> dict[str, object]:
     return {
+        "phase": "Phase A1 comparison framework",
+        "empirical_score_breakout_classification": "not_run_requires_phase_a2",
         "universe_eligibility": components.universe.key,
         "trend_filter": components.trend_filter.key,
-        "trend_filter_status": "provisional_phase_a_control",
+        "trend_filter_conditions": [
+            "close > phase_a_ma200",
+            "phase_a_ma200_slope_20 > 0",
+        ],
+        "trend_filter_status": "fixed_score_independent_phase_a_primary",
+        "trend_filter_sensitivity_control": LEGACY_SCANNER_TREND_FILTER_CONTROL_V0.key,
         "score_breakout_numeric_parameter": "score_lookback",
         "score_lookbacks": [int(value) for value in score_lookbacks],
         "r20_er20_role": "diagnostics_and_ranking_only",
@@ -881,6 +1185,7 @@ def phase_a_methodology(
         "fixed_holding_period_exit": None,
         "fixed_profit_target": None,
         "position_sizing": components.position_sizing.key,
+        "position_sizing_status": "fixed_canonical_equal_weight_not_optimized",
         "portfolio_construction": components.portfolio_construction.key,
         "round_trip_cost": float(round_trip_cost),
         "comparison_dates": "exact_common_strategy_and_spy_economic_dates",
@@ -894,6 +1199,19 @@ def phase_a_methodology(
             "total_transaction_cost",
         ],
         "trade_metric_role": "diagnostic_only",
+        "classification_requires_external_robustness_evidence": [
+            *REQUIRED_ROBUSTNESS_EVIDENCE_FIELDS,
+            "multiple_testing_adjusted_p_value_or_corrected_evidence_pass",
+        ],
+        "robustness_thresholds": {
+            "minimum_walk_forward_folds": MIN_WALK_FORWARD_FOLDS,
+            "minimum_walk_forward_improvement_ratio_exclusive": 0.50,
+            "minimum_leave_one_year_out_results": MIN_LOYO_RESULTS,
+            "minimum_leave_one_year_out_stability_ratio": MIN_LOYO_STABILITY_RATIO,
+            "bootstrap_material_effect_tolerance": BOOTSTRAP_MATERIAL_EFFECT_TOLERANCE,
+            "multiple_testing_adjusted_alpha": MULTIPLE_TESTING_ADJUSTED_ALPHA,
+            "maximum_dominant_asset_group_effect_share": MAX_DOMINANT_ASSET_GROUP_EFFECT_SHARE,
+        },
         "signal_only_diagnostics": {
             "forward_return_horizons": list(FORWARD_RETURN_HORIZONS),
             "mfe_horizon": EXCURSION_HORIZON,
@@ -910,10 +1228,12 @@ def run_phase_a_signal_comparison(
     score_lookbacks: Sequence[int] = SCORE_LOOKBACK_GRID,
     random_seeds: Sequence[int] = FREQUENCY_MATCHED_RANDOM_SEEDS,
     round_trip_cost: float = ROUND_TRIP_COST,
+    robustness_evidence: Mapping[str, object] | None = None,
 ) -> PhaseAComparisonResult:
     """Run every Phase A signal with one shared execution and portfolio path."""
     selected = components or default_phase_a_components()
-    ordered = decompose_legacy_scanner(features).sort_values(["symbol", "date"]).copy()
+    validate_phase_a_components(selected)
+    ordered = prepare_phase_a_features(features).sort_values(["symbol", "date"]).copy()
     score_rules = build_score_breakout_rules(score_lookbacks)
     base_rules = [TREND_FILTER_ONLY_RULE, make_prior_price_high_rule(), *score_rules, LEGACY_SIGNAL_SURGE_V0_RULE]
     observations = evaluate_signal_observations(ordered, base_rules, selected)
@@ -946,15 +1266,38 @@ def run_phase_a_signal_comparison(
                 "variant": "frequency_matched_random",
                 "score_lookback": int(rule.params["score_lookback"]),
                 "parent_signal_key": rule.key,
+                "shift_edge_loss_raw_count": np.nan,
+                "shift_edge_loss_executable_trigger_count": np.nan,
             }
         shifted_key = f"{rule.key}__shift_{PLACEBO_SHIFT_BARS}"
-        signal_events[shifted_key] = within_symbol_shifted_events(
+        shifted_events = within_symbol_shifted_events(
             ordered, signal_events[rule.key], shift_bars=PLACEBO_SHIFT_BARS
         ) & eligible_control
+        signal_events[shifted_key] = shifted_events
+        source_counts = signal_event_counts(
+            ordered, signal_events[rule.key], selected.entry
+        )
+        shifted_counts = signal_event_counts(ordered, shifted_events, selected.entry)
         metadata[shifted_key] = {
             "variant": "shifted_placebo",
             "score_lookback": int(rule.params["score_lookback"]),
             "parent_signal_key": rule.key,
+            "shift_edge_loss_raw_count": max(
+                source_counts["raw_boolean_signal_count"]
+                - shifted_counts["raw_boolean_signal_count"],
+                0,
+            ),
+            "shift_edge_loss_executable_trigger_count": (
+                max(
+                    source_counts["executable_trigger_count"]
+                    - shifted_counts["executable_trigger_count"],
+                    0,
+                )
+            ),
+            "executable_trigger_count_matches_parent": (
+                source_counts["executable_trigger_count"]
+                == shifted_counts["executable_trigger_count"]
+            ),
         }
     for key, values in signal_events.items():
         if key not in observations:
@@ -979,10 +1322,27 @@ def run_phase_a_signal_comparison(
             ordered,
             round_trip_cost,
         )
-        metric_rows.append({**summarize_relative_portfolio(key, curve, ordered), **metadata[key]})
+        counts = signal_event_counts(ordered, events, selected.entry)
+        completed_lifecycles = (
+            int(lifecycle["exit_date"].notna().sum())
+            if not lifecycle.empty and "exit_date" in lifecycle
+            else 0
+        )
+        metric_rows.append(
+            {
+                **summarize_relative_portfolio(key, curve, ordered),
+                **metadata[key],
+                **counts,
+                "completed_lifecycle_count": completed_lifecycles,
+            }
+        )
     lifecycles = pd.concat(lifecycle_frames, ignore_index=True) if lifecycle_frames else pd.DataFrame()
     portfolio_metrics = pd.DataFrame(metric_rows)
-    classification = classify_score_breakout(portfolio_metrics, diagnostic_summary)
+    classification = classify_score_breakout(
+        portfolio_metrics,
+        diagnostic_summary,
+        robustness_evidence=robustness_evidence,
+    )
     methodology = phase_a_methodology(
         selected,
         score_lookbacks=score_lookbacks,
