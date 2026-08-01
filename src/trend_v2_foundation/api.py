@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+from collections import Counter
 import ipaddress
 import json
 import re
@@ -389,6 +390,52 @@ class ReadOnlyTrendApi:
             "error_codes": sorted(self.error_messages),
         }
 
+    def _overview(self, registry: SavedRunRegistry) -> Mapping[str, Any]:
+        """Return bounded aggregate counts without exposing registry internals."""
+
+        artifact_counts = Counter(
+            artifact.availability.value
+            for run in registry.strategy_runs
+            for artifact in run.artifacts
+        )
+        attempt_counts = Counter(
+            attempt.operational_status.value for attempt in registry.execution_attempts
+        )
+        return {
+            "strategy_run_count": len(registry.strategy_runs),
+            "evaluation_profile_count": len(registry.evaluation_profiles),
+            "evaluation_run_count": len(registry.evaluation_runs),
+            "artifact_availability_counts": {
+                item.value: artifact_counts[item.value] for item in ArtifactAvailability
+            },
+            "execution_attempt_status_counts": {
+                item.value: attempt_counts[item.value] for item in AttemptOperationalStatus
+            },
+            "versions": self._metadata(registry),
+            "last_registry_rebuild_identity": {
+                "registry_id": registry.registry_id,
+                "source_fingerprint": registry.source_fingerprint,
+                "rebuild_version": registry.rebuild_version,
+            },
+            "registry_issue_count": len(registry.issues),
+            "orphan_object_count": len(registry.orphan_object_hashes),
+            "evidence_quality_note_ko": (
+                "이 요약은 저장된 근거의 상태만 보여 주며 운영 또는 프로덕션 승인 상태를 의미하지 않습니다."
+            ),
+        }
+
+    def _terminology(self, registry: SavedRunRegistry) -> Mapping[str, Any]:
+        """Expose the centralized Korean terminology source as read-only data."""
+
+        source = self.terminology_source
+        return {
+            "schema_version": source.get("schema_version"),
+            "language": source.get("language", "ko-KR"),
+            "registry_id": registry.registry_id,
+            "status_labels": canonical_data(source.get("api", {}).get("status_labels", {})),
+            "entries": canonical_data(source.get("entries", {})),
+        }
+
     def _list_runs(
         self, registry: SavedRunRegistry, query: Mapping[str, Sequence[str]]
     ) -> Mapping[str, Any]:
@@ -486,6 +533,21 @@ class ReadOnlyTrendApi:
                     "integrity_status": item.integrity_status.value,
                     "integrity_status_ko": self.status_labels.get(item.integrity_status.value),
                     "retention_status": item.retention_status,
+                    "benchmark_identity": canonical_data(
+                        item.canonical_specification.get("benchmark", {})
+                    ),
+                    "artifact_availability_counts": dict(
+                        sorted(
+                            Counter(
+                                artifact.availability.value for artifact in item.artifacts
+                            ).items()
+                        )
+                    ),
+                    "available_artifact_keys": sorted(
+                        artifact.artifact_key
+                        for artifact in item.artifacts
+                        if artifact.availability == ArtifactAvailability.AVAILABLE
+                    ),
                     "evaluation_run_count": len(item.evaluation_run_ids),
                     "execution_attempt_count": len(item.execution_attempt_ids),
                 }
@@ -627,6 +689,39 @@ class ReadOnlyTrendApi:
             "items": canonical_data(selected),
             "page": page,
         }
+
+    def _behavior_summary(self, run: Any, query: Mapping[str, Sequence[str]]) -> Mapping[str, Any]:
+        """Expose fingerprints and bounded counts, never the full comparison paths."""
+
+        self._allow_query(query, set())
+        entry = self._artifact_entry(run, "behavior_metadata", None)
+        payload = self._load_artifact(run, entry)
+        if not isinstance(payload, Mapping):
+            raise ApiContractError(
+                409,
+                "artifact_corrupt",
+                "Behavior metadata is not a mapping.",
+                object_identity="behavior_metadata",
+            )
+        inputs = payload.get("comparison_inputs", {})
+        if not isinstance(inputs, Mapping):
+            inputs = {}
+        count_fields = {
+            "economic_date_count": len(inputs.get("economic_dates", ())),
+            "daily_return_count": len(inputs.get("daily_returns", ())),
+            "active_date_count": len(inputs.get("active_dates", ())),
+            "entry_date_count": (
+                None if inputs.get("entry_dates") is None else len(inputs.get("entry_dates", ()))
+            ),
+            "exit_date_count": (
+                None if inputs.get("exit_dates") is None else len(inputs.get("exit_dates", ()))
+            ),
+        }
+        summary = {
+            key: value for key, value in payload.items() if key != "comparison_inputs"
+        }
+        summary["comparison_input_counts"] = count_fields
+        return {"artifact": entry.to_dict(), "payload": canonical_data(summary)}
 
     def _list_profiles(
         self, registry: SavedRunRegistry, query: Mapping[str, Sequence[str]]
@@ -874,6 +969,12 @@ class ReadOnlyTrendApi:
         if path == f"{API_PATH_PREFIX}/metadata":
             self._allow_query(query, set())
             return self._metadata(registry)
+        if path == f"{API_PATH_PREFIX}/overview":
+            self._allow_query(query, set())
+            return self._overview(registry)
+        if path == f"{API_PATH_PREFIX}/terminology":
+            self._allow_query(query, set())
+            return self._terminology(registry)
         if path == f"{API_PATH_PREFIX}/runs":
             return self._list_runs(registry, query)
         if path == f"{API_PATH_PREFIX}/evaluation-profiles":
@@ -933,8 +1034,11 @@ class ReadOnlyTrendApi:
                 if resource == "artifacts":
                     self._allow_query(query, set())
                     return {"strategy_run_id": run_id, "items": [item.to_dict() for item in run.artifacts]}
+                if resource == "behavior-summary":
+                    return self._behavior_summary(run, query)
                 artifact_routes = {
                     "curve": "daily_portfolio_curve",
+                    "benchmark-curve": "benchmark_daily_portfolio_curve",
                     "yearly-metrics": "yearly_metrics",
                     "rolling-metrics": "rolling_metrics",
                     "derived-metrics": "derived_metrics",

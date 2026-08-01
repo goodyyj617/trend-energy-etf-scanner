@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>추세 전략 연구실 · 저장 결과 탐색</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="주 메뉴">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">TE</span>
+        <div>
+          <strong>추세 전략 연구실</strong>
+          <small>저장 결과 읽기 전용</small>
+        </div>
+      </div>
+      <nav id="primary-nav" aria-label="저장 결과 탐색 메뉴">
+        <a href="#overview" data-route="overview"><span aria-hidden="true">⌂</span> 개요</a>
+        <a href="#runs" data-route="runs"><span aria-hidden="true">▤</span> 저장된 전략 실행</a>
+        <a href="#evaluations" data-route="evaluations"><span aria-hidden="true">✓</span> 평가 결과</a>
+        <a href="#performance" data-route="performance"><span aria-hidden="true">⌁</span> 성과 및 위험</a>
+        <a href="#robustness" data-route="robustness"><span aria-hidden="true">◇</span> 강건성</a>
+        <a href="#behavior" data-route="behavior"><span aria-hidden="true">◎</span> 행동 유사도</a>
+        <a href="#attempts" data-route="attempts"><span aria-hidden="true">↻</span> 실행 이력</a>
+        <a href="#explanations" data-route="explanations"><span aria-hidden="true">?</span> 설명</a>
+        <a href="#system" data-route="system"><span aria-hidden="true">i</span> 시스템 정보</a>
+      </nav>
+      <div class="read-only-note">
+        <strong>읽기 전용</strong>
+        <p>전략 시작·취소·재시도 기능은 이 단계에 포함되지 않습니다.</p>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Trend Strategy v2 · Foundation 4</p>
+          <h1 id="page-title">개요</h1>
+        </div>
+        <div class="connection" id="connection-status" role="status" aria-live="polite">
+          <span class="connection-dot" aria-hidden="true"></span>
+          API 확인 중
+        </div>
+      </header>
+      <main id="main-content" tabindex="-1">
+        <div id="global-message" class="message-region" role="alert" aria-live="assertive"></div>
+        <div id="loading-status" class="loading-region" role="status" aria-live="polite"></div>
+        <div id="view"></div>
+      </main>
+      <footer>
+        저장된 근거만 표시합니다. 화면의 결과는 프로덕션 승인 또는 미래 성과를 뜻하지 않습니다.
+      </footer>
+    </div>
+  </div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
