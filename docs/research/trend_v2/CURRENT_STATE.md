@@ -13,6 +13,9 @@
 - Foundation 1 implements immutable strategy-run, evaluation-profile,
   evaluation-run, metric-registry, terminology, retention-policy, and bounded
   local result-store contracts without changing the legacy execution path.
+- `StrategyRunManifest` records terminal outcomes only. A separate
+  execution-attempt or job-status contract for pending and running work is
+  required before the web API starts background backtests.
 
 ## Current phase
 

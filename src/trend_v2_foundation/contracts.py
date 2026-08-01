@@ -45,6 +45,11 @@ class ExecutionStatus(str, Enum):
     PARTIAL = "partial"
 
 
+TERMINAL_EXECUTION_STATUSES = frozenset(
+    {ExecutionStatus.SUCCEEDED, ExecutionStatus.FAILED, ExecutionStatus.PARTIAL}
+)
+
+
 class ArtifactKind(str, Enum):
     SUMMARY_METRICS = "summary_metrics"
     DAILY_PORTFOLIO_CURVE = "daily_portfolio_curve"
@@ -155,6 +160,11 @@ class StrategyRunManifest:
         object.__setattr__(self, "artifacts", tuple(self.artifacts))
         object.__setattr__(self, "warnings", tuple(self.warnings))
         object.__setattr__(self, "limitations", tuple(self.limitations))
+        if self.execution_status not in TERMINAL_EXECUTION_STATUSES:
+            raise ValueError(
+                "StrategyRunManifest.execution_status must be terminal: "
+                "succeeded, failed, or partial"
+            )
         spec = StrategyRunSpec.from_dict(self.canonical_specification)
         if self.strategy_run_id != spec.strategy_run_id:
             raise ValueError("strategy_run_id does not match canonical specification")
@@ -282,12 +292,11 @@ class EvaluationProfile:
         object.__setattr__(self, "behavior_deduplication", deep_freeze(self.behavior_deduplication))
         if len(set(self.enabled_metrics)) != len(self.enabled_metrics):
             raise ValueError("enabled_metrics cannot contain duplicates")
-        unknown_directions = set(self.enabled_metrics) - set(self.metric_directions)
-        unknown_modes = set(self.enabled_metrics) - set(self.metric_modes)
-        if unknown_directions or unknown_modes:
-            raise ValueError("every enabled metric requires direction and metric mode")
-        if any(float(weight) < 0 for weight in self.exploratory_metric_weights.values()):
-            raise ValueError("exploratory weights cannot be negative")
+        if any(
+            isinstance(weight, bool) or not isinstance(weight, (int, float)) or weight < 0
+            for weight in self.exploratory_metric_weights.values()
+        ):
+            raise ValueError("exploratory weights must be non-negative numeric values")
         if self.comparison_mode == ComparisonMode.EXPLORATORY_WEIGHTED:
             if self.normalization_method is None:
                 raise ValueError("weighted comparison requires an explicit normalization method")
@@ -297,6 +306,9 @@ class EvaluationProfile:
             raise ValueError("ranking_sensitivity_delta must be in (0, 1]")
         if self.high_weighted_rank_cutoff < 1:
             raise ValueError("high_weighted_rank_cutoff must be positive")
+        from .metrics import validate_evaluation_profile
+
+        validate_evaluation_profile(self)
 
     @property
     def profile_hash(self) -> str:
@@ -351,7 +363,7 @@ class CheckResult:
 
 @dataclass(frozen=True)
 class WeightedCandidateView:
-    score: float | None
+    exploratory_weighted_value: float | None
     rank: int | None
     normalized_metric_values: Mapping[str, float | None]
     weighted_contributions: Mapping[str, float | None]
@@ -517,8 +529,18 @@ class MetricDefinition:
     suitable_for_weighted_view: bool
     suitable_for_robustness: bool
     suitable_for_diagnostics: bool
+    numeric_representation: str = "continuous_numeric"
+    allowed_numeric_values: tuple[float, ...] = ()
     source_summary_key: str | None = None
     schema_version: str = METRIC_REGISTRY_VERSION
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "required_input_artifacts", tuple(self.required_input_artifacts))
+        object.__setattr__(self, "allowed_numeric_values", tuple(self.allowed_numeric_values))
+        if self.numeric_representation not in {"continuous_numeric", "binary_numeric"}:
+            raise ValueError(f"unsupported numeric representation: {self.numeric_representation}")
+        if self.numeric_representation == "binary_numeric" and self.allowed_numeric_values != (
+            0.0,
+            1.0,
+        ):
+            raise ValueError("binary numeric metrics must allow exactly 0.0 and 1.0")

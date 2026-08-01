@@ -9,8 +9,12 @@ from src.trend_v2_foundation import (
     ArtifactKind,
     ArtifactRetentionPolicy,
     EvaluationProfile,
+    EvaluationProfileValidationError,
     ExecutionStatus,
+    GateRule,
     LocalResultStore,
+    MetricMode,
+    MetricValueRepresentationError,
     ParetoObjective,
     StrategyRunManifest,
     StrategyRunSpec,
@@ -22,6 +26,7 @@ from src.trend_v2_foundation import (
     load_terminology_source,
 )
 from src.trend_v2_foundation.contracts import MetricDirection
+from src.trend_v2_foundation.evaluation import evaluate_gate
 from src.trend_v2_foundation.metrics import METRIC_REGISTRY, metrics_from_portfolio_summaries
 from src.trend_v2_foundation.terminology import REQUIRED_ENTRY_FIELDS
 
@@ -119,6 +124,122 @@ class CanonicalIdentityTests(unittest.TestCase):
         self.assertNotEqual(profile.evaluation_profile_id, changed.evaluation_profile_id)
 
 
+class EvaluationProfileValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.profiles = load_evaluation_profiles(PROFILE_DIR)
+
+    def assert_profile_error(self, field: str, metric_key: str, callback) -> None:
+        with self.assertRaises(EvaluationProfileValidationError) as context:
+            callback()
+        message = str(context.exception)
+        self.assertIn(field, message)
+        self.assertIn(metric_key, message)
+
+    def test_unknown_enabled_metric_fails_at_construction(self) -> None:
+        profile = self.profiles["research_default"]
+        directions = dict(profile.metric_directions)
+        modes = dict(profile.metric_modes)
+        directions["unknown_metric"] = MetricDirection.MAXIMIZE
+        modes["unknown_metric"] = MetricMode.ABSOLUTE
+        self.assert_profile_error(
+            "enabled_metrics",
+            "unknown_metric",
+            lambda: replace(
+                profile,
+                enabled_metrics=profile.enabled_metrics + ("unknown_metric",),
+                metric_directions=directions,
+                metric_modes=modes,
+            ),
+        )
+
+    def test_disabled_gate_metric_fails(self) -> None:
+        profile = self.profiles["research_default"]
+        self.assert_profile_error(
+            "mandatory_gates",
+            "annualized_volatility",
+            lambda: replace(
+                profile,
+                mandatory_gates=profile.mandatory_gates
+                + (GateRule("annualized_volatility", "<=", 0.2),),
+            ),
+        )
+
+    def test_metric_unsuitable_for_pareto_fails(self) -> None:
+        profile = self.profiles["final_eligibility_default"]
+        self.assert_profile_error(
+            "pareto_objectives",
+            "transaction_cost_stress_survival",
+            lambda: replace(
+                profile,
+                pareto_objectives=profile.pareto_objectives
+                + (
+                    ParetoObjective(
+                        "transaction_cost_stress_survival",
+                        MetricDirection.MAXIMIZE,
+                        0.0,
+                    ),
+                ),
+            ),
+        )
+
+    def test_metric_unsuitable_for_robustness_fails(self) -> None:
+        profile = self.profiles["research_default"]
+        self.assert_profile_error(
+            "robustness_vetoes",
+            "cagr_spy_ratio",
+            lambda: replace(
+                profile,
+                robustness_vetoes=(GateRule("cagr_spy_ratio", ">=", 0.8),),
+            ),
+        )
+
+    def test_metric_unsuitable_for_weighted_view_fails(self) -> None:
+        profile = self.profiles["final_eligibility_default"]
+        self.assert_profile_error(
+            "exploratory_metric_weights",
+            "transaction_cost_stress_survival",
+            lambda: replace(
+                profile,
+                exploratory_metric_weights={"transaction_cost_stress_survival": 1.0},
+            ),
+        )
+
+    def test_direction_mismatch_fails(self) -> None:
+        profile = self.profiles["research_default"]
+        directions = dict(profile.metric_directions)
+        directions["cagr_spy_ratio"] = MetricDirection.MINIMIZE
+        self.assert_profile_error(
+            "metric_directions.cagr_spy_ratio",
+            "cagr_spy_ratio",
+            lambda: replace(profile, metric_directions=directions),
+        )
+
+    def test_duplicate_rules_fail_clearly(self) -> None:
+        profile = self.profiles["research_default"]
+        self.assert_profile_error(
+            "duplicate rule",
+            "cagr_spy_ratio",
+            lambda: replace(
+                profile,
+                mandatory_gates=profile.mandatory_gates + (profile.mandatory_gates[0],),
+            ),
+        )
+
+    def test_all_committed_profiles_pass_and_final_profile_has_calmar_gate(self) -> None:
+        self.assertEqual(
+            set(self.profiles),
+            {"research_default", "final_eligibility_default", "exploratory_weighted_example"},
+        )
+        final_profile = self.profiles["final_eligibility_default"]
+        calmar_gates = [
+            gate for gate in final_profile.mandatory_gates if gate.metric_key == "calmar_spy_ratio"
+        ]
+        self.assertEqual(len(calmar_gates), 1)
+        self.assertEqual(calmar_gates[0].operator, ">=")
+        self.assertEqual(calmar_gates[0].threshold, 1.0)
+        self.assertEqual(final_profile.approval_status, "example_not_production_approved")
+
+
 class EvaluationPipelineTests(unittest.TestCase):
     def test_epsilon_pareto_behavior(self) -> None:
         observations = {
@@ -150,7 +271,7 @@ class EvaluationPipelineTests(unittest.TestCase):
         run = evaluate_strategy_runs(
             profile,
             {
-                "fails_gate_but_scores_high": metrics(
+                "fails_gate_but_weighted_value_high": metrics(
                     cagr_ratio=0.79,
                     mdd_ratio=0.1,
                     cdar_ratio=0.1,
@@ -163,7 +284,9 @@ class EvaluationPipelineTests(unittest.TestCase):
             benchmark_data_identity="synthetic_spy_v1",
             creation_time=CREATED_AT,
         )
-        result = {item.strategy_run_id: item for item in run.results}["fails_gate_but_scores_high"]
+        result = {item.strategy_run_id: item for item in run.results}[
+            "fails_gate_but_weighted_value_high"
+        ]
         self.assertFalse(result.mandatory_gates_passed)
         self.assertIn("mandatory_gate_failed", result.final_labels)
         self.assertNotIn("constraint_pareto_selected", result.final_labels)
@@ -174,6 +297,95 @@ class EvaluationPipelineTests(unittest.TestCase):
         )
         self.assertAlmostEqual(sum(run.normalized_weights.values()), 1.0)
         self.assertIn("baseline", run.ranking_sensitivity["scenarios"])
+
+    def test_weighted_sensitivity_is_scale_invariant(self) -> None:
+        profile = load_evaluation_profiles(PROFILE_DIR)["exploratory_weighted_example"]
+        scaled = replace(
+            profile,
+            exploratory_metric_weights={
+                key: value * 100.0 for key, value in profile.exploratory_metric_weights.items()
+            },
+        )
+        observations = {
+            "a": metrics(cagr_ratio=0.95, mdd_ratio=0.55, cdar_ratio=0.65),
+            "b": metrics(cagr_ratio=0.88, mdd_ratio=0.65, cdar_ratio=0.72),
+        }
+        first = evaluate_strategy_runs(
+            profile,
+            observations,
+            benchmark_data_identity="spy_hash",
+            creation_time=CREATED_AT,
+        )
+        second = evaluate_strategy_runs(
+            scaled,
+            observations,
+            benchmark_data_identity="spy_hash",
+            creation_time=CREATED_AT,
+        )
+        self.assertEqual(first.normalized_weights, second.normalized_weights)
+        self.assertEqual(first.ranking_sensitivity, second.ranking_sensitivity)
+        for left, right in zip(first.results, second.results):
+            self.assertEqual(
+                left.weighted_view.exploratory_weighted_value,
+                right.weighted_view.exploratory_weighted_value,
+            )
+            self.assertEqual(left.weighted_view.rank, right.weighted_view.rank)
+            self.assertEqual(
+                left.weighted_view.sensitivity_ranks, right.weighted_view.sensitivity_ranks
+            )
+
+    def test_sensitivity_boundaries_zero_and_single_positive_weight(self) -> None:
+        profile = load_evaluation_profiles(PROFILE_DIR)["exploratory_weighted_example"]
+        single_positive = replace(
+            profile,
+            exploratory_metric_weights={
+                key: 1.0 if key == "cagr_spy_ratio" else 0.0
+                for key in profile.exploratory_metric_weights
+            },
+        )
+        run = evaluate_strategy_runs(
+            single_positive,
+            {"a": metrics(), "b": metrics(cagr_ratio=0.95)},
+            benchmark_data_identity="spy_hash",
+            creation_time=CREATED_AT,
+        )
+        scenarios = run.ranking_sensitivity["scenarios"]
+        for details in scenarios.values():
+            weights = details["weights"]
+            self.assertAlmostEqual(sum(weights.values()), 1.0)
+            self.assertTrue(all(0.0 <= value <= 1.0 for value in weights.values()))
+        self.assertEqual(
+            scenarios["cagr_spy_ratio:minus_0.1"]["weights"], run.normalized_weights
+        )
+        zero_plus = scenarios["annual_turnover:plus_0.1"]["weights"]
+        self.assertAlmostEqual(zero_plus["annual_turnover"], 0.1)
+        self.assertAlmostEqual(zero_plus["cagr_spy_ratio"], 0.9)
+
+    def test_serialized_weighted_view_uses_exploratory_field_name(self) -> None:
+        profile = load_evaluation_profiles(PROFILE_DIR)["exploratory_weighted_example"]
+        run = evaluate_strategy_runs(
+            profile,
+            {"a": metrics(), "b": metrics(cagr_ratio=0.95)},
+            benchmark_data_identity="spy_hash",
+            creation_time=CREATED_AT,
+        )
+        weighted = run.to_dict()["results"][0]["weighted_view"]
+        self.assertIn("exploratory_weighted_value", weighted)
+        self.assertNotIn("score", weighted)
+
+    def test_binary_metric_requires_numeric_zero_or_one(self) -> None:
+        profile = load_evaluation_profiles(PROFILE_DIR)["final_eligibility_default"]
+        gate = next(
+            rule
+            for rule in profile.robustness_vetoes
+            if rule.metric_key == "transaction_cost_stress_survival"
+        )
+        self.assertTrue(evaluate_gate({gate.metric_key: 1.0}, gate).passed)
+        self.assertFalse(evaluate_gate({gate.metric_key: 0.0}, gate).passed)
+        with self.assertRaisesRegex(
+            MetricValueRepresentationError, "Boolean values are not accepted"
+        ):
+            evaluate_gate({gate.metric_key: True}, gate)
 
     def test_evaluation_run_identity_is_input_order_independent(self) -> None:
         profile = load_evaluation_profiles(PROFILE_DIR)["research_default"]
@@ -229,6 +441,16 @@ class ResultStoreTests(unittest.TestCase):
             self.assertEqual(second.retention_status, "deduplicated")
             self.assertEqual(store.retention_status().orphan_object_count, 1)
             self.assertGreater(store.estimate_artifact_size([{"x": 1}]).stored_bytes, 0)
+
+    def test_running_immutable_manifest_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "must be terminal"):
+            StrategyRunManifest.create(
+                strategy_spec(),
+                source_code_commit="b" * 40,
+                artifacts=(),
+                creation_time=CREATED_AT,
+                execution_status=ExecutionStatus.RUNNING,
+            )
 
     def test_artifact_hash_validation_detects_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

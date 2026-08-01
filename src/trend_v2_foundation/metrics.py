@@ -2,10 +2,23 @@
 
 from __future__ import annotations
 
+import math
+from numbers import Real
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from .contracts import ArtifactKind, MetricDefinition, MetricDirection
+
+if TYPE_CHECKING:
+    from .contracts import EvaluationProfile
+
+
+class EvaluationProfileValidationError(ValueError):
+    """A configured profile is inconsistent with the metric registry."""
+
+
+class MetricValueRepresentationError(ValueError):
+    """A metric artifact uses an invalid numeric representation."""
 
 
 def _metric(
@@ -24,6 +37,8 @@ def _metric(
     robustness: bool = False,
     diagnostics: bool = True,
     artifacts: tuple[ArtifactKind, ...] = (ArtifactKind.DAILY_PORTFOLIO_CURVE,),
+    numeric_representation: str = "continuous_numeric",
+    allowed_numeric_values: tuple[float, ...] = (),
 ) -> MetricDefinition:
     return MetricDefinition(
         metric_key=key,
@@ -39,6 +54,8 @@ def _metric(
         suitable_for_weighted_view=weighted,
         suitable_for_robustness=robustness,
         suitable_for_diagnostics=diagnostics,
+        numeric_representation=numeric_representation,
+        allowed_numeric_values=allowed_numeric_values,
         source_summary_key=source,
     )
 
@@ -62,7 +79,7 @@ _REGISTRY = {
         _metric("walk_forward_pass_ratio", "워크포워드 통과비율", "Walk-forward Pass Ratio", "WF pass", MetricDirection.MAXIMIZE, "ratio", "not annualized", gates=True, pareto=False, weighted=True, robustness=True, artifacts=(ArtifactKind.ROBUSTNESS_SUMMARY,)),
         _metric("walk_forward_worst_fold", "워크포워드 최악 폴드", "Walk-forward Worst Fold", "WF worst", MetricDirection.MAXIMIZE, "ratio", "not annualized", gates=True, pareto=True, weighted=True, robustness=True, artifacts=(ArtifactKind.ROBUSTNESS_SUMMARY,)),
         _metric("loyo_reversing_years", "LOYO 반전 연도 수", "Leave-One-Year-Out Reversing Years", "LOYO reverse", MetricDirection.MINIMIZE, "count", "not annualized", gates=True, pareto=False, weighted=True, robustness=True, artifacts=(ArtifactKind.ROBUSTNESS_SUMMARY,)),
-        _metric("transaction_cost_stress_survival", "거래비용 스트레스 생존", "Transaction-cost Stress Survival", "Cost stress", MetricDirection.MAXIMIZE, "binary", "not annualized", gates=True, pareto=False, weighted=False, robustness=True, artifacts=(ArtifactKind.ROBUSTNESS_SUMMARY,)),
+        _metric("transaction_cost_stress_survival", "거래비용 스트레스 생존", "Transaction-cost Stress Survival", "Cost stress", MetricDirection.MAXIMIZE, "binary numeric (0.0 or 1.0)", "not annualized", gates=True, pareto=False, weighted=False, robustness=True, artifacts=(ArtifactKind.ROBUSTNESS_SUMMARY,), numeric_representation="binary_numeric", allowed_numeric_values=(0.0, 1.0)),
         _metric("block_bootstrap_effect", "블록 부트스트랩 효과", "Paired Block-bootstrap Effect", "Block bootstrap", MetricDirection.MAXIMIZE, "ratio", "defined by robustness study", gates=False, pareto=False, weighted=True, robustness=True, artifacts=(ArtifactKind.ROBUSTNESS_SUMMARY,)),
     )
 }
@@ -72,6 +89,158 @@ METRIC_REGISTRY: Mapping[str, MetricDefinition] = MappingProxyType(_REGISTRY)
 
 def metric_registry() -> Mapping[str, MetricDefinition]:
     return METRIC_REGISTRY
+
+
+def _direction_text(value: Any) -> str:
+    return value.value if isinstance(value, MetricDirection) else str(value)
+
+
+def validate_metric_value(metric_key: str, value: Any, *, field: str) -> float | None:
+    definition = METRIC_REGISTRY.get(metric_key)
+    if definition is None:
+        raise MetricValueRepresentationError(f"{field}: unknown metric key '{metric_key}'")
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise MetricValueRepresentationError(
+            f"{field}: metric '{metric_key}' requires numeric representation; "
+            "Boolean values are not accepted"
+        )
+    if not isinstance(value, Real):
+        raise MetricValueRepresentationError(
+            f"{field}: metric '{metric_key}' must be a finite numeric value"
+        )
+    number = float(value)
+    if not math.isfinite(number):
+        raise MetricValueRepresentationError(
+            f"{field}: metric '{metric_key}' must be a finite numeric value"
+        )
+    if (
+        definition.numeric_representation == "binary_numeric"
+        and number not in definition.allowed_numeric_values
+    ):
+        allowed = ", ".join(f"{item:.1f}" for item in definition.allowed_numeric_values)
+        raise MetricValueRepresentationError(
+            f"{field}: binary metric '{metric_key}' must use one of [{allowed}]"
+        )
+    return number
+
+
+def validate_metric_artifact(metrics: Mapping[str, Any], *, field: str) -> None:
+    for metric_key, value in sorted(metrics.items()):
+        validate_metric_value(metric_key, value, field=f"{field}.{metric_key}")
+
+
+def validate_evaluation_profile(profile: "EvaluationProfile") -> None:
+    """Fail closed on any profile/registry mismatch with precise field paths."""
+
+    errors: list[str] = []
+    enabled = set(profile.enabled_metrics)
+    for index, metric_key in enumerate(profile.enabled_metrics):
+        if metric_key not in METRIC_REGISTRY:
+            errors.append(f"enabled_metrics[{index}]: unknown metric key '{metric_key}'")
+
+    for field_name, configured in (
+        ("metric_directions", profile.metric_directions),
+        ("metric_modes", profile.metric_modes),
+    ):
+        for metric_key in sorted(enabled - set(configured)):
+            errors.append(f"{field_name}.{metric_key}: enabled metric is missing")
+        for metric_key in sorted(set(configured) - enabled):
+            errors.append(f"{field_name}.{metric_key}: metric is not enabled")
+        for metric_key in sorted(set(configured) - set(METRIC_REGISTRY)):
+            errors.append(f"{field_name}.{metric_key}: unknown metric key '{metric_key}'")
+
+    for metric_key in sorted(enabled & set(profile.metric_directions) & set(METRIC_REGISTRY)):
+        configured_direction = profile.metric_directions[metric_key]
+        registry_direction = METRIC_REGISTRY[metric_key].direction
+        if configured_direction != registry_direction:
+            errors.append(
+                f"metric_directions.{metric_key}: direction "
+                f"'{_direction_text(configured_direction)}' does not match registry direction "
+                f"'{registry_direction.value}'"
+            )
+
+    def validate_rules(
+        field_name: str,
+        rules: Any,
+        suitability_field: str | None,
+        *,
+        direction_field: bool = False,
+        validate_threshold: bool = False,
+    ) -> None:
+        seen: set[str] = set()
+        for index, rule in enumerate(rules):
+            metric_key = rule.metric_key
+            path = f"{field_name}[{index}].metric_key"
+            if metric_key in seen:
+                errors.append(f"{path}: duplicate rule for metric '{metric_key}'")
+            seen.add(metric_key)
+            if metric_key not in enabled:
+                errors.append(f"{path}: metric '{metric_key}' is not enabled")
+                continue
+            definition = METRIC_REGISTRY.get(metric_key)
+            if definition is None:
+                errors.append(f"{path}: unknown metric key '{metric_key}'")
+                continue
+            if suitability_field is not None and not getattr(definition, suitability_field):
+                errors.append(
+                    f"{path}: metric '{metric_key}' is not suitable for {field_name}"
+                )
+            if direction_field and rule.direction != definition.direction:
+                errors.append(
+                    f"{field_name}[{index}].direction: metric '{metric_key}' direction "
+                    f"'{_direction_text(rule.direction)}' does not match registry direction "
+                    f"'{definition.direction.value}'"
+                )
+            if validate_threshold:
+                try:
+                    validate_metric_value(
+                        metric_key, rule.threshold, field=f"{field_name}[{index}].threshold"
+                    )
+                except MetricValueRepresentationError as error:
+                    errors.append(str(error))
+
+    validate_rules(
+        "mandatory_gates",
+        profile.mandatory_gates,
+        "suitable_for_gates",
+        validate_threshold=True,
+    )
+    validate_rules(
+        "pareto_objectives",
+        profile.pareto_objectives,
+        "suitable_for_pareto",
+        direction_field=True,
+    )
+    validate_rules(
+        "robustness_vetoes",
+        profile.robustness_vetoes,
+        "suitable_for_robustness",
+        validate_threshold=True,
+    )
+    validate_rules(
+        "lexicographic_tie_break",
+        profile.lexicographic_tie_break,
+        None,
+        direction_field=True,
+    )
+
+    for metric_key in sorted(profile.exploratory_metric_weights):
+        path = f"exploratory_metric_weights.{metric_key}"
+        if metric_key not in enabled:
+            errors.append(f"{path}: metric '{metric_key}' is not enabled")
+            continue
+        definition = METRIC_REGISTRY.get(metric_key)
+        if definition is None:
+            errors.append(f"{path}: unknown metric key '{metric_key}'")
+        elif not definition.suitable_for_weighted_view:
+            errors.append(f"{path}: metric '{metric_key}' is not suitable for weighted comparison")
+
+    if errors:
+        raise EvaluationProfileValidationError(
+            f"invalid EvaluationProfile '{profile.name}': " + "; ".join(errors)
+        )
 
 
 def _ratio(numerator: Any, denominator: Any, *, magnitude: bool = False) -> float | None:

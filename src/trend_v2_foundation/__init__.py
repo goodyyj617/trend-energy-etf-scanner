@@ -23,7 +23,15 @@ from .contracts import (
     WeightedCandidateView,
 )
 from .evaluation import METRIC_ENGINE_VERSION, epsilon_pareto, evaluate_saved_runs, evaluate_strategy_runs
-from .metrics import METRIC_REGISTRY, metric_registry, metrics_from_portfolio_summaries
+from .metrics import (
+    METRIC_REGISTRY,
+    EvaluationProfileValidationError,
+    MetricValueRepresentationError,
+    metric_registry,
+    metrics_from_portfolio_summaries,
+    validate_evaluation_profile,
+    validate_metric_value,
+)
 from .profiles import load_evaluation_profile, load_evaluation_profiles
 from .result_store import LocalResultStore, ResultStore
 from .terminology import load_terminology_source, validate_terminology_source
@@ -36,6 +44,7 @@ __all__ = [
     "CheckResult",
     "ComparisonMode",
     "EvaluationProfile",
+    "EvaluationProfileValidationError",
     "EvaluationRun",
     "ExecutionStatus",
     "GateRule",
@@ -45,6 +54,7 @@ __all__ = [
     "MetricDefinition",
     "MetricDirection",
     "MetricMode",
+    "MetricValueRepresentationError",
     "NormalizationMethod",
     "ParetoObjective",
     "ResultStore",
@@ -65,4 +75,6 @@ __all__ = [
     "metric_registry",
     "metrics_from_portfolio_summaries",
     "validate_terminology_source",
+    "validate_evaluation_profile",
+    "validate_metric_value",
 ]

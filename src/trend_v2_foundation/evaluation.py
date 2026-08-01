@@ -20,6 +20,7 @@ from .contracts import (
     SortRule,
     WeightedCandidateView,
 )
+from .metrics import validate_metric_artifact, validate_metric_value
 
 if TYPE_CHECKING:
     from .result_store import ResultStore
@@ -39,7 +40,11 @@ def _finite(value: Any) -> float | None:
 
 
 def evaluate_gate(metrics: Mapping[str, Any], rule: GateRule) -> CheckResult:
-    value = _finite(metrics.get(rule.metric_key))
+    value = validate_metric_value(
+        rule.metric_key,
+        metrics.get(rule.metric_key),
+        field=f"metrics.{rule.metric_key}",
+    )
     if value is None:
         return CheckResult(
             metric_key=rule.metric_key,
@@ -172,15 +177,38 @@ def _normalize_weights(weights: Mapping[str, float]) -> dict[str, float]:
     return {key: float(weights[key]) / total for key in sorted(weights)}
 
 
-def _rank_scores(scores: Mapping[str, float | None]) -> dict[str, int | None]:
+def _rank_weighted_values(values: Mapping[str, float | None]) -> dict[str, int | None]:
     valid = sorted(
-        ((key, score) for key, score in scores.items() if score is not None),
+        ((key, value) for key, value in values.items() if value is not None),
         key=lambda item: (-float(item[1]), item[0]),
     )
-    ranks = {key: None for key in scores}
+    ranks = {key: None for key in values}
     for rank, (key, _) in enumerate(valid, start=1):
         ranks[key] = rank
     return ranks
+
+
+def _sensitivity_weight_view(
+    normalized_weights: Mapping[str, float], metric_key: str, adjustment: float
+) -> dict[str, float]:
+    """Adjust one normalized share and redistribute the balance proportionally."""
+
+    baseline = {key: float(value) for key, value in sorted(normalized_weights.items())}
+    other_positive = [
+        key for key, value in baseline.items() if key != metric_key and value > 0.0
+    ]
+    if not other_positive:
+        return baseline
+    selected = min(1.0, max(0.0, baseline[metric_key] + adjustment))
+    other_total = sum(baseline[key] for key in other_positive)
+    remaining = 1.0 - selected
+    result = {key: 0.0 for key in baseline}
+    result[metric_key] = selected
+    for key in other_positive:
+        result[key] = remaining * baseline[key] / other_total
+    correction_key = other_positive[-1]
+    result[correction_key] += 1.0 - sum(result.values())
+    return result
 
 
 def _weighted_outputs(
@@ -200,7 +228,7 @@ def _weighted_outputs(
         for key, value in metric_normalized.items():
             normalized_values[key][metric_key] = value
 
-    def scores_for(weight_view: Mapping[str, float]) -> dict[str, float | None]:
+    def weighted_values_for(weight_view: Mapping[str, float]) -> dict[str, float | None]:
         result: dict[str, float | None] = {}
         for key, metric_values in normalized_values.items():
             required = [metric for metric, weight in weight_view.items() if weight > 0]
@@ -212,18 +240,22 @@ def _weighted_outputs(
                 )
         return result
 
-    baseline_scores = scores_for(normalized_weights)
-    baseline_ranks = _rank_scores(baseline_scores)
-    scenario_ranks: dict[str, dict[str, int | None]] = {"baseline": baseline_ranks}
+    baseline_values = weighted_values_for(normalized_weights)
+    baseline_ranks = _rank_weighted_values(baseline_values)
+    scenarios: dict[str, dict[str, Any]] = {
+        "baseline": {"weights": normalized_weights, "ranks": baseline_ranks}
+    }
     delta = profile.ranking_sensitivity_delta
     for metric_key in sorted(weights):
         for suffix, adjustment in (("plus", delta), ("minus", -delta)):
-            scenario_weights = dict(weights)
-            scenario_weights[metric_key] = max(0.0, scenario_weights[metric_key] + adjustment)
-            if sum(scenario_weights.values()) <= 0:
-                continue
+            scenario_weights = _sensitivity_weight_view(
+                normalized_weights, metric_key, adjustment
+            )
             scenario = f"{metric_key}:{suffix}_{delta:g}"
-            scenario_ranks[scenario] = _rank_scores(scores_for(_normalize_weights(scenario_weights)))
+            scenarios[scenario] = {
+                "weights": scenario_weights,
+                "ranks": _rank_weighted_values(weighted_values_for(scenario_weights)),
+            }
 
     views: dict[str, WeightedCandidateView] = {}
     for key in sorted(metrics_by_run):
@@ -240,16 +272,18 @@ def _weighted_outputs(
         if rank is not None and rank <= profile.high_weighted_rank_cutoff and not gates_passed[key]:
             warnings.append("high_weighted_rank_but_mandatory_gate_failed")
         views[key] = WeightedCandidateView(
-            score=baseline_scores[key],
+            exploratory_weighted_value=baseline_values[key],
             rank=rank,
             normalized_metric_values=normalized_values[key],
             weighted_contributions=contributions,
-            sensitivity_ranks={scenario: ranks[key] for scenario, ranks in scenario_ranks.items()},
+            sensitivity_ranks={
+                scenario: details["ranks"][key] for scenario, details in scenarios.items()
+            },
             warnings=tuple(warnings),
         )
     sensitivity = {
         "delta": delta,
-        "scenarios": scenario_ranks,
+        "scenarios": scenarios,
         "normalization_method": profile.normalization_method.value,
     }
     return normalized_weights, views, sensitivity
@@ -269,6 +303,8 @@ def evaluate_strategy_runs(
     if not metrics_by_run:
         raise ValueError("at least one stored strategy run is required")
     metrics_by_run = {key: dict(value) for key, value in sorted(metrics_by_run.items())}
+    for strategy_run_id, metric_values in metrics_by_run.items():
+        validate_metric_artifact(metric_values, field=f"raw_metrics[{strategy_run_id}]")
     behavior_metadata = behavior_metadata or {}
     gate_results = {
         key: tuple(evaluate_gate(metrics, rule) for rule in profile.mandatory_gates)

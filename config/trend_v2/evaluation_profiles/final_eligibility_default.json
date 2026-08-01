@@ -40,7 +40,8 @@
   "mandatory_gates": [
     {"metric_key": "cagr_spy_ratio", "operator": ">=", "threshold": 0.8, "label": "예시 수익 보존 게이트"},
     {"metric_key": "maximum_drawdown_spy_ratio", "operator": "<=", "threshold": 0.75, "label": "예시 최대낙폭 게이트"},
-    {"metric_key": "cdar95_spy_ratio", "operator": "<=", "threshold": 0.8, "label": "예시 꼬리낙폭 게이트"}
+    {"metric_key": "cdar95_spy_ratio", "operator": "<=", "threshold": 0.8, "label": "예시 꼬리낙폭 게이트"},
+    {"metric_key": "calmar_spy_ratio", "operator": ">=", "threshold": 1.0, "label": "예시 SPY 대비 Calmar 게이트"}
   ],
   "pareto_objectives": [
     {"metric_key": "cagr_spy_ratio", "direction": "maximize", "epsilon": 0.01},
