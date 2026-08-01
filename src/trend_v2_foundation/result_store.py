@@ -23,6 +23,7 @@ from .contracts import (
 
 
 RESULT_STORE_VERSION = "bounded_local_result_store_v1"
+RETENTION_EVENT_SCHEMA_VERSION = "artifact_retention_event_v1"
 
 
 @dataclass(frozen=True)
@@ -97,12 +98,14 @@ class LocalResultStore:
         self.profiles_dir = self.root / "evaluation_profiles"
         self.evaluation_runs_dir = self.root / "evaluation_runs"
         self.derived_metrics_dir = self.root / "derived_metrics"
+        self.retention_events_dir = self.root / "retention_events"
         for path in (
             self.objects_dir,
             self.strategy_runs_dir,
             self.profiles_dir,
             self.evaluation_runs_dir,
             self.derived_metrics_dir,
+            self.retention_events_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
         policy_payload = {
@@ -182,6 +185,16 @@ class LocalResultStore:
 
     def _object_path(self, record: ArtifactRecord) -> Path:
         return self.objects_dir / f"{record.content_hash}.json.gz"
+
+    def object_path_for_hash(self, artifact_hash: str) -> Path:
+        """Return a store-owned object path; callers must not expose it through APIs."""
+
+        if (
+            len(artifact_hash) != 64
+            or any(character not in "0123456789abcdef" for character in artifact_hash)
+        ):
+            raise ValueError("artifact_hash must be a lowercase SHA-256")
+        return self.objects_dir / f"{artifact_hash}.json.gz"
 
     def _strategy_manifest_path(self, strategy_run_id: str) -> Path:
         return self.strategy_runs_dir / strategy_run_id / "manifest.json"
@@ -371,6 +384,50 @@ class LocalResultStore:
 
     def evaluation_history(self) -> tuple[str, ...]:
         return tuple(path.stem for path in sorted(self.evaluation_runs_dir.glob("*.json")))
+
+    def evaluation_profile_history(self) -> tuple[str, ...]:
+        return tuple(path.stem for path in sorted(self.profiles_dir.glob("*.json")))
+
+    def strategy_run_history(self) -> tuple[str, ...]:
+        return tuple(
+            path.parent.name for path in sorted(self.strategy_runs_dir.glob("*/manifest.json"))
+        )
+
+    def mark_artifact_pruned(
+        self,
+        artifact_hash: str,
+        *,
+        pruned_at: str,
+        reason: str,
+    ) -> None:
+        """Persist an immutable retention marker without deleting store content."""
+
+        self.object_path_for_hash(artifact_hash)
+        if not pruned_at or not reason:
+            raise ValueError("pruned_at and reason are required")
+        payload = {
+            "schema_version": RETENTION_EVENT_SCHEMA_VERSION,
+            "artifact_hash": artifact_hash,
+            "retention_state": "pruned",
+            "pruned_at": pruned_at,
+            "reason": reason,
+        }
+        self._write_immutable(
+            self.retention_events_dir / f"{artifact_hash}.json", canonical_bytes(payload)
+        )
+
+    def artifact_retention_event(self, artifact_hash: str) -> Mapping[str, Any] | None:
+        path = self.retention_events_dir / f"{artifact_hash}.json"
+        if not path.exists():
+            return None
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if (
+            payload.get("schema_version") != RETENTION_EVENT_SCHEMA_VERSION
+            or payload.get("artifact_hash") != artifact_hash
+            or payload.get("retention_state") != "pruned"
+        ):
+            raise ValueError("invalid artifact retention event")
+        return payload
 
     def orphan_hashes(self) -> tuple[str, ...]:
         referenced: set[str] = set()

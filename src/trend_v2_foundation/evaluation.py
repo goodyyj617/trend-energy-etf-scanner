@@ -304,6 +304,8 @@ def evaluate_strategy_runs(
     behavior_metadata: Mapping[str, Mapping[str, Any]] | None = None,
     unavailable_reasons: Mapping[str, Mapping[str, str]] | None = None,
     derived_metric_ids: Mapping[str, str] | None = None,
+    behavior_pairwise_diagnostics: Mapping[str, Mapping[str, Any]] | None = None,
+    simplicity_metadata: Mapping[str, Mapping[str, Any]] | None = None,
     creation_time: str,
 ) -> EvaluationRun:
     """Apply the non-compensatory pipeline and optional weighted view."""
@@ -413,6 +415,8 @@ def evaluate_strategy_runs(
         ranking_sensitivity=sensitivity,
         derived_metric_ids=derived_metric_ids or {},
         creation_time=creation_time,
+        behavior_pairwise_diagnostics=behavior_pairwise_diagnostics or {},
+        simplicity_metadata=simplicity_metadata or {},
     )
 
 

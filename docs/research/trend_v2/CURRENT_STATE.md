@@ -24,12 +24,22 @@
   `legacy_portfolio_metric_parity_v1`,
   `trend_v2_behavior_fingerprint_v1`, and `metric_registry_v2`.
 - `StrategyRunManifest` records terminal outcomes only. A separate
-  execution-attempt or job-status contract for pending and running work is
-  required before the web API starts background backtests.
+  append-only `ExecutionAttempt` contract now records pending, queued, running,
+  cancelling, cancelled, failed, and completed operational states without
+  changing immutable economic-run status.
+- Foundation 3 reconstructs `saved_run_registry_v1` deterministically from
+  ResultStore and execution-attempt metadata; classifies available, missing,
+  corrupt, pruned, never-generated, unsupported, and integrity-failed evidence;
+  and persists only a disposable canonical index.
+- Foundation 3 exposes `trend_v2_local_read_api_v1` through a bounded,
+  localhost-first, read-only standard-library API. It serves saved runs,
+  provenance, direct and derived artifacts, profiles, EvaluationRuns, stored
+  behavior diagnostics, and execution attempts without invoking an economic
+  backtest.
 
 ## Current phase
 
-Product foundation -- local web API and saved-run registry
+Product foundation -- Korean-first web UI and explanation tab
 
 ## Phase A2 record
 
@@ -41,16 +51,8 @@ Product foundation -- local web API and saved-run registry
 
 ## Exact next task
 
-Foundation 3 -- local web API and saved-run registry:
-
-1. expose local API endpoints for saved StrategyRuns, derived artifacts,
-   EvaluationProfiles, EvaluationRuns, provenance, and retention status;
-2. add a saved-run registry with filtering, pagination, immutable history, and
-   explicit execution-attempt/job status separate from terminal manifests;
-3. expose Foundation 2 calculation and evaluation as a local job without
-   coupling it to a new economic backtest;
-4. keep the API Korean-first ready, but do not build the final web UI in the
-   API phase.
+Foundation 4 -- Korean-first web UI and explanation tab consuming the local
+API, without yet expanding into unrestricted strategy execution.
 
 ## Required product direction
 
@@ -71,6 +73,10 @@ Foundation 3 -- local web API and saved-run registry:
 - Robustness simulations are not recomputed; missing evidence fails referenced
   vetoes closed with a stored reason.
 - External object storage and distributed calculation remain deferred.
+- The local API deliberately has no authentication and must remain loopback-only
+  until a later remote-access security design is approved.
+- Foundation 3 records retention-pruned state but does not automatically delete
+  retained artifact bytes.
 
 ## Explicitly deferred
 
@@ -81,3 +87,4 @@ Foundation 3 -- local web API and saved-run registry:
 - new OOS cohort creation;
 - OOS collector implementation or activation;
 - production deployment.
+- unrestricted strategy execution, queue, worker, retry, and cancellation APIs.
