@@ -4,6 +4,8 @@ const API = "/api/v1";
 const CURVE_PAGE_SIZE = 250;
 const LIST_PAGE_SIZE = 20;
 const routes = {
+  construction: "전략 구성",
+  requests: "실행 요청",
   overview: "개요",
   runs: "저장된 전략 실행",
   evaluations: "평가 결과",
@@ -25,6 +27,10 @@ const state = {
   selectedRobustnessRun: null,
   selectedEvaluationRun: null,
   selectedBehaviorEvaluation: null,
+  constructionDraft: null,
+  constructionEstimate: null,
+  confirmationId: null,
+  lastExecutionRequestId: null,
 };
 
 const view = document.getElementById("view");
@@ -86,10 +92,15 @@ function availabilityLabel(code) {
   return state.statusLabels[code] || code || "알 수 없음";
 }
 
-async function api(path, { optional = false } = {}) {
+async function api(path, { optional = false, method = "GET", body = null, idempotencyKey = null } = {}) {
+  const headers = { Accept: "application/json" };
+  if (body !== null) headers["Content-Type"] = "application/json";
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
   const response = await fetch(`${API}${path}`, {
+    method,
     signal: state.controller?.signal,
-    headers: { Accept: "application/json" },
+    headers,
+    body: body === null ? undefined : JSON.stringify(body),
   });
   let payload;
   try {
@@ -104,6 +115,18 @@ async function api(path, { optional = false } = {}) {
     throw new Error(`${detail.message_ko || "저장 결과를 불러오지 못했습니다."}${next}`);
   }
   return payload;
+}
+
+function idempotencyKey(operation) {
+  return `${operation}:${crypto.randomUUID()}`;
+}
+
+function parameterSpace(text) {
+  const value = String(text).trim();
+  const ranged = value.match(/^(-?\d+(?:\.\d+)?)\.\.(-?\d+(?:\.\d+)?)\s+step\s+(-?\d+(?:\.\d+)?)$/i);
+  if (ranged) return { kind: "decimal_range", start: ranged[1], end: ranged[2], step: ranged[3] };
+  if (value.includes(",")) return { kind: "list", values: value.split(",").map((item) => item.trim()) };
+  return { kind: "fixed", value };
 }
 
 async function ensureTerminology() {
@@ -457,6 +480,150 @@ async function renderBehavior() {
   document.getElementById("behavior-evaluation").addEventListener("change",(event)=>{state.selectedBehaviorEvaluation=event.target.value;renderBehavior().catch(showFatal);});
 }
 
+function componentField(id, label, value, help) {
+  return `<div class="field"><label for="${id}">${escapeHtml(label)} <abbr title="${escapeHtml(help)}">설명</abbr></label><input id="${id}" value="${escapeHtml(value)}" readonly></div>`;
+}
+
+function buildConstruction(profileIds) {
+  return {
+    schema_version: "strategy_construction_request_v1",
+    data_snapshot: "phase_a2_frozen_2026_07_30",
+    backtest_start_date: document.getElementById("construction-start").value,
+    backtest_end_date: document.getElementById("construction-end").value,
+    universe: { option_id: "phase_a2_historical_eligible_v1", parameters: {} },
+    benchmark: { option_id: "spy_adjusted_close_v1", parameters: {} },
+    trend_filter: { option_id: "price_above_rising_ma200_v0", parameters: {} },
+    signal: { option_id: "prior_price_high_l20_v1", parameters: { lookback: { kind: "fixed", value: 20 } } },
+    entry_rule: { option_id: "first_event_next_open_v1", parameters: {} },
+    initial_stop: { option_id: "signal_day_low20_v1", parameters: {} },
+    trailing_exit: { option_id: "ratcheting_low20_v1", parameters: {} },
+    position_sizing: { option_id: "canonical_equal_weight_active_v1", parameters: {} },
+    portfolio_constraints: { option_id: "long_only_cash_constrained_v1", parameters: {} },
+    transaction_cost: { option_id: "round_trip_bps_v1", parameters: { bps: parameterSpace(document.getElementById("construction-cost").value) } },
+    slippage: { option_id: "round_trip_slippage_bps_v1", parameters: { bps: parameterSpace(document.getElementById("construction-slippage").value) } },
+    walk_forward: { enabled: Number(document.getElementById("construction-folds").value) > 0, fold_count: Number(document.getElementById("construction-folds").value) },
+    robustness: { scenario_count: Number(document.getElementById("construction-robustness").value) },
+    evaluation_profile_ids: profileIds,
+  };
+}
+
+function thresholdRows(estimate) {
+  return estimate.threshold_results.map((item) => `<tr><th scope="row">${escapeHtml(item.threshold)}</th><td>${fmt(item.observed, 0)}</td><td>${fmt(item.limit, 0)}</td><td>${statusBadge(item.triggered ? "failed" : "passed", item.triggered ? `초과/도달 (${item.severity})` : "미도달")}</td></tr>`).join("");
+}
+
+function estimateSummary(data) {
+  const estimate = data.candidate_estimate;
+  const unsupportedExecution = data.normalized_construction.walk_forward.fold_count > 0
+    || data.normalized_construction.robustness.scenario_count > 0;
+  return `<section class="card section"><h2>정규화 및 후보 미리보기</h2>
+    <div class="card-grid">
+      <article class="card metric-card"><small>원시 Cartesian 후보</small><strong>${fmt(estimate.raw_cartesian_candidate_count, 0)}</strong></article>
+      <article class="card metric-card"><small>중복 제거 경제 후보</small><strong>${fmt(estimate.economic_strategy_run_candidate_count, 0)}</strong></article>
+      <article class="card metric-card"><small>평가 프로필 적용</small><strong>${fmt(estimate.evaluation_profile_application_count, 0)}</strong></article>
+      <article class="card metric-card"><small>강건성 작업</small><strong>${fmt(estimate.robustness_scenario_count, 0)}</strong></article>
+      <article class="card metric-card"><small>총 실행 단위</small><strong>${fmt(estimate.estimated_total_execution_units, 0)}</strong></article>
+      <article class="card metric-card"><small>재사용 / 신규 백테스트</small><strong>${fmt(estimate.estimated_reuse_count, 0)} / ${fmt(estimate.estimated_new_backtest_count, 0)}</strong></article>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>정책 임계값</th><th>관측값</th><th>한도</th><th>판정</th></tr></thead><tbody>${thresholdRows(estimate)}</tbody></table></div>
+    ${estimate.hard_limit_exceeded ? `<div class="notice danger">⛔ 하드 한도 위반: 확인으로 우회할 수 없습니다.</div>` : estimate.confirmation_required ? `<div class="notice">⚠ 대규모 요청 확인이 필요합니다. 요청·추정·정책 해시에 묶인 일회성 확인만 허용됩니다.</div>` : `<div class="notice">✓ 명시적 대규모 확인 없이 실행 가능한 범위입니다.</div>`}
+    ${unsupportedExecution ? `<div class="notice danger">⛔ 워크포워드 fold와 강건성 시나리오는 작업량 미리보기만 지원합니다. 현재 실행 어댑터로 요청하려면 두 값을 0으로 설정하세요.</div>` : ""}
+    <details open><summary>정확한 정규화 요청</summary><pre>${jsonText(data.normalized_construction)}</pre></details>
+    <details><summary>결정적 StrategyRun 후보 순서</summary><pre>${jsonText(data.strategy_run_candidate_ids)}</pre></details>
+    <div class="actions">
+      ${estimate.confirmation_required && !estimate.hard_limit_exceeded && !unsupportedExecution ? `<button type="button" id="confirm-construction">이 정확한 요청을 명시적으로 확인</button>` : ""}
+      ${!estimate.hard_limit_exceeded && !unsupportedExecution ? `<button type="button" id="create-execution-request">불변 실행 요청 만들기</button>` : ""}
+    </div></section>`;
+}
+
+async function renderConstruction() {
+  const [options, profiles] = await Promise.all([api("/construction/options"), api("/evaluation-profiles?page_size=200")]);
+  const profileOptions = profiles.items.map((profile, index) => `<option value="${escapeHtml(profile.evaluation_profile_id)}" ${index === 0 ? "selected" : ""}>${escapeHtml(profile.name)} · ${escapeHtml(shortId(profile.evaluation_profile_id, 28))}</option>`).join("");
+  view.innerHTML = `<p class="lede">허용 목록에 있는 규칙만 조합합니다. 임의 코드, 동적 Python, 원격 URL, 무제한 범위는 입력할 수 없습니다.</p>
+    <form id="construction-form" class="card section">
+      <h2>통제된 전략 구성</h2>
+      <div class="form-grid">
+        <div class="field"><label for="construction-start">백테스트 시작일 <abbr title="동결 스냅샷 안의 경제 시작일">설명</abbr></label><input id="construction-start" type="date" value="2024-01-02" required></div>
+        <div class="field"><label for="construction-end">백테스트 종료일 <abbr title="동결 스냅샷 안의 경제 종료일">설명</abbr></label><input id="construction-end" type="date" value="2024-12-31" required></div>
+        ${componentField("snapshot", "데이터 스냅샷", "phase_a2_frozen_2026_07_30", "해시 검증된 로컬 동결 데이터")}
+        ${componentField("universe", "유니버스", "phase_a2_historical_eligible_v1", "동결된 적격 상태를 그대로 사용")}
+        ${componentField("benchmark", "벤치마크", "SPY", "정확히 겹치는 경제 날짜로 비교")}
+        ${componentField("trend-filter", "추세 필터", "price_above_rising_ma200_v0", "종가와 상승 중인 MA200 기반 가격 전용 필터")}
+        ${componentField("signal-family", "신호", "prior_price_high_l20_v1", "폐기된 내부 합성 지표 없이 직전 20일 가격 고점 돌파")}
+        ${componentField("entry-rule", "진입 규칙", "first_event_next_open_v1", "첫 이벤트 다음 유효 시가")}
+        ${componentField("initial-stop", "초기 손절", "signal_day_low20_v1", "신호일 Low20")}
+        ${componentField("trailing-exit", "추적 청산", "ratcheting_low20_v1", "Low20 손절선을 위로만 이동")}
+        ${componentField("position-sizing", "포지션 크기", "canonical_equal_weight_active_v1", "활성 종목 동일 비중")}
+        ${componentField("portfolio-constraints", "포트폴리오 제약", "long_only_cash_constrained_v1", "롱 전용, 현금 제약, 차입 없음")}
+        <div class="field"><label for="construction-cost">거래비용 bp <abbr title="고정값, 쉼표 목록, 또는 0..10 step 5 형식">설명</abbr></label><input id="construction-cost" value="5"></div>
+        <div class="field"><label for="construction-slippage">슬리피지 bp <abbr title="고정값, 유한 목록, 끝점에 정확히 도달하는 범위">설명</abbr></label><input id="construction-slippage" value="2"></div>
+        <div class="field"><label for="construction-folds">워크포워드 fold 수 <abbr title="0은 비활성; 현재 어댑터는 작업량 미리보기만 지원하며 0이 아닌 실행 요청은 거부">설명</abbr></label><input id="construction-folds" type="number" min="0" max="20" value="0"></div>
+        <div class="field"><label for="construction-robustness">강건성 시나리오 수 <abbr title="현재 어댑터는 작업량 미리보기만 지원하며 0이 아닌 실행 요청은 거부">설명</abbr></label><input id="construction-robustness" type="number" min="0" max="20" value="0"></div>
+        <div class="field"><label for="construction-profile">평가 프로필 <abbr title="여러 프로필을 선택할 수 있으며 평가 설정은 경제 StrategyRun 식별자에 포함되지 않음">설명</abbr></label><select id="construction-profile" multiple size="${Math.min(Math.max(profiles.items.length, 2), 5)}" required>${profileOptions}</select></div>
+      </div>
+      <button type="submit">정규화하고 정확한 후보 수 계산</button>
+    </form>
+    <section class="card section"><h2>현재 로컬 정책</h2><pre>${jsonText(options.execution_policy)}</pre></section>
+    <div id="construction-preview">${state.constructionEstimate ? estimateSummary(state.constructionEstimate) : ""}</div>`;
+  document.getElementById("construction-form").addEventListener("submit", async (event) => {
+    event.preventDefault(); setMessage("");
+    try {
+      const profileIds = [...document.getElementById("construction-profile").selectedOptions].map((option) => option.value);
+      state.constructionDraft = buildConstruction(profileIds);
+      state.confirmationId = null;
+      state.constructionEstimate = await api("/construction/estimate", { method: "POST", body: state.constructionDraft });
+      document.getElementById("construction-preview").innerHTML = estimateSummary(state.constructionEstimate);
+      bindConstructionActions();
+    } catch (error) {
+      showFatal(error);
+    }
+  });
+  if (state.constructionEstimate) bindConstructionActions();
+}
+
+function bindConstructionActions() {
+  document.getElementById("confirm-construction")?.addEventListener("click", async () => {
+    try {
+      const confirmation = await api("/construction/confirm", { method: "POST", body: state.constructionDraft, idempotencyKey: idempotencyKey("confirm") });
+      state.confirmationId = confirmation.confirmation_id;
+      setMessage(`확인 완료: ${confirmation.confirmation_id} · 만료 ${confirmation.expires_timestamp}`);
+    } catch (error) {
+      showFatal(error);
+    }
+  });
+  document.getElementById("create-execution-request")?.addEventListener("click", async () => {
+    try {
+      const estimate = state.constructionEstimate.candidate_estimate;
+      if (estimate.confirmation_required && !state.confirmationId) throw new Error("먼저 이 정확한 대규모 요청을 확인해 주세요.");
+      const request = await api("/execution-requests", { method: "POST", body: { construction: state.constructionDraft, confirmation_id: state.confirmationId }, idempotencyKey: idempotencyKey("request") });
+      state.lastExecutionRequestId = request.execution_request_id;
+      await api(`/execution-requests/${encodeURIComponent(request.execution_request_id)}/start`, { method: "POST", body: {}, idempotencyKey: idempotencyKey("start") });
+      location.hash = "#requests";
+    } catch (error) {
+      showFatal(error);
+    }
+  });
+}
+
+async function renderRequests() {
+  const requestId = state.lastExecutionRequestId;
+  view.innerHTML = `<p class="lede">불변 ExecutionRequest와 운영 ExecutionAttempt를 분리해 표시합니다. 대기·실행 중 상태는 성공한 StrategyRun이 아닙니다.</p>
+    <div class="toolbar"><div class="field"><label for="request-id-input">실행 요청 ID</label><input id="request-id-input" value="${escapeHtml(requestId || "")}" placeholder="execution_request_..."></div><button type="button" id="load-request">상태 읽기</button></div>
+    <div id="request-progress">${requestId ? "상태를 읽는 중입니다." : emptyState("실행 요청 선택", "전략 구성에서 요청을 만들거나 ID를 입력하세요.")}</div>`;
+  const load = async () => {
+    const identity = document.getElementById("request-id-input").value.trim();
+    if (!identity) return;
+    state.lastExecutionRequestId = identity;
+    const data = await api(`/execution-requests/${encodeURIComponent(identity)}`);
+    const attempts = data.attempts || [];
+    document.getElementById("request-progress").innerHTML = `<section class="card section"><h2>실행 요청</h2>${keyValues([["ExecutionRequest", data.execution_request_id, true],["정규화 해시", data.normalized_construction_hash, true],["추정 해시", data.candidate_estimate_hash, true],["스냅샷", data.data_snapshot_identity, true],["정책", `${data.execution_policy_version} · ${data.execution_policy_hash}`, true]])}<pre>${jsonText(data.candidate_estimate)}</pre></section>
+      <section class="section"><h2>후보 진행 (${attempts.length})</h2>${attempts.length ? `<div class="table-wrap"><table><thead><tr><th>ExecutionAttempt</th><th>운영 상태</th><th>후보 진행</th><th>현재 단계·시간</th><th>실패 요약</th><th>아티팩트</th><th>동작</th></tr></thead><tbody>${attempts.map((attempt) => `<tr><th class="id">${escapeHtml(attempt.execution_attempt_id)}</th><td>${statusBadge(attempt.operational_status, attempt.operational_status)}</td><td>${escapeHtml(`${attempt.progress_summary?.candidate_ordinal || "?"}/${attempt.progress_summary?.candidate_total || "?"}`)}<pre>${jsonText(attempt.progress_summary)}</pre></td><td>${escapeHtml(attempt.current_stage || "-")}<br>${escapeHtml(attempt.started_timestamp || attempt.created_timestamp)}<br>${escapeHtml(attempt.completed_timestamp || "진행 중")}</td><td>${escapeHtml(attempt.failure_code || "-")}<br>${escapeHtml(attempt.failure_message || "-")}</td><td><pre>${jsonText(attempt.artifact_references || [])}</pre></td><td>${["queued","running"].includes(attempt.operational_status) ? `<button data-cancel="${escapeHtml(attempt.execution_attempt_id)}">취소</button>` : ""}${["failed","cancelled"].includes(attempt.operational_status) ? `<button data-retry="${escapeHtml(attempt.execution_attempt_id)}">새 시도로 재시도</button>` : ""}</td></tr>`).join("")}</tbody></table></div>` : emptyState("시작 전", "아직 생성된 ExecutionAttempt가 없습니다.")}</section>`;
+    document.querySelectorAll("[data-cancel]").forEach((button) => button.addEventListener("click", async () => { await api(`/execution-attempts/${encodeURIComponent(button.dataset.cancel)}/cancel`, { method: "POST", body: {}, idempotencyKey: idempotencyKey("cancel") }); await load(); }));
+    document.querySelectorAll("[data-retry]").forEach((button) => button.addEventListener("click", async () => { await api(`/execution-attempts/${encodeURIComponent(button.dataset.retry)}/retry`, { method: "POST", body: {}, idempotencyKey: idempotencyKey("retry") }); await load(); }));
+  };
+  document.getElementById("load-request").addEventListener("click", () => load().catch(showFatal));
+  if (requestId) await load();
+}
+
 async function renderAttempts() {
   const data=await api("/execution-attempts?page_size=200&sort=-created_timestamp");
   view.innerHTML=`<p class="lede">ExecutionAttempt의 운영 진행과 불변 StrategyRun 종료 결과를 분리해 표시합니다. 시작·취소·재시도·작업자 제어 기능은 없습니다.</p><div class="notice">운영 상태가 실행 중이거나 실패여도, 그것을 StrategyRun의 불변 경제 결과로 바꾸어 표시하지 않습니다.</div>${data.items.length?`<div class="table-wrap section"><table><thead><tr><th scope="col">실행 시도</th><th scope="col">의도한 StrategyRun</th><th scope="col">재시도 관계</th><th scope="col">시간</th><th scope="col">운영 상태 / 종료 결과</th><th scope="col">단계·진행</th><th scope="col">실패</th><th scope="col">출처·작업자</th></tr></thead><tbody>${data.items.map((a)=>`<tr><th scope="row" class="id">${escapeHtml(a.execution_attempt_id)}</th><td class="id">${escapeHtml(a.intended_strategy_run_id)}</td><td>${fmt(a.attempt_number,0)}차<br><span class="id">${escapeHtml(a.retry_parent_attempt_id||"—")}</span></td><td>생성 ${escapeHtml(a.created_timestamp)}<br>시작 ${escapeHtml(a.started_timestamp||"—")}<br>완료 ${escapeHtml(a.completed_timestamp||"—")}</td><td>${statusBadge(a.operational_status,a.operational_status_ko)}<br>${statusBadge(a.terminal_outcome||"neutral",availabilityLabel(a.terminal_outcome||"미정"))}</td><td>${escapeHtml(a.current_stage||"—")}<pre>${jsonText(a.progress_summary||{})}</pre></td><td>${escapeHtml(a.failure_code||"—")}<br>${escapeHtml(a.failure_message||"—")}</td><td><span class="id">${escapeHtml(shortId(a.source_commit,12))}</span><br>${escapeHtml(a.engine_version)}<details><summary>작업자·아티팩트</summary><pre>${jsonText({worker_metadata:a.worker_metadata,artifact_references:a.artifact_references})}</pre></details></td></tr>`).join("")}</tbody></table></div>`:emptyState("실행 이력 없음","저장된 ExecutionAttempt가 없습니다.")}`;
@@ -476,7 +643,7 @@ async function renderExplanations(termKey=null) {
 
 async function renderSystem() {
   const [health,metadata,overview]=await Promise.all([api("/health"),api("/metadata"),api("/overview")]);
-  view.innerHTML=`<p class="lede">로컬 읽기 전용 경계와 현재 버전을 확인합니다.</p><section class="card-grid"><article class="card metric-card"><small>API 상태</small><strong>${statusBadge(health.status,health.status_ko)}</strong></article><article class="card metric-card"><small>읽기 전용</small><strong>${health.read_only?"예":"아니요"}</strong></article><article class="card metric-card"><small>최대 목록 페이지</small><strong>${fmt(metadata.maximum_page_size,0)}</strong></article><article class="card metric-card"><small>최대 시계열 페이지</small><strong>${fmt(metadata.maximum_time_series_page_size,0)}</strong></article></section><div class="two-column"><section class="card"><h2>버전</h2><pre>${jsonText(metadata)}</pre></section><section class="card"><h2>레지스트리 재구축 식별</h2><pre>${jsonText(overview.last_registry_rebuild_identity)}</pre><h3>보안 경계</h3><ul><li>기본 루프백 호스트만 사용</li><li>브라우저에서 임의 경로·원격 URL 입력 없음</li><li>쓰기·셸·동적 Python·시장 데이터 요청 없음</li><li>CORS 비활성 또는 명시적 로컬 출처만 허용</li><li>오류 화면에 스택 추적이나 로컬 절대 경로를 표시하지 않음</li></ul></section></div>`;
+  view.innerHTML=`<p class="lede">저장 근거 읽기와 통제된 로컬 쓰기 경계 및 현재 버전을 확인합니다.</p><section class="card-grid"><article class="card metric-card"><small>API 상태</small><strong>${statusBadge(health.status,health.status_ko)}</strong></article><article class="card metric-card"><small>읽기 전용</small><strong>${health.read_only?"예":"통제 쓰기 활성"}</strong></article><article class="card metric-card"><small>최대 목록 페이지</small><strong>${fmt(metadata.maximum_page_size,0)}</strong></article><article class="card metric-card"><small>최대 시계열 페이지</small><strong>${fmt(metadata.maximum_time_series_page_size,0)}</strong></article></section><div class="two-column"><section class="card"><h2>버전</h2><pre>${jsonText(metadata)}</pre></section><section class="card"><h2>레지스트리 재구축 식별</h2><pre>${jsonText(overview.last_registry_rebuild_identity)}</pre><h3>보안 경계</h3><ul><li>기본 루프백 호스트만 사용</li><li>브라우저에서 임의 경로·원격 URL 입력 없음</li><li>허용 목록 밖 쓰기·셸·동적 Python·시장 데이터 요청 없음</li><li>CORS 비활성 또는 명시적 로컬 출처만 허용</li><li>오류 화면에 스택 추적이나 로컬 절대 경로를 표시하지 않음</li></ul></section></div>`;
 }
 
 function showFatal(error) {
@@ -492,7 +659,9 @@ async function navigate() {
   document.querySelectorAll("#primary-nav a").forEach((link)=>{if(link.dataset.route===route)link.setAttribute("aria-current","page");else link.removeAttribute("aria-current");});
   try {
     await ensureTerminology();
-    if(route==="overview")await renderOverview();
+    if(route==="construction")await renderConstruction();
+    else if(route==="requests")await renderRequests();
+    else if(route==="overview")await renderOverview();
     else if(route==="runs"&&detail)await renderRunDetail(detail);
     else if(route==="runs")await renderRuns();
     else if(route==="evaluations")await renderEvaluations();

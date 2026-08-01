@@ -240,23 +240,27 @@ class ExecutionAttempt:
 
 _ALLOWED_TRANSITIONS = {
     AttemptOperationalStatus.PENDING: {
+        AttemptOperationalStatus.PENDING,
         AttemptOperationalStatus.QUEUED,
         AttemptOperationalStatus.RUNNING,
         AttemptOperationalStatus.CANCELLED,
         AttemptOperationalStatus.FAILED,
     },
     AttemptOperationalStatus.QUEUED: {
+        AttemptOperationalStatus.QUEUED,
         AttemptOperationalStatus.RUNNING,
         AttemptOperationalStatus.CANCELLING,
         AttemptOperationalStatus.CANCELLED,
         AttemptOperationalStatus.FAILED,
     },
     AttemptOperationalStatus.RUNNING: {
+        AttemptOperationalStatus.RUNNING,
         AttemptOperationalStatus.CANCELLING,
         AttemptOperationalStatus.COMPLETED,
         AttemptOperationalStatus.FAILED,
     },
     AttemptOperationalStatus.CANCELLING: {
+        AttemptOperationalStatus.CANCELLING,
         AttemptOperationalStatus.CANCELLED,
         AttemptOperationalStatus.COMPLETED,
         AttemptOperationalStatus.FAILED,
