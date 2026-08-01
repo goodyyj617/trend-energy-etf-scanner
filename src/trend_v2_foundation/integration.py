@@ -288,6 +288,8 @@ def calculate_and_evaluate_saved_runs(
         behavior_metadata=behavior_clusters,
         unavailable_reasons=reasons_by_run,
         derived_metric_ids=derived_ids,
+        behavior_pairwise_diagnostics=pairwise,
+        simplicity_metadata=effective_simplicity,
         creation_time=creation_time,
     )
     if persist:

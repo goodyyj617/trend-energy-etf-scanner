@@ -1,6 +1,41 @@
 {
   "schema_version": "korean_terminology_v1",
   "language": "ko-KR",
+  "api": {
+    "status_labels": {
+      "succeeded": "성공",
+      "failed": "실패",
+      "partial": "부분 완료",
+      "pending": "대기 중",
+      "queued": "대기열 등록",
+      "running": "실행 중",
+      "cancelling": "취소 중",
+      "cancelled": "취소됨",
+      "completed": "완료",
+      "available": "사용 가능",
+      "missing": "누락",
+      "corrupt": "손상됨",
+      "pruned": "보존 정책에 따라 제거됨",
+      "never_generated": "생성된 적 없음",
+      "unsupported_schema": "지원하지 않는 스키마",
+      "integrity_failed": "무결성 검증 실패",
+      "valid": "정상"
+    },
+    "error_messages": {
+      "not_found": "요청한 항목을 찾을 수 없습니다.",
+      "invalid_identifier": "식별자 형식이 올바르지 않습니다.",
+      "invalid_query": "조회 조건이 올바르지 않습니다.",
+      "artifact_missing": "참조된 결과 파일이 없습니다.",
+      "artifact_corrupt": "결과 파일이 손상되어 읽을 수 없습니다.",
+      "schema_unsupported": "현재 API가 지원하지 않는 결과 스키마입니다.",
+      "integrity_validation_failed": "결과의 출처 또는 무결성을 확인할 수 없습니다.",
+      "retention_pruned_artifact": "보존 정책에 따라 이 결과 파일이 제거되었습니다.",
+      "benchmark_coverage_failure": "벤치마크 공통 기간이 부족합니다.",
+      "robustness_evidence_missing": "필요한 강건성 검증 근거가 없습니다.",
+      "method_not_allowed": "이 API에서는 읽기 요청만 허용됩니다.",
+      "internal_error": "내부 오류가 발생했습니다. 로컬 저장소 상태를 확인해 주세요."
+    }
+  },
   "entries": {
     "cagr": {
       "korean_term": "연복리수익률",

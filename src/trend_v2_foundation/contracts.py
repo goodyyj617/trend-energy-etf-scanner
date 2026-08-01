@@ -440,6 +440,8 @@ class EvaluationRun:
     ranking_sensitivity: Mapping[str, Any]
     derived_metric_ids: Mapping[str, str]
     creation_time: str
+    behavior_pairwise_diagnostics: Mapping[str, Any] = field(default_factory=dict)
+    simplicity_metadata: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     schema_version: str = EVALUATION_RUN_VERSION
 
     def __post_init__(self) -> None:
@@ -451,6 +453,12 @@ class EvaluationRun:
         object.__setattr__(self, "normalized_weights", deep_freeze(self.normalized_weights))
         object.__setattr__(self, "ranking_sensitivity", deep_freeze(self.ranking_sensitivity))
         object.__setattr__(self, "derived_metric_ids", deep_freeze(self.derived_metric_ids))
+        object.__setattr__(
+            self,
+            "behavior_pairwise_diagnostics",
+            deep_freeze(self.behavior_pairwise_diagnostics),
+        )
+        object.__setattr__(self, "simplicity_metadata", deep_freeze(self.simplicity_metadata))
         if {item.strategy_run_id for item in self.results} != set(ordered_ids):
             raise ValueError("evaluation results must exactly match strategy_run_ids")
         if self.derived_metric_ids and set(self.derived_metric_ids) != set(ordered_ids):
@@ -484,6 +492,8 @@ class EvaluationRun:
         payload["comparison_mode"] = ComparisonMode(payload["comparison_mode"])
         payload["results"] = tuple(CandidateEvaluation.from_dict(item) for item in payload["results"])
         payload.setdefault("derived_metric_ids", {})
+        payload.setdefault("behavior_pairwise_diagnostics", {})
+        payload.setdefault("simplicity_metadata", {})
         run = cls(**payload)
         if expected_id is not None and expected_id != run.evaluation_run_id:
             raise ValueError("evaluation_run_id does not match identity content")
