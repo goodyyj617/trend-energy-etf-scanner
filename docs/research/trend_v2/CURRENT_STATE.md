@@ -10,10 +10,16 @@
 - Legacy v1 scanner and backtest behavior remain unchanged.
 - The trend-energy score and score-breakout trigger are retired from the primary Trend v2 research path.
 - The primary product objective is now a reusable Korean-first web backtest and strategy-comparison tool.
+- Foundation 1 implements immutable strategy-run, evaluation-profile,
+  evaluation-run, metric-registry, terminology, retention-policy, and bounded
+  local result-store contracts without changing the legacy execution path.
+- `StrategyRunManifest` records terminal outcomes only. A separate
+  execution-attempt or job-status contract for pending and running work is
+  required before the web API starts background backtests.
 
 ## Current phase
 
-Product foundation -- strategy runs, evaluation profiles, reusable result storage, and configurable comparison contracts
+Product foundation -- reusable metric and selection engine
 
 ## Phase A2 record
 
@@ -25,16 +31,20 @@ Product foundation -- strategy runs, evaluation profiles, reusable result storag
 
 ## Exact next task
 
-Foundation 1 -- define and implement versioned contracts for:
+Foundation 2 -- complete the reusable metric and selection engine integration
+on the Foundation 1 contracts:
 
-1. `StrategyRun`;
-2. `EvaluationProfile`;
-3. `EvaluationRun`;
-4. compact persistent result storage;
-5. hash-based cache identity;
-6. configurable metric, gate, Pareto, epsilon, robustness, and optional weighted-view settings.
+1. calculate the configured registry metrics from stored daily, yearly, and
+   rolling artifacts instead of accepting precomputed summary inputs only;
+2. implement reusable rolling and robustness calculations;
+3. produce behavior-path deduplication inputs from stored portfolio curves;
+4. integrate calculated metrics and robustness artifacts with the Foundation 1
+   gate, Pareto, epsilon, veto, tie-break, and exploratory-weighted pipeline;
+5. expose stable calculation-engine version boundaries and parity tests against the
+   existing reliable portfolio metrics.
 
-This phase must not run a new strategy search. It must first create the reusable tool architecture described in `PRODUCT_REQUIREMENTS.md`.
+Foundation 2 must continue to preserve legacy v1 behavior and must not run a
+new strategy search or add signal, entry, stop, or exit rules.
 
 ## Required product direction
 

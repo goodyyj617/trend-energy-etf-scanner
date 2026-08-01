@@ -1,0 +1,57 @@
+{
+  "schema_version": "evaluation_profile_v1",
+  "name": "exploratory_weighted_example",
+  "description": "가중 순위를 기본 의사결정과 분리해 보여 주는 사용자 편집 예시입니다.",
+  "approval_status": "exploratory_only",
+  "comparison_mode": "exploratory_weighted",
+  "enabled_metrics": [
+    "cagr_spy_ratio",
+    "maximum_drawdown_spy_ratio",
+    "cdar95_spy_ratio",
+    "calmar_spy_ratio",
+    "recovery_duration_days",
+    "annual_turnover"
+  ],
+  "metric_directions": {
+    "cagr_spy_ratio": "maximize",
+    "maximum_drawdown_spy_ratio": "minimize",
+    "cdar95_spy_ratio": "minimize",
+    "calmar_spy_ratio": "maximize",
+    "recovery_duration_days": "minimize",
+    "annual_turnover": "minimize"
+  },
+  "metric_modes": {
+    "cagr_spy_ratio": "benchmark_relative",
+    "maximum_drawdown_spy_ratio": "benchmark_relative",
+    "cdar95_spy_ratio": "benchmark_relative",
+    "calmar_spy_ratio": "benchmark_relative",
+    "recovery_duration_days": "absolute",
+    "annual_turnover": "absolute"
+  },
+  "mandatory_gates": [
+    {"metric_key": "cagr_spy_ratio", "operator": ">=", "threshold": 0.8, "label": "SPY CAGR의 80% 이상"},
+    {"metric_key": "maximum_drawdown_spy_ratio", "operator": "<=", "threshold": 0.75, "label": "SPY MDD 크기의 75% 이하"}
+  ],
+  "pareto_objectives": [
+    {"metric_key": "cagr_spy_ratio", "direction": "maximize", "epsilon": 0.01},
+    {"metric_key": "maximum_drawdown_spy_ratio", "direction": "minimize", "epsilon": 0.01},
+    {"metric_key": "cdar95_spy_ratio", "direction": "minimize", "epsilon": 0.01}
+  ],
+  "robustness_vetoes": [],
+  "lexicographic_tie_break": [
+    {"metric_key": "cagr_spy_ratio", "direction": "maximize"},
+    {"metric_key": "maximum_drawdown_spy_ratio", "direction": "minimize"}
+  ],
+  "exploratory_metric_weights": {
+    "cagr_spy_ratio": 0.4,
+    "maximum_drawdown_spy_ratio": 0.25,
+    "cdar95_spy_ratio": 0.2,
+    "calmar_spy_ratio": 0.1,
+    "recovery_duration_days": 0.05,
+    "annual_turnover": 0.0
+  },
+  "normalization_method": "min_max",
+  "ranking_sensitivity_delta": 0.1,
+  "high_weighted_rank_cutoff": 3,
+  "behavior_deduplication": {"enabled": true, "tolerance": 1e-8, "source_artifact": "behavior_metadata"}
+}

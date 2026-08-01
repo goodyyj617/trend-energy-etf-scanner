@@ -1,0 +1,68 @@
+{
+  "schema_version": "evaluation_profile_v1",
+  "name": "final_eligibility_default",
+  "description": "최종 적격성 흐름을 검증하기 위한 편집 가능한 예시이며 승인된 생산 기준이 아닙니다.",
+  "approval_status": "example_not_production_approved",
+  "comparison_mode": "constraint_pareto",
+  "enabled_metrics": [
+    "cagr_spy_ratio",
+    "maximum_drawdown_spy_ratio",
+    "cdar95_spy_ratio",
+    "calmar_spy_ratio",
+    "recovery_duration_days",
+    "annual_turnover",
+    "walk_forward_pass_ratio",
+    "loyo_reversing_years",
+    "transaction_cost_stress_survival"
+  ],
+  "metric_directions": {
+    "cagr_spy_ratio": "maximize",
+    "maximum_drawdown_spy_ratio": "minimize",
+    "cdar95_spy_ratio": "minimize",
+    "calmar_spy_ratio": "maximize",
+    "recovery_duration_days": "minimize",
+    "annual_turnover": "minimize",
+    "walk_forward_pass_ratio": "maximize",
+    "loyo_reversing_years": "minimize",
+    "transaction_cost_stress_survival": "maximize"
+  },
+  "metric_modes": {
+    "cagr_spy_ratio": "benchmark_relative",
+    "maximum_drawdown_spy_ratio": "benchmark_relative",
+    "cdar95_spy_ratio": "benchmark_relative",
+    "calmar_spy_ratio": "benchmark_relative",
+    "recovery_duration_days": "absolute",
+    "annual_turnover": "absolute",
+    "walk_forward_pass_ratio": "absolute",
+    "loyo_reversing_years": "absolute",
+    "transaction_cost_stress_survival": "absolute"
+  },
+  "mandatory_gates": [
+    {"metric_key": "cagr_spy_ratio", "operator": ">=", "threshold": 0.8, "label": "예시 수익 보존 게이트"},
+    {"metric_key": "maximum_drawdown_spy_ratio", "operator": "<=", "threshold": 0.75, "label": "예시 최대낙폭 게이트"},
+    {"metric_key": "cdar95_spy_ratio", "operator": "<=", "threshold": 0.8, "label": "예시 꼬리낙폭 게이트"},
+    {"metric_key": "calmar_spy_ratio", "operator": ">=", "threshold": 1.0, "label": "예시 SPY 대비 Calmar 게이트"}
+  ],
+  "pareto_objectives": [
+    {"metric_key": "cagr_spy_ratio", "direction": "maximize", "epsilon": 0.01},
+    {"metric_key": "maximum_drawdown_spy_ratio", "direction": "minimize", "epsilon": 0.01},
+    {"metric_key": "cdar95_spy_ratio", "direction": "minimize", "epsilon": 0.01},
+    {"metric_key": "recovery_duration_days", "direction": "minimize", "epsilon": 5.0}
+  ],
+  "robustness_vetoes": [
+    {"metric_key": "walk_forward_pass_ratio", "operator": ">=", "threshold": 0.6, "label": "편집 가능한 예시 워크포워드 조건"},
+    {"metric_key": "loyo_reversing_years", "operator": "<=", "threshold": 1.0, "label": "편집 가능한 예시 LOYO 조건"},
+    {"metric_key": "transaction_cost_stress_survival", "operator": ">=", "threshold": 1.0, "label": "비용 스트레스 생존"}
+  ],
+  "lexicographic_tie_break": [
+    {"metric_key": "walk_forward_pass_ratio", "direction": "maximize"},
+    {"metric_key": "cagr_spy_ratio", "direction": "maximize"},
+    {"metric_key": "maximum_drawdown_spy_ratio", "direction": "minimize"},
+    {"metric_key": "annual_turnover", "direction": "minimize"}
+  ],
+  "exploratory_metric_weights": {},
+  "normalization_method": null,
+  "ranking_sensitivity_delta": 0.1,
+  "high_weighted_rank_cutoff": 3,
+  "behavior_deduplication": {"enabled": true, "tolerance": 1e-8, "source_artifact": "behavior_metadata"}
+}
