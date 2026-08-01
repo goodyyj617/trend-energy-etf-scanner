@@ -39,7 +39,11 @@ def _finite(value: Any) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def evaluate_gate(metrics: Mapping[str, Any], rule: GateRule) -> CheckResult:
+def evaluate_gate(
+    metrics: Mapping[str, Any],
+    rule: GateRule,
+    unavailable_reasons: Mapping[str, str] | None = None,
+) -> CheckResult:
     value = validate_metric_value(
         rule.metric_key,
         metrics.get(rule.metric_key),
@@ -52,7 +56,9 @@ def evaluate_gate(metrics: Mapping[str, Any], rule: GateRule) -> CheckResult:
             threshold=rule.threshold,
             value=None,
             passed=False,
-            reason="metric_missing_or_non_finite",
+            reason=(unavailable_reasons or {}).get(
+                rule.metric_key, "metric_missing_or_non_finite"
+            ),
         )
     operators = {
         ">=": lambda left, right: left >= right,
@@ -296,6 +302,8 @@ def evaluate_strategy_runs(
     benchmark_data_identity: str,
     metric_engine_version: str = METRIC_ENGINE_VERSION,
     behavior_metadata: Mapping[str, Mapping[str, Any]] | None = None,
+    unavailable_reasons: Mapping[str, Mapping[str, str]] | None = None,
+    derived_metric_ids: Mapping[str, str] | None = None,
     creation_time: str,
 ) -> EvaluationRun:
     """Apply the non-compensatory pipeline and optional weighted view."""
@@ -306,8 +314,12 @@ def evaluate_strategy_runs(
     for strategy_run_id, metric_values in metrics_by_run.items():
         validate_metric_artifact(metric_values, field=f"raw_metrics[{strategy_run_id}]")
     behavior_metadata = behavior_metadata or {}
+    unavailable_reasons = unavailable_reasons or {}
     gate_results = {
-        key: tuple(evaluate_gate(metrics, rule) for rule in profile.mandatory_gates)
+        key: tuple(
+            evaluate_gate(metrics, rule, unavailable_reasons.get(key, {}))
+            for rule in profile.mandatory_gates
+        )
         for key, metrics in metrics_by_run.items()
     }
     gates_passed = {key: all(result.passed for result in results) for key, results in gate_results.items()}
@@ -324,7 +336,10 @@ def evaluate_strategy_runs(
     pareto_members, dominated_by = epsilon_pareto(pareto_input, profile.pareto_objectives)
 
     robustness_results = {
-        key: tuple(evaluate_gate(metrics, rule) for rule in profile.robustness_vetoes)
+        key: tuple(
+            evaluate_gate(metrics, rule, unavailable_reasons.get(key, {}))
+            for rule in profile.robustness_vetoes
+        )
         for key, metrics in metrics_by_run.items()
     }
     robustness_passed = {
@@ -333,7 +348,10 @@ def evaluate_strategy_runs(
     selectable = [
         key
         for key in metrics_by_run
-        if gates_passed[key] and key in pareto_members and robustness_passed[key]
+        if gates_passed[key]
+        and key in pareto_members
+        and robustness_passed[key]
+        and not behavior_metadata.get(key, {}).get("duplicated", False)
     ]
     ordered = _lexicographic_order(selectable, metrics_by_run, profile.lexicographic_tie_break)
     lexicographic_orders = {key: rank for rank, key in enumerate(ordered, start=1)}
@@ -357,6 +375,8 @@ def evaluate_strategy_runs(
             labels.append("epsilon_pareto_dominated")
         elif not robustness_passed[key]:
             labels.append("robustness_vetoed")
+        elif behavior_metadata.get(key, {}).get("duplicated", False):
+            labels.append("behavior_duplicate_non_representative")
         else:
             labels.append("constraint_pareto_selected")
         metadata = dict(behavior_metadata.get(key, {}))
@@ -377,6 +397,7 @@ def evaluate_strategy_runs(
                 lexicographic_order=lexicographic_orders.get(key),
                 behavior_deduplication_metadata=metadata,
                 weighted_view=weighted_views.get(key),
+                unavailable_reasons=unavailable_reasons.get(key, {}),
                 final_labels=tuple(labels),
             )
         )
@@ -390,6 +411,7 @@ def evaluate_strategy_runs(
         results=tuple(candidate_results),
         normalized_weights=normalized_weights,
         ranking_sensitivity=sensitivity,
+        derived_metric_ids=derived_metric_ids or {},
         creation_time=creation_time,
     )
 

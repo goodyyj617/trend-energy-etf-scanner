@@ -13,13 +13,23 @@
 - Foundation 1 implements immutable strategy-run, evaluation-profile,
   evaluation-run, metric-registry, terminology, retention-policy, and bounded
   local result-store contracts without changing the legacy execution path.
+- Foundation 2 makes those contracts operational from stored artifacts. It
+  validates versioned daily, yearly, rolling, robustness, and behavior schemas;
+  calculates and content-addresses reusable metrics; aligns benchmark metrics
+  on exact common economic dates; ingests robustness evidence without rerunning
+  simulations; and applies behavior clustering before final representative
+  selection while preserving every StrategyRun.
+- Implemented version boundaries are
+  `trend_v2_stored_curve_metric_engine_v1`,
+  `legacy_portfolio_metric_parity_v1`,
+  `trend_v2_behavior_fingerprint_v1`, and `metric_registry_v2`.
 - `StrategyRunManifest` records terminal outcomes only. A separate
   execution-attempt or job-status contract for pending and running work is
   required before the web API starts background backtests.
 
 ## Current phase
 
-Product foundation -- reusable metric and selection engine
+Product foundation -- local web API and saved-run registry
 
 ## Phase A2 record
 
@@ -31,20 +41,16 @@ Product foundation -- reusable metric and selection engine
 
 ## Exact next task
 
-Foundation 2 -- complete the reusable metric and selection engine integration
-on the Foundation 1 contracts:
+Foundation 3 -- local web API and saved-run registry:
 
-1. calculate the configured registry metrics from stored daily, yearly, and
-   rolling artifacts instead of accepting precomputed summary inputs only;
-2. implement reusable rolling and robustness calculations;
-3. produce behavior-path deduplication inputs from stored portfolio curves;
-4. integrate calculated metrics and robustness artifacts with the Foundation 1
-   gate, Pareto, epsilon, veto, tie-break, and exploratory-weighted pipeline;
-5. expose stable calculation-engine version boundaries and parity tests against the
-   existing reliable portfolio metrics.
-
-Foundation 2 must continue to preserve legacy v1 behavior and must not run a
-new strategy search or add signal, entry, stop, or exit rules.
+1. expose local API endpoints for saved StrategyRuns, derived artifacts,
+   EvaluationProfiles, EvaluationRuns, provenance, and retention status;
+2. add a saved-run registry with filtering, pagination, immutable history, and
+   explicit execution-attempt/job status separate from terminal manifests;
+3. expose Foundation 2 calculation and evaluation as a local job without
+   coupling it to a new economic backtest;
+4. keep the API Korean-first ready, but do not build the final web UI in the
+   API phase.
 
 ## Required product direction
 
@@ -60,6 +66,11 @@ new strategy search or add signal, entry, stop, or exit rules.
 - The historical universe uses present-day AUM and present-day product availability, creating current-universe and survivorship bias.
 - Final performance conclusions still require point-in-time universe reconstruction or a survivorship-sensitivity analysis.
 - Storage limits and the boundary between Git-tracked summaries and external/local large artifacts remain an open design decision.
+- First and last stored calendar years are conservatively marked incomplete
+  because Foundation 2 does not introduce an exchange-calendar service.
+- Robustness simulations are not recomputed; missing evidence fails referenced
+  vetoes closed with a stored reason.
+- External object storage and distributed calculation remain deferred.
 
 ## Explicitly deferred
 

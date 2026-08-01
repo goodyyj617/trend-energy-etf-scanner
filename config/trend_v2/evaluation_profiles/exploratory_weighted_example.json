@@ -53,5 +53,17 @@
   "normalization_method": "min_max",
   "ranking_sensitivity_delta": 0.1,
   "high_weighted_rank_cutoff": 3,
-  "behavior_deduplication": {"enabled": true, "tolerance": 1e-8, "source_artifact": "behavior_metadata"}
+  "behavior_deduplication": {
+    "enabled": true,
+    "source_artifact": "behavior_metadata",
+    "required_conditions": [
+      {"metric_key": "daily_return_correlation", "operator": ">=", "threshold": 0.999},
+      {"metric_key": "active_date_jaccard", "operator": ">=", "threshold": 0.99},
+      {"metric_key": "normalized_path_distance", "operator": "<=", "threshold": 0.01}
+    ],
+    "representative_order": [
+      {"field": "complexity_score", "direction": "minimize"},
+      {"field": "parameter_count", "direction": "minimize"}
+    ]
+  }
 }

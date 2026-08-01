@@ -12,9 +12,10 @@ from .canonical import canonical_data, content_hash, deep_freeze, deterministic_
 STRATEGY_RUN_SPEC_VERSION = "strategy_run_spec_v1"
 STRATEGY_RUN_MANIFEST_VERSION = "strategy_run_manifest_v1"
 EVALUATION_PROFILE_VERSION = "evaluation_profile_v1"
-EVALUATION_RUN_VERSION = "evaluation_run_v1"
+EVALUATION_RUN_VERSION = "evaluation_run_v2"
 RETENTION_POLICY_VERSION = "artifact_retention_policy_v1"
-METRIC_REGISTRY_VERSION = "metric_registry_v1"
+METRIC_REGISTRY_VERSION = "metric_registry_v2"
+DERIVED_METRIC_MANIFEST_VERSION = "derived_metric_manifest_v1"
 
 
 class MetricDirection(str, Enum):
@@ -59,6 +60,7 @@ class ArtifactKind(str, Enum):
     ROLLING_METRICS = "rolling_metrics"
     ROBUSTNESS_SUMMARY = "robustness_summary"
     BEHAVIOR_METADATA = "behavior_metadata"
+    DERIVED_METRICS = "derived_metrics"
 
 
 @dataclass(frozen=True)
@@ -396,6 +398,7 @@ class CandidateEvaluation:
     lexicographic_order: int | None
     behavior_deduplication_metadata: Mapping[str, Any]
     weighted_view: WeightedCandidateView | None
+    unavailable_reasons: Mapping[str, str]
     final_labels: tuple[str, ...]
 
     def __post_init__(self) -> None:
@@ -404,6 +407,7 @@ class CandidateEvaluation:
         object.__setattr__(self, "dominated_by", tuple(self.dominated_by))
         object.__setattr__(self, "robustness_results", tuple(self.robustness_results))
         object.__setattr__(self, "behavior_deduplication_metadata", deep_freeze(self.behavior_deduplication_metadata))
+        object.__setattr__(self, "unavailable_reasons", deep_freeze(self.unavailable_reasons))
         object.__setattr__(self, "final_labels", tuple(self.final_labels))
 
     @classmethod
@@ -417,6 +421,7 @@ class CandidateEvaluation:
         )
         payload["dominated_by"] = tuple(payload["dominated_by"])
         payload["final_labels"] = tuple(payload["final_labels"])
+        payload.setdefault("unavailable_reasons", {})
         if payload.get("weighted_view") is not None:
             payload["weighted_view"] = WeightedCandidateView.from_dict(payload["weighted_view"])
         return cls(**payload)
@@ -433,6 +438,7 @@ class EvaluationRun:
     results: tuple[CandidateEvaluation, ...]
     normalized_weights: Mapping[str, float]
     ranking_sensitivity: Mapping[str, Any]
+    derived_metric_ids: Mapping[str, str]
     creation_time: str
     schema_version: str = EVALUATION_RUN_VERSION
 
@@ -444,8 +450,11 @@ class EvaluationRun:
         object.__setattr__(self, "results", tuple(sorted(self.results, key=lambda item: item.strategy_run_id)))
         object.__setattr__(self, "normalized_weights", deep_freeze(self.normalized_weights))
         object.__setattr__(self, "ranking_sensitivity", deep_freeze(self.ranking_sensitivity))
+        object.__setattr__(self, "derived_metric_ids", deep_freeze(self.derived_metric_ids))
         if {item.strategy_run_id for item in self.results} != set(ordered_ids):
             raise ValueError("evaluation results must exactly match strategy_run_ids")
+        if self.derived_metric_ids and set(self.derived_metric_ids) != set(ordered_ids):
+            raise ValueError("derived_metric_ids must be empty or exactly match strategy_run_ids")
 
     @property
     def identity_content(self) -> Mapping[str, Any]:
@@ -455,6 +464,7 @@ class EvaluationRun:
             "evaluation_profile_id": self.evaluation_profile_id,
             "metric_engine_version": self.metric_engine_version,
             "benchmark_data_identity": self.benchmark_data_identity,
+            "derived_metric_ids": self.derived_metric_ids,
         }
 
     @property
@@ -473,6 +483,7 @@ class EvaluationRun:
         payload["strategy_run_ids"] = tuple(payload["strategy_run_ids"])
         payload["comparison_mode"] = ComparisonMode(payload["comparison_mode"])
         payload["results"] = tuple(CandidateEvaluation.from_dict(item) for item in payload["results"])
+        payload.setdefault("derived_metric_ids", {})
         run = cls(**payload)
         if expected_id is not None and expected_id != run.evaluation_run_id:
             raise ValueError("evaluation_run_id does not match identity content")
@@ -512,6 +523,70 @@ class ArtifactRetentionPolicy:
             ArtifactKind(item) for item in payload.get("retained_artifact_kinds", tuple(ArtifactKind))
         )
         return cls(**payload)
+
+
+@dataclass(frozen=True)
+class DerivedMetricManifest:
+    """Immutable index for one cached calculation over stored economic artifacts."""
+
+    strategy_run_id: str
+    source_artifact_hashes: Mapping[str, str]
+    benchmark_identity: str
+    benchmark_artifact_hash: str | None
+    metric_calculation_engine_version: str
+    metric_definition_version: str
+    calculation_settings: Mapping[str, Any]
+    artifacts: tuple[ArtifactRecord, ...]
+    creation_time: str
+    schema_version: str = DERIVED_METRIC_MANIFEST_VERSION
+
+    def __post_init__(self) -> None:
+        if not self.strategy_run_id:
+            raise ValueError("strategy_run_id is required")
+        if not self.source_artifact_hashes:
+            raise ValueError("source_artifact_hashes cannot be empty")
+        if not self.metric_calculation_engine_version or not self.metric_definition_version:
+            raise ValueError("metric calculation engine and definition versions are required")
+        if not self.benchmark_identity:
+            raise ValueError("benchmark_identity is required")
+        object.__setattr__(self, "source_artifact_hashes", deep_freeze(self.source_artifact_hashes))
+        object.__setattr__(self, "calculation_settings", deep_freeze(self.calculation_settings))
+        object.__setattr__(self, "artifacts", tuple(sorted(self.artifacts, key=lambda item: item.artifact_key)))
+        keys = [artifact.artifact_key for artifact in self.artifacts]
+        if len(keys) != len(set(keys)):
+            raise ValueError("derived metric artifact keys must be unique")
+
+    @property
+    def identity_content(self) -> Mapping[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "strategy_run_id": self.strategy_run_id,
+            "source_artifact_hashes": self.source_artifact_hashes,
+            "benchmark_identity": self.benchmark_identity,
+            "benchmark_artifact_hash": self.benchmark_artifact_hash,
+            "metric_calculation_engine_version": self.metric_calculation_engine_version,
+            "metric_definition_version": self.metric_definition_version,
+            "calculation_settings": self.calculation_settings,
+        }
+
+    @property
+    def derived_metric_id(self) -> str:
+        return deterministic_id("derived_metric", self.identity_content)
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = canonical_data(self)
+        payload["derived_metric_id"] = self.derived_metric_id
+        return payload
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "DerivedMetricManifest":
+        payload = dict(value)
+        expected_id = payload.pop("derived_metric_id", None)
+        payload["artifacts"] = tuple(ArtifactRecord.from_dict(item) for item in payload["artifacts"])
+        manifest = cls(**payload)
+        if expected_id is not None and expected_id != manifest.derived_metric_id:
+            raise ValueError("derived_metric_id does not match identity content")
+        return manifest
 
 
 @dataclass(frozen=True)

@@ -10,10 +10,12 @@ from pathlib import Path
 from typing import Any, Mapping, Protocol
 
 from .canonical import canonical_bytes, canonical_data, content_hash
+from .artifact_schemas import artifact_payload_row_count
 from .contracts import (
     ArtifactKind,
     ArtifactRecord,
     ArtifactRetentionPolicy,
+    DerivedMetricManifest,
     EvaluationProfile,
     EvaluationRun,
     StrategyRunManifest,
@@ -79,6 +81,10 @@ class ResultStore(Protocol):
 
     def save_evaluation_run(self, run: EvaluationRun) -> None: ...
 
+    def save_derived_metric_manifest(self, manifest: DerivedMetricManifest) -> None: ...
+
+    def get_derived_metric_manifest(self, derived_metric_id: str) -> DerivedMetricManifest: ...
+
 
 class LocalResultStore:
     """Immutable manifests plus gzip JSON objects addressed by SHA-256."""
@@ -90,11 +96,13 @@ class LocalResultStore:
         self.strategy_runs_dir = self.root / "strategy_runs"
         self.profiles_dir = self.root / "evaluation_profiles"
         self.evaluation_runs_dir = self.root / "evaluation_runs"
+        self.derived_metrics_dir = self.root / "derived_metrics"
         for path in (
             self.objects_dir,
             self.strategy_runs_dir,
             self.profiles_dir,
             self.evaluation_runs_dir,
+            self.derived_metrics_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
         policy_payload = {
@@ -222,6 +230,17 @@ class LocalResultStore:
                 errors.append(f"logical_size_mismatch:{artifact.artifact_key}")
             if content_hash(logical) != artifact.content_hash:
                 errors.append(f"content_hash_mismatch:{artifact.artifact_key}")
+            try:
+                payload = json.loads(logical.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                errors.append(f"json_invalid:{artifact.artifact_key}")
+                continue
+            actual_row_count = artifact_payload_row_count(payload)
+            if actual_row_count is not None and actual_row_count != artifact.row_count:
+                errors.append(
+                    f"row_count_mismatch:{artifact.artifact_key}:"
+                    f"expected={artifact.row_count}:actual={actual_row_count}"
+                )
         return ManifestValidation(not errors, tuple(errors), len(manifest.artifacts))
 
     def load_artifact_payload(self, strategy_run_id: str, artifact_key: str) -> Any:
@@ -236,7 +255,94 @@ class LocalResultStore:
         logical = gzip.decompress(path.read_bytes())
         if content_hash(logical) != record.content_hash:
             raise ValueError(f"artifact hash validation failed: {artifact_key}")
-        return json.loads(logical.decode("utf-8"))
+        payload = json.loads(logical.decode("utf-8"))
+        actual_row_count = artifact_payload_row_count(payload)
+        if actual_row_count is not None and actual_row_count != record.row_count:
+            raise ValueError(
+                f"manifest row-count mismatch:{artifact_key}:"
+                f"expected={record.row_count}:actual={actual_row_count}"
+            )
+        return payload
+
+    def get_strategy_artifact_record(
+        self, strategy_run_id: str, artifact_key: str
+    ) -> ArtifactRecord:
+        manifest = self.get_strategy_run_manifest(strategy_run_id)
+        matching = [artifact for artifact in manifest.artifacts if artifact.artifact_key == artifact_key]
+        if not matching:
+            raise KeyError(f"{strategy_run_id}:{artifact_key}")
+        return matching[0]
+
+    def load_and_validate_artifact(
+        self, strategy_run_id: str, artifact_key: str, validator: Any
+    ) -> Any:
+        payload = self.load_artifact_payload(strategy_run_id, artifact_key)
+        validator(payload)
+        return payload
+
+    def _load_record_payload(self, record: ArtifactRecord) -> Any:
+        path = self._object_path(record)
+        if not path.exists():
+            raise FileNotFoundError(path)
+        logical = gzip.decompress(path.read_bytes())
+        if content_hash(logical) != record.content_hash:
+            raise ValueError(f"artifact hash validation failed: {record.artifact_key}")
+        payload = json.loads(logical.decode("utf-8"))
+        actual_row_count = artifact_payload_row_count(payload)
+        if actual_row_count is not None and actual_row_count != record.row_count:
+            raise ValueError(
+                f"manifest row-count mismatch:{record.artifact_key}:"
+                f"expected={record.row_count}:actual={actual_row_count}"
+            )
+        return payload
+
+    def save_derived_metric_manifest(self, manifest: DerivedMetricManifest) -> None:
+        self.get_strategy_run_manifest(manifest.strategy_run_id)
+        for artifact in manifest.artifacts:
+            path = self._object_path(artifact)
+            if not path.exists():
+                raise ValueError(f"derived metric artifact missing: {artifact.artifact_key}")
+            self._load_record_payload(artifact)
+        path = self.derived_metrics_dir / manifest.derived_metric_id / "manifest.json"
+        self._write_immutable(path, canonical_bytes(manifest.to_dict()))
+
+    def get_derived_metric_manifest(self, derived_metric_id: str) -> DerivedMetricManifest:
+        path = self.derived_metrics_dir / derived_metric_id / "manifest.json"
+        if not path.exists():
+            raise KeyError(derived_metric_id)
+        return DerivedMetricManifest.from_dict(json.loads(path.read_text(encoding="utf-8")))
+
+    def load_derived_metric_artifact(self, derived_metric_id: str, artifact_key: str) -> Any:
+        manifest = self.get_derived_metric_manifest(derived_metric_id)
+        matching = [artifact for artifact in manifest.artifacts if artifact.artifact_key == artifact_key]
+        if not matching:
+            raise KeyError(f"{derived_metric_id}:{artifact_key}")
+        return self._load_record_payload(matching[0])
+
+    def derived_metric_history(self, strategy_run_id: str | None = None) -> tuple[str, ...]:
+        result: list[str] = []
+        for path in sorted(self.derived_metrics_dir.glob("*/manifest.json")):
+            manifest = DerivedMetricManifest.from_dict(json.loads(path.read_text(encoding="utf-8")))
+            if strategy_run_id is None or manifest.strategy_run_id == strategy_run_id:
+                result.append(manifest.derived_metric_id)
+        return tuple(result)
+
+    def provenance_for_strategy_run(self, strategy_run_id: str) -> Mapping[str, Any]:
+        manifest = self.get_strategy_run_manifest(strategy_run_id)
+        derived = [
+            self.get_derived_metric_manifest(derived_id).to_dict()
+            for derived_id in self.derived_metric_history(strategy_run_id)
+        ]
+        evaluations = []
+        for path in sorted(self.evaluation_runs_dir.glob("*.json")):
+            run = EvaluationRun.from_dict(json.loads(path.read_text(encoding="utf-8")))
+            if strategy_run_id in run.strategy_run_ids:
+                evaluations.append(run.evaluation_run_id)
+        return {
+            "strategy_run_manifest": manifest.to_dict(),
+            "derived_metric_manifests": derived,
+            "evaluation_run_ids": evaluations,
+        }
 
     def save_evaluation_profile(self, profile: EvaluationProfile) -> None:
         path = self.profiles_dir / f"{profile.evaluation_profile_id}.json"
@@ -271,6 +377,12 @@ class LocalResultStore:
         for path in self.strategy_runs_dir.glob("*/manifest.json"):
             try:
                 manifest = StrategyRunManifest.from_dict(json.loads(path.read_text(encoding="utf-8")))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            referenced.update(artifact.content_hash for artifact in manifest.artifacts)
+        for path in self.derived_metrics_dir.glob("*/manifest.json"):
+            try:
+                manifest = DerivedMetricManifest.from_dict(json.loads(path.read_text(encoding="utf-8")))
             except (TypeError, ValueError, json.JSONDecodeError):
                 continue
             referenced.update(artifact.content_hash for artifact in manifest.artifacts)
