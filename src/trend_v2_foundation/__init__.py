@@ -1,4 +1,4 @@
-"""Public Foundation 1 contracts for reusable Trend Strategy v2 tooling."""
+"""Public contracts for reusable Trend Strategy v2 tooling."""
 
 from .canonical import canonical_bytes, canonical_data, canonical_json, content_hash
 from .contracts import (
@@ -8,6 +8,7 @@ from .contracts import (
     CandidateEvaluation,
     CheckResult,
     ComparisonMode,
+    DerivedMetricManifest,
     EvaluationProfile,
     EvaluationRun,
     ExecutionStatus,
@@ -23,6 +24,35 @@ from .contracts import (
     WeightedCandidateView,
 )
 from .evaluation import METRIC_ENGINE_VERSION, epsilon_pareto, evaluate_saved_runs, evaluate_strategy_runs
+from .artifact_schemas import (
+    ArtifactSchemaError,
+    BEHAVIOR_METADATA_SCHEMA_VERSION,
+    DAILY_PORTFOLIO_CURVE_SCHEMA_VERSION,
+    ROBUSTNESS_SUMMARY_SCHEMA_VERSION,
+    ROLLING_METRICS_SCHEMA_VERSION,
+    YEARLY_METRICS_SCHEMA_VERSION,
+    validate_behavior_metadata,
+    validate_daily_portfolio_curve,
+    validate_robustness_summary,
+    validate_rolling_metrics,
+    validate_yearly_metrics,
+)
+from .behavior import BEHAVIOR_ENGINE_VERSION, behavior_similarity, deduplicate_behaviors, generate_behavior_metadata
+from .calculation import (
+    DEFAULT_ROLLING_WINDOWS,
+    DERIVED_METRICS_SCHEMA_VERSION,
+    METRIC_CALCULATION_ENGINE_VERSION,
+    METRIC_DEFINITION_VERSION,
+    calculate_absolute_metrics,
+    calculate_benchmark_relative_metrics,
+    calculate_metric_artifact,
+    calculation_settings,
+    exact_common_date_curves,
+    generate_rolling_metrics,
+    generate_yearly_metrics,
+    robustness_metrics,
+)
+from .integration import SavedRunEvaluationResult, calculate_and_evaluate_saved_runs
 from .metrics import (
     METRIC_REGISTRY,
     EvaluationProfileValidationError,
@@ -38,11 +68,13 @@ from .terminology import load_terminology_source, validate_terminology_source
 
 __all__ = [
     "ArtifactKind",
+    "ArtifactSchemaError",
     "ArtifactRecord",
     "ArtifactRetentionPolicy",
     "CandidateEvaluation",
     "CheckResult",
     "ComparisonMode",
+    "DerivedMetricManifest",
     "EvaluationProfile",
     "EvaluationProfileValidationError",
     "EvaluationRun",
@@ -50,6 +82,8 @@ __all__ = [
     "GateRule",
     "LocalResultStore",
     "METRIC_ENGINE_VERSION",
+    "METRIC_CALCULATION_ENGINE_VERSION",
+    "METRIC_DEFINITION_VERSION",
     "METRIC_REGISTRY",
     "MetricDefinition",
     "MetricDirection",
@@ -62,11 +96,32 @@ __all__ = [
     "StrategyRunManifest",
     "StrategyRunSpec",
     "WeightedCandidateView",
+    "SavedRunEvaluationResult",
+    "BEHAVIOR_ENGINE_VERSION",
+    "BEHAVIOR_METADATA_SCHEMA_VERSION",
+    "DAILY_PORTFOLIO_CURVE_SCHEMA_VERSION",
+    "YEARLY_METRICS_SCHEMA_VERSION",
+    "ROLLING_METRICS_SCHEMA_VERSION",
+    "ROBUSTNESS_SUMMARY_SCHEMA_VERSION",
+    "DERIVED_METRICS_SCHEMA_VERSION",
+    "DEFAULT_ROLLING_WINDOWS",
     "canonical_bytes",
     "canonical_data",
     "canonical_json",
     "content_hash",
     "epsilon_pareto",
+    "calculate_absolute_metrics",
+    "calculate_and_evaluate_saved_runs",
+    "calculate_benchmark_relative_metrics",
+    "calculate_metric_artifact",
+    "calculation_settings",
+    "exact_common_date_curves",
+    "generate_behavior_metadata",
+    "generate_rolling_metrics",
+    "generate_yearly_metrics",
+    "behavior_similarity",
+    "deduplicate_behaviors",
+    "robustness_metrics",
     "evaluate_saved_runs",
     "evaluate_strategy_runs",
     "load_evaluation_profile",
@@ -77,4 +132,9 @@ __all__ = [
     "validate_terminology_source",
     "validate_evaluation_profile",
     "validate_metric_value",
+    "validate_behavior_metadata",
+    "validate_daily_portfolio_curve",
+    "validate_robustness_summary",
+    "validate_rolling_metrics",
+    "validate_yearly_metrics",
 ]

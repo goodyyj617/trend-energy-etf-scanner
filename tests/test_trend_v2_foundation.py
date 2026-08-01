@@ -532,6 +532,18 @@ class RegistryAndTerminologyTests(unittest.TestCase):
             "walk_forward",
             "loyo",
             "block_bootstrap",
+            "sortino_ratio",
+            "time_under_water",
+            "worst_rolling_return",
+            "transaction_cost_drag",
+            "gross_exposure",
+            "cash_weight",
+            "walk_forward_pass_ratio",
+            "loyo_stability_ratio",
+            "adjusted_p_value",
+            "transaction_cost_stress",
+            "asset_group_concentration",
+            "behavior_similarity_diagnostics",
         }
         self.assertTrue(required_entries <= set(source["entries"]))
         for key, entry in source["entries"].items():
