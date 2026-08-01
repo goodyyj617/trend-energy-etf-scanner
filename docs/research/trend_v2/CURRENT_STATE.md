@@ -36,10 +36,16 @@
   provenance, direct and derived artifacts, profiles, EvaluationRuns, stored
   behavior diagnostics, and execution attempts without invoking an economic
   backtest.
+- Foundation 4 exposes `trend_v2_korean_saved_run_ui_v1` as a dependency-free,
+  same-origin Korean-first web interface. It adds saved-run filtering and
+  bounded charts, same-run evaluation-profile comparison, explicitly separated
+  non-compensatory and exploratory stages, stored robustness and behavior
+  inspection, operational-attempt separation, and a complete centralized
+  explanation area without adding strategy execution.
 
 ## Current phase
 
-Product foundation -- Korean-first web UI and explanation tab
+Product foundation -- controlled strategy-construction and execution contracts
 
 ## Phase A2 record
 
@@ -51,8 +57,9 @@ Product foundation -- Korean-first web UI and explanation tab
 
 ## Exact next task
 
-Foundation 4 -- Korean-first web UI and explanation tab consuming the local
-API, without yet expanding into unrestricted strategy execution.
+Foundation 5 -- controlled strategy-construction and execution contracts,
+including explicit candidate-count estimation and user confirmation, without
+yet performing unrestricted large parameter searches.
 
 ## Required product direction
 

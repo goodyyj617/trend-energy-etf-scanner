@@ -96,6 +96,13 @@ from .api import (
     ReadOnlyTrendApi,
     build_http_server,
 )
+from .web import (
+    WEB_UI_VERSION,
+    TrendWebApplication,
+    WebResponse,
+    build_web_server,
+    load_retention_policy,
+)
 
 __all__ = [
     "ArtifactKind",
@@ -193,4 +200,9 @@ __all__ = [
     "validate_yearly_metrics",
     "validate_attempt_transition",
     "build_http_server",
+    "WEB_UI_VERSION",
+    "TrendWebApplication",
+    "WebResponse",
+    "build_web_server",
+    "load_retention_policy",
 ]
