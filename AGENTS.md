@@ -4,7 +4,9 @@
 
 These instructions apply to the entire repository.
 
-For tasks explicitly related to Trend Strategy v2, also read:
+For tasks explicitly related to Trend Strategy v2, these are the relevant
+reference documents. Open them only as directed by the default context policy
+below or when a specific dependency requires them:
 
 - `docs/research/trend_v2/CHARTER.md`
 - `docs/research/trend_v2/DECISIONS.md`
@@ -96,3 +98,95 @@ Report only:
 - tests or checks actually run;
 - blocking limitations;
 - exact next phase recorded in `CURRENT_STATE.md`.
+
+## Codex context and credit discipline
+
+Use a narrow, evidence-driven inspection strategy for every task in this repository.
+
+### Default context policy
+
+Read first only:
+
+- this AGENTS.md
+- docs/research/trend_v2/CURRENT_STATE.md when the task concerns trend_v2
+- the immediately preceding task or Foundation document
+- files directly named by the current task
+
+Do not preload all historical Foundation documents.
+
+Do not recursively inspect entire directories.
+
+Do not read every test file or every source file by default.
+
+Use targeted symbol, filename, and reference searches before opening files.
+
+Treat completed decisions summarized in CURRENT_STATE.md as authoritative unless a concrete contradiction is found.
+
+Open additional files only when a specific dependency requires them.
+
+Do not perform broad repository audits unless the user explicitly requests one.
+
+Do not reopen or revalidate merged historical work without concrete evidence of a regression.
+
+### Execution policy
+
+Use the smallest sufficient implementation scope.
+
+Do not create unrelated cleanup, refactoring, documentation, or formatting work.
+
+Do not spawn subagents unless parallel work is clearly necessary.
+
+Prefer one implementation path over multiple speculative alternatives.
+
+Do not repeatedly inspect git status, diffs, manifests, or unchanged files.
+
+Do not reread files whose relevant contracts have already been established in the current session.
+
+### Validation policy
+
+Run directly relevant targeted tests during implementation.
+
+Run the bounded full suite at most once, after implementation is complete, unless a concrete failure requires another run.
+
+Do not repeat successful test suites.
+
+Do not run all supported dependency-version suites unless the task changes compatibility-sensitive behavior or the user explicitly requires them.
+
+Use existing CI for redundant platform validation where appropriate.
+
+### Publishing policy
+
+After implementation and validation are complete:
+
+- publish the existing commit as-is
+- do not reread implementation files
+- do not rerun successful tests
+- do not amend or regenerate the commit
+- use only the minimum commands needed to push and create the Draft PR
+
+If authentication or push authorization blocks publishing, report the exact branch and SHA and stop.
+
+### Output policy
+
+Keep progress updates minimal.
+
+Do not restate the full task specification.
+
+Keep the final report limited to:
+
+- PR URL or publishing blocker
+- branch
+- head SHA
+- changed files
+- implemented behavior
+- validation results
+- remaining limitations
+- exact next task
+
+### Reasoning policy
+
+Use medium reasoning effort by default for well-specified implementation work.
+
+Escalate to high reasoning only when there is a concrete architectural contradiction, difficult test failure, statistical ambiguity, security concern, or data-integrity risk.
+
+Do not use high reasoning for publishing, status checks, file moves, minor documentation, or mechanical edits.
