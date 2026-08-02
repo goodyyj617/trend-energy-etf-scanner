@@ -15,8 +15,8 @@ import pandas as pd
 from src.backtest import build_historical_features
 from src.portfolio import build_price_panel, simulate_canonical_portfolio
 from src.trend_v2 import (
+    add_phase_a_price_trend_features,
     default_phase_a_components,
-    evaluate_signal_observations,
     make_prior_price_high_rule,
     simulate_signal_lifecycles,
 )
@@ -210,13 +210,10 @@ class PhaseAControlledExecutionAdapter:
         expected = {
             "universe_specification": "phase_a2_historical_eligible_v1",
             "benchmark": "spy_adjusted_close_v1",
-            "trend_filter": "price_above_rising_ma200_v0",
-            "signal": "prior_price_high_l20_v1",
             "entry_rule": "first_event_next_open_v1",
             "initial_stop": "signal_day_low20_v1",
             "trailing_exit": "ratcheting_low20_v1",
             "position_sizing": "canonical_equal_weight_active_v1",
-            "portfolio_constraints": "long_only_cash_constrained_v1",
             "transaction_costs": "round_trip_bps_v1",
             "slippage": "round_trip_slippage_bps_v1",
         }
@@ -225,8 +222,19 @@ class PhaseAControlledExecutionAdapter:
         for field, option_id in expected.items():
             if getattr(specification, field).get("option_id") != option_id:
                 raise Foundation5Error("engine_unsupported", f"The adapter does not support {field}.")
-        if specification.signal["parameters"].get("lookback") != 20:
-            raise Foundation5Error("engine_unsupported", "Only the established prior-price-high L20 baseline is supported.")
+        if specification.trend_filter.get("option_id") not in {
+            "no_trend_filter_v1", "close_above_ma200_v1", "price_above_rising_ma200_v0",
+        }:
+            raise Foundation5Error("engine_unsupported", "The requested trend filter is not in the controlled adapter allow-list.")
+        if specification.signal.get("option_id") not in {"prior_price_high_l20_v1", "prior_price_high_v2"}:
+            raise Foundation5Error("engine_unsupported", "The requested signal family is not in the controlled adapter allow-list.")
+        lookback = specification.signal["parameters"].get("lookback")
+        if not isinstance(lookback, int) or not 20 <= lookback <= 55:
+            raise Foundation5Error("engine_unsupported", "Prior-price-high lookback must be an allow-listed integer from 20 through 55.")
+        if specification.portfolio_constraints.get("option_id") not in {
+            "long_only_cash_constrained_v1", "long_only_cash_constrained_v2",
+        }:
+            raise Foundation5Error("engine_unsupported", "The requested portfolio constraint is not in the controlled adapter allow-list.")
 
     def execute(self, specification: StrategyRunSpec) -> AdapterResult:
         self._require(specification)
@@ -242,10 +250,18 @@ class PhaseAControlledExecutionAdapter:
         if selected_features.empty or selected_prices.empty:
             raise Foundation5Error("snapshot_unavailable", "No frozen observations exist in the requested date range.")
         components = default_phase_a_components()
-        signal_rule = make_prior_price_high_rule(20)
-        observations = evaluate_signal_observations(full_features, [signal_rule], components)
-        observation_dates = pd.to_datetime(full_features["date"], errors="coerce")
-        events = observations.loc[(observation_dates >= start) & (observation_dates <= end), signal_rule.key]
+        signal_rule = make_prior_price_high_rule(int(specification.signal["parameters"]["lookback"]))
+        prepared = add_phase_a_price_trend_features(full_features)
+        raw_events = signal_rule.evaluate(prepared).fillna(False).astype(bool)
+        trend_option = specification.trend_filter["option_id"]
+        if trend_option == "no_trend_filter_v1":
+            trend = pd.Series(True, index=prepared.index)
+        elif trend_option == "close_above_ma200_v1":
+            trend = prepared["close"] > prepared["phase_a_ma200"]
+        else:
+            trend = (prepared["close"] > prepared["phase_a_ma200"]) & (prepared["phase_a_ma200_slope_20"] > 0)
+        observation_dates = pd.to_datetime(prepared["date"], errors="coerce")
+        events = (raw_events & trend.fillna(False)).loc[(observation_dates >= start) & (observation_dates <= end)]
         events.index = selected_features.index
         cost_bps = float(specification.transaction_costs["parameters"]["bps"])
         slippage_bps = float(specification.slippage["parameters"]["bps"])
@@ -268,7 +284,7 @@ class PhaseAControlledExecutionAdapter:
         event_frame = selected_features.loc[events.astype(bool), ["date", "symbol"]].copy()
         if not event_frame.empty:
             event_frame["date"] = pd.to_datetime(event_frame["date"]).dt.date.astype(str)
-            event_frame["event"] = "prior_price_high_l20"
+            event_frame["event"] = signal_rule.key
         event_rows = _json_records(event_frame)
         return AdapterResult(
             artifacts=(

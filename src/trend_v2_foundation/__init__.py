@@ -133,6 +133,17 @@ from .engine_adapter import (
     PhaseAControlledExecutionAdapter,
 )
 from .execution_service import ControlledExecutionService
+from .foundation_6 import (
+    CATALOG_SCHEMA_VERSION,
+    EVENT_SCHEMA_VERSION,
+    MANAGER_SCHEMA_VERSION,
+    Foundation6Error,
+    OptionCatalog,
+    PersistedExecutionManager,
+    estimate_candidates,
+    normalize_selection,
+    validate_compatibility,
+)
 
 __all__ = [
     "ArtifactKind",
@@ -261,4 +272,13 @@ __all__ = [
     "EconomicExecutionAdapter",
     "PhaseAControlledExecutionAdapter",
     "ControlledExecutionService",
+    "CATALOG_SCHEMA_VERSION",
+    "EVENT_SCHEMA_VERSION",
+    "MANAGER_SCHEMA_VERSION",
+    "Foundation6Error",
+    "OptionCatalog",
+    "PersistedExecutionManager",
+    "estimate_candidates",
+    "normalize_selection",
+    "validate_compatibility",
 ]
