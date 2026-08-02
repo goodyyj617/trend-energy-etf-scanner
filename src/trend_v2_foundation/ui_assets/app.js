@@ -4,6 +4,7 @@ const API = "/api/v1";
 const CURVE_PAGE_SIZE = 250;
 const LIST_PAGE_SIZE = 20;
 const routes = {
+  workflow: "워크플로",
   construction: "전략 구성",
   requests: "실행 요청",
   overview: "개요",
@@ -651,6 +652,18 @@ async function renderExplanations(termKey=null) {
   if(termKey){const target=document.getElementById(`term-${termKey}`);if(target){target.scrollIntoView({block:"start"});target.focus();}}
 }
 
+async function renderWorkflow() {
+  const workflowId = localStorage.getItem("trend-v2-workflow-id");
+  if (!workflowId) {
+    view.innerHTML = `<section class="card section"><h2>안내형 전략 워크플로</h2><p class="lede">구성, 경제 실행, 강건성, 평가의 참조와 재사용 여부를 단계별로 표시합니다.</p><p class="notice">워크플로 ID를 만든 뒤 이 브라우저에서 다시 열면 새 요청을 만들지 않고 저장된 상태를 복구합니다.</p></section>`;
+    return;
+  }
+  const data = await api(`/workflows/${encodeURIComponent(workflowId)}`, {optional:true});
+  if (data.__error) { localStorage.removeItem("trend-v2-workflow-id"); view.innerHTML=emptyState("워크플로 없음", "저장된 워크플로를 복구할 수 없습니다."); return; }
+  const refs=data.references||{};
+  view.innerHTML=`<section class="card section"><h2>${escapeHtml(data.label_ko)}</h2>${keyValues([["워크플로",data.workflow_id,true],["현재 단계",data.stage],["복구 가능",data.recoverability?.resumable?"예":"아니오"],["생성",data.created_timestamp]])}</section><section class="card section"><h2>단계별 참조</h2>${keyValues([["정규화",refs.normalized_construction?.construction_hash||"—",true],["후보 추정",refs.candidate_estimate?.candidate_estimate_hash||"—",true],["ExecutionRequest",refs.economic?.execution_request_id||"—",true],["강건성 계획",refs.robustness_plan?.robustness_plan_id||"—",true],["EvaluationRun",refs.evaluation?.evaluation_run_id||"—",true]])}<details><summary>복구 이력</summary><pre>${jsonText({recoverability:data.recoverability,events:data.events})}</pre></details></section>`;
+}
+
 async function renderSystem() {
   const [health,metadata,overview]=await Promise.all([api("/health"),api("/metadata"),api("/overview")]);
   view.innerHTML=`<p class="lede">저장 근거 읽기와 통제된 로컬 쓰기 경계 및 현재 버전을 확인합니다.</p><section class="card-grid"><article class="card metric-card"><small>API 상태</small><strong>${statusBadge(health.status,health.status_ko)}</strong></article><article class="card metric-card"><small>읽기 전용</small><strong>${health.read_only?"예":"통제 쓰기 활성"}</strong></article><article class="card metric-card"><small>최대 목록 페이지</small><strong>${fmt(metadata.maximum_page_size,0)}</strong></article><article class="card metric-card"><small>최대 시계열 페이지</small><strong>${fmt(metadata.maximum_time_series_page_size,0)}</strong></article></section><div class="two-column"><section class="card"><h2>버전</h2><pre>${jsonText(metadata)}</pre></section><section class="card"><h2>레지스트리 재구축 식별</h2><pre>${jsonText(overview.last_registry_rebuild_identity)}</pre><h3>보안 경계</h3><ul><li>기본 루프백 호스트만 사용</li><li>브라우저에서 임의 경로·원격 URL 입력 없음</li><li>허용 목록 밖 쓰기·셸·동적 Python·시장 데이터 요청 없음</li><li>CORS 비활성 또는 명시적 로컬 출처만 허용</li><li>오류 화면에 스택 추적이나 로컬 절대 경로를 표시하지 않음</li></ul></section></div>`;
@@ -669,7 +682,8 @@ async function navigate() {
   document.querySelectorAll("#primary-nav a").forEach((link)=>{if(link.dataset.route===route)link.setAttribute("aria-current","page");else link.removeAttribute("aria-current");});
   try {
     await ensureTerminology();
-    if(route==="construction")await renderConstruction();
+    if(route==="workflow")await renderWorkflow();
+    else if(route==="construction")await renderConstruction();
     else if(route==="requests")await renderRequests();
     else if(route==="overview")await renderOverview();
     else if(route==="runs"&&detail)await renderRunDetail(detail);

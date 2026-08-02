@@ -63,7 +63,7 @@
 
 ## Current phase
 
-Product foundation -- selected walk-forward and robustness execution adapters
+Product foundation -- end-to-end workflow and acceptance hardening
 
 ## Phase A2 record
 
@@ -75,8 +75,9 @@ Product foundation -- selected walk-forward and robustness execution adapters
 
 ## Exact next task
 
-Foundation 8 -- add remaining statistically justified robustness diagnostics and
-complete end-to-end user-acceptance testing, without unrestricted optimization.
+Foundation 9 -- complete acceptance coverage for workflow orchestration and
+remaining statistically justified robustness diagnostics, without unrestricted
+optimization.
 
 ## Required product direction
 

@@ -164,6 +164,7 @@ from .robustness import (
     load_robustness_catalog,
     paired_block_bootstrap,
 )
+from .workflow import WORKFLOW_SCHEMA_VERSION, WorkflowCoordinator, WorkflowError
 
 __all__ = [
     "ArtifactKind",
@@ -319,4 +320,7 @@ __all__ = [
     "holm_adjust",
     "load_robustness_catalog",
     "paired_block_bootstrap",
+    "WORKFLOW_SCHEMA_VERSION",
+    "WorkflowCoordinator",
+    "WorkflowError",
 ]
