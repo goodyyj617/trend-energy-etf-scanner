@@ -51,10 +51,14 @@
   entry, Low20 initial/ratcheting exit, and canonical cash-constrained equal
   weight. Valid economic and Foundation 2 artifacts are reused; no unrestricted
   search or new strategy research is enabled.
+- Foundation 6 adds a versioned Korean controlled option catalog, exact
+  compatibility-pruned candidate estimation, and a local append-only execution
+  manager with rebuildable candidate projections, conservative interruption
+  recovery, leases, resume records, worker ownership, and API/UI inspection.
 
 ## Current phase
 
-Product foundation -- controlled strategy library and persisted execution management
+Product foundation -- selected walk-forward and robustness execution adapters
 
 ## Phase A2 record
 
@@ -66,9 +70,9 @@ Product foundation -- controlled strategy library and persisted execution manage
 
 ## Exact next task
 
-Foundation 6 -- broaden the controlled strategy library and add persisted
-execution management after the Foundation 5 contracts and bounded execution
-path are proven stable.
+Foundation 7 -- implement selected walk-forward and robustness execution
+adapters through the persisted local execution manager, without unrestricted
+searches.
 
 ## Required product direction
 

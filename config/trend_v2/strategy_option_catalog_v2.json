@@ -1,0 +1,44 @@
+{
+  "schema_version": "controlled_strategy_option_catalog_v2",
+  "catalog_version": "trend_v2_controlled_library_v2",
+  "categories": {
+    "trend_filter": [
+      {"option_id":"no_trend_filter_v1","name_ko":"추세 필터 없음","name_en":"No trend filter","category":"trend_filter","schema_version":"controlled_component_v1","parameters":{},"default":true,"units":null,"compatibility":[],"economic_identity":true,"explanation_ref":"trend_filter","engine_adapter_support":"supported"},
+      {"option_id":"close_above_ma200_v1","name_ko":"종가가 MA200 위","name_en":"Close above MA200","category":"trend_filter","schema_version":"controlled_component_v1","parameters":{},"default":false,"units":null,"compatibility":[],"economic_identity":true,"explanation_ref":"trend_filter","engine_adapter_support":"supported"},
+      {"option_id":"price_above_rising_ma200_v0","name_ko":"종가가 상승 중인 MA200 위","name_en":"Close above rising MA200","category":"trend_filter","schema_version":"controlled_component_v1","parameters":{},"default":false,"units":null,"compatibility":[],"economic_identity":true,"explanation_ref":"trend_filter","engine_adapter_support":"supported"}
+    ],
+    "signal": [
+      {"option_id":"prior_price_high_v2","name_ko":"직전 가격 고점 돌파","name_en":"Prior price high breakout","category":"signal","schema_version":"controlled_component_v2","parameters":{"lookback":{"type":"integer","allowed":"fixed|list|range","default":20,"minimum":20,"maximum":55,"step":1,"units":"sessions"}},"default":true,"units":"sessions","compatibility":["signal_requires_lookback"],"economic_identity":true,"explanation_ref":"prior_price_high","engine_adapter_support":"supported"}
+    ],
+    "entry_confirmation": [
+      {"option_id":"none_v1","name_ko":"추가 확인 없음","name_en":"No additional confirmation","category":"entry_confirmation","schema_version":"controlled_component_v1","parameters":{},"default":true,"units":null,"compatibility":[],"economic_identity":true,"explanation_ref":"entry_confirmation","engine_adapter_support":"supported"}
+    ],
+    "entry_timing": [
+      {"option_id":"first_event_next_open_v1","name_ko":"첫 신호 다음 거래일 시가","name_en":"First event next open","category":"entry_timing","schema_version":"controlled_component_v1","parameters":{},"default":true,"units":null,"compatibility":[],"economic_identity":true,"explanation_ref":"entry_timing","engine_adapter_support":"supported"}
+    ],
+    "initial_stop": [
+      {"option_id":"signal_day_low20_v1","name_ko":"신호일 Low20 초기 손절","name_en":"Signal-day Low20 initial stop","category":"initial_stop","schema_version":"controlled_component_v1","parameters":{},"default":true,"units":null,"compatibility":["requires_low20_history"],"economic_identity":true,"explanation_ref":"initial_stop","engine_adapter_support":"supported"}
+    ],
+    "trailing_exit": [
+      {"option_id":"ratcheting_low20_v1","name_ko":"상향 추적 Low20 청산","name_en":"Ratcheting Low20 exit","category":"trailing_exit","schema_version":"controlled_component_v1","parameters":{},"default":true,"units":null,"compatibility":["requires_low20_history"],"economic_identity":true,"explanation_ref":"trailing_exit","engine_adapter_support":"supported"}
+    ],
+    "position_sizing": [
+      {"option_id":"canonical_equal_weight_active_v1","name_ko":"활성 종목 동일 비중","name_en":"Equal weight active positions","category":"position_sizing","schema_version":"controlled_component_v1","parameters":{},"default":true,"units":"weight","compatibility":[],"economic_identity":true,"explanation_ref":"position_sizing","engine_adapter_support":"supported"}
+    ],
+    "portfolio_constraints": [
+      {"option_id":"long_only_cash_constrained_v2","name_ko":"롱 전용 현금 제약","name_en":"Long-only cash constrained","category":"portfolio_constraints","schema_version":"controlled_component_v2","parameters":{"maximum_position_count":{"type":"integer","allowed":"fixed|list|range","default":20,"minimum":1,"maximum":100,"step":1,"units":"positions"},"cash_reserve_pct":{"type":"decimal","allowed":"fixed|list|range","default":"0","minimum":"0","maximum":"0.5","step":"0.01","units":"fraction"},"asset_group_exposure_cap_pct":{"type":"decimal","allowed":"fixed","default":"1","minimum":"1","maximum":"1","step":"1","units":"fraction"}},"default":true,"units":null,"compatibility":["position_count_within_universe","group_cap_requires_group_data"],"economic_identity":true,"explanation_ref":"portfolio_constraints","engine_adapter_support":"metadata_only"}
+    ],
+    "transaction_cost": [
+      {"option_id":"round_trip_bps_v1","name_ko":"왕복 거래 비용","name_en":"Round-trip transaction cost","category":"transaction_cost","schema_version":"controlled_component_v1","parameters":{"bps":{"type":"decimal","allowed":"fixed|list|range","default":"0","minimum":"0","maximum":"50","step":"0.1","units":"bp"}},"default":true,"units":"bp","compatibility":[],"economic_identity":true,"explanation_ref":"transaction_cost","engine_adapter_support":"supported"}
+    ],
+    "slippage": [
+      {"option_id":"round_trip_slippage_bps_v1","name_ko":"왕복 슬리피지","name_en":"Round-trip slippage","category":"slippage","schema_version":"controlled_component_v1","parameters":{"bps":{"type":"decimal","allowed":"fixed|list|range","default":"0","minimum":"0","maximum":"50","step":"0.1","units":"bp"}},"default":true,"units":"bp","compatibility":[],"economic_identity":true,"explanation_ref":"slippage","engine_adapter_support":"supported"}
+    ]
+  },
+  "compatibility_rules": [
+    {"rule_id":"signal_requires_lookback","version":"v1","message_ko":"가격 고점 돌파 신호에는 허용된 lookback이 필요합니다.","diagnostic_en":"Prior-price-high requires an allow-listed lookback.","category":"signal"},
+    {"rule_id":"requires_low20_history","version":"v1","message_ko":"Low20 손절·청산에는 최소 20개 거래일의 이력이 필요합니다.","diagnostic_en":"Low20 rules require 20 sessions of history.","category":"history"},
+    {"rule_id":"position_count_within_universe","version":"v1","message_ko":"최대 보유 종목 수는 유니버스 크기를 초과할 수 없습니다.","diagnostic_en":"Maximum positions cannot exceed the universe size.","category":"portfolio"},
+    {"rule_id":"group_cap_requires_group_data","version":"v1","message_ko":"자산군 노출 한도는 자산군 데이터가 있을 때만 사용할 수 있습니다.","diagnostic_en":"Asset-group exposure caps require asset-group data.","category":"portfolio"}
+  ]
+}

@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 from urllib.parse import parse_qs, unquote, urlsplit
 
@@ -63,6 +64,13 @@ from .construction import (
     construction_options,
 )
 from .execution_service import ControlledExecutionService
+from .foundation_6 import (
+    Foundation6Error,
+    OptionCatalog,
+    PersistedExecutionManager,
+    estimate_candidates,
+    normalize_selection,
+)
 
 
 API_VERSION = "trend_v2_local_read_api_v1"
@@ -180,6 +188,7 @@ class ReadOnlyTrendApi:
         terminology_source: Mapping[str, Any] | None = None,
         server_config: ApiServerConfig | None = None,
         controlled_execution_service: ControlledExecutionService | None = None,
+        persisted_execution_manager: PersistedExecutionManager | None = None,
     ) -> None:
         self.store = store
         self.attempt_repository = attempt_repository or FileExecutionAttemptRepository(
@@ -194,6 +203,16 @@ class ReadOnlyTrendApi:
         self.error_messages = dict(api_terms.get("error_messages", {}))
         self.server_config = server_config or ApiServerConfig()
         self.controlled_execution_service = controlled_execution_service
+        if persisted_execution_manager is not None:
+            self.persisted_execution_manager = persisted_execution_manager
+        elif controlled_execution_service is not None:
+            catalog_path = Path(__file__).resolve().parents[2] / "config" / "trend_v2" / "strategy_option_catalog_v2.json"
+            self.persisted_execution_manager = PersistedExecutionManager(
+                controlled_execution_service.store.root / "execution_management_v1",
+                OptionCatalog.load(catalog_path),
+            )
+        else:
+            self.persisted_execution_manager = None
 
     def _request_id(self, headers: Mapping[str, str]) -> str:
         supplied = headers.get("X-Request-ID") or headers.get("x-request-id")
@@ -266,6 +285,10 @@ class ReadOnlyTrendApi:
         if path == f"{API_PATH_PREFIX}/construction/normalize" and method == "POST":
             return 200, service.normalize(payload).to_dict()
         if path == f"{API_PATH_PREFIX}/construction/estimate" and method == "POST":
+            if "catalog_schema_version" in payload:
+                if self.persisted_execution_manager is None:
+                    raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
+                return 200, estimate_candidates(self.persisted_execution_manager.catalog, payload)
             normalized, estimate, candidates = service.estimate(payload)
             return 200, {
                 "normalized_construction": normalized.to_dict(),
@@ -291,6 +314,10 @@ class ReadOnlyTrendApi:
                 idempotency_key=self._idempotency_key(headers),
             )
             return 201, request.to_dict()
+        if path == f"{API_PATH_PREFIX}/construction/compatibility" and method == "POST":
+            if self.persisted_execution_manager is None:
+                raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
+            return 200, {"compatible": True, "normalized_construction": normalize_selection(self.persisted_execution_manager.catalog, payload)}
         parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
         if (
             parts[0] == "execution-requests"
@@ -302,6 +329,18 @@ class ReadOnlyTrendApi:
             if payload:
                 raise ApiContractError(400, "invalid_construction_field", "Start accepts an empty JSON object only.")
             return 202, service.start(request_id, idempotency_key=self._idempotency_key(headers))
+        if parts[0] == "execution-requests" and len(parts) == 3 and parts[2] == "resume" and method == "POST":
+            if payload:
+                raise ApiContractError(400, "invalid_construction_field", "Resume accepts an empty JSON object only.")
+            if self.persisted_execution_manager is None:
+                raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
+            return 202, self.persisted_execution_manager.resume(self._identifier(parts[1], "execution request"))
+        if parts[0] == "execution-attempts" and len(parts) == 3 and parts[2] == "reconcile" and method == "POST":
+            if payload:
+                raise ApiContractError(400, "invalid_construction_field", "Reconcile accepts an empty JSON object only.")
+            if self.persisted_execution_manager is None:
+                raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
+            return 200, self.persisted_execution_manager.reconcile(self._identifier(parts[1], "execution request"))
         if parts[0] == "execution-attempts" and len(parts) == 3 and method == "POST":
             attempt_id = self._identifier(parts[1], "execution attempt")
             if payload:
@@ -1126,7 +1165,22 @@ class ReadOnlyTrendApi:
             self._allow_query(query, set())
             if self.controlled_execution_service is None:
                 raise ApiContractError(404, "not_found", "Controlled construction API is disabled.")
+            if self.persisted_execution_manager is not None:
+                return {
+                    **construction_options(self.controlled_execution_service.policy),
+                    "foundation_6_catalog": self.persisted_execution_manager.catalog.to_dict(),
+                }
             return construction_options(self.controlled_execution_service.policy)
+        if path == f"{API_PATH_PREFIX}/execution-manager":
+            self._allow_query(query, set())
+            if self.persisted_execution_manager is None:
+                raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
+            return self.persisted_execution_manager.status()
+        if path == f"{API_PATH_PREFIX}/workers":
+            self._allow_query(query, set())
+            if self.persisted_execution_manager is None:
+                raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
+            return {"workers": self.persisted_execution_manager.status()["workers"]}
         if path == f"{API_PATH_PREFIX}/runs":
             return self._list_runs(registry, query)
         if path == f"{API_PATH_PREFIX}/evaluation-profiles":
@@ -1230,6 +1284,11 @@ class ReadOnlyTrendApi:
                 **attempt.to_dict(),
                 "operational_status_ko": self.status_labels.get(attempt.operational_status.value),
             }
+        if parts[0] == "execution-attempts" and len(parts) == 3 and parts[2] == "candidates":
+            self._allow_query(query, set())
+            if self.persisted_execution_manager is None:
+                raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
+            return {"items": self.persisted_execution_manager.status(self._identifier(parts[1], "execution request"))["candidates"]}
         if parts[0] == "execution-requests" and len(parts) == 2:
             self._allow_query(query, set())
             if self.controlled_execution_service is None:
@@ -1290,6 +1349,12 @@ class ReadOnlyTrendApi:
                     next_action_ko=error.next_action_ko,
                 ),
                 request_id,
+            )
+        except Foundation6Error as error:
+            return ApiResponse(
+                status_code=409 if error.code in {"candidate_lease_conflict", "catalog_version_mismatch"} else 400,
+                body={"error": {**error.to_dict(), "request_id": request_id}},
+                headers={"X-Request-ID": request_id},
             )
         except Exception:
             return self._error_response(

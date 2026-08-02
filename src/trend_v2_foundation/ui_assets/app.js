@@ -511,6 +511,12 @@ function thresholdRows(estimate) {
   return estimate.threshold_results.map((item) => `<tr><th scope="row">${escapeHtml(item.threshold)}</th><td>${fmt(item.observed, 0)}</td><td>${fmt(item.limit, 0)}</td><td>${statusBadge(item.triggered ? "failed" : "passed", item.triggered ? `초과/도달 (${item.severity})` : "미도달")}</td></tr>`).join("");
 }
 
+function foundation6CatalogPanel(catalog) {
+  if (!catalog) return "";
+  const rows = Object.entries(catalog.categories || {}).flatMap(([family, options]) => options.map((option) => `<tr><th scope="row">${escapeHtml(option.name_ko)}</th><td>${escapeHtml(option.name_en)}</td><td>${escapeHtml(family)}</td><td>${escapeHtml(option.engine_adapter_support)}</td><td>${escapeHtml((option.compatibility || []).join(", ") || "-")}</td><td><pre>${jsonText(option.parameters || {})}</pre></td></tr>`)).join("");
+  return `<section class="card section"><h2>Foundation 6 허용 전략 라이브러리</h2><p class="notice">카탈로그 ${escapeHtml(catalog.catalog_version)} · ${escapeHtml(catalog.catalog_hash)}. 옵션 정의, 단위, 범위, 호환성 및 엔진 상태는 서버의 단일 버전 카탈로그에서 읽습니다.</p><div class="table-wrap"><table><thead><tr><th>한국어</th><th>English</th><th>범주</th><th>엔진 상태</th><th>호환성</th><th>매개변수·단위</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
 function estimateSummary(data) {
   const estimate = data.candidate_estimate;
   const unsupportedExecution = data.normalized_construction.walk_forward.fold_count > 0
@@ -563,6 +569,7 @@ async function renderConstruction() {
       <button type="submit">정규화하고 정확한 후보 수 계산</button>
     </form>
     <section class="card section"><h2>현재 로컬 정책</h2><pre>${jsonText(options.execution_policy)}</pre></section>
+    ${foundation6CatalogPanel(options.foundation_6_catalog)}
     <div id="construction-preview">${state.constructionEstimate ? estimateSummary(state.constructionEstimate) : ""}</div>`;
   document.getElementById("construction-form").addEventListener("submit", async (event) => {
     event.preventDefault(); setMessage("");
@@ -605,10 +612,13 @@ function bindConstructionActions() {
 }
 
 async function renderRequests() {
+  let persistedManager = null;
+  try { persistedManager = await api("/execution-manager"); } catch (_) { persistedManager = null; }
   const requestId = state.lastExecutionRequestId;
   view.innerHTML = `<p class="lede">불변 ExecutionRequest와 운영 ExecutionAttempt를 분리해 표시합니다. 대기·실행 중 상태는 성공한 StrategyRun이 아닙니다.</p>
     <div class="toolbar"><div class="field"><label for="request-id-input">실행 요청 ID</label><input id="request-id-input" value="${escapeHtml(requestId || "")}" placeholder="execution_request_..."></div><button type="button" id="load-request">상태 읽기</button></div>
-    <div id="request-progress">${requestId ? "상태를 읽는 중입니다." : emptyState("실행 요청 선택", "전략 구성에서 요청을 만들거나 ID를 입력하세요.")}</div>`;
+    <div id="request-progress">${requestId ? "상태를 읽는 중입니다." : emptyState("실행 요청 선택", "전략 구성에서 요청을 만들거나 ID를 입력하세요.")}</div>
+    ${persistedManager ? `<section class="card section"><h2>지속 실행 관리자</h2><p class="notice">${escapeHtml(persistedManager.source_of_truth)} · 요청 ${fmt(persistedManager.request_count,0)}개. live, stale, interrupted, recovered, reconciled 상태는 append-only 복구 이력과 분리하여 표시됩니다.</p><details><summary>작업자와 복구 이력</summary><pre>${jsonText({workers:persistedManager.workers,recovery_history:persistedManager.recovery_history})}</pre></details></section>` : ""}`;
   const load = async () => {
     const identity = document.getElementById("request-id-input").value.trim();
     if (!identity) return;
