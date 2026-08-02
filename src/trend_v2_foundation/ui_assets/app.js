@@ -658,10 +658,16 @@ async function renderWorkflow() {
     view.innerHTML = `<section class="card section"><h2>안내형 전략 워크플로</h2><p class="lede">구성, 경제 실행, 강건성, 평가의 참조와 재사용 여부를 단계별로 표시합니다.</p><p class="notice">워크플로 ID를 만든 뒤 이 브라우저에서 다시 열면 새 요청을 만들지 않고 저장된 상태를 복구합니다.</p></section>`;
     return;
   }
-  const data = await api(`/workflows/${encodeURIComponent(workflowId)}`, {optional:true});
+  const [data, local] = await Promise.all([api(`/workflows/${encodeURIComponent(workflowId)}`, {optional:true}), api("/local-status", {optional:true})]);
   if (data.__error) { localStorage.removeItem("trend-v2-workflow-id"); view.innerHTML=emptyState("워크플로 없음", "저장된 워크플로를 복구할 수 없습니다."); return; }
   const refs=data.references||{};
-  view.innerHTML=`<section class="card section"><h2>${escapeHtml(data.label_ko)}</h2>${keyValues([["워크플로",data.workflow_id,true],["현재 단계",data.stage],["복구 가능",data.recoverability?.resumable?"예":"아니오"],["생성",data.created_timestamp]])}</section><section class="card section"><h2>단계별 참조</h2>${keyValues([["정규화",refs.normalized_construction?.construction_hash||"—",true],["후보 추정",refs.candidate_estimate?.candidate_estimate_hash||"—",true],["ExecutionRequest",refs.economic?.execution_request_id||"—",true],["강건성 계획",refs.robustness_plan?.robustness_plan_id||"—",true],["EvaluationRun",refs.evaluation?.evaluation_run_id||"—",true]])}<details><summary>복구 이력</summary><pre>${jsonText({recoverability:data.recoverability,events:data.events})}</pre></details></section>`;
+  const recovery=local.__error?null:local.last_reconciliation;
+  const resumed=data.recoverability?.resumable;
+  const resumeText=resumed ? "재개 가능: 완료된 경제 결과와 유효한 강건성 근거는 재사용하고, 중단·차단 단위만 명시적으로 재개하세요." : "재개 불가: 시작된 유효 작업 참조가 없거나 의존성이 손상되었습니다.";
+  const resumeButton=resumed ? `<button id="resume-workflow">중단된 단위 재개</button>` : "";
+  const recoveryNotice=recovery ? `<section class="card section"><h2>서비스 재시작 복구</h2><p class="notice">저장 상태 기준 · 복구 ID ${escapeHtml(shortId(recovery.recovery_id,12))} · 차단 ${fmt((recovery.blocked_items||[]).length,0)}건 · 손상 ${fmt((recovery.corrupt_items||[]).length,0)}건</p><p>${escapeHtml(resumeText)}</p>${resumeButton}<details><summary>마지막 복구 결과</summary><pre>${jsonText(recovery)}</pre></details></section>` : "";
+  view.innerHTML=`<section class="card section"><h2>${escapeHtml(data.label_ko)}</h2>${keyValues([["워크플로",data.workflow_id,true],["저장된 단계",data.stage],["실시간 서비스 상태",local.__error?"확인 불가":(local.active_attempts||[]).length?"작업 있음":"활성 작업 없음"],["복구 가능",resumed?"예":"아니오"],["생성",data.created_timestamp]])}</section>${recoveryNotice}<section class="card section"><h2>단계별 참조</h2>${keyValues([["정규화",refs.normalized_construction?.construction_hash||"—",true],["후보 추정",refs.candidate_estimate?.candidate_estimate_hash||"—",true],["ExecutionRequest",refs.economic?.execution_request_id||"—",true],["강건성 계획",refs.robustness_plan?.robustness_plan_id||"—",true],["EvaluationRun",refs.evaluation?.evaluation_run_id||"—",true]])}<p class="notice">재사용된 완료 결과와 강건성 근거는 다시 실행하지 않습니다. 손상되었거나 누락된 의존성은 재개 대상이 아닙니다.</p><details><summary>저장된 워크플로 이력</summary><pre>${jsonText({recoverability:data.recoverability,events:data.events})}</pre></details></section>`;
+  document.getElementById("resume-workflow")?.addEventListener("click", async () => { await api(`/workflows/${encodeURIComponent(workflowId)}/resume`, { method: "POST", body: {}, idempotencyKey: idempotencyKey("workflow-resume") }); await renderWorkflow(); });
 }
 
 async function renderSystem() {

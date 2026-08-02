@@ -14,6 +14,7 @@ from typing import Any, Mapping
 
 from .canonical import canonical_data, content_hash
 from .execution_service import ControlledExecutionService
+from .execution import AttemptOperationalStatus
 from .integration import calculate_and_evaluate_saved_runs
 from .robustness import RobustnessExecutionService
 
@@ -184,6 +185,61 @@ class WorkflowCoordinator:
         if plan is None: raise WorkflowError("workflow_economic_incomplete", "No persisted robustness plan is configured.", object_identity=workflow_id)
         attempt = self.robustness.start(str(plan["robustness_plan_id"]))
         self._event(workflow_id, "robustness_started", {"robustness_plan_id": plan["robustness_plan_id"], "robustness_attempt_id": attempt["robustness_attempt_id"], "status": attempt["status"]})
+        return self.read(workflow_id)
+
+    def resume(self, workflow_id: str, *, idempotency_key: str) -> Mapping[str, Any]:
+        """Resume only explicitly incomplete persisted units; completed evidence is reused."""
+        resume_request = {"workflow_id": workflow_id}
+        binding_id = content_hash({"operation": "resume", "key": idempotency_key})
+        if self._path("idempotency", binding_id).exists():
+            binding = self._read("idempotency", binding_id)
+            if binding.get("request_hash") != content_hash(resume_request):
+                raise WorkflowError("workflow_integrity_invalid", "Idempotency key was reused for another workflow.", object_identity=idempotency_key, recoverable=False)
+            return self.read(workflow_id)
+        state = self.read(workflow_id)
+        economic = state["references"]["economic"] or {}
+        robustness_reference = state["references"]["robustness"] or {}
+        if not economic and not robustness_reference:
+            raise WorkflowError("workflow_resume_unavailable", "No persisted economic or robustness attempt can be resumed.", object_identity=workflow_id)
+        resumed_economic: list[str] = []
+        reused_economic: list[str] = []
+        for reference in economic.get("attempts", []):
+            attempt_id = reference.get("execution_attempt_id")
+            if not isinstance(attempt_id, str):
+                raise WorkflowError("workflow_integrity_invalid", "Economic attempt reference is missing its identity.", object_identity=workflow_id, recoverable=False)
+            try:
+                attempt = self.execution.attempt_repository.get(attempt_id)
+            except (KeyError, ValueError) as error:
+                raise WorkflowError("workflow_integrity_invalid", "Referenced economic attempt is corrupt or missing.", object_identity=attempt_id, recoverable=False) from error
+            if attempt.operational_status == AttemptOperationalStatus.COMPLETED:
+                validation = self.execution.store.validate_manifest(attempt.intended_strategy_run_id)
+                if not validation.valid:
+                    raise WorkflowError("workflow_integrity_invalid", "Completed economic attempt has invalid artifacts.", object_identity=attempt_id, recoverable=False)
+                reused_economic.append(attempt.intended_strategy_run_id)
+            elif attempt.operational_status in {AttemptOperationalStatus.FAILED, AttemptOperationalStatus.CANCELLED} and not resumed_economic:
+                retry = self.execution.retry(attempt_id, idempotency_key=f"workflow-resume-{workflow_id[:20]}-{idempotency_key}")
+                resumed_economic.append(retry.execution_attempt_id)
+            elif attempt.operational_status in {AttemptOperationalStatus.RUNNING, AttemptOperationalStatus.CANCELLING}:
+                raise WorkflowError("workflow_resume_unavailable", "A referenced economic attempt still has an active owner.", object_identity=attempt_id)
+        resumed_robustness: list[str] = []
+        reused_robustness: list[str] = []
+        if robustness_reference:
+            if self.robustness is None:
+                raise WorkflowError("workflow_resume_unavailable", "Robustness service is disabled.", object_identity=workflow_id)
+            attempt_id = robustness_reference.get("robustness_attempt_id")
+            if not isinstance(attempt_id, str):
+                raise WorkflowError("workflow_integrity_invalid", "Robustness attempt reference is missing its identity.", object_identity=workflow_id, recoverable=False)
+            try:
+                persisted = self.robustness._load("attempts", attempt_id)
+            except (KeyError, ValueError, OSError) as error:
+                raise WorkflowError("workflow_integrity_invalid", "Referenced robustness attempt is corrupt or missing.", object_identity=attempt_id, recoverable=False) from error
+            scenarios = list(persisted.get("scenarios", []))
+            if any(item.get("state") in {"failed", "cancelled", "blocked", "incomplete"} for item in scenarios):
+                resumed_robustness = list(self.robustness.resume(attempt_id)["resumed_scenarios"])
+            reused_robustness = [str(item["scenario_id"]) for item in scenarios if item.get("state") in {"succeeded", "reused"}]
+        payload = {"economic_attempt_ids": resumed_economic, "reused_strategy_run_ids": sorted(reused_economic), "robustness_scenario_ids": resumed_robustness, "reused_robustness_scenario_ids": sorted(reused_robustness)}
+        self._bind("resume", idempotency_key, resume_request, content_hash(payload))
+        self._event(workflow_id, "resumed", payload)
         return self.read(workflow_id)
 
     def evaluate(self, workflow_id: str, *, evaluation_profile_id: str) -> Mapping[str, Any]:

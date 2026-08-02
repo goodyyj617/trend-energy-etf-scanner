@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from .artifact_schemas import (
@@ -193,6 +193,7 @@ class ReadOnlyTrendApi:
         persisted_execution_manager: PersistedExecutionManager | None = None,
         robustness_execution_service: RobustnessExecutionService | None = None,
         workflow_coordinator: WorkflowCoordinator | None = None,
+        local_status_provider: Callable[[], Mapping[str, Any]] | None = None,
     ) -> None:
         self.store = store
         self.attempt_repository = attempt_repository or FileExecutionAttemptRepository(
@@ -209,6 +210,7 @@ class ReadOnlyTrendApi:
         self.controlled_execution_service = controlled_execution_service
         self.robustness_execution_service = robustness_execution_service
         self.workflow_coordinator = workflow_coordinator
+        self.local_status_provider = local_status_provider
         if persisted_execution_manager is not None:
             self.persisted_execution_manager = persisted_execution_manager
         elif controlled_execution_service is not None:
@@ -306,6 +308,7 @@ class ReadOnlyTrendApi:
                 if action == "estimate": return 200, workflow.estimate(workflow_id)
                 if action == "confirm": return 200, workflow.confirm(workflow_id, idempotency_key=self._idempotency_key(headers))
                 if action == "start-economic": return 202, workflow.start_economic(workflow_id, idempotency_key=self._idempotency_key(headers))
+                if action == "resume": return 202, workflow.resume(workflow_id, idempotency_key=self._idempotency_key(headers))
                 if action == "robustness": return 200, workflow.configure_robustness(workflow_id, payload.get("request", payload), confirmation_id=payload.get("confirmation_id"))
                 if action == "start-robustness": return 202, workflow.start_robustness(workflow_id)
                 if action == "evaluate":
@@ -1210,6 +1213,11 @@ class ReadOnlyTrendApi:
         if path == f"{API_PATH_PREFIX}/health":
             self._allow_query(query, set())
             return self._health(registry)
+        if path == f"{API_PATH_PREFIX}/local-status":
+            self._allow_query(query, set())
+            if self.local_status_provider is None:
+                raise ApiContractError(404, "not_found", "Local operability status is disabled.")
+            return self.local_status_provider()
         if path == f"{API_PATH_PREFIX}/workflows":
             self._allow_query(query, set())
             if self.workflow_coordinator is None: raise ApiContractError(404, "not_found", "Workflow coordinator is disabled.")
