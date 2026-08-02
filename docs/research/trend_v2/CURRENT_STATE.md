@@ -56,6 +56,11 @@
   manager with rebuildable candidate projections, conservative interruption
   recovery, leases, resume records, worker ownership, and API/UI inspection.
 
+ - Foundation 7 adds bounded selected robustness plans and execution records for
+  fixed-strategy walk-forward, LOYO, paired moving-block bootstrap, and
+  canonical cost stress. Plans and evidence are separate from immutable
+  StrategyRun manifests; missing or incomplete evidence remains explicit.
+
 ## Current phase
 
 Product foundation -- selected walk-forward and robustness execution adapters
@@ -70,9 +75,8 @@ Product foundation -- selected walk-forward and robustness execution adapters
 
 ## Exact next task
 
-Foundation 7 -- implement selected walk-forward and robustness execution
-adapters through the persisted local execution manager, without unrestricted
-searches.
+Foundation 8 -- add remaining statistically justified robustness diagnostics and
+complete end-to-end user-acceptance testing, without unrestricted optimization.
 
 ## Required product direction
 
