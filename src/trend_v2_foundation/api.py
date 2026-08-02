@@ -72,6 +72,7 @@ from .foundation_6 import (
     normalize_selection,
 )
 from .robustness import RobustnessError, RobustnessExecutionService
+from .workflow import WorkflowCoordinator, WorkflowError
 
 
 API_VERSION = "trend_v2_local_read_api_v1"
@@ -191,6 +192,7 @@ class ReadOnlyTrendApi:
         controlled_execution_service: ControlledExecutionService | None = None,
         persisted_execution_manager: PersistedExecutionManager | None = None,
         robustness_execution_service: RobustnessExecutionService | None = None,
+        workflow_coordinator: WorkflowCoordinator | None = None,
     ) -> None:
         self.store = store
         self.attempt_repository = attempt_repository or FileExecutionAttemptRepository(
@@ -206,6 +208,7 @@ class ReadOnlyTrendApi:
         self.server_config = server_config or ApiServerConfig()
         self.controlled_execution_service = controlled_execution_service
         self.robustness_execution_service = robustness_execution_service
+        self.workflow_coordinator = workflow_coordinator
         if persisted_execution_manager is not None:
             self.persisted_execution_manager = persisted_execution_manager
         elif controlled_execution_service is not None:
@@ -289,6 +292,26 @@ class ReadOnlyTrendApi:
         self._allow_query(query, set())
         payload = self._json_body(body)
         robustness = self.robustness_execution_service
+        workflow = self.workflow_coordinator
+        if workflow is not None and path == f"{API_PATH_PREFIX}/workflows" and method == "POST":
+            if set(payload).difference({"construction", "label_ko"}) or not isinstance(payload.get("construction"), Mapping):
+                raise ApiContractError(400, "workflow_construction_invalid", "Workflow requires construction and Korean label.")
+            return 201, workflow.create(payload["construction"], label_ko=str(payload.get("label_ko", "")), idempotency_key=self._idempotency_key(headers))
+        if workflow is not None and path.startswith(f"{API_PATH_PREFIX}/workflows/"):
+            parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
+            if len(parts) == 3 and method == "POST":
+                workflow_id = self._identifier(parts[1], "workflow")
+                action = parts[2]
+                if action == "normalize": return 200, workflow.normalize(workflow_id)
+                if action == "estimate": return 200, workflow.estimate(workflow_id)
+                if action == "confirm": return 200, workflow.confirm(workflow_id, idempotency_key=self._idempotency_key(headers))
+                if action == "start-economic": return 202, workflow.start_economic(workflow_id, idempotency_key=self._idempotency_key(headers))
+                if action == "robustness": return 200, workflow.configure_robustness(workflow_id, payload.get("request", payload), confirmation_id=payload.get("confirmation_id"))
+                if action == "start-robustness": return 202, workflow.start_robustness(workflow_id)
+                if action == "evaluate":
+                    profile_id = payload.get("evaluation_profile_id")
+                    if not isinstance(profile_id, str): raise ApiContractError(400, "workflow_construction_invalid", "evaluation_profile_id is required.")
+                    return 200, workflow.evaluate(workflow_id, evaluation_profile_id=profile_id)
         if path == f"{API_PATH_PREFIX}/robustness/normalize" and method == "POST":
             if robustness is None:
                 raise ApiContractError(405, "method_not_allowed", "Robustness execution API is disabled.")
@@ -1187,6 +1210,10 @@ class ReadOnlyTrendApi:
         if path == f"{API_PATH_PREFIX}/health":
             self._allow_query(query, set())
             return self._health(registry)
+        if path == f"{API_PATH_PREFIX}/workflows":
+            self._allow_query(query, set())
+            if self.workflow_coordinator is None: raise ApiContractError(404, "not_found", "Workflow coordinator is disabled.")
+            return {"schema_version": "trend_v2_workflow_v1", "items": []}
         if path == f"{API_PATH_PREFIX}/metadata":
             self._allow_query(query, set())
             return self._metadata(registry)
@@ -1237,6 +1264,10 @@ class ReadOnlyTrendApi:
             return self._list_attempts(registry, query)
 
         parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
+        if parts[0] == "workflows" and len(parts) == 2:
+            self._allow_query(query, set())
+            if self.workflow_coordinator is None: raise ApiContractError(404, "not_found", "Workflow coordinator is disabled.")
+            return self.workflow_coordinator.read(self._identifier(parts[1], "workflow"))
         if parts[0] == "runs" and len(parts) >= 2:
             run_id = self._identifier(parts[1], "StrategyRun")
             run = self._one(registry.strategy_runs, "strategy_run_id", run_id, "StrategyRun")
@@ -1404,6 +1435,9 @@ class ReadOnlyTrendApi:
             )
         except RobustnessError as error:
             status = 409 if error.code in {"robustness_confirmation_required", "robustness_confirmation_stale", "robustness_hard_limit_exceeded", "robustness_provenance_invalid"} else 400
+            return ApiResponse(status_code=status, body={"error": error.to_dict(request_id)}, headers={"X-Request-ID": request_id})
+        except WorkflowError as error:
+            status = 404 if error.code == "workflow_not_found" else 409 if error.code.endswith("incomplete") or error.code.endswith("unavailable") else 400
             return ApiResponse(status_code=status, body={"error": error.to_dict(request_id)}, headers={"X-Request-ID": request_id})
         except Exception:
             return self._error_response(

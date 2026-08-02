@@ -19,11 +19,15 @@ from src.trend_v2_foundation import (  # noqa: E402
     LocalResultStore,
     PhaseAControlledExecutionAdapter,
     ReadOnlyTrendApi,
+    RobustnessExecutionService,
+    RobustnessPolicy,
     TrendWebApplication,
+    WorkflowCoordinator,
     build_web_server,
     load_retention_policy,
     load_execution_policy,
     load_evaluation_profiles,
+    load_robustness_catalog,
     load_terminology_source,
 )
 
@@ -57,12 +61,20 @@ def main() -> None:
         profiles,
         source_commit=source_commit,
     )
+    robustness_policy, robustness_catalog = RobustnessPolicy.load(
+        ROOT / "config" / "trend_v2" / "robustness_execution_policy_v1.json"
+    ), load_robustness_catalog(ROOT / "config" / "trend_v2" / "robustness_option_catalog_v1.json")
+    robustness_service = RobustnessExecutionService(
+        store, robustness_policy, robustness_catalog, source_commit=source_commit
+    )
     api = ReadOnlyTrendApi(
         store,
         attempt_repository=attempt_repository,
         terminology_source=terminology,
         server_config=ApiServerConfig(port=args.port),
         controlled_execution_service=execution_service,
+        robustness_execution_service=robustness_service,
+        workflow_coordinator=WorkflowCoordinator(execution_service, robustness_service),
     )
     server = build_web_server(TrendWebApplication(api))
     address = f"http://{server.server_address[0]}:{server.server_address[1]}/"
