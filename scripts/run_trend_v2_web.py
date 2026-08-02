@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 from src.trend_v2_foundation import (  # noqa: E402
     ApiServerConfig,
     ArtifactRetentionPolicy,
+    CanonicalCostStressAdapter,
     ControlledExecutionService,
     FileExecutionAttemptRepository,
     LocalResultStore,
@@ -53,10 +54,11 @@ def main() -> None:
         cwd=ROOT,
         text=True,
     ).strip()
+    economic_adapter = PhaseAControlledExecutionAdapter(ROOT / "docs" / "research" / "trend_v2" / "phase_a2")
     execution_service = ControlledExecutionService(
         store,
         attempt_repository,
-        PhaseAControlledExecutionAdapter(ROOT / "docs" / "research" / "trend_v2" / "phase_a2"),
+        economic_adapter,
         execution_policy,
         profiles,
         source_commit=source_commit,
@@ -65,7 +67,8 @@ def main() -> None:
         ROOT / "config" / "trend_v2" / "robustness_execution_policy_v1.json"
     ), load_robustness_catalog(ROOT / "config" / "trend_v2" / "robustness_option_catalog_v1.json")
     robustness_service = RobustnessExecutionService(
-        store, robustness_policy, robustness_catalog, source_commit=source_commit
+        store, robustness_policy, robustness_catalog, source_commit=source_commit,
+        cost_stress_runner=CanonicalCostStressAdapter(store, economic_adapter, source_commit=source_commit),
     )
     api = ReadOnlyTrendApi(
         store,

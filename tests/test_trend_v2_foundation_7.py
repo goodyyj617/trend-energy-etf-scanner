@@ -3,9 +3,10 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from src.trend_v2_foundation import (
-    ArtifactKind, ArtifactRetentionPolicy, LocalResultStore, RobustnessError,
+    ArtifactKind, ArtifactRetentionPolicy, CanonicalCostStressAdapter, LocalResultStore, RobustnessError,
     RobustnessExecutionService, RobustnessPolicy, StrategyRunManifest,
     StrategyRunSpec, aligned_paired_returns, generate_loyo_years,
     generate_walk_forward_folds, holm_adjust, load_robustness_catalog,
@@ -68,7 +69,7 @@ class Foundation7ServiceTests(unittest.TestCase):
         self.policy, self.catalog = RobustnessPolicy.load(POLICY), load_robustness_catalog(CATALOG)
         self.service = RobustnessExecutionService(self.store, self.policy, self.catalog, source_commit="a" * 40, cost_stress_runner=lambda run_id, multiple: {"survives": multiple <= 2.0, "canonical_engine": True})
         self.daily, self.benchmark = curve("", [.01, .01, -.005, .004, .002, -.003, .006, .001]), curve("", [.005, .003, -.004, .002, .001, -.002, .003, .0])
-        spec = StrategyRunSpec(data_snapshot_hash="b" * 64, economic_date_range=self.daily["economic_date_range"], universe_specification={"id": "u"}, benchmark={"option_id": "spy"}, trend_filter={"id": "t"}, signal={"id": "s"}, entry_rule={"id": "e"}, initial_stop={"id": "i"}, trailing_exit={"id": "x"}, position_sizing={"id": "p"}, portfolio_constraints={"id": "c"}, transaction_costs={"id": "cost"}, slippage={"id": "slip"}, engine_version="engine")
+        spec = StrategyRunSpec(data_snapshot_hash="b" * 64, economic_date_range=self.daily["economic_date_range"], universe_specification={"id": "u"}, benchmark={"option_id": "spy"}, trend_filter={"id": "t"}, signal={"id": "s"}, entry_rule={"id": "e"}, initial_stop={"id": "i"}, trailing_exit={"id": "x"}, position_sizing={"id": "p"}, portfolio_constraints={"id": "c"}, transaction_costs={"option_id": "cost", "parameters": {"bps": "5"}}, slippage={"option_id": "slip", "parameters": {"bps": "2"}}, engine_version="engine")
         daily_record = self.store.put_artifact("daily_portfolio_curve", ArtifactKind.DAILY_PORTFOLIO_CURVE, self.daily, row_count=8).record
         benchmark_record = self.store.put_artifact("benchmark_daily_portfolio_curve", ArtifactKind.DAILY_PORTFOLIO_CURVE, self.benchmark, row_count=8).record
         self.store.save_strategy_run(StrategyRunManifest.create(spec, source_code_commit="a" * 40, artifacts=(daily_record, benchmark_record), creation_time="2026-08-02T00:00:00Z"))
@@ -94,3 +95,18 @@ class Foundation7ServiceTests(unittest.TestCase):
         self.assertEqual(evidence["walk_forward"]["fold_count"], 1)
         self.assertTrue(evidence["cost_stress"]["survival"])
         self.assertEqual(self.service.evidence(plan["robustness_plan_id"])["evidence_hash"], evidence["evidence_hash"])
+
+    def test_canonical_cost_stress_changes_only_cost_fields_and_reuses(self) -> None:
+        calls = []
+        def execute(spec):
+            calls.append(spec)
+            stressed = curve("", [.005, .005, -.003, .002, .001, -.002, .003, .0])
+            return SimpleNamespace(artifacts=(SimpleNamespace(artifact_key="daily_portfolio_curve", payload=stressed), SimpleNamespace(artifact_key="benchmark_daily_portfolio_curve", payload=self.benchmark)))
+        result = CanonicalCostStressAdapter(self.store, SimpleNamespace(execute=execute), source_commit="a" * 40)(self.run_id, 2.0)
+        reused = CanonicalCostStressAdapter(self.store, SimpleNamespace(execute=execute), source_commit="a" * 40)(self.run_id, 2.0)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0].transaction_costs["parameters"]["bps"], "10")
+        self.assertEqual(calls[0].slippage["parameters"]["bps"], "4")
+        self.assertEqual(calls[0].signal, self.store.get_strategy_run_manifest(self.run_id).canonical_specification["signal"])
+        self.assertFalse(result["reused"])
+        self.assertTrue(reused["reused"])

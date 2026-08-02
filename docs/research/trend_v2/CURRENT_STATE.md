@@ -63,7 +63,7 @@
 
 ## Current phase
 
-Product foundation -- end-to-end workflow and acceptance hardening
+Product foundation -- canonical cost-stress execution
 
 ## Phase A2 record
 
@@ -75,9 +75,8 @@ Product foundation -- end-to-end workflow and acceptance hardening
 
 ## Exact next task
 
-Foundation 9 -- complete acceptance coverage for workflow orchestration and
-remaining statistically justified robustness diagnostics, without unrestricted
-optimization.
+Foundation 9B -- local acceptance and startup/recovery hardening, without
+unrestricted optimization.
 
 ## Required product direction
 

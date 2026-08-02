@@ -11,6 +11,7 @@ import math
 import os
 import random
 import statistics
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -212,6 +213,72 @@ def estimate_work(plan: Mapping[str, Any], policy: RobustnessPolicy) -> dict[str
     values["estimate_hash"] = content_hash({key: value for key, value in values.items() if key != "estimate_hash"}); return values
 
 
+class CanonicalCostStressAdapter:
+    """Rerun one stored economic specification with bounded stressed costs only."""
+
+    CONTRACT_VERSION = "canonical_cost_stress_adapter_v1"
+
+    def __init__(self, store: LocalResultStore, economic_runner: Any, *, source_commit: str) -> None:
+        self.store, self.economic_runner, self.source_commit = store, economic_runner, source_commit
+        self.root = store.root / "robustness_execution_v1"
+
+    @staticmethod
+    def _metrics(curve: Mapping[str, Any]) -> dict[str, float | None]:
+        values = [float(row["daily_return"]) for row in curve.get("rows", []) if row.get("daily_return") is not None]
+        if not values: return {"total_return": None, "mean_daily_return": None}
+        total = 1.0
+        for value in values: total *= 1.0 + value
+        return {"total_return": total - 1.0, "mean_daily_return": statistics.fmean(values)}
+
+    @staticmethod
+    def _stressed_specification(base: StrategyRunSpec, multiplier: float) -> StrategyRunSpec:
+        if not math.isfinite(multiplier) or multiplier < 1.0:
+            raise RobustnessError("cost_stress_scenario_invalid", "Cost-stress multiplier must be finite and at least one.")
+        payload = deepcopy(base.to_dict())
+        for field in ("transaction_costs", "slippage"):
+            parameters = dict(payload[field].get("parameters", {}))
+            bps = parameters.get("bps")
+            if not isinstance(bps, (int, float, str)):
+                raise RobustnessError("cost_stress_scenario_invalid", f"Base {field} has no bounded bps parameter.")
+            value = float(bps) * multiplier
+            if not math.isfinite(value) or value < 0:
+                raise RobustnessError("cost_stress_scenario_invalid", f"Stressed {field} is invalid.")
+            parameters["bps"] = str(value).rstrip("0").rstrip(".") if "." in str(value) else str(value)
+            payload[field] = {**dict(payload[field]), "parameters": parameters}
+        return StrategyRunSpec.from_dict(payload)
+
+    def __call__(self, base_strategy_run_id: str, multiplier: float) -> Mapping[str, Any]:
+        try:
+            manifest = self.store.get_strategy_run_manifest(base_strategy_run_id)
+            base_curve = self.store.load_artifact_payload(base_strategy_run_id, "daily_portfolio_curve")
+            base_benchmark = self.store.load_artifact_payload(base_strategy_run_id, "benchmark_daily_portfolio_curve")
+        except KeyError as error:
+            raise RobustnessError("robustness_plan_invalid", "A valid base StrategyRun is required for cost stress.", object_identity=base_strategy_run_id) from error
+        base = StrategyRunSpec.from_dict(manifest.canonical_specification)
+        stressed = self._stressed_specification(base, multiplier)
+        identity_payload = {"base_strategy_run_id": base_strategy_run_id, "base_economic_identity": base.strategy_run_id, "stressed_costs": stressed.transaction_costs, "stressed_slippage": stressed.slippage, "engine_version": stressed.engine_version, "source_data_identity": stressed.data_snapshot_hash, "contract_version": self.CONTRACT_VERSION}
+        scenario_identity = deterministic_id("canonical_cost_stress", identity_payload)
+        artifact_path = self.root / "cost_stress_artifacts" / f"{scenario_identity}.json"
+        if artifact_path.exists():
+            try:
+                cached = _read(artifact_path)
+                if cached.get("scenario_identity") == scenario_identity and cached.get("provenance") == identity_payload and cached.get("integrity_hash") == content_hash({key: value for key, value in cached.items() if key != "integrity_hash"}):
+                    return {**cached, "reused": True}
+            except RobustnessError:
+                pass
+        result = self.economic_runner.execute(stressed)
+        artifacts = {item.artifact_key: item.payload for item in result.artifacts}
+        daily, benchmark = artifacts.get("daily_portfolio_curve"), artifacts.get("benchmark_daily_portfolio_curve")
+        if not isinstance(daily, Mapping) or not isinstance(benchmark, Mapping):
+            raise RobustnessError("robustness_provenance_invalid", "Canonical runner did not produce aligned cost-stress curves.", object_identity=scenario_identity, recoverable=False)
+        base_metrics, stressed_metrics, benchmark_metrics = self._metrics(base_curve), self._metrics(daily), self._metrics(benchmark)
+        survival = bool((stressed_metrics["total_return"] or 0.0) >= 0.0)
+        payload = {"schema_version": "canonical_cost_stress_result_v1", "scenario_identity": scenario_identity, "base_strategy_run_id": base_strategy_run_id, "stressed_strategy_run_id": stressed.strategy_run_id, "multiplier": multiplier, "transaction_cost_bps": stressed.transaction_costs["parameters"]["bps"], "slippage_bps": stressed.slippage["parameters"]["bps"], "combined_round_trip_bps": float(stressed.transaction_costs["parameters"]["bps"]) + float(stressed.slippage["parameters"]["bps"]), "execution_status": "succeeded", "reused": False, "core_metrics": stressed_metrics, "benchmark_metrics": benchmark_metrics, "metric_deltas": {key: None if stressed_metrics[key] is None or base_metrics[key] is None else stressed_metrics[key] - base_metrics[key] for key in stressed_metrics}, "survival_rule": "net_total_return_nonnegative", "survives": survival, "reason": None if survival else "net_total_return_negative", "provenance": identity_payload, "artifact_hashes": {key: content_hash(value) for key, value in artifacts.items()}, "created_timestamp": _now()}
+        payload["integrity_hash"] = content_hash(payload)
+        _atomic(artifact_path, payload)
+        return payload
+
+
 class RobustnessExecutionService:
     """Bounded, restart-safe scenario executor using Foundation-6-style append-only records."""
     def __init__(self, store: LocalResultStore, policy: RobustnessPolicy, catalog: Mapping[str, Any], *, source_commit: str, cost_stress_runner: Callable[[str, float], Mapping[str, Any]] | None = None, clock: Callable[[], str] = _now) -> None:
@@ -301,7 +368,7 @@ class RobustnessExecutionService:
                     result = paired_block_bootstrap(aligned_paired_returns(daily, benchmark), seed=int(scenario["seed"]), sample_count=int(plan["methods"][method]["sample_count"]), block_length=int(plan["methods"][method]["block_length"]), confidence_level=float(plan["methods"][method]["confidence_level"])); scenario["state"] = "succeeded"
                 else:
                     if self.cost_stress_runner is None: raise RobustnessError("robustness_method_unsupported", "Cost stress requires the registered canonical economic runner.")
-                    result = dict(self.cost_stress_runner(plan["base_strategy_run_id"], float(setting))); result["multiplier"] = float(setting); scenario["state"] = "succeeded"
+                    result = dict(self.cost_stress_runner(plan["base_strategy_run_id"], float(setting))); result["multiplier"] = float(setting); scenario["state"] = "reused" if result.get("reused") else "succeeded"
                 result.update({"schema_version": ROBUSTNESS_RESULT_VERSION, "scenario_id": scenario["scenario_id"], "method": method, "produced_timestamp": self.clock()}); scenario["artifact_references"] = [{"result_hash": content_hash(result)}]; self._write("results", scenario["scenario_id"], result)
             except RobustnessError as error:
                 scenario["state"], scenario["failure_code"], scenario["failure_message"] = "failed", error.code, error.diagnostic_en
@@ -319,8 +386,11 @@ class RobustnessExecutionService:
         passed_wf = [float(item["result"]["metric"]) for item in wf if item["scenario"]["state"] == "succeeded" and item["result"].get("metric") is not None]; loyo_values = [float(item["result"]["metric"]) for item in loyo if item["scenario"]["state"] == "succeeded"]
         full_metric = statistics.fmean(float(row["daily_return"]) for row in self.store.load_artifact_payload(plan["base_strategy_run_id"], "daily_portfolio_curve")["rows"])
         boot = bootstrap[0]["result"] if bootstrap and bootstrap[0]["scenario"]["state"] == "succeeded" else {}
-        survival = None if not cost else float(all(bool(item["result"].get("survives", False)) for item in cost if item["scenario"]["state"] == "succeeded"))
-        summary = {"schema_version": ROBUSTNESS_SUMMARY_VERSION, "compatibility_schema_version": "robustness_summary_v1", "base_strategy_run_id": plan["base_strategy_run_id"], "plan_id": plan_id, "plan_hash": plan["plan_hash"], "attempt_id": attempt["robustness_attempt_id"], "provenance": {"economic_artifact_hash": plan["economic_artifact_hash"], "benchmark_hash": plan["benchmark_hash"], "robustness_engine_version": ROBUSTNESS_ENGINE_VERSION, "source_commit": self.source_commit}, "scenario_results": by_method, "walk_forward": {"fold_count": len(wf), "eligible_fold_count": len(wf), "completed_fold_count": len(passed_wf), "passed_fold_count": len([item for item in passed_wf if item >= 0]), "pass_ratio": None if not wf else len([item for item in passed_wf if item >= 0]) / len(wf), "worst_fold": min(passed_wf) if passed_wf else None, "median_fold": statistics.median(passed_wf) if passed_wf else None, "incomplete_fold_count": len([item for item in wf if item["scenario"]["state"] == "incomplete"])}, "loyo": {"evaluated_year_count": len(loyo_values), "reversing_years": sorted(int(item["result"]["year"]) for item in loyo if item["scenario"]["state"] == "succeeded" and float(item["result"]["metric"]) * full_metric < 0), "stability_ratio": None if not loyo else len([item for item in loyo_values if item * full_metric >= 0]) / len(loyo), "incomplete_years": [item["scenario"]["scenario_settings"]["year"] for item in loyo if item["scenario"]["state"] != "succeeded"]}, "bootstrap": boot or None, "cost_stress": {"survival": survival, "scenarios": cost}, "multiple_testing": None, "evidence_hash": ""}
+        completed_cost = [item for item in cost if item["scenario"]["state"] in {"succeeded", "reused"}]
+        surviving_cost = [item for item in completed_cost if bool(item["result"].get("survives", False))]
+        worst_cost = min(completed_cost, key=lambda item: (item["result"].get("core_metrics", {}).get("total_return") is None, item["result"].get("core_metrics", {}).get("total_return", 0.0)), default=None)
+        survival = None if not cost else (len(surviving_cost) / len(completed_cost) if completed_cost else 0.0)
+        summary = {"schema_version": ROBUSTNESS_SUMMARY_VERSION, "compatibility_schema_version": "robustness_summary_v1", "base_strategy_run_id": plan["base_strategy_run_id"], "plan_id": plan_id, "plan_hash": plan["plan_hash"], "attempt_id": attempt["robustness_attempt_id"], "provenance": {"economic_artifact_hash": plan["economic_artifact_hash"], "benchmark_hash": plan["benchmark_hash"], "robustness_engine_version": ROBUSTNESS_ENGINE_VERSION, "source_commit": self.source_commit}, "scenario_results": by_method, "walk_forward": {"fold_count": len(wf), "eligible_fold_count": len(wf), "completed_fold_count": len(passed_wf), "passed_fold_count": len([item for item in passed_wf if item >= 0]), "pass_ratio": None if not wf else len([item for item in passed_wf if item >= 0]) / len(wf), "worst_fold": min(passed_wf) if passed_wf else None, "median_fold": statistics.median(passed_wf) if passed_wf else None, "incomplete_fold_count": len([item for item in wf if item["scenario"]["state"] == "incomplete"])}, "loyo": {"evaluated_year_count": len(loyo_values), "reversing_years": sorted(int(item["result"]["year"]) for item in loyo if item["scenario"]["state"] == "succeeded" and float(item["result"]["metric"]) * full_metric < 0), "stability_ratio": None if not loyo else len([item for item in loyo_values if item * full_metric >= 0]) / len(loyo), "incomplete_years": [item["scenario"]["scenario_settings"]["year"] for item in loyo if item["scenario"]["state"] != "succeeded"]}, "bootstrap": boot or None, "cost_stress": {"total_scenarios": len(cost), "completed": len(completed_cost), "reused": len([item for item in completed_cost if item["result"].get("reused")]), "failed": len([item for item in cost if item["scenario"]["state"] == "failed"]), "incomplete": len([item for item in cost if item["scenario"]["state"] in {"incomplete", "blocked", "cancelled"}]), "worst_scenario": None if worst_cost is None else worst_cost["result"].get("scenario_identity"), "survival_ratio": survival, "survival": survival == 1.0 if survival is not None else None, "pass_rule": "all_completed_scenarios_survive", "scenarios": cost}, "multiple_testing": None, "evidence_hash": ""}
         summary["evidence_hash"] = content_hash({key: value for key, value in summary.items() if key != "evidence_hash"}); self._write("evidence", plan_id, summary); return summary
 
     def reconcile(self, attempt_id: str) -> Mapping[str, Any]:

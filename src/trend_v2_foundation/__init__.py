@@ -147,6 +147,7 @@ from .foundation_6 import (
     validate_compatibility,
 )
 from .robustness import (
+    CanonicalCostStressAdapter,
     ROBUSTNESS_ATTEMPT_VERSION,
     ROBUSTNESS_ENGINE_VERSION,
     ROBUSTNESS_PLAN_VERSION,
@@ -311,6 +312,7 @@ __all__ = [
     "ROBUSTNESS_SCENARIO_VERSION",
     "ROBUSTNESS_SUMMARY_VERSION",
     "RobustnessError",
+    "CanonicalCostStressAdapter",
     "RobustnessExecutionService",
     "RobustnessPolicy",
     "aligned_paired_returns",
