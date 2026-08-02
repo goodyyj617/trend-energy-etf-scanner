@@ -7,11 +7,14 @@ from datetime import date
 from numbers import Integral, Real
 from typing import Any, Mapping, Sequence
 
+from .canonical import content_hash
+
 
 DAILY_PORTFOLIO_CURVE_SCHEMA_VERSION = "daily_portfolio_curve_v1"
 YEARLY_METRICS_SCHEMA_VERSION = "yearly_metrics_v1"
 ROLLING_METRICS_SCHEMA_VERSION = "rolling_metrics_v1"
 ROBUSTNESS_SUMMARY_SCHEMA_VERSION = "robustness_summary_v1"
+ROBUSTNESS_SUMMARY_V2_SCHEMA_VERSION = "robustness_summary_v2"
 BEHAVIOR_METADATA_SCHEMA_VERSION = "behavior_metadata_v1"
 
 
@@ -321,6 +324,19 @@ def validate_robustness_summary(payload: Any) -> Mapping[str, Any]:
     for field in ROBUSTNESS_REQUIRED_FIELDS[:-2]:
         if source[field] is None and not unavailable.get(field):
             raise ArtifactSchemaError(f"{artifact}.{field}: null values require an unavailable reason")
+    return source
+
+
+def validate_robustness_summary_v2(payload: Any) -> Mapping[str, Any]:
+    """Validate generated Foundation 7 evidence without changing v1 semantics."""
+    source = _require_mapping(payload, "robustness_summary_v2")
+    _require_version(source, ROBUSTNESS_SUMMARY_V2_SCHEMA_VERSION, "robustness_summary_v2")
+    _require_fields(source, ("base_strategy_run_id", "plan_id", "plan_hash", "attempt_id", "provenance", "scenario_results", "walk_forward", "loyo", "bootstrap", "cost_stress", "evidence_hash"), "robustness_summary_v2")
+    if not isinstance(source["provenance"], Mapping) or not isinstance(source["scenario_results"], Mapping):
+        raise ArtifactSchemaError("robustness_summary_v2: provenance and scenario_results must be mappings")
+    expected = content_hash({key: value for key, value in source.items() if key != "evidence_hash"})
+    if source["evidence_hash"] != expected:
+        raise ArtifactSchemaError("robustness_summary_v2: evidence hash is invalid")
     return source
 
 

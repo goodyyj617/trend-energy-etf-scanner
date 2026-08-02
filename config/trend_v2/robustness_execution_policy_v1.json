@@ -1,0 +1,17 @@
+{
+  "schema_version": "robustness_execution_policy_v1",
+  "maximum_walk_forward_folds": 8,
+  "maximum_loyo_scenarios": 12,
+  "maximum_bootstrap_samples": 400,
+  "minimum_block_length": 2,
+  "maximum_block_length": 20,
+  "maximum_cost_stress_scenarios": 4,
+  "maximum_combined_robustness_units": 512,
+  "explicit_confirmation_threshold": 64,
+  "hard_refusal_threshold": 512,
+  "maximum_economic_reruns": 64,
+  "maximum_date_span_days": 4000,
+  "maximum_concurrent_robustness_tasks": 1,
+  "maximum_json_body_bytes": 262144,
+  "confirmation_ttl_seconds": 900
+}

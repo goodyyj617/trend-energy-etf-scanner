@@ -71,6 +71,7 @@ from .foundation_6 import (
     estimate_candidates,
     normalize_selection,
 )
+from .robustness import RobustnessError, RobustnessExecutionService
 
 
 API_VERSION = "trend_v2_local_read_api_v1"
@@ -189,6 +190,7 @@ class ReadOnlyTrendApi:
         server_config: ApiServerConfig | None = None,
         controlled_execution_service: ControlledExecutionService | None = None,
         persisted_execution_manager: PersistedExecutionManager | None = None,
+        robustness_execution_service: RobustnessExecutionService | None = None,
     ) -> None:
         self.store = store
         self.attempt_repository = attempt_repository or FileExecutionAttemptRepository(
@@ -203,6 +205,7 @@ class ReadOnlyTrendApi:
         self.error_messages = dict(api_terms.get("error_messages", {}))
         self.server_config = server_config or ApiServerConfig()
         self.controlled_execution_service = controlled_execution_service
+        self.robustness_execution_service = robustness_execution_service
         if persisted_execution_manager is not None:
             self.persisted_execution_manager = persisted_execution_manager
         elif controlled_execution_service is not None:
@@ -251,9 +254,14 @@ class ReadOnlyTrendApi:
         if isinstance(body, Mapping):
             payload = body
         elif isinstance(body, bytes):
-            if self.controlled_execution_service is None:
+            if self.controlled_execution_service is None and self.robustness_execution_service is None:
                 raise ApiContractError(405, "method_not_allowed", "Controlled write API is disabled.")
-            if len(body) > self.controlled_execution_service.policy.maximum_json_body_bytes:
+            maximum_body = (
+                self.controlled_execution_service.policy.maximum_json_body_bytes
+                if self.controlled_execution_service is not None
+                else int(self.robustness_execution_service.policy.document["maximum_json_body_bytes"])
+            )
+            if len(body) > maximum_body:
                 raise ApiContractError(413, "request_too_large", "JSON request body exceeds the configured bound.")
             try:
                 payload = json.loads(body.decode("utf-8"))
@@ -278,10 +286,26 @@ class ReadOnlyTrendApi:
         body: bytes | Mapping[str, Any] | None,
     ) -> tuple[int, Mapping[str, Any]]:
         service = self.controlled_execution_service
-        if service is None:
-            raise ApiContractError(405, "method_not_allowed", "Controlled write API is disabled.")
         self._allow_query(query, set())
         payload = self._json_body(body)
+        robustness = self.robustness_execution_service
+        if path == f"{API_PATH_PREFIX}/robustness/normalize" and method == "POST":
+            if robustness is None:
+                raise ApiContractError(405, "method_not_allowed", "Robustness execution API is disabled.")
+            return 200, robustness.normalize(payload)
+        if path == f"{API_PATH_PREFIX}/robustness/estimate" and method == "POST":
+            if robustness is None:
+                raise ApiContractError(405, "method_not_allowed", "Robustness execution API is disabled.")
+            return 200, robustness.normalize(payload)["estimate"]
+        if path == f"{API_PATH_PREFIX}/robustness/plans" and method == "POST":
+            if robustness is None:
+                raise ApiContractError(405, "method_not_allowed", "Robustness execution API is disabled.")
+            request = payload.get("request", payload)
+            if not isinstance(request, Mapping):
+                raise ApiContractError(400, "robustness_plan_invalid", "Robustness request must be an object.")
+            return 201, robustness.create_plan(request, confirmation_id=payload.get("confirmation_id"))
+        if service is None:
+            raise ApiContractError(405, "method_not_allowed", "Controlled write API is disabled.")
         if path == f"{API_PATH_PREFIX}/construction/normalize" and method == "POST":
             return 200, service.normalize(payload).to_dict()
         if path == f"{API_PATH_PREFIX}/construction/estimate" and method == "POST":
@@ -319,6 +343,17 @@ class ReadOnlyTrendApi:
                 raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
             return 200, {"compatible": True, "normalized_construction": normalize_selection(self.persisted_execution_manager.catalog, payload)}
         parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
+        if robustness is not None and len(parts) == 4 and parts[0] == "robustness" and parts[1] == "plans" and method == "POST":
+            plan_id = self._identifier(parts[2], "robustness plan")
+            if parts[3] == "start":
+                if payload:
+                    raise ApiContractError(400, "robustness_plan_invalid", "Start accepts an empty JSON object only.")
+                return 202, robustness.start(plan_id)
+        if robustness is not None and len(parts) == 4 and parts[0] == "robustness" and parts[1] == "attempts" and method == "POST":
+            attempt_id = self._identifier(parts[2], "robustness attempt")
+            if parts[3] == "resume": return 202, robustness.resume(attempt_id)
+            if parts[3] == "cancel":
+                raise ApiContractError(405, "method_not_allowed", "Scenario cancellation is cooperative and not exposed by this adapter.")
         if (
             parts[0] == "execution-requests"
             and len(parts) == 3
@@ -1161,6 +1196,17 @@ class ReadOnlyTrendApi:
         if path == f"{API_PATH_PREFIX}/terminology":
             self._allow_query(query, set())
             return self._terminology(registry)
+        if path == f"{API_PATH_PREFIX}/robustness/options":
+            self._allow_query(query, set())
+            if self.robustness_execution_service is None:
+                raise ApiContractError(404, "not_found", "Robustness execution API is disabled.")
+            return self.robustness_execution_service.catalog
+        if path.startswith(f"{API_PATH_PREFIX}/robustness/plans/") and path.endswith("/evidence"):
+            self._allow_query(query, set())
+            if self.robustness_execution_service is None:
+                raise ApiContractError(404, "not_found", "Robustness execution API is disabled.")
+            plan_id = self._identifier(path.split("/")[-2], "robustness plan")
+            return self.robustness_execution_service.evidence(plan_id)
         if path == f"{API_PATH_PREFIX}/construction/options":
             self._allow_query(query, set())
             if self.controlled_execution_service is None:
@@ -1356,6 +1402,9 @@ class ReadOnlyTrendApi:
                 body={"error": {**error.to_dict(), "request_id": request_id}},
                 headers={"X-Request-ID": request_id},
             )
+        except RobustnessError as error:
+            status = 409 if error.code in {"robustness_confirmation_required", "robustness_confirmation_stale", "robustness_hard_limit_exceeded", "robustness_provenance_invalid"} else 400
+            return ApiResponse(status_code=status, body={"error": error.to_dict(request_id)}, headers={"X-Request-ID": request_id})
         except Exception:
             return self._error_response(
                 ApiContractError(
