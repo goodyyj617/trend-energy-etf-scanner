@@ -40,3 +40,14 @@ This is a loopback-only local tool. It has no authentication, cloud deployment,
 remote worker, remote storage, or market-data download support. Historical
 universe survivorship limitations and the absence of active OOS collection
 remain unchanged.
+
+## Canonical cost stress
+
+Cost stress reruns the same local economic strategy with only the selected
+transaction-cost and slippage assumptions increased by an allow-listed plan
+multiplier. It is not a return haircut. The result lists the stressed cost,
+slippage, round-trip assumption, deltas from the base run, worst scenario, and
+survival ratio. Matching valid scenario evidence may be reused; missing,
+incomplete, corrupt, or provenance-invalid evidence is unavailable rather than
+treated as a pass. The next recommended task is local acceptance and
+startup/recovery hardening.
