@@ -52,9 +52,21 @@ from .registry import (
     SavedRunRegistryBuilder,
 )
 from .result_store import LocalResultStore, RESULT_STORE_VERSION
+from .construction import (
+    CANDIDATE_ESTIMATE_VERSION,
+    CONSTRUCTION_REQUEST_VERSION,
+    EXECUTION_CONFIRMATION_VERSION,
+    EXECUTION_POLICY_VERSION,
+    EXECUTION_REQUEST_VERSION,
+    NORMALIZED_CONSTRUCTION_VERSION,
+    Foundation5Error,
+    construction_options,
+)
+from .execution_service import ControlledExecutionService
 
 
 API_VERSION = "trend_v2_local_read_api_v1"
+WRITE_API_VERSION = "trend_v2_controlled_write_api_v1"
 API_PATH_PREFIX = "/api/v1"
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
@@ -167,6 +179,7 @@ class ReadOnlyTrendApi:
         attempt_repository: FileExecutionAttemptRepository | None = None,
         terminology_source: Mapping[str, Any] | None = None,
         server_config: ApiServerConfig | None = None,
+        controlled_execution_service: ControlledExecutionService | None = None,
     ) -> None:
         self.store = store
         self.attempt_repository = attempt_repository or FileExecutionAttemptRepository(
@@ -180,6 +193,7 @@ class ReadOnlyTrendApi:
         self.status_labels = dict(api_terms.get("status_labels", {}))
         self.error_messages = dict(api_terms.get("error_messages", {}))
         self.server_config = server_config or ApiServerConfig()
+        self.controlled_execution_service = controlled_execution_service
 
     def _request_id(self, headers: Mapping[str, str]) -> str:
         supplied = headers.get("X-Request-ID") or headers.get("x-request-id")
@@ -202,6 +216,106 @@ class ReadOnlyTrendApi:
             },
             headers={"X-Request-ID": request_id},
         )
+
+    @staticmethod
+    def _idempotency_key(headers: Mapping[str, str]) -> str:
+        value = headers.get("Idempotency-Key") or headers.get("idempotency-key")
+        if not value or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", value):
+            raise ApiContractError(
+                400,
+                "invalid_construction_field",
+                "A canonical Idempotency-Key header is required for this operation.",
+            )
+        return value
+
+    def _json_body(self, body: bytes | Mapping[str, Any] | None) -> Mapping[str, Any]:
+        if isinstance(body, Mapping):
+            payload = body
+        elif isinstance(body, bytes):
+            if self.controlled_execution_service is None:
+                raise ApiContractError(405, "method_not_allowed", "Controlled write API is disabled.")
+            if len(body) > self.controlled_execution_service.policy.maximum_json_body_bytes:
+                raise ApiContractError(413, "request_too_large", "JSON request body exceeds the configured bound.")
+            try:
+                payload = json.loads(body.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                raise ApiContractError(
+                    400,
+                    "invalid_construction_field",
+                    "Request body must be one UTF-8 JSON object.",
+                ) from error
+        else:
+            payload = {}
+        if not isinstance(payload, Mapping):
+            raise ApiContractError(400, "invalid_construction_field", "Request body must be one JSON object.")
+        return payload
+
+    def _controlled_write_route(
+        self,
+        method: str,
+        path: str,
+        query: Mapping[str, Sequence[str]],
+        headers: Mapping[str, str],
+        body: bytes | Mapping[str, Any] | None,
+    ) -> tuple[int, Mapping[str, Any]]:
+        service = self.controlled_execution_service
+        if service is None:
+            raise ApiContractError(405, "method_not_allowed", "Controlled write API is disabled.")
+        self._allow_query(query, set())
+        payload = self._json_body(body)
+        if path == f"{API_PATH_PREFIX}/construction/normalize" and method == "POST":
+            return 200, service.normalize(payload).to_dict()
+        if path == f"{API_PATH_PREFIX}/construction/estimate" and method == "POST":
+            normalized, estimate, candidates = service.estimate(payload)
+            return 200, {
+                "normalized_construction": normalized.to_dict(),
+                "candidate_estimate": estimate.to_dict(),
+                "strategy_run_candidate_ids": [item.strategy_run_id for item in candidates],
+            }
+        if path == f"{API_PATH_PREFIX}/construction/confirm" and method == "POST":
+            confirmation = service.confirm(payload, idempotency_key=self._idempotency_key(headers))
+            return 201, confirmation.to_dict()
+        if path == f"{API_PATH_PREFIX}/execution-requests" and method == "POST":
+            if (
+                set(payload).difference({"construction", "confirmation_id"})
+                or not isinstance(payload.get("construction"), Mapping)
+            ):
+                raise ApiContractError(
+                    400,
+                    "invalid_construction_field",
+                    "Execution request body requires construction and optional confirmation_id.",
+                )
+            request = service.create_request(
+                payload["construction"],
+                confirmation_id=payload.get("confirmation_id"),
+                idempotency_key=self._idempotency_key(headers),
+            )
+            return 201, request.to_dict()
+        parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
+        if (
+            parts[0] == "execution-requests"
+            and len(parts) == 3
+            and parts[2] == "start"
+            and method == "POST"
+        ):
+            request_id = self._identifier(parts[1], "execution request")
+            if payload:
+                raise ApiContractError(400, "invalid_construction_field", "Start accepts an empty JSON object only.")
+            return 202, service.start(request_id, idempotency_key=self._idempotency_key(headers))
+        if parts[0] == "execution-attempts" and len(parts) == 3 and method == "POST":
+            attempt_id = self._identifier(parts[1], "execution attempt")
+            if payload:
+                raise ApiContractError(
+                    400,
+                    "invalid_construction_field",
+                    "Lifecycle operation accepts an empty JSON object only.",
+                )
+            key = self._idempotency_key(headers)
+            if parts[2] == "cancel":
+                return 200, service.cancel(attempt_id, idempotency_key=key).to_dict()
+            if parts[2] == "retry":
+                return 201, service.retry(attempt_id, idempotency_key=key).to_dict()
+        raise ApiContractError(405, "method_not_allowed", "Unsupported method or controlled write route.")
 
     @staticmethod
     def _validate_path(raw_path: str) -> str:
@@ -351,12 +465,16 @@ class ReadOnlyTrendApi:
             "api_version": API_VERSION,
             "registry_id": registry.registry_id,
             "registry_schema_version": registry.schema_version,
-            "read_only": True,
+            "read_only": self.controlled_execution_service is None,
+            "controlled_local_writes": self.controlled_execution_service is not None,
         }
 
     def _metadata(self, registry: SavedRunRegistry) -> Mapping[str, Any]:
         return {
             "api_version": API_VERSION,
+            "controlled_write_api_version": (
+                WRITE_API_VERSION if self.controlled_execution_service is not None else None
+            ),
             "api_path_prefix": API_PATH_PREFIX,
             "registry_id": registry.registry_id,
             "registry_schema_version": SAVED_RUN_REGISTRY_SCHEMA_VERSION,
@@ -375,6 +493,12 @@ class ReadOnlyTrendApi:
                 BEHAVIOR_METADATA_SCHEMA_VERSION,
                 DERIVED_METRICS_SCHEMA_VERSION,
                 EXECUTION_ATTEMPT_SCHEMA_VERSION,
+                CONSTRUCTION_REQUEST_VERSION,
+                NORMALIZED_CONSTRUCTION_VERSION,
+                CANDIDATE_ESTIMATE_VERSION,
+                EXECUTION_CONFIRMATION_VERSION,
+                EXECUTION_REQUEST_VERSION,
+                EXECUTION_POLICY_VERSION,
             ],
             "metric_registry_version": METRIC_REGISTRY_VERSION,
             "calculation_engine_versions": [
@@ -387,7 +511,30 @@ class ReadOnlyTrendApi:
             "maximum_page_size": MAX_PAGE_SIZE,
             "maximum_time_series_page_size": MAX_TIME_SERIES_PAGE_SIZE,
             "cors_origins": list(self.server_config.cors_origins),
-            "error_codes": sorted(self.error_messages),
+            "error_codes": sorted(
+                set(self.error_messages)
+                | {
+                    "invalid_construction_field",
+                    "unsupported_option",
+                    "invalid_parameter_range",
+                    "candidate_estimate_overflow",
+                    "confirmation_required",
+                    "confirmation_stale",
+                    "confirmation_invalid",
+                    "hard_limit_exceeded",
+                    "duplicate_active_execution",
+                    "snapshot_unavailable",
+                    "benchmark_unavailable",
+                    "universe_invalid",
+                    "engine_unsupported",
+                    "execution_already_started",
+                    "attempt_not_cancellable",
+                    "retry_not_allowed",
+                    "stored_equivalent_run_corrupt",
+                    "internal_execution_failure",
+                    "request_too_large",
+                }
+            ),
         }
 
     def _overview(self, registry: SavedRunRegistry) -> Mapping[str, Any]:
@@ -975,6 +1122,11 @@ class ReadOnlyTrendApi:
         if path == f"{API_PATH_PREFIX}/terminology":
             self._allow_query(query, set())
             return self._terminology(registry)
+        if path == f"{API_PATH_PREFIX}/construction/options":
+            self._allow_query(query, set())
+            if self.controlled_execution_service is None:
+                raise ApiContractError(404, "not_found", "Controlled construction API is disabled.")
+            return construction_options(self.controlled_execution_service.policy)
         if path == f"{API_PATH_PREFIX}/runs":
             return self._list_runs(registry, query)
         if path == f"{API_PATH_PREFIX}/evaluation-profiles":
@@ -1078,6 +1230,12 @@ class ReadOnlyTrendApi:
                 **attempt.to_dict(),
                 "operational_status_ko": self.status_labels.get(attempt.operational_status.value),
             }
+        if parts[0] == "execution-requests" and len(parts) == 2:
+            self._allow_query(query, set())
+            if self.controlled_execution_service is None:
+                raise ApiContractError(404, "not_found", "Controlled execution API is disabled.")
+            request_id = self._identifier(parts[1], "execution request")
+            return self.controlled_execution_service.request_status(request_id)
         raise ApiContractError(404, "not_found", "API route was not found.")
 
     def dispatch(
@@ -1086,17 +1244,31 @@ class ReadOnlyTrendApi:
         target: str,
         *,
         headers: Mapping[str, str] | None = None,
+        body: bytes | Mapping[str, Any] | None = None,
     ) -> ApiResponse:
         request_headers = headers or {}
         request_id = self._request_id(request_headers)
         try:
-            if method.upper() not in {"GET", "HEAD"}:
-                raise ApiContractError(405, "method_not_allowed", "Production API is read-only.")
             path, query = self._query(target)
+            normalized_method = method.upper()
+            if normalized_method not in {"GET", "HEAD"}:
+                if normalized_method != "POST":
+                    raise ApiContractError(405, "method_not_allowed", "Unsupported API method.")
+                status_code, body_value = self._controlled_write_route(
+                    normalized_method, path, query, request_headers, body
+                )
+                response_body = _redact_secrets(canonical_data(body_value))
+                if len(canonical_bytes(response_body)) > self.server_config.max_response_bytes:
+                    raise ApiContractError(400, "invalid_query", "Response exceeds the configured bound.")
+                return ApiResponse(
+                    status_code=status_code,
+                    body=response_body,
+                    headers={"X-Request-ID": request_id, "Content-Type": "application/json; charset=utf-8"},
+                )
             registry = self.registry_builder.load_or_rebuild()
             body = self._route(path, query, registry)
             response_body = (
-                {} if method.upper() == "HEAD" else _redact_secrets(canonical_data(body))
+                {} if normalized_method == "HEAD" else _redact_secrets(canonical_data(body))
             )
             if len(canonical_bytes(response_body)) > self.server_config.max_response_bytes:
                 raise ApiContractError(400, "invalid_query", "Response exceeds the configured bound.")
@@ -1107,6 +1279,18 @@ class ReadOnlyTrendApi:
             )
         except ApiContractError as error:
             return self._error_response(error, request_id)
+        except Foundation5Error as error:
+            return self._error_response(
+                ApiContractError(
+                    error.status_code,
+                    error.code,
+                    error.diagnostic_en,
+                    object_identity=error.object_identity,
+                    recoverable=error.recoverable,
+                    next_action_ko=error.next_action_ko,
+                ),
+                request_id,
+            )
         except Exception:
             return self._error_response(
                 ApiContractError(
@@ -1126,7 +1310,26 @@ def build_http_server(api: ReadOnlyTrendApi) -> ThreadingHTTPServer:
         server_version = "TrendV2LocalAPI/1"
 
         def _send(self, method: str) -> None:
-            response = api.dispatch(method, self.path, headers=dict(self.headers.items()))
+            payload = b""
+            if method == "POST":
+                try:
+                    declared = int(self.headers.get("Content-Length", "0"))
+                except ValueError:
+                    declared = -1
+                maximum = (
+                    api.controlled_execution_service.policy.maximum_json_body_bytes
+                    if api.controlled_execution_service is not None
+                    else 0
+                )
+                payload = self.rfile.read(min(max(declared, 0), maximum + 1))
+                if declared < 0 or declared > maximum:
+                    payload = b"x" * (maximum + 1)
+            response = api.dispatch(
+                method,
+                self.path,
+                headers=dict(self.headers.items()),
+                body=payload,
+            )
             payload = canonical_bytes(response.body)
             self.send_response(response.status_code)
             for key, value in response.headers.items():
@@ -1154,6 +1357,9 @@ def build_http_server(api: ReadOnlyTrendApi) -> ThreadingHTTPServer:
 
         def do_DELETE(self) -> None:  # noqa: N802 - explicit read-only response
             self._send("DELETE")
+
+        def do_PATCH(self) -> None:  # noqa: N802 - explicit method response
+            self._send("PATCH")
 
         def log_message(self, _format: str, *_args: Any) -> None:
             return

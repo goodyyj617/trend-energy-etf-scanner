@@ -1,0 +1,18 @@
+{
+  "schema_version": "local_execution_policy_v1",
+  "informational_threshold": 8,
+  "explicit_confirmation_threshold": 24,
+  "hard_local_refusal_threshold": 256,
+  "maximum_economic_candidate_count": 64,
+  "maximum_evaluation_count": 128,
+  "maximum_estimated_execution_units": 256,
+  "maximum_date_span_days": 4000,
+  "maximum_universe_size": 500,
+  "maximum_parameter_values_per_dimension": 8,
+  "maximum_parameter_dimensions": 2,
+  "maximum_concurrency": 1,
+  "maximum_json_body_bytes": 262144,
+  "confirmation_ttl_seconds": 900,
+  "confirmation_one_time_use": true,
+  "candidate_count_overflow_limit": 9223372036854775807
+}

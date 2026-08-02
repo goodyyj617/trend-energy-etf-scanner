@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -13,11 +14,16 @@ if str(ROOT) not in sys.path:
 from src.trend_v2_foundation import (  # noqa: E402
     ApiServerConfig,
     ArtifactRetentionPolicy,
+    ControlledExecutionService,
+    FileExecutionAttemptRepository,
     LocalResultStore,
+    PhaseAControlledExecutionAdapter,
     ReadOnlyTrendApi,
     TrendWebApplication,
     build_web_server,
     load_retention_policy,
+    load_execution_policy,
+    load_evaluation_profiles,
     load_terminology_source,
 )
 
@@ -32,10 +38,31 @@ def main() -> None:
     policy = ArtifactRetentionPolicy.from_dict(load_retention_policy(store_root))
     store = LocalResultStore(store_root, policy)
     terminology = load_terminology_source(ROOT / "config" / "trend_v2" / "terminology_ko.json")
+    attempt_repository = FileExecutionAttemptRepository(store.root / "execution_attempts")
+    execution_policy = load_execution_policy(
+        ROOT / "config" / "trend_v2" / "local_execution_policy_v1.json"
+    )
+    loaded_profiles = load_evaluation_profiles(ROOT / "config" / "trend_v2" / "evaluation_profiles")
+    profiles = {profile.evaluation_profile_id: profile for profile in loaded_profiles.values()}
+    source_commit = subprocess.check_output(
+        ["git", "-c", f"safe.directory={ROOT.as_posix()}", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        text=True,
+    ).strip()
+    execution_service = ControlledExecutionService(
+        store,
+        attempt_repository,
+        PhaseAControlledExecutionAdapter(ROOT / "docs" / "research" / "trend_v2" / "phase_a2"),
+        execution_policy,
+        profiles,
+        source_commit=source_commit,
+    )
     api = ReadOnlyTrendApi(
         store,
+        attempt_repository=attempt_repository,
         terminology_source=terminology,
         server_config=ApiServerConfig(port=args.port),
+        controlled_execution_service=execution_service,
     )
     server = build_web_server(TrendWebApplication(api))
     address = f"http://{server.server_address[0]}:{server.server_address[1]}/"
@@ -47,6 +74,7 @@ def main() -> None:
         pass
     finally:
         server.server_close()
+        execution_service.close()
 
 
 if __name__ == "__main__":

@@ -136,6 +136,13 @@ pre { white-space: pre-wrap; word-break: break-word; background: #1b2c26; color:
 .key-values dt { color: var(--muted); font-size: .76rem; font-weight: 760; }
 .key-values dd { margin: .15rem 0 0; overflow-wrap: anywhere; }
 
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .9rem; margin-bottom: 1rem; }
+.form-grid .field { min-width: 0; }
+.form-grid input, .form-grid select { width: 100%; box-sizing: border-box; }
+.form-grid abbr { cursor: help; color: var(--blue); text-decoration-style: dotted; }
+.actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.notice.danger { border-left-color: var(--red); background: var(--red-soft); color: #7a1f25; }
+
 @media (max-width: 860px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; }

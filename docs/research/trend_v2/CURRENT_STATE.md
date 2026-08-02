@@ -42,10 +42,19 @@
   non-compensatory and exploratory stages, stored robustness and behavior
   inspection, operational-attempt separation, and a complete centralized
   explanation area without adding strategy execution.
+- Foundation 5 adds versioned construction, decimal-safe finite parameter
+  spaces, exact candidate/workload estimates, versioned local limits,
+  hash-bound one-time confirmation, immutable execution requests, and a
+  conservative one-worker lifecycle over append-only `execution_attempt_v1`.
+- Foundation 5 executes only the established score-independent Phase A
+  baseline: rising MA200 trend filter, prior-price-high L20 signal, next-open
+  entry, Low20 initial/ratcheting exit, and canonical cash-constrained equal
+  weight. Valid economic and Foundation 2 artifacts are reused; no unrestricted
+  search or new strategy research is enabled.
 
 ## Current phase
 
-Product foundation -- controlled strategy-construction and execution contracts
+Product foundation -- controlled strategy library and persisted execution management
 
 ## Phase A2 record
 
@@ -57,9 +66,9 @@ Product foundation -- controlled strategy-construction and execution contracts
 
 ## Exact next task
 
-Foundation 5 -- controlled strategy-construction and execution contracts,
-including explicit candidate-count estimation and user confirmation, without
-yet performing unrestricted large parameter searches.
+Foundation 6 -- broaden the controlled strategy library and add persisted
+execution management after the Foundation 5 contracts and bounded execution
+path are proven stable.
 
 ## Required product direction
 
@@ -94,4 +103,10 @@ yet performing unrestricted large parameter searches.
 - new OOS cohort creation;
 - OOS collector implementation or activation;
 - production deployment.
-- unrestricted strategy execution, queue, worker, retry, and cancellation APIs.
+- unrestricted strategy execution, distributed queues, remote workers, and
+  cloud scheduling.
+- mid-candidate process interruption; Foundation 5 cancellation is cooperative
+  at safe local boundaries.
+- generated walk-forward and robustness simulations in the controlled adapter;
+  requested work is estimated for preview, nonzero execution requests are
+  refused, and missing evidence is not fabricated.

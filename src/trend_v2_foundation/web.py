@@ -1,4 +1,4 @@
-"""Dependency-free, same-origin web shell for the Foundation 4 read-only UI."""
+"""Dependency-free, same-origin web shell for the controlled local UI."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from .api import API_PATH_PREFIX, ApiResponse, ReadOnlyTrendApi
 from .canonical import canonical_bytes
 
 
-WEB_UI_VERSION = "trend_v2_korean_saved_run_ui_v1"
+WEB_UI_VERSION = "trend_v2_korean_controlled_strategy_ui_v1"
 _ASSET_ROOT = Path(__file__).with_name("ui_assets")
 _ASSETS = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -41,7 +41,7 @@ class WebResponse:
 
 
 class TrendWebApplication:
-    """Serve fixed packaged assets and delegate API reads to Foundation 3."""
+    """Serve fixed packaged assets and delegate bounded API operations."""
 
     def __init__(self, api: ReadOnlyTrendApi, *, asset_root: Path | None = None) -> None:
         self.api = api
@@ -77,11 +77,12 @@ class TrendWebApplication:
         target: str,
         *,
         headers: Mapping[str, str] | None = None,
+        body: bytes | Mapping[str, Any] | None = None,
     ) -> WebResponse:
         parsed = urlsplit(target)
         path = unquote(unquote(parsed.path))
         if path == API_PATH_PREFIX or path.startswith(f"{API_PATH_PREFIX}/"):
-            return self._api_response(self.api.dispatch(method, target, headers=headers))
+            return self._api_response(self.api.dispatch(method, target, headers=headers, body=body))
         if method.upper() not in {"GET", "HEAD"}:
             return self._error(405, "이 로컬 화면은 저장된 결과 읽기만 지원합니다.")
         if "\\" in path or "\x00" in path or any(
@@ -114,7 +115,26 @@ def build_web_server(application: TrendWebApplication) -> ThreadingHTTPServer:
         server_version = "TrendV2LocalWeb/1"
 
         def _send(self, method: str) -> None:
-            response = application.dispatch(method, self.path, headers=dict(self.headers.items()))
+            payload = b""
+            if method == "POST":
+                try:
+                    declared = int(self.headers.get("Content-Length", "0"))
+                except ValueError:
+                    declared = -1
+                maximum = (
+                    api.controlled_execution_service.policy.maximum_json_body_bytes
+                    if api.controlled_execution_service is not None
+                    else 0
+                )
+                payload = self.rfile.read(min(max(declared, 0), maximum + 1))
+                if declared < 0 or declared > maximum:
+                    payload = b"x" * (maximum + 1)
+            response = application.dispatch(
+                method,
+                self.path,
+                headers=dict(self.headers.items()),
+                body=payload,
+            )
             self.send_response(response.status_code)
             for key, value in response.headers.items():
                 self.send_header(key, value)
@@ -137,6 +157,9 @@ def build_web_server(application: TrendWebApplication) -> ThreadingHTTPServer:
 
         def do_DELETE(self) -> None:  # noqa: N802
             self._send("DELETE")
+
+        def do_PATCH(self) -> None:  # noqa: N802
+            self._send("PATCH")
 
         def log_message(self, _format: str, *_args: Any) -> None:
             return

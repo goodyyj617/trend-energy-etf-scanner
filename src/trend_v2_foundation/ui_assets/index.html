@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>추세 전략 연구실 · 저장 결과 탐색</title>
+  <title>추세 전략 연구실 · 통제된 전략 구성과 실행</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
@@ -15,10 +15,12 @@
         <span class="brand-mark" aria-hidden="true">TE</span>
         <div>
           <strong>추세 전략 연구실</strong>
-          <small>저장 결과 읽기 전용</small>
+          <small>통제된 로컬 구성·실행</small>
         </div>
       </div>
       <nav id="primary-nav" aria-label="저장 결과 탐색 메뉴">
+        <a href="#construction" data-route="construction"><span aria-hidden="true">＋</span> 전략 구성</a>
+        <a href="#requests" data-route="requests"><span aria-hidden="true">▶</span> 실행 요청</a>
         <a href="#overview" data-route="overview"><span aria-hidden="true">⌂</span> 개요</a>
         <a href="#runs" data-route="runs"><span aria-hidden="true">▤</span> 저장된 전략 실행</a>
         <a href="#evaluations" data-route="evaluations"><span aria-hidden="true">✓</span> 평가 결과</a>
@@ -30,14 +32,15 @@
         <a href="#system" data-route="system"><span aria-hidden="true">i</span> 시스템 정보</a>
       </nav>
       <div class="read-only-note">
-        <strong>읽기 전용</strong>
-        <p>전략 시작·취소·재시도 기능은 이 단계에 포함되지 않습니다.</p>
+        <strong>로컬 통제 실행</strong>
+        <p>허용 목록, 후보 수 정책, 해시 결합 확인, 최대 동시 실행 1개를 적용합니다.</p>
+        <p>기존 저장 결과 영역은 읽기 전용입니다.</p>
       </div>
     </aside>
     <div class="workspace">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Trend Strategy v2 · Foundation 4</p>
+          <p class="eyebrow">Trend Strategy v2 · Foundation 5</p>
           <h1 id="page-title">개요</h1>
         </div>
         <div class="connection" id="connection-status" role="status" aria-live="polite">
