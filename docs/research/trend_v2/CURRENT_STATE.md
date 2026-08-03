@@ -65,6 +65,9 @@
   reconciliation, compact recovery evidence, and focused recovery UI state.
   Completed valid results are reused; stale, interrupted, and corrupt records
   remain explicit and fail closed.
+- Foundation 9C adds explicit idempotent first-run ResultStore initialization,
+  deferred launcher imports for help/init/preflight, and Git-blob snapshot
+  verification that prevents Windows CRLF false corruption failures.
 
 ## Current phase
 

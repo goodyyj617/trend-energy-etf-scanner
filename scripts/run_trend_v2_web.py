@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.trend_v2_foundation import (  # noqa: E402
+'''Deferred application imports: init, preflight, and help stay dependency-light.
     ApiServerConfig,
     ArtifactRetentionPolicy,
     CanonicalCostStressAdapter,
@@ -37,6 +37,7 @@ from src.trend_v2_foundation.local_operability import (  # noqa: E402
     reconcile_local_state,
     run_preflight,
 )
+'''
 
 
 def _source_commit() -> str:
@@ -54,9 +55,13 @@ def _print_preflight(report: dict) -> None:
     for check in report["checks"]:
         marker = {"pass": "통과", "warning": "경고", "blocking": "차단"}[check["status"]]
         print(f"[{marker}] {check['code']}: {check['message_ko']}")
+        if check["status"] == "blocking" and " init --store " in check["suggested_action_ko"]:
+            print(check["suggested_action_ko"])
 
 
 def _services(store_root: Path, port: int):
+    from src.trend_v2_foundation import (ApiServerConfig, ArtifactRetentionPolicy, CanonicalCostStressAdapter, ControlledExecutionService, FileExecutionAttemptRepository, LocalResultStore, PhaseAControlledExecutionAdapter, RobustnessExecutionService, RobustnessPolicy, WorkflowCoordinator, load_evaluation_profiles, load_execution_policy, load_retention_policy, load_robustness_catalog, load_terminology_source)
+    from src.trend_v2_foundation.foundation_6 import OptionCatalog, PersistedExecutionManager
     policy = ArtifactRetentionPolicy.from_dict(load_retention_policy(store_root))
     store = LocalResultStore(store_root, policy)
     terminology = load_terminology_source(ROOT / "config" / "trend_v2" / "terminology_ko.json")
@@ -84,11 +89,20 @@ def _shutdown(execution: ControlledExecutionService, attempts: FileExecutionAtte
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Trend Strategy v2 로컬 워크플로 도구")
-    parser.add_argument("command", choices=("start", "preflight", "status"), nargs="?", default="start")
+    parser.add_argument("command", choices=("init", "start", "preflight", "status"), nargs="?", default="start")
     parser.add_argument("--store", required=True, type=Path, help="기존 로컬 ResultStore 디렉터리")
     parser.add_argument("--port", type=int, default=8765, help="루프백 포트 (기본 8765)")
     args = parser.parse_args(argv)
     store_root = args.store.resolve()
+    from src.trend_v2_foundation.local_operability import initialize_result_store, run_preflight
+    if args.command == "init":
+        try:
+            created = initialize_result_store(store_root)
+        except ValueError as error:
+            print(f"[차단] ResultStore 초기화 실패: {error}")
+            return 1
+        print("[완료] ResultStore를 초기화했습니다." if created else "[완료] 호환되는 ResultStore가 이미 초기화되어 있습니다.")
+        return 0
     report = run_preflight(ROOT, store_root, port=args.port)
     if args.command == "preflight":
         _print_preflight(report)
@@ -99,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if report["warning_count"]:
         print(f"[경고] 사전 점검 경고 {report['warning_count']}건이 있습니다.")
+    from src.trend_v2_foundation import ApiServerConfig, ReadOnlyTrendApi, TrendWebApplication, build_web_server
+    from src.trend_v2_foundation.local_operability import local_status, reconcile_local_state
     store, terminology, attempts, execution, robustness, manager, workflows, source_commit = _services(store_root, args.port)
     recovery = reconcile_local_state(store.root, source_commit=source_commit, manager=manager, attempts=attempts, robustness=robustness, workflows=workflows)
     if args.command == "status":

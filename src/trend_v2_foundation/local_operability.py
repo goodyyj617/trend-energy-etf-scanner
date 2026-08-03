@@ -7,6 +7,7 @@ import importlib
 import json
 import os
 import socket
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,7 +21,8 @@ from .execution import (
     TERMINAL_ATTEMPT_STATUSES,
 )
 from .foundation_6 import Foundation6Error, OptionCatalog, PersistedExecutionManager
-from .result_store import RESULT_STORE_VERSION
+from .contracts import ArtifactRetentionPolicy
+from .result_store import LocalResultStore, RESULT_STORE_VERSION
 from .robustness import RobustnessError, RobustnessExecutionService
 from .workflow import WorkflowCoordinator, WorkflowError
 
@@ -34,6 +36,31 @@ _STATE_DIRECTORIES = (
     "workflow_v1",
     "robustness_execution_v1",
 )
+_DEFAULT_RETENTION_POLICY = ArtifactRetentionPolicy(5_000_000_000, 250_000_000, 1_000, 1_000)
+
+
+def initialize_result_store(store_root: str | Path) -> bool:
+    """Create the canonical bounded local store once, without runtime services."""
+    store = Path(store_root)
+    policy_path = store / "retention_policy.json"
+    if policy_path.exists():
+        try:
+            payload = json.loads(policy_path.read_text(encoding="utf-8"))
+            policy = ArtifactRetentionPolicy.from_dict(payload["policy"])
+            if payload.get("store_version") != RESULT_STORE_VERSION:
+                raise ValueError("incompatible ResultStore version")
+        except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise ValueError(f"incompatible or corrupt ResultStore policy: {type(error).__name__}") from error
+        LocalResultStore(store, policy)
+        for name in _STATE_DIRECTORIES:
+            (store / name).mkdir(parents=True, exist_ok=True)
+        return False
+    if store.exists() and any(store.iterdir()):
+        raise ValueError("existing directory is not an initialized ResultStore")
+    LocalResultStore(store, _DEFAULT_RETENTION_POLICY)
+    for name in _STATE_DIRECTORIES:
+        (store / name).mkdir(parents=True, exist_ok=True)
+    return True
 
 
 def _now() -> str:
@@ -73,16 +100,26 @@ def _port_available(host: str, port: int) -> bool:
         candidate.close()
 
 
-def _snapshot_ok(snapshot_root: Path) -> tuple[bool, str]:
+def _snapshot_ok(snapshot_root: Path, repository_root: Path) -> tuple[bool, str]:
     try:
         manifest = json.loads((snapshot_root / "input_manifest.json").read_text(encoding="utf-8"))
         if manifest.get("schema_version") != "trend_v2_phase_a2_snapshot_v1":
             return False, "unsupported snapshot schema"
         for relative, expected in sorted(dict(manifest.get("snapshot_members", {})).items()):
             member = snapshot_root / relative
-            if not member.is_file() or hashlib.sha256(member.read_bytes()).hexdigest() != expected:
+            if not member.is_file():
                 return False, f"missing or invalid snapshot member: {relative}"
-        return True, "frozen snapshot members and hashes are valid"
+            payload = member.read_bytes()
+            source = "working-tree bytes"
+            try:
+                git_relative = member.resolve().relative_to(repository_root.resolve()).as_posix()
+                payload = subprocess.check_output(["git", "show", f"HEAD:{git_relative}"], cwd=repository_root)
+                source = "Git blob bytes"
+            except (OSError, ValueError, subprocess.CalledProcessError):
+                pass
+            if hashlib.sha256(payload).hexdigest() != expected:
+                return False, f"snapshot member hash mismatch ({source}): {relative}"
+        return True, f"frozen snapshot members and hashes are valid ({source})"
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
         return False, str(error)
 
@@ -115,17 +152,22 @@ def run_preflight(
     except (OSError, json.JSONDecodeError) as error:
         checks.append(_check("configuration_readable", "blocking", "로컬 설정을 읽을 수 없습니다.", type(error).__name__, "설정 파일을 복구한 뒤 다시 실행하세요.", "configuration"))
     policy_path = store / "retention_policy.json"
-    try:
+    if not store.exists():
+        checks.append(_check("result_store_schema", "blocking", "ResultStore 디렉터리가 없습니다.", "store directory is missing", "먼저 `python scripts/run_trend_v2_web.py init --store <경로>`를 실행하세요.", "result_store"))
+    elif not policy_path.exists():
+        checks.append(_check("result_store_schema", "blocking", "ResultStore가 초기화되지 않았습니다.", "retention_policy.json is missing", "`python scripts/run_trend_v2_web.py init --store <경로>`를 실행하세요.", "result_store"))
+    else:
+      try:
         policy = json.loads(policy_path.read_text(encoding="utf-8"))
         compatible = policy.get("store_version") == RESULT_STORE_VERSION and isinstance(policy.get("policy"), Mapping)
         checks.append(_check("result_store_schema", "pass" if compatible else "blocking", "ResultStore 스키마가 호환됩니다." if compatible else "ResultStore 스키마가 호환되지 않습니다.", f"store_version={policy.get('store_version')}", "호환되는 로컬 ResultStore를 선택하거나 백업에서 복구하세요.", "result_store"))
-    except (OSError, json.JSONDecodeError) as error:
+      except (OSError, json.JSONDecodeError) as error:
         checks.append(_check("result_store_schema", "blocking", "ResultStore 정책을 읽을 수 없습니다.", type(error).__name__, "올바른 기존 ResultStore를 지정하세요.", "result_store"))
     storage_ready = store.is_dir() and _writeable(store)
     checks.append(_check("result_store_access", "pass" if storage_ready else "blocking", "로컬 저장소 읽기·쓰기가 가능합니다." if storage_ready else "로컬 저장소에 읽기·쓰기할 수 없습니다.", "store directory is writable" if storage_ready else "store missing or write probe failed", "저장소 경로와 권한을 확인하세요.", "result_store"))
     missing_state = [name for name in _STATE_DIRECTORIES if not (store / name).is_dir()]
     checks.append(_check("workflow_state_directories", "pass" if not missing_state else "warning", "워크플로 상태 디렉터리를 확인했습니다." if not missing_state else "아직 생성되지 않은 워크플로 상태 디렉터리가 있습니다.", "all workflow state directories exist" if not missing_state else "missing=" + ",".join(missing_state), "첫 정상 시작에서 필요한 상태 디렉터리를 만듭니다.", "workflow_state"))
-    snapshot_ok, snapshot_diagnostic = _snapshot_ok(Path(snapshot_root) if snapshot_root is not None else root / "docs" / "research" / "trend_v2" / "phase_a2")
+    snapshot_ok, snapshot_diagnostic = _snapshot_ok(Path(snapshot_root) if snapshot_root is not None else root / "docs" / "research" / "trend_v2" / "phase_a2", root)
     checks.append(_check("frozen_data_snapshot", "pass" if snapshot_ok else "blocking", "동결 로컬 데이터 스냅샷을 확인했습니다." if snapshot_ok else "동결 로컬 데이터 스냅샷을 사용할 수 없습니다.", snapshot_diagnostic, "스냅샷 파일을 복구하세요. 다운로드는 이 도구에서 수행하지 않습니다.", "data_snapshot"))
     port_ready = _port_available("127.0.0.1", port)
     checks.append(_check("loopback_port", "pass" if port_ready else "blocking", "루프백 포트를 사용할 수 있습니다." if port_ready else "루프백 포트를 사용할 수 없습니다.", f"host=127.0.0.1 port={port}", "다른 포트를 지정하거나 해당 포트를 사용하는 로컬 프로세스를 종료하세요.", "local_server"))
