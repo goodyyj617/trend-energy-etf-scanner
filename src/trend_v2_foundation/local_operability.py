@@ -56,7 +56,7 @@ def initialize_result_store(store_root: str | Path, profile_root: str | Path | N
         for name in _STATE_DIRECTORIES:
             (store / name).mkdir(parents=True, exist_ok=True)
         created = False
-    if store.exists() and any(store.iterdir()):
+    elif store.exists() and any(store.iterdir()):
         raise ValueError("existing directory is not an initialized ResultStore")
     else:
         result_store = LocalResultStore(store, _DEFAULT_RETENTION_POLICY)
@@ -75,7 +75,7 @@ def initialize_result_store(store_root: str | Path, profile_root: str | Path | N
             if prior is None:
                 result_store.save_evaluation_profile(profile); seeded += 1
             else: reused += 1
-    return {"created": created, "seeded": seeded, "reused": reused}
+    return {"created": created, "seeded": seeded, "reused": reused} if profile_root is not None else created
 
 
 def _now() -> str:
