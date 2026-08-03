@@ -70,6 +70,9 @@
   verification that prevents Windows CRLF false corruption failures.
 - Foundation 9D seeds default EvaluationProfiles on local initialization and
   makes the construction profile control usable on first run.
+- Foundation 9E aligns the candidate-estimate endpoint to one response
+  envelope and keeps recoverable estimate-rendering failures inside the
+  construction screen with an actionable Korean message.
 
 ## Current phase
 
