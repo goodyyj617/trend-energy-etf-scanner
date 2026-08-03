@@ -1,53 +1,67 @@
-# Local strategy workflow guide
+# 로컬 전략 워크플로 안내
 
-## Start and stop
+## 시작 전 확인
 
-Use Python with the repository dependencies installed:
+기존 로컬 ResultStore를 지정해 사전 점검을 실행합니다. 이 명령은 원격 호출,
+패키지 설치, 시장 데이터 다운로드를 하지 않습니다.
 
 ```powershell
-python scripts/run_trend_v2_web.py --store <local-result-store>
+python scripts/run_trend_v2_web.py preflight --store <local-result-store>
 ```
 
-Open the loopback URL printed by the command (normally `http://127.0.0.1:8765/`).
-Press `Ctrl+C` in that terminal to stop the service. Results, workflow records,
-execution attempts, and robustness records stay under the local result-store;
-back up that directory before changing or cleaning it.
+`[통과]`는 준비 완료, `[경고]`는 첫 정상 시작에서 상태 디렉터리가 만들어지는
+등의 안내이며 시작을 막지 않습니다. `[차단]`은 지원 Python, 필수 패키지,
+설정·저장소·스냅샷 호환성 또는 루프백 포트 문제이므로 해결 전에는 시작되지
+않습니다. 출력에는 점검 코드, 한국어 안내, 기술 진단, 권장 조치가 포함되며
+로컬 절대 경로나 비밀 정보는 표시하지 않습니다.
 
-## Run a workflow
+## 기본 시작과 종료
 
-Choose controlled strategy components and dates, inspect the exact candidate and
-workload estimate, and confirm when the policy requires it. Start economic work
-only after confirmation. Configure the bounded robustness methods, then select
-an `EvaluationProfile` to apply mandatory gates, Pareto selection, robustness
-vetoes, tie-breaks, and behavior deduplication.
+유일한 로컬 시작 명령은 다음입니다.
 
-Changing a profile or decision threshold creates a new evaluation result and
-does not rerun an unchanged economic path or valid robustness evidence.
+```powershell
+python scripts/run_trend_v2_web.py start --store <local-result-store>
+```
 
-## Recovery and safe handling
+정상 시작은 사전 점검 경고 수, 저장소 준비, 복구한 워크플로/차단 항목 수와
+정확한 URL을 표시합니다. 기본 URL은 `http://127.0.0.1:8765/`이며 다른 포트는
+`--port`로 지정할 수 있습니다. 이 서버는 기본적으로 루프백에만 바인딩됩니다.
 
-Reopen the same local URL after a browser refresh or API restart. The workflow
-view reconstructs persisted references and labels interrupted work explicitly.
-Use resume only where the displayed recoverability permits it. `missing`,
-`incomplete`, `corrupt`, and `interrupted` are not successful results; corrupt
-or provenance-invalid records are not reused. To clean up safely, first stop
-the service, copy the complete store to a backup location, then remove only an
-entire disposable local store.
+종료하려면 같은 터미널에서 `Ctrl+C`를 누르세요. 새 로컬 작업 접수를 중단하고,
+활성 경제 작업에는 기존 협력 취소 계약으로 중단을 요청한 뒤 append-only 시도와
+워크플로 상태를 보존합니다. 완료된 결과나 근거는 삭제하지 않습니다. 다음 시작은
+수동 복구 없이 같은 저장소를 다시 열 수 있습니다.
 
-## Known limitations
+## 재시작과 재개
 
-This is a loopback-only local tool. It has no authentication, cloud deployment,
-remote worker, remote storage, or market-data download support. Historical
-universe survivorship limitations and the absence of active OOS collection
-remain unchanged.
+시작 시 저장된 요청, 실행 시도, 강건성 시나리오, 워크플로를 다시 읽습니다.
+프로세스 소유를 신뢰할 수 없는 실행 중 항목은 live로 보이지 않으며 `중단` 또는
+`차단`으로 명시됩니다. 완료된 StrategyRun과 유효한 강건성 근거는 재실행하지
+않고 재사용합니다. 손상되었거나 누락된 의존성은 재사용하거나 재개하지 않습니다.
 
-## Canonical cost stress
+워크플로 화면은 저장된 단계와 현재 서비스 상태를 분리해 보이고, 서비스 재시작
+복구 ID, 차단/손상 수, 마지막 복구 결과를 표시합니다. `재개 가능`일 때만 기존
+실행 요청 또는 강건성 시도의 재개 동작을 사용하세요. 완료 단위는 건너뛰고 중단된
+단위만 다시 대기 상태가 됩니다. 확인 내용이 오래되었거나 다른 요청을 가리키면
+재개가 거부됩니다. 재개 불가 사유는 화면과 API의 한국어 메시지로 확인하세요.
 
-Cost stress reruns the same local economic strategy with only the selected
-transaction-cost and slippage assumptions increased by an allow-listed plan
-multiplier. It is not a return haircut. The result lists the stressed cost,
-slippage, round-trip assumption, deltas from the base run, worst scenario, and
-survival ratio. Matching valid scenario evidence may be reused; missing,
-incomplete, corrupt, or provenance-invalid evidence is unavailable rather than
-treated as a pass. The next recommended task is local acceptance and
-startup/recovery hardening.
+## 상태 확인과 보관
+
+서버나 작업자를 추가로 시작하지 않고 상태만 보려면 다음을 사용합니다.
+
+```powershell
+python scripts/run_trend_v2_web.py status --store <local-result-store>
+```
+
+이 명령은 저장소 준비, 저장된 워크플로 수, 활성 시도, 재개 가능 항목과 마지막
+복구 요약을 보여 줍니다. 작업 전에는 ResultStore 전체를 다른 안전한 위치에
+복사해 백업하세요. 정리는 서비스를 종료한 뒤, 백업을 확인하고, 더 이상 필요 없는
+로컬 ResultStore 전체만 제거하는 방식이 안전합니다. 개별 append-only 이벤트,
+완료된 결과 또는 객체 파일을 손으로 삭제하지 마세요.
+
+## 알려진 제한
+
+이 도구는 인증, 클라우드/원격 저장소, 원격·분산 작업자, 프로세스 감독자, 시장
+데이터 다운로드를 제공하지 않습니다. 중단된 작업은 자동 무제한 재시도하지 않으며
+명시적 재개가 필요합니다. 역사적 유니버스의 생존 편향과 활성 OOS 수집 부재도
+변하지 않았습니다.

@@ -60,10 +60,15 @@
   fixed-strategy walk-forward, LOYO, paired moving-block bootstrap, and
   canonical cost stress. Plans and evidence are separate from immutable
   StrategyRun manifests; missing or incomplete evidence remains explicit.
+- Foundation 9B adds one Korean-first local launcher with deterministic
+  preflight, loopback startup, status, conservative shutdown, persisted-state
+  reconciliation, compact recovery evidence, and focused recovery UI state.
+  Completed valid results are reused; stale, interrupted, and corrupt records
+  remain explicit and fail closed.
 
 ## Current phase
 
-Product foundation -- canonical cost-stress execution
+Product foundation -- local startup and recovery hardening
 
 ## Phase A2 record
 
@@ -75,7 +80,7 @@ Product foundation -- canonical cost-stress execution
 
 ## Exact next task
 
-Foundation 9B -- local acceptance and startup/recovery hardening, without
+Foundation 10 -- separately scoped product workflow evolution, without
 unrestricted optimization.
 
 ## Required product direction
