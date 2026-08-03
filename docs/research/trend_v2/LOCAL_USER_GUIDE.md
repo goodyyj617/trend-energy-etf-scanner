@@ -65,3 +65,15 @@ python scripts/run_trend_v2_web.py status --store <local-result-store>
 데이터 다운로드를 제공하지 않습니다. 중단된 작업은 자동 무제한 재시도하지 않으며
 명시적 재개가 필요합니다. 역사적 유니버스의 생존 편향과 활성 OOS 수집 부재도
 변하지 않았습니다.
+# 첫 실행 (Windows PowerShell)
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe scripts\run_trend_v2_web.py init --store .\.trend_v2_store
+.\.venv\Scripts\python.exe scripts\run_trend_v2_web.py preflight --store .\.trend_v2_store
+.\.venv\Scripts\python.exe scripts\run_trend_v2_web.py start --store .\.trend_v2_store
+```
+
+PowerShell 활성화는 필요 없습니다. 이후 실행에서는 같은 ResultStore를 지정해
+`preflight`와 `start`만 실행합니다. `init`은 반복해도 안전하지만, 비어 있지 않은
+비초기화 디렉터리, 호환되지 않는 정책, 손상된 정책은 덮어쓰지 않고 차단합니다.
