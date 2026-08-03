@@ -22,6 +22,7 @@ from .execution import (
 )
 from .foundation_6 import Foundation6Error, OptionCatalog, PersistedExecutionManager
 from .contracts import ArtifactRetentionPolicy
+from .profiles import load_evaluation_profiles
 from .result_store import LocalResultStore, RESULT_STORE_VERSION
 from .robustness import RobustnessError, RobustnessExecutionService
 from .workflow import WorkflowCoordinator, WorkflowError
@@ -39,7 +40,7 @@ _STATE_DIRECTORIES = (
 _DEFAULT_RETENTION_POLICY = ArtifactRetentionPolicy(5_000_000_000, 250_000_000, 1_000, 1_000)
 
 
-def initialize_result_store(store_root: str | Path) -> bool:
+def initialize_result_store(store_root: str | Path, profile_root: str | Path | None = None) -> Mapping[str, int | bool]:
     """Create the canonical bounded local store once, without runtime services."""
     store = Path(store_root)
     policy_path = store / "retention_policy.json"
@@ -51,16 +52,30 @@ def initialize_result_store(store_root: str | Path) -> bool:
                 raise ValueError("incompatible ResultStore version")
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
             raise ValueError(f"incompatible or corrupt ResultStore policy: {type(error).__name__}") from error
-        LocalResultStore(store, policy)
+        result_store = LocalResultStore(store, policy)
         for name in _STATE_DIRECTORIES:
             (store / name).mkdir(parents=True, exist_ok=True)
-        return False
-    if store.exists() and any(store.iterdir()):
+        created = False
+    elif store.exists() and any(store.iterdir()):
         raise ValueError("existing directory is not an initialized ResultStore")
-    LocalResultStore(store, _DEFAULT_RETENTION_POLICY)
-    for name in _STATE_DIRECTORIES:
-        (store / name).mkdir(parents=True, exist_ok=True)
-    return True
+    else:
+        result_store = LocalResultStore(store, _DEFAULT_RETENTION_POLICY)
+        for name in _STATE_DIRECTORIES:
+            (store / name).mkdir(parents=True, exist_ok=True)
+        created = True
+    seeded = reused = 0
+    if profile_root is not None:
+        profiles = load_evaluation_profiles(profile_root)
+        existing = {result_store.get_evaluation_profile(profile_id).name: result_store.get_evaluation_profile(profile_id) for profile_id in result_store.evaluation_profile_history()}
+        for name in ("exploratory_weighted_example", "final_eligibility_default", "research_default"):
+            profile = profiles[name]
+            prior = existing.get(name)
+            if prior is not None and prior.to_dict() != profile.to_dict():
+                raise ValueError(f"default evaluation profile conflict: {name}")
+            if prior is None:
+                result_store.save_evaluation_profile(profile); seeded += 1
+            else: reused += 1
+    return {"created": created, "seeded": seeded, "reused": reused} if profile_root is not None else created
 
 
 def _now() -> str:

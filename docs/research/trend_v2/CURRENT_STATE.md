@@ -68,6 +68,8 @@
 - Foundation 9C adds explicit idempotent first-run ResultStore initialization,
   deferred launcher imports for help/init/preflight, and Git-blob snapshot
   verification that prevents Windows CRLF false corruption failures.
+- Foundation 9D seeds default EvaluationProfiles on local initialization and
+  makes the construction profile control usable on first run.
 
 ## Current phase
 

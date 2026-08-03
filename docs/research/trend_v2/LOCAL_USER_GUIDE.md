@@ -77,3 +77,33 @@ python scripts/run_trend_v2_web.py status --store <local-result-store>
 PowerShell 활성화는 필요 없습니다. 이후 실행에서는 같은 ResultStore를 지정해
 `preflight`와 `start`만 실행합니다. `init`은 반복해도 안전하지만, 비어 있지 않은
 비초기화 디렉터리, 호환되지 않는 정책, 손상된 정책은 덮어쓰지 않고 차단합니다.
+# ResultStore 첫 실행과 평가 프로필
+
+첫 실행에서는 아래 순서로 실행합니다. PowerShell 활성화는 필요 없습니다.
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_trend_v2_web.py init --store .\.trend_v2_store
+.\.venv\Scripts\python.exe scripts\run_trend_v2_web.py preflight --store .\.trend_v2_store
+.\.venv\Scripts\python.exe scripts\run_trend_v2_web.py start --store .\.trend_v2_store
+```
+
+`init`은 기본 평가 프로필 세 개를 저장합니다: `연구용 기본 평가`, `최종 적격성 평가`,
+`탐색용 가중 평가 예시`. 같은 저장소에서 `init`을 다시 실행하면 일치하는 프로필은
+재사용하고, 빠진 기본 프로필만 추가합니다. 같은 ID/이름의 내용이 다른 프로필은
+덮어쓰지 않고 차단합니다.
+
+기존 저장소에 기본 프로필이 없을 때도 같은 명령을 다시 실행합니다.
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_trend_v2_web.py init --store .\.trend_v2_store
+```
+
+전략 구성 화면은 기본으로 `연구용 기본 평가`를 선택합니다. 프로필을 사용할 수 없으면
+제출이 비활성화되고 다음 안내가 표시됩니다: `사용 가능한 평가 프로필이 없습니다. ResultStore 기본 프로필을 초기화하세요.`
+
+이후 실행에서는 초기화 없이 다음 순서만 사용합니다.
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_trend_v2_web.py preflight --store .\.trend_v2_store
+.\.venv\Scripts\python.exe scripts\run_trend_v2_web.py start --store .\.trend_v2_store
+```

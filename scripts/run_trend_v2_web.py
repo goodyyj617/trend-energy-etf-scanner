@@ -97,11 +97,14 @@ def main(argv: list[str] | None = None) -> int:
     from src.trend_v2_foundation.local_operability import initialize_result_store, run_preflight
     if args.command == "init":
         try:
-            created = initialize_result_store(store_root)
+            summary = initialize_result_store(store_root, ROOT / "config" / "trend_v2" / "evaluation_profiles")
+            created = bool(summary["created"])
         except ValueError as error:
             print(f"[차단] ResultStore 초기화 실패: {error}")
             return 1
         print("[완료] ResultStore를 초기화했습니다." if created else "[완료] 호환되는 ResultStore가 이미 초기화되어 있습니다.")
+        print(f"기본 평가 프로파일: 생성 {summary['seeded']}개, 재사용 {summary['reused']}개")
+        print("다음 명령: python scripts/run_trend_v2_web.py preflight --store <경로>")
         return 0
     report = run_preflight(ROOT, store_root, port=args.port)
     if args.command == "preflight":

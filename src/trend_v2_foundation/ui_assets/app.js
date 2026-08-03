@@ -544,6 +544,7 @@ function estimateSummary(data) {
 
 async function renderConstruction() {
   const [options, profiles] = await Promise.all([api("/construction/options"), api("/evaluation-profiles?page_size=200")]);
+  profiles.items.sort((left,right)=>(left.name === "research_default" ? -1 : right.name === "research_default" ? 1 : left.name.localeCompare(right.name)));
   const profileOptions = profiles.items.map((profile, index) => `<option value="${escapeHtml(profile.evaluation_profile_id)}" ${index === 0 ? "selected" : ""}>${escapeHtml(profile.name)} · ${escapeHtml(shortId(profile.evaluation_profile_id, 28))}</option>`).join("");
   view.innerHTML = `<p class="lede">허용 목록에 있는 규칙만 조합합니다. 임의 코드, 동적 Python, 원격 URL, 무제한 범위는 입력할 수 없습니다.</p>
     <form id="construction-form" class="card section">
@@ -572,6 +573,11 @@ async function renderConstruction() {
     <section class="card section"><h2>현재 로컬 정책</h2><pre>${jsonText(options.execution_policy)}</pre></section>
     ${foundation6CatalogPanel(options.foundation_6_catalog)}
     <div id="construction-preview">${state.constructionEstimate ? estimateSummary(state.constructionEstimate) : ""}</div>`;
+  const profileSelect = document.getElementById("construction-profile");
+  const profileLabels = {research_default:"연구용 기본 평가",final_eligibility_default:"최종 적격성 평가",exploratory_weighted_example:"탐색용 가중 평가 예시"};
+  profileSelect.multiple = false; profileSelect.size = 1;
+  [...profileSelect.options].forEach((option)=>{const profile=profiles.items.find((item)=>item.evaluation_profile_id===option.value); option.textContent=profileLabels[profile?.name]||profile?.name||option.value;});
+  if (!profiles.items.length) { profileSelect.disabled=true; const button=document.querySelector("#construction-form button[type=submit]"); button.disabled=true; button.insertAdjacentHTML("beforebegin",'<p class="notice">사용 가능한 평가 프로필이 없습니다. ResultStore 기본 프로필을 초기화하세요.</p>'); }
   document.getElementById("construction-form").addEventListener("submit", async (event) => {
     event.preventDefault(); setMessage("");
     try {
