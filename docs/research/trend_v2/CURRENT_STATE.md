@@ -73,6 +73,11 @@
 - Foundation 9E aligns the candidate-estimate endpoint to one response
   envelope and keeps recoverable estimate-rendering failures inside the
   construction screen with an actionable Korean message.
+- Foundation 9F adds repository-root Windows start/stop entry points. They
+  initialize the canonical local ResultStore, run deterministic preflight,
+  verify service identity before browser opening or reuse, persist atomic
+  launcher ownership, and request token-authenticated graceful shutdown only
+  for the verified launcher-owned process.
 
 ## Current phase
 
@@ -88,8 +93,7 @@ Product foundation -- local startup and recovery hardening
 
 ## Exact next task
 
-Foundation 9F -- Windows one-click browser launcher. Browser-first local
-operation must reuse the existing loopback server and ResultStore.
+Foundation 10 -- separately scoped product workflow evolution, without unrestricted optimization
 
 ## Required product direction
 

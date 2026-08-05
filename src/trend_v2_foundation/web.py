@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import hmac
+import os
+import threading
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import unquote, urlsplit
 
-from .api import API_PATH_PREFIX, ApiResponse, ReadOnlyTrendApi
+from .api import API_PATH_PREFIX, API_VERSION, ApiResponse, ReadOnlyTrendApi
 from .canonical import canonical_bytes
 
 
@@ -106,7 +109,12 @@ class TrendWebApplication:
         )
 
 
-def build_web_server(application: TrendWebApplication) -> ThreadingHTTPServer:
+def build_web_server(
+    application: TrendWebApplication,
+    *,
+    launcher_instance_id: str | None = None,
+    launcher_shutdown_token: str | None = None,
+) -> ThreadingHTTPServer:
     """Create the loopback server used by the API and packaged web interface."""
 
     api = application.api
@@ -114,7 +122,47 @@ def build_web_server(application: TrendWebApplication) -> ThreadingHTTPServer:
     class Handler(BaseHTTPRequestHandler):
         server_version = "TrendV2LocalWeb/1"
 
+        def _send_launcher_control(self, method: str) -> bool:
+            if launcher_instance_id is None or launcher_shutdown_token is None:
+                return False
+            path = urlsplit(self.path).path
+            if path == "/__trend_v2_launcher__/identity" and method == "GET":
+                body = canonical_bytes(
+                    {
+                        "schema_version": "trend_v2_windows_launcher_identity_v1",
+                        "application": API_VERSION,
+                        "instance_id": launcher_instance_id,
+                        "pid": os.getpid(),
+                    }
+                )
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                for key, value in _SECURITY_HEADERS.items():
+                    self.send_header(key, value)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return True
+            if path == "/__trend_v2_launcher__/shutdown" and method == "POST":
+                supplied = self.headers.get("X-Trend-V2-Shutdown-Token", "")
+                if not hmac.compare_digest(supplied, launcher_shutdown_token):
+                    self.send_error(403)
+                    return True
+                body = canonical_bytes({"status": "shutdown_requested"})
+                self.send_response(202)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                for key, value in _SECURITY_HEADERS.items():
+                    self.send_header(key, value)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return True
+            return False
+
         def _send(self, method: str) -> None:
+            if self._send_launcher_control(method):
+                return
             payload = b""
             if method == "POST":
                 try:

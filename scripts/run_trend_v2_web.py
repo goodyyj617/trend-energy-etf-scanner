@@ -92,6 +92,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("command", choices=("init", "start", "preflight", "status"), nargs="?", default="start")
     parser.add_argument("--store", required=True, type=Path, help="기존 로컬 ResultStore 디렉터리")
     parser.add_argument("--port", type=int, default=8765, help="루프백 포트 (기본 8765)")
+    parser.add_argument("--launcher-instance-id", help=argparse.SUPPRESS)
+    parser.add_argument("--launcher-token-file", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     store_root = args.store.resolve()
     from src.trend_v2_foundation.local_operability import initialize_result_store, run_preflight
@@ -128,8 +130,28 @@ def main(argv: list[str] | None = None) -> int:
         execution.close()
         return 0
     api = ReadOnlyTrendApi(store, attempt_repository=attempts, terminology_source=terminology, server_config=ApiServerConfig(port=args.port), controlled_execution_service=execution, persisted_execution_manager=manager, robustness_execution_service=robustness, workflow_coordinator=workflows, local_status_provider=lambda: local_status(store.root, manager=manager, attempts=attempts))
+    shutdown_token = None
+    if args.launcher_instance_id or args.launcher_token_file:
+        if not args.launcher_instance_id or args.launcher_token_file is None:
+            execution.close()
+            print("[차단] Windows 런처 제어 정보가 불완전합니다.")
+            return 1
+        try:
+            shutdown_token = args.launcher_token_file.read_text(encoding="utf-8").strip()
+        except OSError:
+            execution.close()
+            print("[차단] Windows 런처 종료 토큰을 읽을 수 없습니다.")
+            return 1
+        if len(shutdown_token) < 32:
+            execution.close()
+            print("[차단] Windows 런처 종료 토큰이 올바르지 않습니다.")
+            return 1
     try:
-        server = build_web_server(TrendWebApplication(api))
+        server = build_web_server(
+            TrendWebApplication(api),
+            launcher_instance_id=args.launcher_instance_id,
+            launcher_shutdown_token=shutdown_token,
+        )
     except OSError:
         execution.close()
         print("[차단] 다른 로컬 서비스가 이미 이 포트를 사용 중입니다.")
