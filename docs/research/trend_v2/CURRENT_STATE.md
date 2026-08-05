@@ -70,6 +70,9 @@
   verification that prevents Windows CRLF false corruption failures.
 - Foundation 9D seeds default EvaluationProfiles on local initialization and
   makes the construction profile control usable on first run.
+- Foundation 9E aligns the candidate-estimate endpoint to one response
+  envelope and keeps recoverable estimate-rendering failures inside the
+  construction screen with an actionable Korean message.
 
 ## Current phase
 
@@ -85,8 +88,8 @@ Product foundation -- local startup and recovery hardening
 
 ## Exact next task
 
-Foundation 10 -- separately scoped product workflow evolution, without
-unrestricted optimization.
+Foundation 9F -- Windows one-click browser launcher. Browser-first local
+operation must reuse the existing loopback server and ResultStore.
 
 ## Required product direction
 

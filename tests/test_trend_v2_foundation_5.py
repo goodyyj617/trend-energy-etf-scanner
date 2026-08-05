@@ -468,6 +468,25 @@ class ApiAndUiTests(unittest.TestCase):
         self.assertTrue(invalid.body["error"]["message_ko"])
         self.assertNotIn(str(self.fixture.store.root), json.dumps(invalid.body, ensure_ascii=False))
 
+    def test_candidate_estimate_uses_one_envelope_for_foundation_6_requests(self) -> None:
+        response = self.fixture.api.dispatch(
+            "POST",
+            "/api/v1/construction/estimate",
+            body={
+                "catalog_schema_version": "controlled_strategy_option_catalog_v2",
+                "components": {"signal": {"option_id": "prior_price_high_v2", "parameters": {"lookback": {"kind": "fixed", "value": 20}}}},
+                "evaluation_profile_ids": ["risk"],
+                "history_sessions": 252,
+                "universe_size": 470,
+                "asset_group_data_available": True,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("normalized_construction", response.body)
+        self.assertIn("candidate_estimate", response.body)
+        self.assertNotIn("normalized_construction", response.body["candidate_estimate"])
+        self.assertEqual(response.body["strategy_run_candidate_ids"], response.body["candidate_estimate"]["candidate_economic_hashes"])
+
     def test_request_size_path_traversal_and_unsupported_methods_fail_closed(self) -> None:
         maximum = self.fixture.service.policy.maximum_json_body_bytes
         oversized = self.fixture.api.dispatch(

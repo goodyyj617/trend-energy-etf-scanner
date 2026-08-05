@@ -518,10 +518,54 @@ function foundation6CatalogPanel(catalog) {
   return `<section class="card section"><h2>Foundation 6 허용 전략 라이브러리</h2><p class="notice">카탈로그 ${escapeHtml(catalog.catalog_version)} · ${escapeHtml(catalog.catalog_hash)}. 옵션 정의, 단위, 범위, 호환성 및 엔진 상태는 서버의 단일 버전 카탈로그에서 읽습니다.</p><div class="table-wrap"><table><thead><tr><th>한국어</th><th>English</th><th>범주</th><th>엔진 상태</th><th>호환성</th><th>매개변수·단위</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 
+function candidateEstimatePresentation(data) {
+  if (!data || typeof data !== "object" || !data.candidate_estimate || typeof data.candidate_estimate !== "object"
+      || !data.normalized_construction || typeof data.normalized_construction !== "object") {
+    throw new Error("후보 수 계산 응답에서 정규화된 전략 구성 또는 후보 추정 정보를 확인할 수 없습니다. API 응답 계약을 확인하세요.");
+  }
+  const source = data.candidate_estimate;
+  const foundation6 = source.schema_version === "candidate_space_estimate_v2";
+  const required = foundation6
+    ? ["raw_cartesian_combinations", "valid_unique_economic_candidates", "evaluation_only_applications", "total_estimated_work"]
+    : ["raw_cartesian_candidate_count", "economic_strategy_run_candidate_count", "evaluation_profile_application_count", "estimated_total_execution_units"];
+  if (required.some((field) => !Number.isFinite(Number(source[field])))) {
+    throw new Error("후보 수 계산 응답의 필수 추정값이 올바르지 않습니다. API 응답 계약을 확인하세요.");
+  }
+  const normalized = data.normalized_construction;
+  const walkForward = normalized.walk_forward;
+  const robustness = normalized.robustness;
+  const foldCount = walkForward && typeof walkForward === "object" ? Number(walkForward.fold_count) : 0;
+  const scenarioCount = robustness && typeof robustness === "object" ? Number(robustness.scenario_count) : 0;
+  if (!Number.isFinite(foldCount) || !Number.isFinite(scenarioCount)) {
+    throw new Error("후보 수 계산 응답의 검증 작업 값이 올바르지 않습니다. API 응답 계약을 확인하세요.");
+  }
+  const estimate = foundation6 ? {
+    ...source,
+    raw_cartesian_candidate_count: source.raw_cartesian_combinations,
+    economic_strategy_run_candidate_count: source.valid_unique_economic_candidates,
+    evaluation_profile_application_count: source.evaluation_only_applications,
+    robustness_scenario_count: source.robustness_workload,
+    estimated_total_execution_units: source.total_estimated_work,
+    estimated_reuse_count: source.reusable_completed_candidates,
+    estimated_new_backtest_count: source.new_candidates_requiring_execution,
+    threshold_results: [],
+    confirmation_required: false,
+    hard_limit_exceeded: false,
+  } : source;
+  return {
+    estimate,
+    normalized: {
+      ...normalized,
+      walk_forward: walkForward || { enabled: false, fold_count: 0 },
+      robustness: robustness || { scenario_count: 0 },
+    },
+  };
+}
+
 function estimateSummary(data) {
-  const estimate = data.candidate_estimate;
-  const unsupportedExecution = data.normalized_construction.walk_forward.fold_count > 0
-    || data.normalized_construction.robustness.scenario_count > 0;
+  const { estimate, normalized } = candidateEstimatePresentation(data);
+  const unsupportedExecution = normalized.walk_forward.fold_count > 0
+    || normalized.robustness.scenario_count > 0;
   return `<section class="card section"><h2>정규화 및 후보 미리보기</h2>
     <div class="card-grid">
       <article class="card metric-card"><small>원시 Cartesian 후보</small><strong>${fmt(estimate.raw_cartesian_candidate_count, 0)}</strong></article>
@@ -534,7 +578,7 @@ function estimateSummary(data) {
     <div class="table-wrap"><table><thead><tr><th>정책 임계값</th><th>관측값</th><th>한도</th><th>판정</th></tr></thead><tbody>${thresholdRows(estimate)}</tbody></table></div>
     ${estimate.hard_limit_exceeded ? `<div class="notice danger">⛔ 하드 한도 위반: 확인으로 우회할 수 없습니다.</div>` : estimate.confirmation_required ? `<div class="notice">⚠ 대규모 요청 확인이 필요합니다. 요청·추정·정책 해시에 묶인 일회성 확인만 허용됩니다.</div>` : `<div class="notice">✓ 명시적 대규모 확인 없이 실행 가능한 범위입니다.</div>`}
     ${unsupportedExecution ? `<div class="notice danger">⛔ 워크포워드 fold와 강건성 시나리오는 작업량 미리보기만 지원합니다. 현재 실행 어댑터로 요청하려면 두 값을 0으로 설정하세요.</div>` : ""}
-    <details open><summary>정확한 정규화 요청</summary><pre>${jsonText(data.normalized_construction)}</pre></details>
+    <details open><summary>정확한 정규화 요청</summary><pre>${jsonText(normalized)}</pre></details>
     <details><summary>결정적 StrategyRun 후보 순서</summary><pre>${jsonText(data.strategy_run_candidate_ids)}</pre></details>
     <div class="actions">
       ${estimate.confirmation_required && !estimate.hard_limit_exceeded && !unsupportedExecution ? `<button type="button" id="confirm-construction">이 정확한 요청을 명시적으로 확인</button>` : ""}
@@ -584,11 +628,14 @@ async function renderConstruction() {
       const profileIds = [...document.getElementById("construction-profile").selectedOptions].map((option) => option.value);
       state.constructionDraft = buildConstruction(profileIds);
       state.confirmationId = null;
-      state.constructionEstimate = await api("/construction/estimate", { method: "POST", body: state.constructionDraft });
-      document.getElementById("construction-preview").innerHTML = estimateSummary(state.constructionEstimate);
+      const estimate = await api("/construction/estimate", { method: "POST", body: state.constructionDraft });
+      const preview = estimateSummary(estimate);
+      state.constructionEstimate = estimate;
+      document.getElementById("construction-preview").innerHTML = preview;
       bindConstructionActions();
     } catch (error) {
-      showFatal(error);
+      state.constructionEstimate = null;
+      document.getElementById("construction-preview").innerHTML = `<p class="notice danger">${escapeHtml(error?.message || "후보 수 계산 결과를 표시하지 못했습니다. 다시 시도하세요.")}</p>`;
     }
   });
   if (state.constructionEstimate) bindConstructionActions();
@@ -722,4 +769,4 @@ window.addEventListener("hashchange",navigate);
 window.addEventListener("DOMContentLoaded",navigate);
 
 // Stable helpers exposed only for synthetic, dependency-free UI contract tests.
-globalThis.TrendV2Ui = Object.freeze({ escapeHtml, availabilityLabel, numericValue, drawdownRows, buildChartRows });
+globalThis.TrendV2Ui = Object.freeze({ escapeHtml, availabilityLabel, numericValue, drawdownRows, buildChartRows, candidateEstimatePresentation, estimateSummary });

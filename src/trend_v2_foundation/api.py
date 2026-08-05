@@ -338,7 +338,13 @@ class ReadOnlyTrendApi:
             if "catalog_schema_version" in payload:
                 if self.persisted_execution_manager is None:
                     raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
-                return 200, estimate_candidates(self.persisted_execution_manager.catalog, payload)
+                estimate = estimate_candidates(self.persisted_execution_manager.catalog, payload)
+                normalized = estimate.pop("normalized_construction")
+                return 200, {
+                    "normalized_construction": normalized,
+                    "candidate_estimate": estimate,
+                    "strategy_run_candidate_ids": list(estimate["candidate_economic_hashes"]),
+                }
             normalized, estimate, candidates = service.estimate(payload)
             return 200, {
                 "normalized_construction": normalized.to_dict(),
