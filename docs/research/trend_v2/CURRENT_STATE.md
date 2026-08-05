@@ -88,8 +88,8 @@ Product foundation -- local startup and recovery hardening
 
 ## Exact next task
 
-Foundation 10 -- separately scoped product workflow evolution, without
-unrestricted optimization.
+Foundation 9F -- Windows one-click browser launcher. Browser-first local
+operation must reuse the existing loopback server and ResultStore.
 
 ## Required product direction
 

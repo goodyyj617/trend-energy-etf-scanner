@@ -36,5 +36,6 @@ preview rendering, candidate counts, zero optional workloads, malformed
 response handling, first-run profile behavior, init/preflight/start focused
 regressions, Python compilation, and JavaScript syntax.
 
-Next recommended task: Foundation 10 -- separately scoped product workflow
-evolution, without unrestricted optimization.
+Next task: Foundation 9F -- Windows one-click browser launcher. It must provide
+browser-first local operation while reusing the existing loopback server and
+ResultStore.
