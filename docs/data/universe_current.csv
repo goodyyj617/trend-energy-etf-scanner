@@ -2036,7 +2036,7 @@ PJFG,PGIM Jennison Focused Growth ETF,P,True,False,False,False,False,False,False
 CGVV,Capital Group U.S. Large Value ETF,P,True,False,False,False,False,False,False,False,False,,False,,,145919248.0,Factor / Style,unknown,2035.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 CRAK,VanEck Oil Refiners ETF,P,True,False,False,False,False,False,False,False,False,,False,,,145892928.0,Commodity,unknown,2036.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 HOOW,Roundhill HOOD WeeklyPay ETF,Z,True,False,False,False,False,False,True,False,True,option_income,False,,,145805328.0,Other,unknown,2037.0,False,,True,False,Other,Other,Other,Other,Other
-RVNU,Xtrackers Municipal Infrastructure Revenue Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,144826896.0,Bond,unknown,2038.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+RVNU,Xtrackers Municipal Infrastructure Revenue Bond Active ETF,P,True,False,False,False,False,False,False,False,False,,False,,,144826896.0,Bond,unknown,2038.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 BITI,ProShares Short Bitcoin ETF,P,True,False,False,False,False,False,False,False,False,,False,,,144245696.0,Crypto,unknown,2039.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 SMCO,Hilton Small-MidCap Opportunity ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,143961728.0,Other,unknown,2040.0,False,,False,False,Other,Other,Other,Other,Other
 SMOG,VanEck Low Carbon Energy ETF,P,True,False,False,False,False,False,False,False,False,,False,,,143717136.0,Other,unknown,2041.0,False,,False,False,Other,Other,Other,Other,Other
@@ -3988,6 +3988,7 @@ CAGE,Calamos Autocallable Growth ETF,P,True,False,False,False,False,False,False,
 CCRP,Columbia Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 CDPI,Columbia High Dividend Premium Income ETF,P,True,False,False,False,False,False,True,False,True,option_income,True,covered_call_option_income,premium income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 CEF,Sprott Physical Gold and Silver Trust Units,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+CHDG,Calamos Active Hedged Equity ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 CLIM,Climate Global - Climate Resilient REIT Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,REIT / Infra,unknown,,False,,False,False,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra
 CLIX,ProShares Long Online/Short Stores ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 CLNK,Common Shares of Beneficial Interest of Bitwise Chainlink ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
@@ -4040,6 +4041,7 @@ FFLS,The Future Fund Long/Short ETF,P,True,False,False,False,False,False,False,F
 FFSM,Fidelity Fundamental Small-Mid Cap ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 FINA,Fidelity MSCI North American Subset Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 FIYY,GraniteShares YieldBOOST 20Y Treasuries ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+FIZY,Fitz-Gerald Must Have Portfolio and Options Overlay ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 FMTL,First Trust Indxx Critical Metals ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 FPWR,First Trust EIP Power Solutions ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 FRIZ,Franklin Dividend Growth ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend growth,,Factor / Style,unknown,,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
