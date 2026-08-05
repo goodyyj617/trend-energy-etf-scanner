@@ -32,6 +32,7 @@ from .canonical import canonical_bytes, canonical_data, content_hash
 from .contracts import (
     DERIVED_METRIC_MANIFEST_VERSION,
     EVALUATION_PROFILE_VERSION,
+    EVALUATION_PROFILE_V2_VERSION,
     EVALUATION_RUN_VERSION,
     METRIC_REGISTRY_VERSION,
     STRATEGY_RUN_MANIFEST_VERSION,
@@ -73,6 +74,7 @@ from .foundation_6 import (
 )
 from .robustness import RobustnessError, RobustnessExecutionService
 from .workflow import WorkflowCoordinator, WorkflowError
+from .profile_studio import ProfileStudioError, ProfileStudioService
 
 
 API_VERSION = "trend_v2_local_read_api_v1"
@@ -194,6 +196,7 @@ class ReadOnlyTrendApi:
         robustness_execution_service: RobustnessExecutionService | None = None,
         workflow_coordinator: WorkflowCoordinator | None = None,
         local_status_provider: Callable[[], Mapping[str, Any]] | None = None,
+        profile_studio_service: ProfileStudioService | None = None,
     ) -> None:
         self.store = store
         self.attempt_repository = attempt_repository or FileExecutionAttemptRepository(
@@ -211,6 +214,7 @@ class ReadOnlyTrendApi:
         self.robustness_execution_service = robustness_execution_service
         self.workflow_coordinator = workflow_coordinator
         self.local_status_provider = local_status_provider
+        self.profile_studio_service = profile_studio_service or ProfileStudioService(store)
         if persisted_execution_manager is not None:
             self.persisted_execution_manager = persisted_execution_manager
         elif controlled_execution_service is not None:
@@ -259,12 +263,14 @@ class ReadOnlyTrendApi:
         if isinstance(body, Mapping):
             payload = body
         elif isinstance(body, bytes):
-            if self.controlled_execution_service is None and self.robustness_execution_service is None:
+            if self.controlled_execution_service is None and self.robustness_execution_service is None and self.profile_studio_service is None:
                 raise ApiContractError(405, "method_not_allowed", "Controlled write API is disabled.")
             maximum_body = (
                 self.controlled_execution_service.policy.maximum_json_body_bytes
                 if self.controlled_execution_service is not None
                 else int(self.robustness_execution_service.policy.document["maximum_json_body_bytes"])
+                if self.robustness_execution_service is not None
+                else 65_536
             )
             if len(body) > maximum_body:
                 raise ApiContractError(413, "request_too_large", "JSON request body exceeds the configured bound.")
@@ -295,6 +301,22 @@ class ReadOnlyTrendApi:
         payload = self._json_body(body)
         robustness = self.robustness_execution_service
         workflow = self.workflow_coordinator
+        studio = self.profile_studio_service
+        if path == f"{API_PATH_PREFIX}/evaluation-profiles/validate" and method == "POST":
+            response = dict(studio.validate(payload))
+            response["errors"] = [
+                {**item, "message_ko": self.error_messages.get(item["code"], "평가 프로필 설정을 확인하세요.")}
+                for item in response.get("errors", [])
+            ]
+            return 200, response
+        if path == f"{API_PATH_PREFIX}/evaluation-profiles" and method == "POST":
+            response, replayed = studio.save(payload, idempotency_key=self._idempotency_key(headers))
+            return (200 if replayed else 201), response
+        profile_parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
+        if len(profile_parts) == 3 and profile_parts[0] == "evaluation-profiles" and profile_parts[2] == "apply" and method == "POST":
+            profile_id = self._identifier(profile_parts[1], "EvaluationProfile")
+            response, replayed = studio.apply(profile_id, payload, idempotency_key=self._idempotency_key(headers))
+            return (200 if replayed else 201), response
         if workflow is not None and path == f"{API_PATH_PREFIX}/workflows" and method == "POST":
             if set(payload).difference({"construction", "label_ko"}) or not isinstance(payload.get("construction"), Mapping):
                 raise ApiContractError(400, "workflow_construction_invalid", "Workflow requires construction and Korean label.")
@@ -590,6 +612,7 @@ class ReadOnlyTrendApi:
                 STRATEGY_RUN_SPEC_VERSION,
                 STRATEGY_RUN_MANIFEST_VERSION,
                 EVALUATION_PROFILE_VERSION,
+                EVALUATION_PROFILE_V2_VERSION,
                 EVALUATION_RUN_VERSION,
                 DERIVED_METRIC_MANIFEST_VERSION,
                 DAILY_PORTFOLIO_CURVE_SCHEMA_VERSION,
@@ -1237,6 +1260,9 @@ class ReadOnlyTrendApi:
         if path == f"{API_PATH_PREFIX}/terminology":
             self._allow_query(query, set())
             return self._terminology(registry)
+        if path == f"{API_PATH_PREFIX}/evaluation-profile-studio/options":
+            self._allow_query(query, set())
+            return self.profile_studio_service.options()
         if path == f"{API_PATH_PREFIX}/robustness/options":
             self._allow_query(query, set())
             if self.robustness_execution_service is None:
@@ -1344,6 +1370,18 @@ class ReadOnlyTrendApi:
                 }
                 if resource in artifact_routes:
                     return self._artifact_response(registry, run, artifact_routes[resource], query)
+        if parts[0] == "evaluation-profiles" and len(parts) == 3 and parts[2] == "lineage":
+            profile_id = self._identifier(parts[1], "EvaluationProfile")
+            self._allow_query(query, {"page_size", "cursor"})
+            history = self.profile_studio_service.history(profile_id)
+            items, page = self._page(
+                history["items"],
+                query=query,
+                registry_id=str(history["root_profile_id"]),
+                resource="evaluation-profile-lineage",
+                signature_fields={"profile_id": profile_id, "root_profile_id": history["root_profile_id"]},
+            )
+            return {"root_profile_id": history["root_profile_id"], "items": items, **page}
         if parts[0] == "evaluation-profiles" and len(parts) == 2:
             profile_id = self._identifier(parts[1], "EvaluationProfile")
             self._allow_query(query, set())
@@ -1453,6 +1491,9 @@ class ReadOnlyTrendApi:
         except WorkflowError as error:
             status = 404 if error.code == "workflow_not_found" else 409 if error.code.endswith("incomplete") or error.code.endswith("unavailable") else 400
             return ApiResponse(status_code=status, body={"error": error.to_dict(request_id)}, headers={"X-Request-ID": request_id})
+        except ProfileStudioError as error:
+            status = 404 if error.code in {"profile_source_not_found", "profile_apply_strategy_run_not_found"} else 409 if error.code in {"profile_validation_stale", "profile_lineage_conflict", "profile_idempotency_conflict"} else 400
+            return self._error_response(ApiContractError(status, error.code, error.diagnostic_en), request_id)
         except Exception:
             return self._error_response(
                 ApiContractError(
@@ -1481,7 +1522,9 @@ def build_http_server(api: ReadOnlyTrendApi) -> ThreadingHTTPServer:
                 maximum = (
                     api.controlled_execution_service.policy.maximum_json_body_bytes
                     if api.controlled_execution_service is not None
-                    else 0
+                    else int(api.robustness_execution_service.policy.document["maximum_json_body_bytes"])
+                    if api.robustness_execution_service is not None
+                    else 65_536
                 )
                 payload = self.rfile.read(min(max(declared, 0), maximum + 1))
                 if declared < 0 or declared > maximum:
