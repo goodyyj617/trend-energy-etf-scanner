@@ -6,6 +6,7 @@ const LIST_PAGE_SIZE = 20;
 const routes = {
   workflow: "워크플로",
   construction: "전략 구성",
+  profiles: "평가 프로필 스튜디오",
   requests: "실행 요청",
   overview: "개요",
   runs: "저장된 전략 실행",
@@ -32,6 +33,7 @@ const state = {
   constructionEstimate: null,
   confirmationId: null,
   lastExecutionRequestId: null,
+  studioSourceProfileId: null,
 };
 
 const view = document.getElementById("view");
@@ -728,6 +730,69 @@ async function renderSystem() {
   view.innerHTML=`<p class="lede">저장 근거 읽기와 통제된 로컬 쓰기 경계 및 현재 버전을 확인합니다.</p><section class="card-grid"><article class="card metric-card"><small>API 상태</small><strong>${statusBadge(health.status,health.status_ko)}</strong></article><article class="card metric-card"><small>읽기 전용</small><strong>${health.read_only?"예":"통제 쓰기 활성"}</strong></article><article class="card metric-card"><small>최대 목록 페이지</small><strong>${fmt(metadata.maximum_page_size,0)}</strong></article><article class="card metric-card"><small>최대 시계열 페이지</small><strong>${fmt(metadata.maximum_time_series_page_size,0)}</strong></article></section><div class="two-column"><section class="card"><h2>버전</h2><pre>${jsonText(metadata)}</pre></section><section class="card"><h2>레지스트리 재구축 식별</h2><pre>${jsonText(overview.last_registry_rebuild_identity)}</pre><h3>보안 경계</h3><ul><li>기본 루프백 호스트만 사용</li><li>브라우저에서 임의 경로·원격 URL 입력 없음</li><li>허용 목록 밖 쓰기·셸·동적 Python·시장 데이터 요청 없음</li><li>CORS 비활성 또는 명시적 로컬 출처만 허용</li><li>오류 화면에 스택 추적이나 로컬 절대 경로를 표시하지 않음</li></ul></section></div>`;
 }
 
+function studioDraft(source) {
+  const draft = JSON.parse(JSON.stringify(source));
+  for (const key of ["name", "approval_status", "schema_version", "lineage"]) delete draft[key];
+  return draft;
+}
+
+function studioJsonField(id, label, value) {
+  return `<div class="field studio-json"><label for="${id}">${escapeHtml(label)}</label><textarea id="${id}" rows="5" spellcheck="false">${escapeHtml(JSON.stringify(value, null, 2))}</textarea></div>`;
+}
+
+function studioParse(id, label) {
+  try { return JSON.parse(document.getElementById(id).value); }
+  catch (_error) { throw new Error(`${label} 입력은 JSON 형식이어야 합니다.`); }
+}
+
+function studioPayload(sourceId, source) {
+  const profile = studioDraft(source);
+  profile.description = document.getElementById("studio-description").value;
+  profile.enabled_metrics = studioParse("studio-enabled-metrics", "사용 지표");
+  profile.metric_directions = studioParse("studio-directions", "지표 방향");
+  profile.metric_modes = studioParse("studio-modes", "지표 모드");
+  profile.mandatory_gates = studioParse("studio-gates", "필수 관문");
+  profile.pareto_objectives = studioParse("studio-pareto", "파레토 목표");
+  profile.robustness_vetoes = studioParse("studio-vetoes", "강건성 거부권");
+  profile.lexicographic_tie_break = studioParse("studio-tiebreak", "사전식 동률 해소");
+  profile.behavior_deduplication = studioParse("studio-behavior", "행동 중복 제거");
+  profile.exploratory_metric_weights = studioParse("studio-weights", "탐색 가중치");
+  profile.normalization_method = document.getElementById("studio-normalization").value || null;
+  profile.ranking_sensitivity_delta = numericValue(document.getElementById("studio-sensitivity").value);
+  profile.high_weighted_rank_cutoff = numericValue(document.getElementById("studio-rank-cutoff").value);
+  return { source_profile_id: sourceId, change_summary_ko: document.getElementById("studio-change-summary").value, profile };
+}
+
+async function renderProfileStudioEditor(sourceId, source, options) {
+  const draft = studioDraft(source);
+  const metricList = options.metrics.map((item) => `${item.metric_key} · ${item.korean_name}`).join("\n");
+  view.innerHTML = `<p class="lede">기존 프로필은 수정하지 않습니다. 검증된 새 버전만 저장하며, 탐색 가중 결과는 기본 비보상형 판단을 바꾸지 않습니다.</p>
+  <section class="card section"><h2>복제 원본</h2>${keyValues([["원본",sourceId,true],["원본 해시",source.profile_hash||"저장된 프로필",true],["승인 상태",source.approval_status]])}</section>
+  <form id="profile-studio-form" class="section"><section class="card"><h2>버전 설명</h2><div class="field"><label for="studio-change-summary">변경 요약 (한국어)</label><input id="studio-change-summary" required maxlength="500" placeholder="예: 회복기간 기준을 보수적으로 조정"></div><div class="field"><label for="studio-description">설명</label><textarea id="studio-description" rows="3" maxlength="2000">${escapeHtml(draft.description||"")}</textarea></div></section>
+  <section class="card"><h2>Metric Registry</h2><p class="notice">아래 등록 지표와 용도만 사용할 수 있습니다. 임의 수식·코드·경로는 저장되지 않습니다.</p><pre>${escapeHtml(metricList)}</pre>${studioJsonField("studio-enabled-metrics","사용 지표",draft.enabled_metrics)}${studioJsonField("studio-directions","지표 방향",draft.metric_directions)}${studioJsonField("studio-modes","지표 모드",draft.metric_modes)}</section>
+  <section class="card"><h2>기본 비보상형 판단</h2>${studioJsonField("studio-gates","필수 관문",draft.mandatory_gates)}${studioJsonField("studio-pareto","파레토 목표와 ε",draft.pareto_objectives)}${studioJsonField("studio-vetoes","강건성 거부권",draft.robustness_vetoes)}${studioJsonField("studio-tiebreak","사전식 동률 해소",draft.lexicographic_tie_break)}</section>
+  <section class="card"><h2>행동 중복 제거</h2><p class="notice">기존 상관·Jaccard·경로 거리 진단만 사용합니다.</p>${studioJsonField("studio-behavior","고정 진단 조건과 대표 순서",draft.behavior_deduplication)}</section>
+  <section class="card weighted"><h2>별도 탐색 가중 보기</h2><p class="notice">필수 관문, 파레토, 강건성, 동률 해소 또는 행동 중복 제거 결과를 덮어쓰지 않습니다.</p>${studioJsonField("studio-weights","탐색 가중치",draft.exploratory_metric_weights)}<div class="field"><label for="studio-normalization">정규화</label><select id="studio-normalization"><option value="">없음</option>${options.normalization_methods.map((item)=>`<option value="${item}" ${draft.normalization_method===item?"selected":""}>${item}</option>`).join("")}</select></div><div class="two-column"><div class="field"><label for="studio-sensitivity">민감도 δ</label><input id="studio-sensitivity" type="number" min="0.001" max="1" step="0.01" value="${escapeHtml(draft.ranking_sensitivity_delta)}"></div><div class="field"><label for="studio-rank-cutoff">높은 탐색 순위 기준</label><input id="studio-rank-cutoff" type="number" min="1" step="1" value="${escapeHtml(draft.high_weighted_rank_cutoff)}"></div></div></section>
+  <div class="toolbar"><button type="button" id="studio-validate">프로필 검증</button><button type="button" id="studio-save" disabled>새 불변 버전 저장</button><button type="button" id="studio-cancel">목록으로</button></div><div id="studio-validation" aria-live="polite"></div></form>`;
+  let validated = null;
+  document.getElementById("studio-cancel").addEventListener("click",()=>renderProfileStudio().catch(showFatal));
+  document.getElementById("studio-validate").addEventListener("click",async()=>{try { const payload=studioPayload(sourceId,source); const result=await api("/evaluation-profiles/validate",{method:"POST",body:payload}); validated=result.valid?{payload,draftHash:result.draft_hash}:null; document.getElementById("studio-save").disabled=!validated; document.getElementById("studio-validation").innerHTML=result.valid?'<p class="notice">검증 완료: 현재 초안만 저장할 수 있습니다.</p>':`<div class="notice">${(result.errors||[]).map((item)=>escapeHtml(item.message_ko||item.code)).join("<br>")}</div>`; } catch(error) { validated=null; document.getElementById("studio-save").disabled=true; document.getElementById("studio-validation").textContent=error.message; }});
+  document.getElementById("studio-save").addEventListener("click",async()=>{if(!validated)return; const current=studioPayload(sourceId,source); const response=await api("/evaluation-profiles",{method:"POST",body:{...current,validated_draft_hash:validated.draftHash},idempotencyKey:idempotencyKey("profile-save")}); await renderProfileStudioSaved(response).catch(showFatal);});
+}
+
+async function renderProfileStudioSaved(saved) {
+  const [history,runs] = await Promise.all([api(`/evaluation-profiles/${encodeURIComponent(saved.evaluation_profile_id)}/lineage`),api("/runs?page_size=200")]);
+  view.innerHTML=`<section class="card section"><h2>새 불변 EvaluationProfile 저장됨</h2>${keyValues([["프로필",saved.evaluation_profile_id,true],["해시",saved.profile_hash,true],["변경 요약",saved.lineage.change_summary_ko],["버전",saved.lineage.revision]])}</section><section class="card section"><h2>계보와 변경 이력</h2><div class="table-wrap"><table><thead><tr><th>버전</th><th>프로필</th><th>부모</th><th>변경</th></tr></thead><tbody>${history.items.map((item)=>`<tr><td>${fmt(item.lineage.revision,0)}</td><td class="id">${escapeHtml(item.evaluation_profile_id)}</td><td class="id">${escapeHtml(item.lineage.parent_profile_id||"—")}</td><td>${escapeHtml(item.lineage.change_summary_ko)}</td></tr>`).join("")}</tbody></table></div></section><section class="card section"><h2>저장된 StrategyRun에 명시적으로 적용</h2><p class="notice">경제 백테스트를 다시 실행하지 않고 저장된 근거만 사용합니다.</p><div class="field"><label for="studio-apply-run">StrategyRun</label><select id="studio-apply-run">${runs.items.map((item)=>`<option value="${escapeHtml(item.strategy_run_id)}">${escapeHtml(shortId(item.strategy_run_id,40))}</option>`).join("")}</select></div><button id="studio-apply" ${runs.items.length?"":"disabled"}>이 프로필 적용</button><div id="studio-apply-result" aria-live="polite"></div></section>`;
+  document.getElementById("studio-apply")?.addEventListener("click",async()=>{const runId=document.getElementById("studio-apply-run").value;const result=await api(`/evaluation-profiles/${encodeURIComponent(saved.evaluation_profile_id)}/apply`,{method:"POST",body:{strategy_run_id:runId},idempotencyKey:idempotencyKey("profile-apply")});document.getElementById("studio-apply-result").innerHTML=`<p class="notice">EvaluationRun 생성: ${escapeHtml(result.evaluation_run.evaluation_run_id)} · 경제 백테스트 시작: 아니오</p>`;});
+}
+
+async function renderProfileStudio() {
+  const [profiles,options]=await Promise.all([api("/evaluation-profiles?page_size=200&sort=name"),api("/evaluation-profile-studio/options")]);
+  profiles.items.sort((a,b)=>a.name==="research_default"?-1:b.name==="research_default"?1:a.name.localeCompare(b.name,"ko"));
+  view.innerHTML=`<p class="lede">저장된 EvaluationProfile을 복제해 새 불변 버전을 만듭니다. 기본 비교는 비보상형이며 가중 결과는 탐색용입니다.</p><section class="card section"><h2>저장된 프로필</h2><div class="table-wrap"><table><thead><tr><th>이름</th><th>모드</th><th>승인 상태</th><th>해시</th><th>작업</th></tr></thead><tbody>${profiles.items.map((item)=>`<tr><th>${escapeHtml(item.name)}</th><td>${escapeHtml(item.comparison_mode)}</td><td>${escapeHtml(item.approval_status)}</td><td class="id">${escapeHtml(shortId(item.profile_hash,18))}</td><td><button data-studio-clone="${escapeHtml(item.evaluation_profile_id)}">복제</button></td></tr>`).join("")}</tbody></table></div></section>`;
+  document.querySelectorAll("[data-studio-clone]").forEach((button)=>button.addEventListener("click",async()=>{const id=button.dataset.studioClone;const source=await api(`/evaluation-profiles/${encodeURIComponent(id)}`);await renderProfileStudioEditor(id,source,options);}));
+}
+
 function showFatal(error) {
   if (error?.name === "AbortError") return;
   setLoading(""); setMessage(error?.message || "화면을 불러오지 못했습니다.");
@@ -747,6 +812,7 @@ async function navigate() {
     else if(route==="overview")await renderOverview();
     else if(route==="runs"&&detail)await renderRunDetail(detail);
     else if(route==="runs")await renderRuns();
+    else if(route==="profiles")await renderProfileStudio();
     else if(route==="evaluations")await renderEvaluations();
     else if(route==="performance")await renderPerformance();
     else if(route==="robustness")await renderRobustness();

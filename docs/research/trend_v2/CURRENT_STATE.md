@@ -78,6 +78,10 @@
   verify service identity before browser opening or reuse, persist atomic
   launcher ownership, and request token-authenticated graceful shutdown only
   for the verified launcher-owned process.
+- Foundation 10A adds a Korean-first Evaluation Profile Studio. It creates
+  immutable lineage-aware profile revisions, validates only Metric
+  Registry-backed decision settings, and applies a selected profile to stored
+  evidence without rerunning the economic backtest.
 
 ## Current phase
 

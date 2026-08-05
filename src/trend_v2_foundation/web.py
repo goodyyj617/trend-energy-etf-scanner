@@ -172,7 +172,9 @@ def build_web_server(
                 maximum = (
                     api.controlled_execution_service.policy.maximum_json_body_bytes
                     if api.controlled_execution_service is not None
-                    else 0
+                    else int(api.robustness_execution_service.policy.document["maximum_json_body_bytes"])
+                    if api.robustness_execution_service is not None
+                    else 65_536
                 )
                 payload = self.rfile.read(min(max(declared, 0), maximum + 1))
                 if declared < 0 or declared > maximum:

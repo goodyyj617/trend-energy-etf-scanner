@@ -12,6 +12,7 @@ from .canonical import canonical_data, content_hash, deep_freeze, deterministic_
 STRATEGY_RUN_SPEC_VERSION = "strategy_run_spec_v1"
 STRATEGY_RUN_MANIFEST_VERSION = "strategy_run_manifest_v1"
 EVALUATION_PROFILE_VERSION = "evaluation_profile_v1"
+EVALUATION_PROFILE_V2_VERSION = "evaluation_profile_v2"
 EVALUATION_RUN_VERSION = "evaluation_run_v2"
 RETENTION_POLICY_VERSION = "artifact_retention_policy_v1"
 METRIC_REGISTRY_VERSION = "metric_registry_v2"
@@ -281,6 +282,7 @@ class EvaluationProfile:
     description: str = ""
     approval_status: str = "example_not_production_approved"
     schema_version: str = EVALUATION_PROFILE_VERSION
+    lineage: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "enabled_metrics", tuple(self.enabled_metrics))
@@ -292,6 +294,14 @@ class EvaluationProfile:
         object.__setattr__(self, "metric_modes", deep_freeze(self.metric_modes))
         object.__setattr__(self, "exploratory_metric_weights", deep_freeze(self.exploratory_metric_weights))
         object.__setattr__(self, "behavior_deduplication", deep_freeze(self.behavior_deduplication))
+        if self.lineage is not None:
+            object.__setattr__(self, "lineage", deep_freeze(self.lineage))
+        if self.schema_version not in {EVALUATION_PROFILE_VERSION, EVALUATION_PROFILE_V2_VERSION}:
+            raise ValueError("unsupported EvaluationProfile schema_version")
+        if self.schema_version == EVALUATION_PROFILE_V2_VERSION and not self.lineage:
+            raise ValueError("evaluation_profile_v2 requires lineage")
+        if self.schema_version == EVALUATION_PROFILE_VERSION and self.lineage is not None:
+            raise ValueError("evaluation_profile_v1 cannot contain lineage")
         if len(set(self.enabled_metrics)) != len(self.enabled_metrics):
             raise ValueError("enabled_metrics cannot contain duplicates")
         if any(
@@ -314,18 +324,26 @@ class EvaluationProfile:
 
     @property
     def profile_hash(self) -> str:
-        return content_hash(self)
+        return content_hash(self.to_dict())
 
     @property
     def evaluation_profile_id(self) -> str:
         return f"evaluation_profile_{self.profile_hash}"
 
     def to_dict(self) -> dict[str, Any]:
-        return canonical_data(self)
+        payload = canonical_data(self)
+        # Preserve the original v1 canonical payload byte-for-byte: existing
+        # content-addressed profile IDs and EvaluationRuns depend on it.
+        if self.schema_version == EVALUATION_PROFILE_VERSION:
+            payload.pop("lineage", None)
+        return payload
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "EvaluationProfile":
         payload = dict(value)
+        payload.setdefault("schema_version", EVALUATION_PROFILE_VERSION)
+        if payload["schema_version"] == EVALUATION_PROFILE_VERSION:
+            payload.pop("lineage", None)
         payload["comparison_mode"] = ComparisonMode(payload["comparison_mode"])
         payload["enabled_metrics"] = tuple(payload["enabled_metrics"])
         payload["metric_directions"] = {
