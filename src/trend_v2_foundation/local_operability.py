@@ -56,7 +56,7 @@ def initialize_result_store(store_root: str | Path, profile_root: str | Path | N
         for name in _STATE_DIRECTORIES:
             (store / name).mkdir(parents=True, exist_ok=True)
         created = False
-    elif store.exists() and any(store.iterdir()):
+    elif store.exists() and any(path.name != "launcher" for path in store.iterdir()):
         raise ValueError("existing directory is not an initialized ResultStore")
     else:
         result_store = LocalResultStore(store, _DEFAULT_RETENTION_POLICY)
