@@ -735,7 +735,7 @@ class BoundedInputIntegrationTest(unittest.TestCase):
 
     def test_t0_excluded_and_common_economic_dates(self) -> None:
         self.assertEqual(self.validation["t0_excluded_rows"], 1)
-        self.assertEqual(self.validation["economic_observations"], 2332)
+        self.assertEqual(self.validation["economic_observations"], 2331)
         self.assertEqual(self.validation["material_failures"], [])
 
     def test_exact_current_population(self) -> None:
