@@ -42,6 +42,17 @@ Python 전체, 포트 점유 프로세스, 또는 검증되지 않은 PID를 강
 만들어야 한다. `.cmd`는 `%~dp0`에서 저장소 루트를 계산하므로 저장소 경로에 공백,
 한글, 괄호가 있어도 동작한다.
 
+## Windows CMD compatibility hotfix
+
+The repository-root `.cmd` wrappers are ASCII-only and contain only repository
+root resolution, repository-local Python discovery, delegation to the Python
+launcher, and exit-code handling. Korean diagnostics remain in the Python
+launcher so normal `cmd.exe` parsing is independent of the active Windows code
+page. `.gitattributes` enforces CRLF working-tree line endings for every
+`.cmd` file. The required Windows smoke-test boundary is execution of these
+`.cmd` files themselves (start, readiness, stop, and graceful process exit),
+not direct execution of the Python launcher.
+
 ## 제한
 
 Windows 로컬 단일 사용자·단일 호스트 운용만 지원한다. 서버는 loopback에만 bind하며
