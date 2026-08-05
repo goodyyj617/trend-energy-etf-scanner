@@ -175,11 +175,22 @@ class WindowsLauncherTests(unittest.TestCase):
         self.assertTrue(expected.is_file())
 
     def test_cmd_files_quote_root_and_python(self):
-        for name in ("Trend Strategy V2 시작.cmd", "Trend Strategy V2 종료.cmd"):
-            source = (ROOT / name).read_text(encoding="utf-8")
+        attributes = (ROOT / ".gitattributes").read_text(encoding="ascii")
+        self.assertIn("*.cmd text eol=crlf", attributes)
+        for name, command in (("Trend Strategy V2 시작.cmd", "start"), ("Trend Strategy V2 종료.cmd", "stop")):
+            raw = (ROOT / name).read_bytes()
+            self.assertTrue(raw.isascii())
+            self.assertNotIn(b"\xef\xbb\xbf", raw)
+            self.assertNotIn(b"\n", raw.replace(b"\r\n", b""))
+            source = raw.decode("ascii")
             self.assertIn('set "ROOT=%~dp0"', source)
-            self.assertIn('"%TREND_V2_PYTHON%" "%ROOT%scripts\\trend_v2_windows_launcher.py"', source)
+            self.assertIn('for %%I in ("%ROOT%.") do set "ROOT=%%~fI"', source)
+            self.assertIn('set "PYTHON=%ROOT%\\.venv\\Scripts\\python.exe"', source)
+            self.assertIn('"%PYTHON%" "%ROOT%\\scripts\\trend_v2_windows_launcher.py"', source)
+            self.assertIn(f' {command} --root "%ROOT%"', source)
             self.assertIn('set "EXIT_CODE=%ERRORLEVEL%"', source)
+            self.assertNotIn("taskkill", source.lower())
+            self.assertNotIn("run_trend_v2_web.py", source)
 
 
 class LauncherControlServerTests(unittest.TestCase):
