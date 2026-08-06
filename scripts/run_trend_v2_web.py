@@ -73,7 +73,7 @@ def _services(store_root: Path, port: int):
     execution = ControlledExecutionService(store, attempts, economic_adapter, execution_policy, profiles, source_commit=source_commit)
     robustness = RobustnessExecutionService(store, RobustnessPolicy.load(ROOT / "config" / "trend_v2" / "robustness_execution_policy_v1.json"), load_robustness_catalog(ROOT / "config" / "trend_v2" / "robustness_option_catalog_v1.json"), source_commit=source_commit, cost_stress_runner=CanonicalCostStressAdapter(store, economic_adapter, source_commit=source_commit))
     manager = PersistedExecutionManager(store.root / "execution_management_v1", OptionCatalog.load(ROOT / "config" / "trend_v2" / "strategy_option_catalog_v2.json"))
-    workflows = WorkflowCoordinator(execution, robustness)
+    workflows = WorkflowCoordinator(execution, robustness, manager=manager)
     return store, terminology, attempts, execution, robustness, manager, workflows, source_commit
 
 

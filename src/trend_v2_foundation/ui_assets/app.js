@@ -707,6 +707,63 @@ async function renderExplanations(termKey=null) {
   if(termKey){const target=document.getElementById(`term-${termKey}`);if(target){target.scrollIntoView({block:"start"});target.focus();}}
 }
 
+function workspaceKey(workflowId, operation) {
+  const storageKey = `trend-v2-workspace-key:${workflowId}:${operation}`;
+  let value = localStorage.getItem(storageKey);
+  if (!value) { value = idempotencyKey(`workspace-${operation}`); localStorage.setItem(storageKey, value); }
+  return value;
+}
+
+function workspaceConstruction(profileId) {
+  return {
+    schema_version: "strategy_construction_request_v1",
+    data_snapshot: "phase_a2_frozen_2026_07_30",
+    backtest_start_date: document.getElementById("workspace-start").value,
+    backtest_end_date: document.getElementById("workspace-end").value,
+    universe: { option_id: "phase_a2_historical_eligible_v1", parameters: {} },
+    benchmark: { option_id: "spy_adjusted_close_v1", parameters: {} },
+    trend_filter: { option_id: document.getElementById("workspace-trend").value, parameters: {} },
+    signal: { option_id: "prior_price_high_v2", parameters: { lookback: { kind: "fixed", value: Number(document.getElementById("workspace-lookback").value) } } },
+    entry_rule: { option_id: "first_event_next_open_v1", parameters: {} },
+    initial_stop: { option_id: "signal_day_low20_v1", parameters: {} },
+    trailing_exit: { option_id: "ratcheting_low20_v1", parameters: {} },
+    position_sizing: { option_id: "canonical_equal_weight_active_v1", parameters: {} },
+    portfolio_constraints: { option_id: "long_only_cash_constrained_v1", parameters: {} },
+    transaction_cost: { option_id: "round_trip_bps_v1", parameters: { bps: parameterSpace(document.getElementById("workspace-cost").value) } },
+    slippage: { option_id: "round_trip_slippage_bps_v1", parameters: { bps: parameterSpace(document.getElementById("workspace-slippage").value) } },
+    walk_forward: { enabled: false, fold_count: 0 }, robustness: { scenario_count: 0 },
+    evaluation_profile_ids: [profileId],
+  };
+}
+
+function workspaceCard(number, title, status, body) {
+  return `<section class="card section"><p class="eyebrow">${number}단계</p><h2>${title} ${statusBadge(status || "not_started", status || "not_started")}</h2>${body}</section>`;
+}
+
+async function renderResearchWorkspace() {
+  const workflows = await api("/workflows");
+  let workflowId = localStorage.getItem("trend-v2-workflow-id");
+  if (!workflowId || !workflows.items.some((item) => item.workflow_id === workflowId)) workflowId = workflows.items[0]?.workflow_id || null;
+  if (!workflowId) {
+    const [profiles, options] = await Promise.all([api("/evaluation-profiles?page_size=200"), api("/construction/options")]);
+    const profileOptions = profiles.items.map((item) => `<option value="${escapeHtml(item.evaluation_profile_id)}">${escapeHtml(item.name)}</option>`).join("");
+    const trendOptions = (options.foundation_6_catalog?.categories?.trend_filter || []).filter((item) => item.engine_adapter_support === "supported").map((item) => `<option value="${escapeHtml(item.option_id)}" ${item.option_id === "price_above_rising_ma200_v0" ? "selected" : ""}>${escapeHtml(item.name_ko)}</option>`).join("");
+    view.innerHTML = `<p class="lede">저장된 연구 절차를 한 화면에서 이어갑니다. 각 결과는 참조로만 연결되며 경제 백테스트 결과를 복사하지 않습니다.</p>${workspaceCard("1", "전략 구성", "needs_action", `<form id="workspace-create"><div class="form-grid"><div class="field"><label>워크플로우 이름</label><input id="workspace-label" maxlength="120" required value="새 연구 워크플로우"></div><div class="field"><label>시작일</label><input id="workspace-start" type="date" value="2024-01-02" required></div><div class="field"><label>종료일</label><input id="workspace-end" type="date" value="2024-12-31" required></div><div class="field"><label>추세 필터</label><select id="workspace-trend">${trendOptions}</select></div><div class="field"><label>고점 lookback</label><input id="workspace-lookback" type="number" min="20" max="55" value="20"></div><div class="field"><label>거래비용 bp</label><input id="workspace-cost" value="5"></div><div class="field"><label>슬리피지 bp</label><input id="workspace-slippage" value="2"></div><div class="field"><label>EvaluationProfile</label><select id="workspace-profile">${profileOptions}</select></div></div><button type="submit" ${profiles.items.length ? "" : "disabled"}>워크플로우 만들기</button><a class="button-link" href="#profiles">프로필 스튜디오</a></form>`)}`;
+    document.getElementById("workspace-create")?.addEventListener("submit", async (event) => { event.preventDefault(); try { const key = workspaceKey("new", "create"); const profileId = document.getElementById("workspace-profile").value; const saved = await api("/workflows", {method:"POST", body:{label_ko:document.getElementById("workspace-label").value, construction:workspaceConstruction(profileId)}, idempotencyKey:key}); localStorage.setItem("trend-v2-workflow-id", saved.workflow_id); localStorage.removeItem("trend-v2-workspace-key:new:create"); await renderResearchWorkspace(); } catch (error) { document.getElementById("workspace-create").insertAdjacentHTML("beforeend", `<p class="notice danger">${escapeHtml(error.message)}</p>`); } });
+    return;
+  }
+  localStorage.setItem("trend-v2-workflow-id", workflowId);
+  const [data, profiles] = await Promise.all([api(`/workflows/${encodeURIComponent(workflowId)}`), api("/evaluation-profiles?page_size=200")]);
+  const refs = data.references || {}; const economic = refs.economic_progress || {}; const robustness = refs.robustness_progress || {};
+  const action = (id, label, disabled=false) => `<button id="workspace-${id}" ${disabled ? "disabled" : ""}>${label}</button>`;
+  view.innerHTML = `<div class="toolbar"><div><p class="eyebrow">Research Workspace</p><h2>${escapeHtml(data.label_ko)}</h2><p class="id">${escapeHtml(data.workflow_id)}</p></div><select id="workspace-select">${workflows.items.map((item)=>`<option value="${escapeHtml(item.workflow_id)}" ${item.workflow_id===workflowId?"selected":""}>${escapeHtml(item.label_ko)} · ${escapeHtml(item.stage)}</option>`).join("")}</select><button id="workspace-new">새 워크플로우</button></div>${workspaceCard("1", "전략 구성", refs.normalized_construction ? "completed" : "needs_action", `${refs.normalized_construction ? `<p class="id">${escapeHtml(refs.normalized_construction.construction_hash || "정규화됨")}</p>` : action("normalize", "구성 정규화")}`)}${workspaceCard("2", "호환성 및 후보 수", refs.candidate_estimate ? "completed" : (refs.normalized_construction ? "needs_action" : "not_started"), refs.candidate_estimate ? `<pre>${jsonText(refs.candidate_estimate)}</pre>` : action("estimate", "후보 수 계산", !refs.normalized_construction))}${workspaceCard("3", "경제 실행 및 후보 진행", economic.status || (refs.candidate_estimate ? "needs_action" : "not_started"), economic.attempts ? `<p>상태: ${escapeHtml(economic.status)} · 후보 ${economic.attempts.length}개</p><a class="button-link" href="#requests">실행 요청 상세</a><pre>${jsonText(economic.attempts.map((item)=>({execution_attempt_id:item.execution_attempt_id,status:item.operational_status,stage:item.current_stage})))}</pre>` : action("start", "실행 요청 및 시작", !refs.candidate_estimate))}${workspaceCard("4", "강건성", robustness.status || (economic.status === "completed" ? "needs_action" : "not_started"), robustness.attempt ? `<p>상태: ${escapeHtml(robustness.status)}</p><a class="button-link" href="#robustness">강건성 전문 화면</a>` : `<p class="notice">완료된 StrategyRun의 강건성 계획과 실행은 기존 전문 화면에서 구성합니다.</p><a class="button-link" href="#robustness">강건성 열기</a>`) }${workspaceCard("5", "EvaluationProfile 적용", refs.evaluation ? "completed" : (economic.status === "completed" ? "needs_action" : "not_started"), refs.evaluation ? `<p class="id">${escapeHtml(refs.evaluation.evaluation_run_id)}</p><a class="button-link" href="#evaluations">평가 결과 상세</a>` : `<div class="field"><label>저장된 EvaluationProfile</label><select id="workspace-evaluation-profile">${profiles.items.map((item)=>`<option value="${escapeHtml(item.evaluation_profile_id)}">${escapeHtml(item.name)}</option>`).join("")}</select></div>${action("evaluate", "저장된 결과에 프로필 적용", economic.status !== "completed")}`)}${workspaceCard("6", "결과 확인", refs.evaluation ? "completed" : "not_started", refs.evaluation ? `<a class="button-link" href="#evaluations">EvaluationRun 보기</a> <a class="button-link" href="#runs">StrategyRun 보기</a>` : "<p>평가 완료 후 기존 결과 화면으로 이동할 수 있습니다.</p>")}`;
+  document.getElementById("workspace-select").addEventListener("change", (event)=>{ localStorage.setItem("trend-v2-workflow-id", event.target.value); renderResearchWorkspace().catch(showFatal); });
+  document.getElementById("workspace-new").addEventListener("click", ()=>{ localStorage.removeItem("trend-v2-workflow-id"); renderResearchWorkspace().catch(showFatal); });
+  const bind = (id, endpoint, body={}) => document.getElementById(`workspace-${id}`)?.addEventListener("click", async()=>{ try { await api(`/workflows/${encodeURIComponent(workflowId)}${endpoint}`, {method:"POST", body, idempotencyKey:workspaceKey(workflowId,id)}); await renderResearchWorkspace(); } catch(error) { setMessage(error.message); }});
+  bind("normalize", "/normalize"); bind("estimate", "/estimate"); bind("start", "/start-economic");
+  document.getElementById("workspace-evaluate")?.addEventListener("click", async()=>{ try { await api(`/workflows/${encodeURIComponent(workflowId)}/evaluate`, {method:"POST", body:{evaluation_profile_id:document.getElementById("workspace-evaluation-profile").value}, idempotencyKey:workspaceKey(workflowId,"evaluate")}); await renderResearchWorkspace(); } catch(error) { setMessage(error.message); }});
+}
+
 async function renderWorkflow() {
   const workflowId = localStorage.getItem("trend-v2-workflow-id");
   if (!workflowId) {
@@ -806,7 +863,7 @@ async function navigate() {
   document.querySelectorAll("#primary-nav a").forEach((link)=>{if(link.dataset.route===route)link.setAttribute("aria-current","page");else link.removeAttribute("aria-current");});
   try {
     await ensureTerminology();
-    if(route==="workflow")await renderWorkflow();
+    if(route==="workflow")await renderResearchWorkspace();
     else if(route==="construction")await renderConstruction();
     else if(route==="requests")await renderRequests();
     else if(route==="overview")await renderOverview();
@@ -832,7 +889,11 @@ async function navigate() {
 }
 
 window.addEventListener("hashchange",navigate);
-window.addEventListener("DOMContentLoaded",navigate);
+window.addEventListener("DOMContentLoaded",()=>{
+  const navigation=document.getElementById("primary-nav");
+  if(navigation&&!navigation.querySelector('[data-route="workflow"]')) navigation.insertAdjacentHTML("afterbegin",'<a href="#workflow" data-route="workflow"><span aria-hidden="true">◎</span> 연구 워크스페이스</a>');
+  navigate();
+});
 
 // Stable helpers exposed only for synthetic, dependency-free UI contract tests.
 globalThis.TrendV2Ui = Object.freeze({ escapeHtml, availabilityLabel, numericValue, drawdownRows, buildChartRows, candidateEstimatePresentation, estimateSummary });

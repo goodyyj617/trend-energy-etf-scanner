@@ -336,7 +336,7 @@ class ReadOnlyTrendApi:
                 if action == "evaluate":
                     profile_id = payload.get("evaluation_profile_id")
                     if not isinstance(profile_id, str): raise ApiContractError(400, "workflow_construction_invalid", "evaluation_profile_id is required.")
-                    return 200, workflow.evaluate(workflow_id, evaluation_profile_id=profile_id)
+                    return 200, workflow.evaluate(workflow_id, evaluation_profile_id=profile_id, idempotency_key=self._idempotency_key(headers))
         if path == f"{API_PATH_PREFIX}/robustness/normalize" and method == "POST":
             if robustness is None:
                 raise ApiContractError(405, "method_not_allowed", "Robustness execution API is disabled.")
@@ -1250,7 +1250,7 @@ class ReadOnlyTrendApi:
         if path == f"{API_PATH_PREFIX}/workflows":
             self._allow_query(query, set())
             if self.workflow_coordinator is None: raise ApiContractError(404, "not_found", "Workflow coordinator is disabled.")
-            return {"schema_version": "trend_v2_workflow_v1", "items": []}
+            return self.workflow_coordinator.list()
         if path == f"{API_PATH_PREFIX}/metadata":
             self._allow_query(query, set())
             return self._metadata(registry)
