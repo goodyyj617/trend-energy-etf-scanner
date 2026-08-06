@@ -1576,7 +1576,7 @@ def validate_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
         errors.append("nonfinite_returns")
     if (matrix.to_numpy(dtype=float) <= -1).any():
         errors.append("return_at_or_below_minus_one")
-    if len(qualified) != 42 or sorted(set(qualified) - set(matrix.columns)):
+    if len(qualified) != 40 or sorted(set(qualified) - set(matrix.columns)):
         errors.append("qualified_matrix_membership")
     if sorted(qualified) != manifest_keys:
         errors.append("qualified_curve_set")
