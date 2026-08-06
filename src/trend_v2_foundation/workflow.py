@@ -209,6 +209,7 @@ class WorkflowCoordinator:
         events = self._events(workflow_id)
         normalized, estimate = self._latest(events, "normalized"), self._latest(events, "estimated")
         economic, robustness, evaluation = self._latest(events, "economic_started"), self._latest(events, "robustness_started"), self._latest(events, "evaluated")
+        decision_report = self._latest(events, "decision_report_generated")
         economic_progress, robustness_progress = self._economic_progress(economic), self._robustness_progress(robustness)
         stage = "draft"
         if normalized: stage = "normalized"
@@ -224,8 +225,9 @@ class WorkflowCoordinator:
         if robustness_progress and robustness_progress["status"] == "completed": stage = "robustness_completed"
         if robustness_progress and robustness_progress["status"] in {"failed", "cancelled", "blocked", "stale", "missing", "incompatible"}: stage = "robustness_" + robustness_progress["status"]
         if evaluation: stage = "completed"
+        if decision_report: stage = "decision_report_ready"
         latest_timestamp = events[-1]["created_timestamp"] if events else record["created_timestamp"]
-        return {"schema_version": WORKFLOW_SCHEMA_VERSION, "workflow_id": workflow_id, "label_ko": record["label_ko"], "stage": stage, "created_timestamp": record["created_timestamp"], "last_updated_timestamp": latest_timestamp, "construction": record["construction"], "references": {"normalized_construction": normalized, "candidate_estimate": estimate, "confirmation": self._latest(events, "confirmed"), "economic": economic, "economic_progress": economic_progress, "robustness_plan": self._latest(events, "robustness_configured"), "robustness": robustness, "robustness_progress": robustness_progress, "evaluation": evaluation}, "provenance": record["provenance"], "recoverability": {"resumable": bool(economic or robustness), "reason": None if economic or robustness else "no_started_work"}, "events": [{"event_id": item["event_id"], "action": item["action"], "created_timestamp": item["created_timestamp"]} for item in events]}
+        return {"schema_version": WORKFLOW_SCHEMA_VERSION, "workflow_id": workflow_id, "label_ko": record["label_ko"], "stage": stage, "created_timestamp": record["created_timestamp"], "last_updated_timestamp": latest_timestamp, "construction": record["construction"], "references": {"normalized_construction": normalized, "candidate_estimate": estimate, "confirmation": self._latest(events, "confirmed"), "economic": economic, "economic_progress": economic_progress, "robustness_plan": self._latest(events, "robustness_configured"), "robustness": robustness, "robustness_progress": robustness_progress, "evaluation": evaluation, "decision_report": decision_report}, "provenance": record["provenance"], "recoverability": {"resumable": bool(economic or robustness), "reason": None if economic or robustness else "no_started_work"}, "events": [{"event_id": item["event_id"], "action": item["action"], "created_timestamp": item["created_timestamp"]} for item in events]}
 
     def normalize(self, workflow_id: str) -> Mapping[str, Any]:
         record = self._read("workflows", workflow_id)
@@ -349,3 +351,51 @@ class WorkflowCoordinator:
         if idempotency_key:
             self._bind("evaluate", idempotency_key, request, workflow_id)
         return self.read(workflow_id)
+
+    def record_decision_report(
+        self,
+        workflow_id: str,
+        *,
+        decision_report_id: str,
+        strategy_run_id: str,
+        evaluation_run_id: str,
+        robustness_plan_id: str | None = None,
+    ) -> Mapping[str, Any]:
+        """Attach only a validated report reference; report data stays elsewhere."""
+
+        self.validate_decision_report_reference(
+            workflow_id,
+            strategy_run_id=strategy_run_id,
+            evaluation_run_id=evaluation_run_id,
+            robustness_plan_id=robustness_plan_id,
+        )
+        self._event(
+            workflow_id,
+            "decision_report_generated",
+            {
+                "decision_report_id": decision_report_id,
+                "strategy_run_id": strategy_run_id,
+                "evaluation_run_id": evaluation_run_id,
+                "robustness_plan_id": robustness_plan_id,
+            },
+        )
+        return self.read(workflow_id)
+
+    def validate_decision_report_reference(
+        self,
+        workflow_id: str,
+        *,
+        strategy_run_id: str,
+        evaluation_run_id: str,
+        robustness_plan_id: str | None = None,
+    ) -> None:
+        """Validate report references without appending an event or starting work."""
+
+        state = self.read(workflow_id)
+        evaluation = state["references"].get("evaluation") or {}
+        progress = state["references"].get("economic_progress") or {}
+        if evaluation.get("evaluation_run_id") != evaluation_run_id or strategy_run_id not in progress.get("strategy_run_ids", []):
+            raise WorkflowError("workflow_economic_incomplete", "DecisionReport does not match completed workflow evidence.", object_identity=workflow_id)
+        configured = state["references"].get("robustness_plan") or {}
+        if robustness_plan_id is not None and configured.get("robustness_plan_id") != robustness_plan_id:
+            raise WorkflowError("workflow_integrity_invalid", "DecisionReport robustness plan is not attached to this workflow.", object_identity=robustness_plan_id, recoverable=False)

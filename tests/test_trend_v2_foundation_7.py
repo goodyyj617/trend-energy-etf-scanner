@@ -96,6 +96,16 @@ class Foundation7ServiceTests(unittest.TestCase):
         self.assertTrue(evidence["cost_stress"]["survival"])
         self.assertEqual(self.service.evidence(plan["robustness_plan_id"])["evidence_hash"], evidence["evidence_hash"])
 
+    def test_read_evidence_never_starts_or_executes_scenarios(self) -> None:
+        plan = self.service.create_plan(self.request())
+        evidence = self.service.evidence(plan["robustness_plan_id"])
+        self.service.start = lambda _plan_id: self.fail("read-only evidence lookup started work")
+        self.service.execute = lambda _attempt_id: self.fail("read-only evidence lookup executed work")
+        self.assertEqual(
+            self.service.read_evidence(plan["robustness_plan_id"])["evidence_hash"],
+            evidence["evidence_hash"],
+        )
+
     def test_canonical_cost_stress_changes_only_cost_fields_and_reuses(self) -> None:
         calls = []
         def execute(spec):
