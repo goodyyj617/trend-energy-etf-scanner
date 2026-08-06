@@ -20,12 +20,12 @@ from .artifact_schemas import (
     validate_yearly_metrics,
 )
 from .canonical import canonical_bytes, canonical_data, content_hash, deep_freeze, deterministic_id
-from .contracts import DerivedMetricManifest, EvaluationProfile, EvaluationRun, StrategyRunManifest
+from .contracts import DecisionReport, DerivedMetricManifest, EvaluationProfile, EvaluationRun, StrategyRunManifest
 from .execution import ExecutionAttempt, FileExecutionAttemptRepository
 from .result_store import LocalResultStore
 
 
-SAVED_RUN_REGISTRY_SCHEMA_VERSION = "saved_run_registry_v1"
+SAVED_RUN_REGISTRY_SCHEMA_VERSION = "saved_run_registry_v2"
 REGISTRY_REBUILD_VERSION = "result_store_registry_rebuild_v1"
 
 
@@ -215,6 +215,26 @@ class RegistryEvaluationRun:
 
 
 @dataclass(frozen=True)
+class RegistryDecisionReport:
+    decision_report_id: str
+    strategy_run_id: str
+    evaluation_run_id: str
+    evaluation_profile_id: str
+    profile_hash: str
+    creation_time: str
+    integrity_status: IntegrityStatus
+
+    def to_dict(self) -> dict[str, Any]:
+        return canonical_data(self)
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "RegistryDecisionReport":
+        payload = dict(value)
+        payload["integrity_status"] = IntegrityStatus(payload["integrity_status"])
+        return cls(**payload)
+
+
+@dataclass(frozen=True)
 class SavedRunRegistry:
     source_fingerprint: str
     strategy_runs: tuple[RegistryStrategyRun, ...]
@@ -223,6 +243,7 @@ class SavedRunRegistry:
     execution_attempts: tuple[ExecutionAttempt, ...]
     orphan_object_hashes: tuple[str, ...]
     issues: tuple[RegistryIssue, ...]
+    decision_reports: tuple[RegistryDecisionReport, ...] = ()
     schema_version: str = SAVED_RUN_REGISTRY_SCHEMA_VERSION
     rebuild_version: str = REGISTRY_REBUILD_VERSION
 
@@ -239,6 +260,11 @@ class SavedRunRegistry:
             self,
             "evaluation_runs",
             tuple(sorted(self.evaluation_runs, key=lambda item: item.evaluation_run_id)),
+        )
+        object.__setattr__(
+            self,
+            "decision_reports",
+            tuple(sorted(self.decision_reports, key=lambda item: item.decision_report_id)),
         )
         object.__setattr__(
             self,
@@ -271,6 +297,7 @@ class SavedRunRegistry:
             "strategy_runs": self.strategy_runs,
             "evaluation_profiles": self.evaluation_profiles,
             "evaluation_runs": self.evaluation_runs,
+            "decision_reports": self.decision_reports,
             "execution_attempts": self.execution_attempts,
             "orphan_object_hashes": self.orphan_object_hashes,
             "issues": self.issues,
@@ -297,6 +324,10 @@ class SavedRunRegistry:
         )
         payload["evaluation_runs"] = tuple(
             RegistryEvaluationRun.from_dict(item) for item in payload["evaluation_runs"]
+        )
+        payload["decision_reports"] = tuple(
+            RegistryDecisionReport.from_dict(item)
+            for item in payload.get("decision_reports", ())
         )
         payload["execution_attempts"] = tuple(
             ExecutionAttempt.from_dict(item) for item in payload["execution_attempts"]
@@ -585,6 +616,13 @@ class SavedRunRegistryBuilder:
             "evaluation_run",
             issues,
         )
+        reports = self._read_unique(
+            list(self.store.decision_reports_dir.rglob("*.json")),
+            DecisionReport.from_dict,
+            lambda item: item.decision_report_id,
+            "decision_report",
+            issues,
+        )
 
         attempts: dict[str, ExecutionAttempt] = {}
         if self.attempts.root.exists():
@@ -816,6 +854,40 @@ class SavedRunRegistryBuilder:
             )
             for run in evaluations.values()
         )
+        report_entries = []
+        for report in reports.values():
+            integrity = IntegrityStatus.VALID
+            evaluation = evaluations.get(report.evaluation_run_id)
+            profile = profiles.get(report.evaluation_profile_id)
+            if (
+                report.strategy_run_id not in manifests
+                or evaluation is None
+                or profile is None
+                or report.strategy_run_id not in evaluation.strategy_run_ids
+                or evaluation.evaluation_profile_id != report.evaluation_profile_id
+                or evaluation.profile_hash != report.profile_hash
+                or profile.profile_hash != report.profile_hash
+            ):
+                integrity = IntegrityStatus.INTEGRITY_FAILED
+                issues.append(
+                    RegistryIssue(
+                        issue_code="decision_report_reference_invalid",
+                        object_identity=report.decision_report_id,
+                        relative_location=f"decision_reports/{report.decision_report_id}.json",
+                        detail="strategy_run/evaluation/profile reference mismatch",
+                    )
+                )
+            report_entries.append(
+                RegistryDecisionReport(
+                    decision_report_id=report.decision_report_id,
+                    strategy_run_id=report.strategy_run_id,
+                    evaluation_run_id=report.evaluation_run_id,
+                    evaluation_profile_id=report.evaluation_profile_id,
+                    profile_hash=report.profile_hash,
+                    creation_time=report.creation_time,
+                    integrity_status=integrity,
+                )
+            )
         orphan_hashes = self.store.orphan_hashes()
         issues.extend(
             RegistryIssue(
@@ -831,6 +903,7 @@ class SavedRunRegistryBuilder:
             strategy_runs=tuple(run_entries),
             evaluation_profiles=profile_entries,
             evaluation_runs=evaluation_entries,
+            decision_reports=tuple(report_entries),
             execution_attempts=tuple(attempts.values()),
             orphan_object_hashes=orphan_hashes,
             issues=tuple(issues),

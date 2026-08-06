@@ -16,6 +16,7 @@ from .contracts import (
     ArtifactRecord,
     ArtifactRetentionPolicy,
     DerivedMetricManifest,
+    DecisionReport,
     EvaluationProfile,
     EvaluationRun,
     StrategyRunManifest,
@@ -82,6 +83,10 @@ class ResultStore(Protocol):
 
     def save_evaluation_run(self, run: EvaluationRun) -> None: ...
 
+    def save_decision_report(self, report: DecisionReport) -> None: ...
+
+    def get_decision_report(self, decision_report_id: str) -> DecisionReport: ...
+
     def save_derived_metric_manifest(self, manifest: DerivedMetricManifest) -> None: ...
 
     def get_derived_metric_manifest(self, derived_metric_id: str) -> DerivedMetricManifest: ...
@@ -97,6 +102,7 @@ class LocalResultStore:
         self.strategy_runs_dir = self.root / "strategy_runs"
         self.profiles_dir = self.root / "evaluation_profiles"
         self.evaluation_runs_dir = self.root / "evaluation_runs"
+        self.decision_reports_dir = self.root / "decision_reports"
         self.derived_metrics_dir = self.root / "derived_metrics"
         self.retention_events_dir = self.root / "retention_events"
         for path in (
@@ -104,6 +110,7 @@ class LocalResultStore:
             self.strategy_runs_dir,
             self.profiles_dir,
             self.evaluation_runs_dir,
+            self.decision_reports_dir,
             self.derived_metrics_dir,
             self.retention_events_dir,
         ):
@@ -381,6 +388,22 @@ class LocalResultStore:
         if not path.exists():
             raise KeyError(evaluation_run_id)
         return EvaluationRun.from_dict(json.loads(path.read_text(encoding="utf-8")))
+
+    def save_decision_report(self, report: DecisionReport) -> None:
+        self.get_strategy_run_manifest(report.strategy_run_id)
+        self.get_evaluation_profile(report.evaluation_profile_id)
+        self.get_evaluation_run(report.evaluation_run_id)
+        path = self.decision_reports_dir / f"{report.decision_report_id}.json"
+        self._write_immutable(path, canonical_bytes(report.to_dict()))
+
+    def get_decision_report(self, decision_report_id: str) -> DecisionReport:
+        path = self.decision_reports_dir / f"{decision_report_id}.json"
+        if not path.exists():
+            raise KeyError(decision_report_id)
+        return DecisionReport.from_dict(json.loads(path.read_text(encoding="utf-8")))
+
+    def decision_report_history(self) -> tuple[str, ...]:
+        return tuple(path.stem for path in sorted(self.decision_reports_dir.glob("*.json")))
 
     def evaluation_history(self) -> tuple[str, ...]:
         return tuple(path.stem for path in sorted(self.evaluation_runs_dir.glob("*.json")))
