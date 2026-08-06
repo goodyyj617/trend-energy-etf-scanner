@@ -178,6 +178,23 @@ SUPPORTED_OPTIONS: Mapping[str, Any] = {
 }
 
 
+# Foundation 6's catalog already limits this surface to three trend filters and
+# L20--L55 prior-high signals.  Keep the v1 request shape, but expose that
+# declared adapter support instead of maintaining a narrower parallel allow-list.
+SUPPORTED_OPTIONS = {
+    **SUPPORTED_OPTIONS,
+    "trend_filter": (
+        {"option_id": "no_trend_filter_v1", "label_ko": "추세 필터 없음", "parameter_schema": {}},
+        {"option_id": "close_above_ma200_v1", "label_ko": "종가가 MA200 위", "parameter_schema": {}},
+        *SUPPORTED_OPTIONS["trend_filter"],
+    ),
+    "signal": (
+        *SUPPORTED_OPTIONS["signal"],
+        {"option_id": "prior_price_high_v2", "label_ko": "직전 가격 고점 돌파", "parameter_schema": {"lookback": {"type": "integer", "minimum": 20, "maximum": 55}}},
+    ),
+}
+
+
 _COMPONENT_FIELDS = (
     "trend_filter",
     "signal",

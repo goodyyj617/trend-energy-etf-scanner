@@ -254,6 +254,50 @@ class PersistedExecutionManager:
         for ordinal, candidate_hash in enumerate(record["candidate_economic_hashes"], 1): self._candidate(request_id, candidate_hash, ordinal, "pending")
         return record
 
+    def track_controlled_request(self, request: Mapping[str, Any], attempts: Iterable[Any]) -> Mapping[str, Any]:
+        """Project an existing Foundation-5 request without creating another queue.
+
+        The controlled executor and ExecutionAttempt repository remain authoritative
+        for economic work.  This manager merely persists the candidate identity
+        projection that the workspace needs for restart-safe progress inspection.
+        """
+        request_id = request.get("execution_request_id")
+        candidates = request.get("requested_strategy_run_candidates")
+        if not isinstance(request_id, str) or not isinstance(candidates, (list, tuple)):
+            raise Foundation6Error("execution_request_corrupt", "기존 실행 요청 참조가 올바르지 않습니다.", "Controlled execution request is invalid.")
+        candidate_ids = []
+        for candidate in candidates:
+            if not isinstance(candidate, Mapping) or not isinstance(candidate.get("strategy_run_id"), str):
+                raise Foundation6Error("execution_request_corrupt", "후보 StrategyRun 참조가 올바르지 않습니다.", "Controlled candidate identity is invalid.")
+            candidate_ids.append(candidate["strategy_run_id"])
+        record = _hashed({
+            "schema_version": MANAGER_SCHEMA_VERSION,
+            "execution_request_id": request_id,
+            "catalog_hash": self.catalog.catalog_hash,
+            "candidate_estimate_hash": request.get("candidate_estimate_hash"),
+            "candidate_economic_hashes": candidate_ids,
+            "created_timestamp": request.get("request_timestamp", _now()),
+            "normalized_construction": request.get("normalized_construction", {}),
+            "projection_source": "controlled_execution_request_v1",
+        })
+        _atomic_write(self._request_path(request_id), record)
+        self._projection = self._rebuild()
+        by_run = {getattr(item, "intended_strategy_run_id", None): item for item in attempts}
+        for ordinal, candidate_id in enumerate(candidate_ids, 1):
+            attempt = by_run.get(candidate_id)
+            state = "pending"
+            extra: dict[str, Any] = {"strategy_run_id": candidate_id, "projection_source": "controlled_execution_request_v1"}
+            if attempt is not None:
+                operational = getattr(getattr(attempt, "operational_status", None), "value", None)
+                state = {"queued": "pending", "pending": "pending", "running": "running", "cancelling": "running", "completed": "succeeded", "failed": "failed", "cancelled": "cancelled"}.get(operational, "blocked")
+                extra["execution_attempt_id"] = getattr(attempt, "execution_attempt_id", None)
+            previous = self._projection["candidates"].get((request_id, candidate_id))
+            comparable = {key: value for key, value in (previous or {}).items() if key not in {"timestamp"}}
+            expected = {"execution_request_id": request_id, "candidate_economic_hash": candidate_id, "candidate_ordinal": ordinal, "state": state, "economic_specification_hash": candidate_id, **extra}
+            if not previous or any(comparable.get(key) != value for key, value in expected.items()):
+                self._candidate(request_id, candidate_id, ordinal, state, **extra)
+        return self.status(request_id)
+
     def _candidate(self, request_id: str, candidate_hash: str, ordinal: int, state: str, **extra: Any) -> Mapping[str, Any]:
         if state not in _CANDIDATE_STATES: raise ValueError("invalid candidate state")
         return self._event("candidate_state", {"execution_request_id": request_id, "candidate_economic_hash": candidate_hash, "candidate_ordinal": ordinal, "state": state, "economic_specification_hash": candidate_hash, "timestamp": _now(), **extra})

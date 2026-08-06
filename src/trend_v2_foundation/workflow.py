@@ -17,6 +17,7 @@ from .execution_service import ControlledExecutionService
 from .execution import AttemptOperationalStatus
 from .integration import calculate_and_evaluate_saved_runs
 from .robustness import RobustnessExecutionService
+from .foundation_6 import PersistedExecutionManager
 
 
 WORKFLOW_SCHEMA_VERSION = "trend_v2_workflow_v1"
@@ -46,8 +47,8 @@ def _now() -> str:
 class WorkflowCoordinator:
     """Append-only workflow references with deterministic idempotency bindings."""
 
-    def __init__(self, execution: ControlledExecutionService, robustness: RobustnessExecutionService | None = None, *, clock: callable = _now) -> None:
-        self.execution, self.robustness, self.clock = execution, robustness, clock
+    def __init__(self, execution: ControlledExecutionService, robustness: RobustnessExecutionService | None = None, *, manager: PersistedExecutionManager | None = None, clock: callable = _now) -> None:
+        self.execution, self.robustness, self.manager, self.clock = execution, robustness, manager, clock
         self.root = execution.store.root / "workflow_v1"
         for name in ("workflows", "events", "idempotency"):
             (self.root / name).mkdir(parents=True, exist_ok=True)
@@ -127,6 +128,80 @@ class WorkflowCoordinator:
         found = [item for item in events if item["action"] == action]
         return found[-1]["payload"] if found else None
 
+    def list(self) -> Mapping[str, Any]:
+        """Return persisted workflows without treating client storage as authority."""
+        items = []
+        for path in sorted((self.root / "workflows").glob("*.json")):
+            state = self.read(path.stem)
+            items.append({
+                "workflow_id": state["workflow_id"], "label_ko": state["label_ko"],
+                "stage": state["stage"], "created_timestamp": state["created_timestamp"],
+                "recoverability": state["recoverability"], "last_updated_timestamp": state["last_updated_timestamp"],
+            })
+        return {"schema_version": WORKFLOW_SCHEMA_VERSION, "items": sorted(items, key=lambda item: (item["last_updated_timestamp"], item["workflow_id"]), reverse=True)}
+
+    def _economic_progress(self, reference: Mapping[str, Any] | None) -> Mapping[str, Any] | None:
+        if reference is None:
+            return None
+        attempt_ids = list(reference.get("execution_attempt_ids") or [item.get("execution_attempt_id") for item in reference.get("attempts", [])])
+        attempts = []
+        for attempt_id in attempt_ids:
+            if not isinstance(attempt_id, str):
+                return {"status": "incompatible", "error_code": "workflow_integrity_invalid", "attempts": []}
+            try:
+                attempt = self.execution.attempt_repository.get(attempt_id)
+            except (KeyError, ValueError):
+                return {"status": "missing", "error_code": "workflow_reference_missing", "attempts": []}
+            attempts.append(attempt)
+        if not attempts:
+            return {"status": "missing", "error_code": "workflow_reference_missing", "attempts": []}
+        statuses = {item.operational_status.value for item in attempts}
+        if statuses & {"running", "cancelling"}:
+            status = "running"
+        elif statuses & {"queued", "pending"}:
+            status = "pending"
+        elif statuses == {"completed"}:
+            status = "completed"
+            for attempt in attempts:
+                validation = self.execution.store.validate_manifest(attempt.intended_strategy_run_id)
+                if not validation.valid:
+                    status = "stale"
+                    break
+        elif statuses & {"failed"}:
+            status = "failed"
+        elif statuses & {"cancelled"}:
+            status = "cancelled"
+        else:
+            status = "blocked"
+        return {"status": status, "execution_request_id": reference.get("execution_request_id"), "attempts": [item.to_dict() for item in attempts], "strategy_run_ids": sorted(item.intended_strategy_run_id for item in attempts)}
+
+    def _robustness_progress(self, reference: Mapping[str, Any] | None) -> Mapping[str, Any] | None:
+        if reference is None:
+            return None
+        if self.robustness is None:
+            return {"status": "incompatible", "error_code": "workflow_resume_unavailable"}
+        attempt_id = reference.get("robustness_attempt_id")
+        if not isinstance(attempt_id, str):
+            return {"status": "missing", "error_code": "workflow_reference_missing"}
+        try:
+            attempt = self.robustness._load("attempts", attempt_id)
+        except (KeyError, ValueError, OSError):
+            return {"status": "missing", "error_code": "workflow_reference_missing"}
+        states = {item.get("state") for item in attempt.get("scenarios", [])}
+        if not states:
+            status = "pending"
+        elif states & {"running"}:
+            status = "running"
+        elif states <= {"succeeded", "reused", "skipped"}:
+            status = "completed"
+        elif states & {"failed"}:
+            status = "failed"
+        elif states & {"cancelled"}:
+            status = "cancelled"
+        else:
+            status = "blocked"
+        return {"status": status, "robustness_plan_id": reference.get("robustness_plan_id"), "robustness_attempt_id": attempt_id, "attempt": attempt}
+
     def read(self, workflow_id: str) -> Mapping[str, Any]:
         record = self._read("workflows", workflow_id)
         if record.get("integrity_hash") != content_hash({key: value for key, value in record.items() if key != "integrity_hash"}):
@@ -134,17 +209,23 @@ class WorkflowCoordinator:
         events = self._events(workflow_id)
         normalized, estimate = self._latest(events, "normalized"), self._latest(events, "estimated")
         economic, robustness, evaluation = self._latest(events, "economic_started"), self._latest(events, "robustness_started"), self._latest(events, "evaluated")
+        economic_progress, robustness_progress = self._economic_progress(economic), self._robustness_progress(robustness)
         stage = "draft"
         if normalized: stage = "normalized"
         if estimate: stage = "estimated"
         if estimate and estimate.get("confirmation_required") and not self._latest(events, "confirmed"): stage = "confirmation_required"
-        if economic: stage = "economic_queued"
-        if economic and economic.get("status") in {"completed", "reused"}: stage = "economic_completed"
+        if economic: stage = "economic_pending"
+        if economic_progress and economic_progress["status"] == "running": stage = "economic_running"
+        if economic_progress and economic_progress["status"] == "completed": stage = "economic_completed"
+        if economic_progress and economic_progress["status"] in {"failed", "cancelled", "blocked", "stale", "missing", "incompatible"}: stage = "economic_" + economic_progress["status"]
         if self._latest(events, "robustness_configured"): stage = "robustness_configuration_required"
-        if robustness: stage = "robustness_queued"
-        if robustness and robustness.get("status") == "completed": stage = "robustness_completed"
+        if robustness: stage = "robustness_pending"
+        if robustness_progress and robustness_progress["status"] == "running": stage = "robustness_running"
+        if robustness_progress and robustness_progress["status"] == "completed": stage = "robustness_completed"
+        if robustness_progress and robustness_progress["status"] in {"failed", "cancelled", "blocked", "stale", "missing", "incompatible"}: stage = "robustness_" + robustness_progress["status"]
         if evaluation: stage = "completed"
-        return {"schema_version": WORKFLOW_SCHEMA_VERSION, "workflow_id": workflow_id, "label_ko": record["label_ko"], "stage": stage, "created_timestamp": record["created_timestamp"], "construction": record["construction"], "references": {"normalized_construction": normalized, "candidate_estimate": estimate, "confirmation": self._latest(events, "confirmed"), "economic": economic, "robustness_plan": self._latest(events, "robustness_configured"), "robustness": robustness, "evaluation": evaluation}, "provenance": record["provenance"], "recoverability": {"resumable": bool(economic or robustness), "reason": None if economic or robustness else "no_started_work"}, "events": [{"event_id": item["event_id"], "action": item["action"], "created_timestamp": item["created_timestamp"]} for item in events]}
+        latest_timestamp = events[-1]["created_timestamp"] if events else record["created_timestamp"]
+        return {"schema_version": WORKFLOW_SCHEMA_VERSION, "workflow_id": workflow_id, "label_ko": record["label_ko"], "stage": stage, "created_timestamp": record["created_timestamp"], "last_updated_timestamp": latest_timestamp, "construction": record["construction"], "references": {"normalized_construction": normalized, "candidate_estimate": estimate, "confirmation": self._latest(events, "confirmed"), "economic": economic, "economic_progress": economic_progress, "robustness_plan": self._latest(events, "robustness_configured"), "robustness": robustness, "robustness_progress": robustness_progress, "evaluation": evaluation}, "provenance": record["provenance"], "recoverability": {"resumable": bool(economic or robustness), "reason": None if economic or robustness else "no_started_work"}, "events": [{"event_id": item["event_id"], "action": item["action"], "created_timestamp": item["created_timestamp"]} for item in events]}
 
     def normalize(self, workflow_id: str) -> Mapping[str, Any]:
         record = self._read("workflows", workflow_id)
@@ -170,7 +251,10 @@ class WorkflowCoordinator:
         confirmation = state["references"]["confirmation"] or {}
         request = self.execution.create_request(record["construction"], confirmation_id=confirmation.get("confirmation_id"), idempotency_key=idempotency_key)
         status = self.execution.start(request.execution_request_id, idempotency_key=idempotency_key)
-        self._event(workflow_id, "economic_started", {"execution_request_id": request.execution_request_id, "execution_request": request.to_dict(), "status": status.get("status", "queued"), "attempts": status.get("attempts", [])})
+        attempt_ids = list(status.get("execution_attempt_ids", []))
+        if self.manager is not None:
+            self.manager.track_controlled_request(request.to_dict(), self.execution.attempt_repository.list())
+        self._event(workflow_id, "economic_started", {"execution_request_id": request.execution_request_id, "execution_attempt_ids": attempt_ids, "strategy_run_ids": [item["strategy_run_id"] for item in request.requested_strategy_run_candidates]})
         return self.read(workflow_id)
 
     def configure_robustness(self, workflow_id: str, request: Mapping[str, Any], *, confirmation_id: str | None = None) -> Mapping[str, Any]:
@@ -198,13 +282,13 @@ class WorkflowCoordinator:
             return self.read(workflow_id)
         state = self.read(workflow_id)
         economic = state["references"]["economic"] or {}
+        economic_progress = state["references"].get("economic_progress") or {}
         robustness_reference = state["references"]["robustness"] or {}
         if not economic and not robustness_reference:
             raise WorkflowError("workflow_resume_unavailable", "No persisted economic or robustness attempt can be resumed.", object_identity=workflow_id)
         resumed_economic: list[str] = []
         reused_economic: list[str] = []
-        for reference in economic.get("attempts", []):
-            attempt_id = reference.get("execution_attempt_id")
+        for attempt_id in economic.get("execution_attempt_ids", [item.get("execution_attempt_id") for item in economic.get("attempts", [])]):
             if not isinstance(attempt_id, str):
                 raise WorkflowError("workflow_integrity_invalid", "Economic attempt reference is missing its identity.", object_identity=workflow_id, recoverable=False)
             try:
@@ -242,13 +326,26 @@ class WorkflowCoordinator:
         self._event(workflow_id, "resumed", payload)
         return self.read(workflow_id)
 
-    def evaluate(self, workflow_id: str, *, evaluation_profile_id: str) -> Mapping[str, Any]:
+    def evaluate(self, workflow_id: str, *, evaluation_profile_id: str, idempotency_key: str | None = None) -> Mapping[str, Any]:
         state = self.read(workflow_id)
+        request = {"workflow_id": workflow_id, "evaluation_profile_id": evaluation_profile_id}
+        if idempotency_key:
+            binding_id = content_hash({"operation": "evaluate", "key": idempotency_key})
+            if self._path("idempotency", binding_id).exists():
+                self._bind("evaluate", idempotency_key, request, workflow_id)
+                return self.read(workflow_id)
         economic = state["references"]["economic"] or {}
-        run_ids = [item.get("intended_strategy_run_id") for item in economic.get("attempts", []) if item.get("intended_strategy_run_id")]
+        progress = state["references"].get("economic_progress") or {}
+        if progress.get("status") != "completed":
+            raise WorkflowError("workflow_economic_incomplete", "Completed StrategyRun references are required before evaluation.", object_identity=workflow_id)
+        run_ids = list(progress.get("strategy_run_ids", []))
         if not run_ids: raise WorkflowError("workflow_economic_incomplete", "No completed StrategyRun reference is available.", object_identity=workflow_id)
-        profile = self.execution.profiles.get(evaluation_profile_id)
-        if profile is None: raise WorkflowError("workflow_construction_invalid", "EvaluationProfile is unknown.", object_identity=evaluation_profile_id)
+        try:
+            profile = self.execution.store.get_evaluation_profile(evaluation_profile_id)
+        except KeyError as error:
+            raise WorkflowError("workflow_construction_invalid", "EvaluationProfile is unknown.", object_identity=evaluation_profile_id) from error
         result = calculate_and_evaluate_saved_runs(self.execution.store, run_ids, profile, creation_time=self.clock())
-        self._event(workflow_id, "evaluated", {"evaluation_profile_id": evaluation_profile_id, "evaluation_run_id": result.evaluation_run.evaluation_run_id, "strategy_run_ids": run_ids})
+        self._event(workflow_id, "evaluated", {"evaluation_profile_id": evaluation_profile_id, "evaluation_run_id": result.evaluation_run.evaluation_run_id, "strategy_run_ids": run_ids, "economic_backtest_started": False})
+        if idempotency_key:
+            self._bind("evaluate", idempotency_key, request, workflow_id)
         return self.read(workflow_id)
