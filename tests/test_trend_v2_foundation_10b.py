@@ -78,6 +78,20 @@ class WorkspaceWorkflowTests(unittest.TestCase):
             self.assertFalse(state["references"]["evaluation"]["economic_backtest_started"])
             self.assertEqual(replay["references"]["evaluation"], state["references"]["evaluation"])
 
+    def test_decision_report_reference_is_an_append_only_workflow_projection(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            attempt = _Attempt("attempt_a", "strategy_run_a", "completed")
+            workflow = WorkflowCoordinator(_Execution(Path(temporary), _Attempts([attempt])))
+            created = workflow.create({"strategy": "controlled"}, label_ko="보고서", idempotency_key="create")
+            workflow._event(created["workflow_id"], "economic_started", {"execution_request_id": "request_a", "execution_attempt_ids": ["attempt_a"], "strategy_run_ids": ["strategy_run_a"]})
+            workflow._event(created["workflow_id"], "evaluated", {"evaluation_run_id": "evaluation_run_a", "strategy_run_ids": ["strategy_run_a"]})
+            state = workflow.record_decision_report(
+                created["workflow_id"], decision_report_id="decision_report_a",
+                strategy_run_id="strategy_run_a", evaluation_run_id="evaluation_run_a",
+            )
+            self.assertEqual(state["stage"], "decision_report_ready")
+            self.assertEqual(state["references"]["decision_report"]["decision_report_id"], "decision_report_a")
+
 
 class WorkspaceManagerProjectionTests(unittest.TestCase):
     def test_existing_execution_request_is_projected_without_creating_a_second_request(self) -> None:
@@ -98,6 +112,9 @@ class WorkspaceUiTests(unittest.TestCase):
         self.assertIn("경제 실행 및 후보 진행", source)
         self.assertIn('href="#robustness"', source)
         self.assertIn('href="#evaluations"', source)
+        self.assertIn('route==="decision-reports"', source)
+        self.assertIn('workspace-decision-report', source)
+        self.assertIn("개인화된 투자 조언이 아닙니다.", source)
 
 
 if __name__ == "__main__":

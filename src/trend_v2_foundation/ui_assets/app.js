@@ -19,6 +19,8 @@ const routes = {
   system: "시스템 정보",
 };
 
+routes["decision-reports"] = "결정 보고서";
+
 const state = {
   controller: null,
   terminology: {},
@@ -29,6 +31,7 @@ const state = {
   selectedRobustnessRun: null,
   selectedEvaluationRun: null,
   selectedBehaviorEvaluation: null,
+  selectedDecisionReport: null,
   constructionDraft: null,
   constructionEstimate: null,
   confirmationId: null,
@@ -757,11 +760,73 @@ async function renderResearchWorkspace() {
   const refs = data.references || {}; const economic = refs.economic_progress || {}; const robustness = refs.robustness_progress || {};
   const action = (id, label, disabled=false) => `<button id="workspace-${id}" ${disabled ? "disabled" : ""}>${label}</button>`;
   view.innerHTML = `<div class="toolbar"><div><p class="eyebrow">Research Workspace</p><h2>${escapeHtml(data.label_ko)}</h2><p class="id">${escapeHtml(data.workflow_id)}</p></div><select id="workspace-select">${workflows.items.map((item)=>`<option value="${escapeHtml(item.workflow_id)}" ${item.workflow_id===workflowId?"selected":""}>${escapeHtml(item.label_ko)} · ${escapeHtml(item.stage)}</option>`).join("")}</select><button id="workspace-new">새 워크플로우</button></div>${workspaceCard("1", "전략 구성", refs.normalized_construction ? "completed" : "needs_action", `${refs.normalized_construction ? `<p class="id">${escapeHtml(refs.normalized_construction.construction_hash || "정규화됨")}</p>` : action("normalize", "구성 정규화")}`)}${workspaceCard("2", "호환성 및 후보 수", refs.candidate_estimate ? "completed" : (refs.normalized_construction ? "needs_action" : "not_started"), refs.candidate_estimate ? `<pre>${jsonText(refs.candidate_estimate)}</pre>` : action("estimate", "후보 수 계산", !refs.normalized_construction))}${workspaceCard("3", "경제 실행 및 후보 진행", economic.status || (refs.candidate_estimate ? "needs_action" : "not_started"), economic.attempts ? `<p>상태: ${escapeHtml(economic.status)} · 후보 ${economic.attempts.length}개</p><a class="button-link" href="#requests">실행 요청 상세</a><pre>${jsonText(economic.attempts.map((item)=>({execution_attempt_id:item.execution_attempt_id,status:item.operational_status,stage:item.current_stage})))}</pre>` : action("start", "실행 요청 및 시작", !refs.candidate_estimate))}${workspaceCard("4", "강건성", robustness.status || (economic.status === "completed" ? "needs_action" : "not_started"), robustness.attempt ? `<p>상태: ${escapeHtml(robustness.status)}</p><a class="button-link" href="#robustness">강건성 전문 화면</a>` : `<p class="notice">완료된 StrategyRun의 강건성 계획과 실행은 기존 전문 화면에서 구성합니다.</p><a class="button-link" href="#robustness">강건성 열기</a>`) }${workspaceCard("5", "EvaluationProfile 적용", refs.evaluation ? "completed" : (economic.status === "completed" ? "needs_action" : "not_started"), refs.evaluation ? `<p class="id">${escapeHtml(refs.evaluation.evaluation_run_id)}</p><a class="button-link" href="#evaluations">평가 결과 상세</a>` : `<div class="field"><label>저장된 EvaluationProfile</label><select id="workspace-evaluation-profile">${profiles.items.map((item)=>`<option value="${escapeHtml(item.evaluation_profile_id)}">${escapeHtml(item.name)}</option>`).join("")}</select></div>${action("evaluate", "저장된 결과에 프로필 적용", economic.status !== "completed")}`)}${workspaceCard("6", "결과 확인", refs.evaluation ? "completed" : "not_started", refs.evaluation ? `<a class="button-link" href="#evaluations">EvaluationRun 보기</a> <a class="button-link" href="#runs">StrategyRun 보기</a>` : "<p>평가 완료 후 기존 결과 화면으로 이동할 수 있습니다.</p>")}`;
+  if (refs.evaluation) {
+    const reportRuns = refs.evaluation.strategy_run_ids || economic.strategy_run_ids || [];
+    const attachedPlan = robustness.status === "completed" ? refs.robustness_plan?.robustness_plan_id : null;
+    const existingReport = refs.decision_report;
+    view.insertAdjacentHTML("beforeend", workspaceCard("7", "결정 보고서", existingReport ? "completed" : "needs_action", existingReport
+      ? `<p class="id">${escapeHtml(existingReport.decision_report_id)}</p><a class="button-link" href="#decision-reports">결정 보고서 보기</a>`
+      : `<div class="field"><label>StrategyRun</label><select id="workspace-decision-report-run">${reportRuns.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(shortId(id, 36))}</option>`).join("")}</select></div><button id="workspace-decision-report" ${reportRuns.length ? "" : "disabled"}>결정 보고서 생성/복원</button>`));
+    document.getElementById("workspace-decision-report")?.addEventListener("click", async () => {
+      try {
+        const response = await api(`/workflows/${encodeURIComponent(workflowId)}/decision-report`, {
+          method: "POST",
+          body: {
+            strategy_run_id: document.getElementById("workspace-decision-report-run").value,
+            evaluation_run_id: refs.evaluation.evaluation_run_id,
+            ...(attachedPlan ? { robustness_plan_id: attachedPlan } : {}),
+          },
+          idempotencyKey: workspaceKey(workflowId, "decision-report"),
+        });
+        state.selectedDecisionReport = response.decision_report.decision_report_id;
+        localStorage.setItem("trend-v2-decision-report-id", state.selectedDecisionReport);
+        location.hash = "#decision-reports";
+      } catch (error) { setMessage(error.message); }
+    });
+  }
   document.getElementById("workspace-select").addEventListener("change", (event)=>{ localStorage.setItem("trend-v2-workflow-id", event.target.value); renderResearchWorkspace().catch(showFatal); });
   document.getElementById("workspace-new").addEventListener("click", ()=>{ localStorage.removeItem("trend-v2-workflow-id"); renderResearchWorkspace().catch(showFatal); });
   const bind = (id, endpoint, body={}) => document.getElementById(`workspace-${id}`)?.addEventListener("click", async()=>{ try { await api(`/workflows/${encodeURIComponent(workflowId)}${endpoint}`, {method:"POST", body, idempotencyKey:workspaceKey(workflowId,id)}); await renderResearchWorkspace(); } catch(error) { setMessage(error.message); }});
   bind("normalize", "/normalize"); bind("estimate", "/estimate"); bind("start", "/start-economic");
   document.getElementById("workspace-evaluate")?.addEventListener("click", async()=>{ try { await api(`/workflows/${encodeURIComponent(workflowId)}/evaluate`, {method:"POST", body:{evaluation_profile_id:document.getElementById("workspace-evaluation-profile").value}, idempotencyKey:workspaceKey(workflowId,"evaluate")}); await renderResearchWorkspace(); } catch(error) { setMessage(error.message); }});
+}
+
+async function renderDecisionReports() {
+  const reports = await api("/decision-reports?page_size=200");
+  if (!reports.items.length) {
+    view.innerHTML = emptyState("결정 보고서 없음", "완료된 EvaluationRun에서 StrategyRun을 선택해 결정 보고서를 생성하거나 복원하세요.");
+    return;
+  }
+  const restored = state.selectedDecisionReport || localStorage.getItem("trend-v2-decision-report-id");
+  const selected = restored && reports.items.some((item) => item.decision_report_id === restored)
+    ? restored : reports.items[0].decision_report_id;
+  state.selectedDecisionReport = selected;
+  localStorage.setItem("trend-v2-decision-report-id", selected);
+  const detail = await api(`/decision-reports/${encodeURIComponent(selected)}`);
+  const report = detail.decision_report;
+  const metrics = detail.economic_metrics || {};
+  const evidenceLinks = detail.evidence_links || {};
+  const issues = detail.issues || [];
+  const metricRows = Object.keys(metrics).length
+    ? Object.entries(metrics).map(([key, value]) => `<tr><th>${escapeHtml(key)}</th><td>${escapeHtml(value)}</td></tr>`).join("")
+    : '<tr><td colspan="2">저장된 후보 raw metrics에 표시 가능한 경제 지표가 없습니다.</td></tr>';
+  const links = [
+    ["StrategyRun", evidenceLinks.strategy_run, report.strategy_run_id],
+    ["EvaluationRun", evidenceLinks.evaluation_run, report.evaluation_run_id],
+    ["EvaluationProfile", evidenceLinks.profile, report.evaluation_profile_id],
+    ["행동 비교", evidenceLinks.behavior, report.evidence_references.evaluation.behavior_comparison_hash],
+    ["강건성 근거", evidenceLinks.robustness, report.evidence_references.robustness.evidence_hash || "첨부되지 않음"],
+  ].map(([label, href, value]) => `<li><a href="${href ? (label === "EvaluationRun" ? "#evaluations" : label === "StrategyRun" ? "#runs" : label === "행동 비교" ? "#behavior" : label === "강건성 근거" ? "#robustness" : "#profiles") : "#decision-reports"}">${escapeHtml(label)}</a><span class="id">${escapeHtml(value)}</span></li>`).join("");
+  view.innerHTML = `<div class="toolbar"><div><p class="eyebrow">Decision Report</p><h2>결정 보고서</h2></div><select id="decision-report-select">${reports.items.map((item) => `<option value="${escapeHtml(item.decision_report_id)}" ${item.decision_report_id === selected ? "selected" : ""}>${escapeHtml(shortId(item.decision_report_id, 24))} · ${escapeHtml(item.decision_state)} / ${escapeHtml(item.evidence_state)}</option>`).join("")}</select></div>
+  <section class="card section"><h2>평가 규칙상 결론 ${statusBadge(detail.decision_state, detail.decision_state)}</h2><p class="notice">개인화된 투자 조언이 아닙니다.</p><p>근거 상태 ${statusBadge(detail.evidence_state, detail.evidence_state)}</p></section>
+  <section class="card section"><h2>주요 경제 결과</h2><div class="table-wrap"><table><tbody>${metricRows}</tbody></table></div></section>
+  <section class="card section"><h2>프로필 판정</h2><pre>${jsonText(detail.evaluation)}</pre></section>
+  <section class="card section"><h2>근거 상태와 경고</h2>${issues.length ? `<pre>${jsonText(issues)}</pre>` : "<p>필수 참조가 현재 검증되었습니다.</p>"}</section>
+  <section class="card section"><h2>근거 추적</h2><ul>${links}</ul><pre>${jsonText({template_version:report.template_version, profile_hash:report.profile_hash, evidence_references:report.evidence_references})}</pre></section>`;
+  document.getElementById("decision-report-select").addEventListener("change", (event) => {
+    state.selectedDecisionReport = event.target.value;
+    renderDecisionReports().catch(showFatal);
+  });
 }
 
 async function renderWorkflow() {
@@ -871,6 +936,7 @@ async function navigate() {
     else if(route==="runs")await renderRuns();
     else if(route==="profiles")await renderProfileStudio();
     else if(route==="evaluations")await renderEvaluations();
+    else if(route==="decision-reports")await renderDecisionReports();
     else if(route==="performance")await renderPerformance();
     else if(route==="robustness")await renderRobustness();
     else if(route==="behavior")await renderBehavior();
@@ -892,6 +958,7 @@ window.addEventListener("hashchange",navigate);
 window.addEventListener("DOMContentLoaded",()=>{
   const navigation=document.getElementById("primary-nav");
   if(navigation&&!navigation.querySelector('[data-route="workflow"]')) navigation.insertAdjacentHTML("afterbegin",'<a href="#workflow" data-route="workflow"><span aria-hidden="true">◎</span> 연구 워크스페이스</a>');
+  if(navigation&&!navigation.querySelector('[data-route="decision-reports"]')) navigation.insertAdjacentHTML("afterbegin",'<a href="#decision-reports" data-route="decision-reports"><span aria-hidden="true">▣</span> 결정 보고서</a>');
   navigate();
 });
 

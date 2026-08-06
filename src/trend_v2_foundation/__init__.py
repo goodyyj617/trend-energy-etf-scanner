@@ -10,7 +10,7 @@ import importlib
 
 _MODULES = (
     "canonical", "contracts", "result_store", "local_operability", "execution",
-    "foundation_6", "robustness", "workflow", "evaluation", "artifact_schemas",
+    "foundation_6", "robustness", "workflow", "evaluation", "decision_report", "artifact_schemas",
     "behavior", "calculation", "integration", "metrics", "profiles", "profile_studio", "terminology",
     "registry", "api", "web", "construction", "execution_service", "engine_adapter",
 )
