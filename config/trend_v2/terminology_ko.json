@@ -67,6 +67,24 @@
       "internal_error": "내부 오류가 발생했습니다. 로컬 저장소 상태를 확인해 주세요."
     }
   },
+  "decision_report": {
+    "status_labels": {
+      "pass": "통과",
+      "fail": "실패",
+      "incomplete": "판정 불완전",
+      "ready": "근거 준비됨",
+      "warning": "경고",
+      "stale": "근거 최신성 불일치",
+      "incompatible": "근거 비호환"
+    },
+    "error_messages": {
+      "decision_report_invalid_request": "결정 보고서 요청 형식이 올바르지 않습니다.",
+      "decision_report_reference_missing": "결정 보고서에 필요한 저장 근거가 없습니다.",
+      "decision_report_reference_incompatible": "선택한 결정 보고서 근거가 서로 호환되지 않습니다.",
+      "decision_report_reference_stale": "결정 보고서 근거가 현재 저장 상태와 일치하지 않습니다.",
+      "decision_report_idempotency_conflict": "동일한 중복 방지 키가 다른 결정 보고서 요청에 사용되었습니다."
+    }
+  },
   "entries": {
     "cagr": {
       "korean_term": "연복리수익률",

@@ -34,6 +34,7 @@ from .contracts import (
     EVALUATION_PROFILE_VERSION,
     EVALUATION_PROFILE_V2_VERSION,
     EVALUATION_RUN_VERSION,
+    DECISION_REPORT_VERSION,
     METRIC_REGISTRY_VERSION,
     STRATEGY_RUN_MANIFEST_VERSION,
     STRATEGY_RUN_SPEC_VERSION,
@@ -75,6 +76,7 @@ from .foundation_6 import (
 from .robustness import RobustnessError, RobustnessExecutionService
 from .workflow import WorkflowCoordinator, WorkflowError
 from .profile_studio import ProfileStudioError, ProfileStudioService
+from .decision_report import DecisionReportError, DecisionReportService
 
 
 API_VERSION = "trend_v2_local_read_api_v1"
@@ -197,6 +199,7 @@ class ReadOnlyTrendApi:
         workflow_coordinator: WorkflowCoordinator | None = None,
         local_status_provider: Callable[[], Mapping[str, Any]] | None = None,
         profile_studio_service: ProfileStudioService | None = None,
+        decision_report_service: DecisionReportService | None = None,
     ) -> None:
         self.store = store
         self.attempt_repository = attempt_repository or FileExecutionAttemptRepository(
@@ -209,12 +212,24 @@ class ReadOnlyTrendApi:
         api_terms = self.terminology_source.get("api", {})
         self.status_labels = dict(api_terms.get("status_labels", {}))
         self.error_messages = dict(api_terms.get("error_messages", {}))
+        report_terms = self.terminology_source.get("decision_report", {})
+        self.status_labels.update(report_terms.get("status_labels", {}))
+        self.error_messages.update(report_terms.get("error_messages", {}))
         self.server_config = server_config or ApiServerConfig()
         self.controlled_execution_service = controlled_execution_service
         self.robustness_execution_service = robustness_execution_service
         self.workflow_coordinator = workflow_coordinator
         self.local_status_provider = local_status_provider
         self.profile_studio_service = profile_studio_service or ProfileStudioService(store)
+        self.decision_report_service = decision_report_service or DecisionReportService(
+            store,
+            robustness_service=robustness_execution_service,
+            source_commit=(
+                controlled_execution_service.source_commit
+                if controlled_execution_service is not None
+                else "unknown"
+            ),
+        )
         if persisted_execution_manager is not None:
             self.persisted_execution_manager = persisted_execution_manager
         elif controlled_execution_service is not None:
@@ -312,6 +327,11 @@ class ReadOnlyTrendApi:
         if path == f"{API_PATH_PREFIX}/evaluation-profiles" and method == "POST":
             response, replayed = studio.save(payload, idempotency_key=self._idempotency_key(headers))
             return (200 if replayed else 201), response
+        if path == f"{API_PATH_PREFIX}/decision-reports" and method == "POST":
+            response, replayed = self.decision_report_service.create(
+                payload, idempotency_key=self._idempotency_key(headers)
+            )
+            return (200 if replayed else 201), response
         profile_parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
         if len(profile_parts) == 3 and profile_parts[0] == "evaluation-profiles" and profile_parts[2] == "apply" and method == "POST":
             profile_id = self._identifier(profile_parts[1], "EvaluationProfile")
@@ -337,6 +357,29 @@ class ReadOnlyTrendApi:
                     profile_id = payload.get("evaluation_profile_id")
                     if not isinstance(profile_id, str): raise ApiContractError(400, "workflow_construction_invalid", "evaluation_profile_id is required.")
                     return 200, workflow.evaluate(workflow_id, evaluation_profile_id=profile_id, idempotency_key=self._idempotency_key(headers))
+                if action == "decision-report":
+                    strategy_run_id = payload.get("strategy_run_id")
+                    evaluation_run_id = payload.get("evaluation_run_id")
+                    robustness_plan_id = payload.get("robustness_plan_id")
+                    if isinstance(strategy_run_id, str) and isinstance(evaluation_run_id, str) and (robustness_plan_id is None or isinstance(robustness_plan_id, str)):
+                        workflow.validate_decision_report_reference(
+                            workflow_id,
+                            strategy_run_id=strategy_run_id,
+                            evaluation_run_id=evaluation_run_id,
+                            robustness_plan_id=robustness_plan_id,
+                        )
+                    response, replayed = self.decision_report_service.create(
+                        payload, idempotency_key=self._idempotency_key(headers)
+                    )
+                    report = response["decision_report"]
+                    workflow.record_decision_report(
+                        workflow_id,
+                        decision_report_id=report["decision_report_id"],
+                        strategy_run_id=report["strategy_run_id"],
+                        evaluation_run_id=report["evaluation_run_id"],
+                        robustness_plan_id=report["evidence_references"]["robustness"].get("robustness_plan_id"),
+                    )
+                    return (200 if replayed else 201), response
         if path == f"{API_PATH_PREFIX}/robustness/normalize" and method == "POST":
             if robustness is None:
                 raise ApiContractError(405, "method_not_allowed", "Robustness execution API is disabled.")
@@ -614,6 +657,7 @@ class ReadOnlyTrendApi:
                 EVALUATION_PROFILE_VERSION,
                 EVALUATION_PROFILE_V2_VERSION,
                 EVALUATION_RUN_VERSION,
+                DECISION_REPORT_VERSION,
                 DERIVED_METRIC_MANIFEST_VERSION,
                 DAILY_PORTFOLIO_CURVE_SCHEMA_VERSION,
                 YEARLY_METRICS_SCHEMA_VERSION,
@@ -1140,6 +1184,29 @@ class ReadOnlyTrendApi:
             "page": page,
         }
 
+    def _list_decision_reports(
+        self, registry: SavedRunRegistry, query: Mapping[str, Sequence[str]]
+    ) -> Mapping[str, Any]:
+        allowed = {"strategy_run_id", "evaluation_run_id", "page_size", "cursor"}
+        self._allow_query(query, allowed)
+        strategy_run_id = self._value(query, "strategy_run_id")
+        evaluation_run_id = self._value(query, "evaluation_run_id")
+        items = self.decision_report_service.list(
+            strategy_run_id=strategy_run_id,
+            evaluation_run_id=evaluation_run_id,
+        )
+        selected, page = self._page(
+            items,
+            query=query,
+            registry_id=registry.registry_id,
+            resource="decision_reports",
+            signature_fields={
+                "strategy_run_id": strategy_run_id,
+                "evaluation_run_id": evaluation_run_id,
+            },
+        )
+        return {"items": selected, "page": page}
+
     def _evaluation_behavior(
         self,
         registry: SavedRunRegistry,
@@ -1274,6 +1341,15 @@ class ReadOnlyTrendApi:
                 raise ApiContractError(404, "not_found", "Robustness execution API is disabled.")
             plan_id = self._identifier(path.split("/")[-2], "robustness plan")
             return self.robustness_execution_service.evidence(plan_id)
+        if path.startswith(f"{API_PATH_PREFIX}/robustness/plans/") and path.endswith("/stored-evidence"):
+            self._allow_query(query, set())
+            if self.robustness_execution_service is None:
+                raise ApiContractError(404, "not_found", "Robustness execution API is disabled.")
+            plan_id = self._identifier(path.split("/")[-2], "robustness plan")
+            try:
+                return self.robustness_execution_service.read_evidence(plan_id)
+            except Exception as error:
+                raise ApiContractError(409, "integrity_validation_failed", "Stored robustness evidence is unavailable.", object_identity=plan_id) from error
         if path == f"{API_PATH_PREFIX}/construction/options":
             self._allow_query(query, set())
             if self.controlled_execution_service is None:
@@ -1300,6 +1376,8 @@ class ReadOnlyTrendApi:
             return self._list_profiles(registry, query)
         if path == f"{API_PATH_PREFIX}/evaluation-runs":
             return self._list_evaluations(registry, query)
+        if path == f"{API_PATH_PREFIX}/decision-reports":
+            return self._list_decision_reports(registry, query)
         if path == f"{API_PATH_PREFIX}/execution-attempts":
             return self._list_attempts(registry, query)
 
@@ -1400,6 +1478,10 @@ class ReadOnlyTrendApi:
                 return self._evaluation_detail(registry, evaluation_id, query, outputs_only=True)
             if parts[2] == "behavior":
                 return self._evaluation_behavior(registry, evaluation_id, query)
+        if parts[0] == "decision-reports" and len(parts) == 2:
+            self._allow_query(query, set())
+            report_id = self._identifier(parts[1], "DecisionReport")
+            return self.decision_report_service.detail(report_id)
         if parts[0] == "execution-attempts" and len(parts) == 2:
             attempt_id = self._identifier(parts[1], "execution attempt")
             self._allow_query(query, set())
@@ -1494,6 +1576,9 @@ class ReadOnlyTrendApi:
         except ProfileStudioError as error:
             status = 404 if error.code in {"profile_source_not_found", "profile_apply_strategy_run_not_found"} else 409 if error.code in {"profile_validation_stale", "profile_lineage_conflict", "profile_idempotency_conflict"} else 400
             return self._error_response(ApiContractError(status, error.code, error.diagnostic_en), request_id)
+        except DecisionReportError as error:
+            status = 409 if error.code in {"decision_report_reference_stale", "decision_report_idempotency_conflict"} else 404 if error.code == "decision_report_reference_missing" else 400
+            return ApiResponse(status_code=status, body={"error": error.to_dict(request_id)}, headers={"X-Request-ID": request_id})
         except Exception:
             return self._error_response(
                 ApiContractError(

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from .canonical import canonical_bytes, canonical_data, content_hash, deterministic_id
+from .artifact_schemas import validate_robustness_summary_v2
 from .contracts import StrategyRunSpec
 from .result_store import LocalResultStore
 
@@ -392,6 +393,13 @@ class RobustnessExecutionService:
         survival = None if not cost else (len(surviving_cost) / len(completed_cost) if completed_cost else 0.0)
         summary = {"schema_version": ROBUSTNESS_SUMMARY_VERSION, "compatibility_schema_version": "robustness_summary_v1", "base_strategy_run_id": plan["base_strategy_run_id"], "plan_id": plan_id, "plan_hash": plan["plan_hash"], "attempt_id": attempt["robustness_attempt_id"], "provenance": {"economic_artifact_hash": plan["economic_artifact_hash"], "benchmark_hash": plan["benchmark_hash"], "robustness_engine_version": ROBUSTNESS_ENGINE_VERSION, "source_commit": self.source_commit}, "scenario_results": by_method, "walk_forward": {"fold_count": len(wf), "eligible_fold_count": len(wf), "completed_fold_count": len(passed_wf), "passed_fold_count": len([item for item in passed_wf if item >= 0]), "pass_ratio": None if not wf else len([item for item in passed_wf if item >= 0]) / len(wf), "worst_fold": min(passed_wf) if passed_wf else None, "median_fold": statistics.median(passed_wf) if passed_wf else None, "incomplete_fold_count": len([item for item in wf if item["scenario"]["state"] == "incomplete"])}, "loyo": {"evaluated_year_count": len(loyo_values), "reversing_years": sorted(int(item["result"]["year"]) for item in loyo if item["scenario"]["state"] == "succeeded" and float(item["result"]["metric"]) * full_metric < 0), "stability_ratio": None if not loyo else len([item for item in loyo_values if item * full_metric >= 0]) / len(loyo), "incomplete_years": [item["scenario"]["scenario_settings"]["year"] for item in loyo if item["scenario"]["state"] != "succeeded"]}, "bootstrap": boot or None, "cost_stress": {"total_scenarios": len(cost), "completed": len(completed_cost), "reused": len([item for item in completed_cost if item["result"].get("reused")]), "failed": len([item for item in cost if item["scenario"]["state"] == "failed"]), "incomplete": len([item for item in cost if item["scenario"]["state"] in {"incomplete", "blocked", "cancelled"}]), "worst_scenario": None if worst_cost is None else worst_cost["result"].get("scenario_identity"), "survival_ratio": survival, "survival": survival == 1.0 if survival is not None else None, "pass_rule": "all_completed_scenarios_survive", "scenarios": cost}, "multiple_testing": None, "evidence_hash": ""}
         summary["evidence_hash"] = content_hash({key: value for key, value in summary.items() if key != "evidence_hash"}); self._write("evidence", plan_id, summary); return summary
+
+    def read_evidence(self, plan_id: str) -> Mapping[str, Any]:
+        """Read already-persisted evidence without starting or executing scenarios."""
+
+        evidence = self._load("evidence", plan_id)
+        validate_robustness_summary_v2(evidence)
+        return evidence
 
     def reconcile(self, attempt_id: str) -> Mapping[str, Any]:
         attempt = dict(self._load("attempts", attempt_id)); changed = []

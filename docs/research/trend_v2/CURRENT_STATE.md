@@ -82,10 +82,16 @@
   immutable lineage-aware profile revisions, validates only Metric
   Registry-backed decision settings, and applies a selected profile to stored
   evidence without rerunning the economic backtest.
+- Foundation 10C adds immutable, StrategyRun-specific Decision Reports that
+  reference (rather than copy) stored StrategyRun, EvaluationRun,
+  EvaluationProfile, behavior, and optional completed robustness evidence.
+  Creation and restoration are idempotent and fail closed on missing, stale,
+  incompatible, or incomplete references; the Korean-first workspace and
+  report view do not start economic, evaluation, or robustness execution.
 
 ## Current phase
 
-Product foundation -- local startup and recovery hardening
+Product foundation -- persisted decision reports
 
 ## Phase A2 record
 
@@ -97,7 +103,7 @@ Product foundation -- local startup and recovery hardening
 
 ## Exact next task
 
-Foundation 10 -- separately scoped product workflow evolution, without unrestricted optimization
+Foundation 10D -- decision-report user acceptance and bounded usability verification
 
 ## Required product direction
 

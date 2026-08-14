@@ -119,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     if report["warning_count"]:
         print(f"[경고] 사전 점검 경고 {report['warning_count']}건이 있습니다.")
     from src.trend_v2_foundation import ApiServerConfig, ReadOnlyTrendApi, TrendWebApplication, build_web_server
+    from src.trend_v2_foundation.decision_report import DecisionReportService
     from src.trend_v2_foundation.local_operability import local_status, reconcile_local_state
     store, terminology, attempts, execution, robustness, manager, workflows, source_commit = _services(store_root, args.port)
     recovery = reconcile_local_state(store.root, source_commit=source_commit, manager=manager, attempts=attempts, robustness=robustness, workflows=workflows)
@@ -129,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"마지막 복구: {recovery['recovery_id'][:12]}")
         execution.close()
         return 0
-    api = ReadOnlyTrendApi(store, attempt_repository=attempts, terminology_source=terminology, server_config=ApiServerConfig(port=args.port), controlled_execution_service=execution, persisted_execution_manager=manager, robustness_execution_service=robustness, workflow_coordinator=workflows, local_status_provider=lambda: local_status(store.root, manager=manager, attempts=attempts))
+    api = ReadOnlyTrendApi(store, attempt_repository=attempts, terminology_source=terminology, server_config=ApiServerConfig(port=args.port), controlled_execution_service=execution, persisted_execution_manager=manager, robustness_execution_service=robustness, workflow_coordinator=workflows, local_status_provider=lambda: local_status(store.root, manager=manager, attempts=attempts), decision_report_service=DecisionReportService(store, robustness_service=robustness, source_commit=source_commit))
     shutdown_token = None
     if args.launcher_instance_id or args.launcher_token_file:
         if not args.launcher_instance_id or args.launcher_token_file is None:

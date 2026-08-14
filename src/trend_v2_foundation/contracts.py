@@ -14,6 +14,7 @@ STRATEGY_RUN_MANIFEST_VERSION = "strategy_run_manifest_v1"
 EVALUATION_PROFILE_VERSION = "evaluation_profile_v1"
 EVALUATION_PROFILE_V2_VERSION = "evaluation_profile_v2"
 EVALUATION_RUN_VERSION = "evaluation_run_v2"
+DECISION_REPORT_VERSION = "decision_report_v1"
 RETENTION_POLICY_VERSION = "artifact_retention_policy_v1"
 METRIC_REGISTRY_VERSION = "metric_registry_v2"
 DERIVED_METRIC_MANIFEST_VERSION = "derived_metric_manifest_v1"
@@ -516,6 +517,71 @@ class EvaluationRun:
         if expected_id is not None and expected_id != run.evaluation_run_id:
             raise ValueError("evaluation_run_id does not match identity content")
         return run
+
+
+@dataclass(frozen=True)
+class DecisionReport:
+    """Immutable references for one StrategyRun's decision-oriented view."""
+
+    strategy_run_id: str
+    evaluation_run_id: str
+    evaluation_profile_id: str
+    profile_hash: str
+    evidence_references: Mapping[str, Any]
+    creation_time: str
+    template_version: str
+    source_commit: str
+    schema_version: str = DECISION_REPORT_VERSION
+
+    def __post_init__(self) -> None:
+        if self.schema_version != DECISION_REPORT_VERSION:
+            raise ValueError("unsupported DecisionReport schema_version")
+        if not all(
+            isinstance(value, str) and value
+            for value in (
+                self.strategy_run_id,
+                self.evaluation_run_id,
+                self.evaluation_profile_id,
+                self.profile_hash,
+                self.creation_time,
+                self.template_version,
+                self.source_commit,
+            )
+        ):
+            raise ValueError("DecisionReport identity fields are required")
+        if not isinstance(self.evidence_references, Mapping) or not self.evidence_references:
+            raise ValueError("DecisionReport evidence_references are required")
+        object.__setattr__(self, "evidence_references", deep_freeze(self.evidence_references))
+
+    @property
+    def identity_content(self) -> Mapping[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "strategy_run_id": self.strategy_run_id,
+            "evaluation_run_id": self.evaluation_run_id,
+            "evaluation_profile_id": self.evaluation_profile_id,
+            "profile_hash": self.profile_hash,
+            "evidence_references": self.evidence_references,
+            "template_version": self.template_version,
+        }
+
+    @property
+    def decision_report_id(self) -> str:
+        return deterministic_id("decision_report", self.identity_content)
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = canonical_data(self)
+        payload["decision_report_id"] = self.decision_report_id
+        return payload
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "DecisionReport":
+        payload = dict(value)
+        expected_id = payload.pop("decision_report_id", None)
+        report = cls(**payload)
+        if expected_id is not None and expected_id != report.decision_report_id:
+            raise ValueError("decision_report_id does not match identity content")
+        return report
 
 
 @dataclass(frozen=True)
