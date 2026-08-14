@@ -3999,6 +3999,9 @@ ACEI,Innovator Equity Autocallable Income Strategy ETF,P,True,False,False,False,
 ACGR,American Century Large Cap Growth ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ACLC,American Century Large Cap Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ACOM,Harbor Active Commodity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+ACQQ,ProShares Nasdaq-100 Autocallable Income ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
+ACRT,ProShares Russell 2000 Autocallable Income ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
+ACSP,ProShares S&P 500 Autocallable Income ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 ACTS,FIS Tactical Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ACVU,Hartford Alpha Capture Value ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ACYQ,FT Vest Autocallable Barrier & High Income ETF,P,True,False,False,False,False,False,False,True,True,buffer,False,,,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
@@ -4017,6 +4020,7 @@ ARMS,Aristotle Multi-Sector Income ETF,P,True,False,False,False,False,False,Fals
 AUAU,Global X Gold Miners ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 BAVA,Common Shares of Beneficial Interest of Bitwise Avalanche ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BD,Russell Investments Core Plus Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+BEMD,BNY Mellon Emerging Markets Debt ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 BHYP,Common Shares of Beneficial Interest of Bitwise Hyperliquid ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BMSI,BNY Mellon Muti-Sector Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 BRIB,FIS Bright Portfolios Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
@@ -4115,6 +4119,7 @@ GTND,Goaltender ETF,P,True,False,False,False,False,False,False,False,False,,Fals
 GTOH,Invesco Short Duration High Yield ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 GTOS,Invesco Short Duration Total Return Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 GXLC,Global X U.S. 500 ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
+HAWG,HCM Hedged Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 HBIL,Harbor Short Term Treasury ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 HBRD,Invesco U.S. Hybrid Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 HELS,Hedgeye 130/30 Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
