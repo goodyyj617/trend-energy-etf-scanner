@@ -147,9 +147,9 @@ IDVZ,Polen International Dividend Income Fund,dividend,dividend_equity_income,un
 IGRO,iShares International Dividend Growth ETF,dividend growth,dividend_equity_income,unknown
 IHDG,WisdomTree International Hedged Quality Dividend Growth Fund,dividend growth,dividend_equity_income,unknown
 INEQ,Columbia International Equity Income ETF,equity income,dividend_equity_income,unknown
-IQDF,FlexShares International Quality Dividend Index Fund,dividend,dividend_equity_income,unknown
+IQDF,Northern Trust International Quality Dividend ETF,dividend,dividend_equity_income,unknown
 IQDG,WisdomTree International Quality Dividend Growth Fund,dividend growth,dividend_equity_income,unknown
-IQDY,FlexShares International Quality Dividend Dynamic Index Fund,dividend,dividend_equity_income,unknown
+IQDY,Northern Trust International Quality Dividend Dynamic ETF,dividend,dividend_equity_income,unknown
 JDIV,JPMorgan Dividend Leaders ETF,dividend,dividend_equity_income,unknown
 JHDV,John Hancock U.S. High Dividend ETF,high dividend,dividend_equity_income,unknown
 JHID,John Hancock International High Dividend ETF,high dividend,dividend_equity_income,unknown
@@ -172,8 +172,8 @@ OUSM,ALPS O'Shares U.S. Small-Cap Quality Dividend ETF,dividend,dividend_equity_
 PEY,Invesco High Yield Equity Dividend Achievers ETF,dividend,dividend_equity_income,unknown
 PFM,Invesco Dividend Achievers ETF,dividend,dividend_equity_income,unknown
 PID,Invesco International Dividend Achievers ETF,dividend,dividend_equity_income,unknown
-QDEF,FlexShares Quality Dividend Defensive Index Fund,dividend,dividend_equity_income,unknown
-QDF,FlexShares Quality Dividend Index Fund,dividend,dividend_equity_income,unknown
+QDEF,Northern Trust Quality Dividend Defensive ETF,dividend,dividend_equity_income,unknown
+QDF,Northern Trust Quality Dividend ETF,dividend,dividend_equity_income,unknown
 QDIV,Global X S&P 500 Quality Dividend ETF,dividend,dividend_equity_income,unknown
 QDPL,Pacer Metaurus US Large Cap Dividend Multiplier 400 ETF,dividend,dividend_equity_income,unknown
 QFHD,Pacer S&P 500 Quality FCF High Dividend ETF,high dividend,dividend_equity_income,unknown
