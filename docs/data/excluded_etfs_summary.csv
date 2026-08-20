@@ -134,6 +134,7 @@ FTDS,First Trust Dividend Strength ETF,dividend,dividend_equity_income,unknown
 FVD,First Trust VL Dividend,dividend,dividend_equity_income,unknown
 GCOW,Pacer Global Cash Cows Dividend ETF,dividend,dividend_equity_income,unknown
 GDIV,Harbor Dividend Growth Leaders ETF,dividend growth,dividend_equity_income,unknown
+GEEQ,Guggenheim Enhanced Equity Income ETF,equity income,dividend_equity_income,unknown
 GEND,Genter Capital Dividend Income ETF,dividend,dividend_equity_income,unknown
 GENW,Genter Capital International Dividend ETF,dividend,dividend_equity_income,unknown
 HDEF,Xtrackers MSCI EAFE High Dividend Yield Equity ETF,dividend yield,dividend_equity_income,unknown
