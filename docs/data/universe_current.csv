@@ -4023,6 +4023,7 @@ BD,Russell Investments Core Plus Bond ETF,P,True,False,False,False,False,False,F
 BEMD,BNY Mellon Emerging Markets Debt ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 BRIB,FIS Bright Portfolios Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 BRSM,MFS Blended Research Small-Mid Cap ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+BTA,Beacon Tactical Alternatives Risk ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BTCI,NEOS Bitcoin High Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 BUCK,Simplify Treasury Option Income ETF,P,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 BUXX,Strive Enhanced Income Short Maturity ETF,N,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
@@ -4155,6 +4156,7 @@ KAIT,KraneShares Asia AI Technology ETF,P,True,False,False,False,False,False,Fal
 KRYP,ProShares CoinDesk 20 Crypto ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 KSMH,xETFs Korea AI Semiconductor,Q,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 LBAY,Leatherback Long/Short Alternative Yield ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+LBOX,GraniteShares Short Term Box ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 LQID,Kurv Enhanced Short Maturity ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 LSCP,Natixis Loomis Sayles Dynamic Core Plus ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 LSEQ,Harbor Long-Short Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
@@ -4336,6 +4338,7 @@ YCLO,Franklin BSP CLO ETF,P,True,False,False,False,False,False,False,False,False
 YLDW,Westwood Enhanced Income Opportunity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 YLDY,Horizon High Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 YXI,ProShares Short FTSE China 50,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
+ZCSH,The Zcash ETF Shares,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ZDIS,Virtus Zevenbergen Discovery Growth ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ZINC,Zacks Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 ZINN,Virtus Zevenbergen Innovative Growth ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
