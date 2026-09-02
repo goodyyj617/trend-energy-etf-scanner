@@ -4061,6 +4061,7 @@ DFMC,U.S. Micro Cap Portfolio: ETF Class Shares,P,True,False,False,False,False,F
 DFSD,Dimensional Short-Duration Fixed Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 DFTT,DF Tactical 30 ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 DIVE,Dana Concentrated Dividend ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend,,Factor / Style,unknown,,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+DIVH,Integrity Dividend Harvest ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend,,Factor / Style,unknown,,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 DLUX,DoubleLine Ultrashort Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 DOJE,REX-Osprey DOGE ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 DPRE,Virtus Duff & Phelps Real Estate Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
@@ -4328,12 +4329,14 @@ TSSD,Truth Social American Security & Defense ETF,P,True,False,False,False,False
 TTOP,21Shares FTSE Crypto 10 Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 TXBC,21Shares FTSE Crypto 10 ex-BTC Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 TYYY,xETFs TSLA Daily Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+UCBG,State Street SPDR UC Investments 90/10 Endowment Strategy Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 UPSD,Aptus Large Cap Upside ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 USFI,BrandywineGLOBAL - U.S. Fixed Income ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 VAIE,VegaShares US Equity Autocallable Income ETF,P,True,False,False,False,False,False,False,True,True,buffer,False,,,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 VCOB,Voya Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 VEM,Virtus Emerging Markets Dividend ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend,,Country / Region,unknown,,False,,True,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 VGRO,Virtus Silvant Growth Opportunities ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+VOOY,XFUNDS Large Cap Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 VOXP,Vox Populi ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 VPX,Variant Perception Cycle Aware US Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,US Equity,unknown,,False,,False,False,US Equity,US Equity,US Equity,US Equity,US Equity
 WCAP,WarCap Unconstrained Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
