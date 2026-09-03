@@ -4230,6 +4230,7 @@ PCR,Simplify VettaFi Private Credit Strategy ETF,P,True,False,False,False,False,
 PGRI,Putnam International Stock ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 PHOX,Aura AI Photonics ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 PHYS,Sprott Physical Gold Trust ETV,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+PJSM,PGIM Jennison Small-Mid Cap Core Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 PMTL,First Trust Indxx Quality Precious Metals Miners ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 PQNT,Pictet AI Enhanced International Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 PQUS,Pictet AI Enhanced US Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
@@ -4237,7 +4238,6 @@ PRAB,State Street IG Public & Private ABS ETF,P,True,False,False,False,False,Fal
 PRAM,Defiance Memory & Photonics ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 PRIZ,Zacks Preferred Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 PRTO,RCN Pareto Strategic Allocation ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
-PRVT,Tema Alternative Asset Managers ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 PSLV,Sprott Physical Silver Trust ETV,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 PSOX,Tema MLCC & PowerSemi ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 PZIV,Pzena International Value ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
@@ -4322,6 +4322,7 @@ TPFC,Timothy Plan Free Cash Flow ETF,P,True,False,False,False,False,False,False,
 TPFG,Timothy Plan Free Cash Flow Growth ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 TROT,Invesco MSCI Treasury Duration Rotation ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 TRPA,Hartford AAA CLO ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+TSCZ,T. Rowe Price Securitized Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 TSIC,Truth Social American Icons ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 TSLW,Roundhill TSLA WeeklyPay ETF,Z,True,False,False,False,False,False,True,False,True,option_income,False,,,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
 TSRS,Truth Social American Red State REITs ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
