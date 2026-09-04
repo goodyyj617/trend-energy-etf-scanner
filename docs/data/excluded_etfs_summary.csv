@@ -140,6 +140,7 @@ GENW,Genter Capital International Dividend ETF,dividend,dividend_equity_income,u
 HDEF,Xtrackers MSCI EAFE High Dividend Yield Equity ETF,dividend yield,dividend_equity_income,unknown
 HDV,iShares Core High Dividend ETF,high dividend,dividend_equity_income,unknown
 HIDV,AB US High Dividend ETF,high dividend,dividend_equity_income,unknown
+HQDG,Raub Brock Dividend Growth ETF,dividend growth,dividend_equity_income,unknown
 ICAP,Infrastructure Capital Equity Income ETF,equity income,dividend_equity_income,unknown
 IDOG,ALPS International Sector Dividend Dogs ETF,dividend,dividend_equity_income,unknown
 IDV,iShares International Select Dividend ETF,dividend,dividend_equity_income,unknown
