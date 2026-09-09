@@ -4064,6 +4064,7 @@ BTA,Beacon Tactical Alternatives Risk ETF,P,True,False,False,False,False,False,F
 BTCI,NEOS Bitcoin High Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 BUCK,Simplify Treasury Option Income ETF,P,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 BUXX,Strive Enhanced Income Short Maturity ETF,N,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+CCML,Roundhill MLCC & Electronic Components ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 CCRP,Columbia Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 CDPI,Columbia High Dividend Premium Income ETF,P,True,False,False,False,False,False,True,False,True,option_income,True,covered_call_option_income,premium income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 CEF,Sprott Physical Gold and Silver Trust Units,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
@@ -4084,6 +4085,7 @@ DEPW,Google DeepMind AI Lab Ecosystem ETF,P,True,False,False,False,False,False,F
 DFMC,U.S. Micro Cap Portfolio: ETF Class Shares,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 DFSD,Dimensional Short-Duration Fixed Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 DFTT,DF Tactical 30 ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+DICE,Tema Trading & Prediction Markets ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 DIVE,Dana Concentrated Dividend ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend,,Factor / Style,unknown,,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 DIVH,Integrity Dividend Harvest ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend,,Factor / Style,unknown,,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 DLUX,DoubleLine Ultrashort Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
@@ -4330,6 +4332,7 @@ TPFC,Timothy Plan Free Cash Flow ETF,P,True,False,False,False,False,False,False,
 TPFG,Timothy Plan Free Cash Flow Growth ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 TROT,Invesco MSCI Treasury Duration Rotation ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 TRPA,Hartford AAA CLO ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+TRXS,Canary Staked TRX ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 TSCZ,T. Rowe Price Securitized Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 TSIC,Truth Social American Icons ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 TSLW,Roundhill TSLA WeeklyPay ETF,Z,True,False,False,False,False,False,True,False,True,option_income,False,,,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
