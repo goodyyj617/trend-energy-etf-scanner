@@ -2962,7 +2962,7 @@ DCMT,DoubleLine Commodity Strategy ETF,P,True,False,False,False,False,False,Fals
 MARZ,TrueShares Structured Outcome (March) ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,35608232.0,Other,unknown,2961.0,False,,False,False,Other,Other,Other,Other,Other
 MMID,MFS Active Mid Cap ETF,N,True,False,False,False,False,False,False,False,False,,False,,,35595552.0,Factor / Style,unknown,2962.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 NURE,Nuveen Short-Term REIT ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,35572212.0,REIT / Infra,unknown,2963.0,False,,False,False,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra
-TXS,Texas Capital Texas Equity Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,35502360.0,Other,unknown,2964.0,False,,False,False,Other,Other,Other,Other,Other
+TXS,Texas Capital Texas Equity Index ETF,F,True,False,False,False,False,False,False,False,False,,False,,,35502360.0,Other,unknown,2964.0,False,,False,False,Other,Other,Other,Other,Other
 AMOM,QRAFT AI-Enhanced U.S. Large Cap Momentum ETF,P,True,False,False,False,False,False,False,False,False,,False,,,35328648.0,Factor / Style,unknown,2965.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ZHDG,ZEGA Buy and Hedge ETF,P,True,False,False,False,False,False,False,False,False,,False,,,35304684.0,Other,unknown,2966.0,False,,False,False,Other,Other,Other,Other,Other
 OEFA,ALPS O'Shares International Developed Quality Dividend ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend,35279964.0,Factor / Style,unknown,2967.0,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
@@ -3444,7 +3444,7 @@ VBCI,Vanguard Target Maturity 2035 Corporate Bond ETF,Q,True,False,False,False,F
 VBCJ,Vanguard Target Maturity 2036 Corporate Bond ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,12097600.0,Bond,unknown,3443.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 EMES,Harbor Emerging Markets Select ETF,P,True,False,False,False,False,False,False,False,False,,False,,,12084996.0,Country / Region,unknown,3444.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 YSPY,GraniteShares YieldBOOST SPY ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,12083761.0,Other,unknown,3445.0,False,,False,False,Other,Other,Other,Other,Other
-OILT,Texas Capital Texas Oil Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,12048077.0,Commodity,unknown,3446.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+OILT,Texas Capital Texas Oil Index ETF,F,True,False,False,False,False,False,False,False,False,,False,,,12048077.0,Commodity,unknown,3446.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 GASZ,Corgi Natural Gas Power & Turbines ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,12037812.0,Commodity,unknown,3447.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 EBIT,Harbor AlphaEdge Small Cap Earners ETF,P,True,False,False,False,False,False,False,False,False,,False,,,12011297.0,Factor / Style,unknown,3448.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 BFIX,Build Bond Innovation ETF,P,True,False,False,False,False,False,False,False,False,,False,,,11906393.0,Bond,unknown,3449.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
@@ -4049,6 +4049,7 @@ AFEM,First Trust Active Factor Emerging Markets ETF,Q,True,False,False,False,Fal
 AFGR,First Trust Multi-Manager Large Growth ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 AGGM,iShares 1-10 Year U.S. Aggregate Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 AHBM,Amplify Top 10 Asia Memory ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
+AICH,China AI ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 AIFR,Defiance Global Foundries ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 AIMG,Defiance AI Magnificent 10 ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 AINT,FINQ DOLLAR NEUTRAL U.S. Large Cap AI-Managed Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
@@ -4065,9 +4066,11 @@ BBLS,Munificent Seven ETF,P,True,False,False,False,False,False,False,False,False
 BD,Russell Investments Core Plus Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 BRIB,FIS Bright Portfolios Core Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 BRSM,MFS Blended Research Small-Mid Cap ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+BSMA,Invesco BulletShares 2036 Municipal Bond ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 BTA,Beacon Tactical Alternatives Risk ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BTCI,NEOS Bitcoin High Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 BUCK,Simplify Treasury Option Income ETF,P,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
+BUIL,Rebuild America ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BUXX,Strive Enhanced Income Short Maturity ETF,N,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 CCML,Roundhill MLCC & Electronic Components ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 CCRP,Columbia Corporate Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
@@ -4186,12 +4189,14 @@ IFLR,Innovator International Developed Managed Floor ETF,P,True,False,False,Fals
 IGGY,AB International Growth ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 IINC,Alki Consolidated Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 IPB,"Merrill Lynch & Co., Inc. 6.0518% Index Plus Trust Certificates Series 2003-1",N,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+IQGR,Astoria International Quality Growth Kings ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 IQSZ,Invesco Global Equity Net Zero ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 IROC,Invesco Rochester High Yield Municipal ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 JA,Janus Henderson AA-A CLO ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 JCAL,JPMorgan California Tax Free Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 JHLN,John Hancock Global Senior Loan ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 JIDE,JPMorgan International Dynamic ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
+JINT,Janus Henderson International Core Alpha ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 JPRF,JPMorgan Preferred and Income Securities ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 JTNY,JPMorgan New York Tax Free Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 KAIT,KraneShares Asia AI Technology ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
