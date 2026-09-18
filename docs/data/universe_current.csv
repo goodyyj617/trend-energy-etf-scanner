@@ -2467,7 +2467,7 @@ FINT,Frontier Asset Total International Equity ETF,P,True,False,False,False,Fals
 ETHV,VanEck Ethereum ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,77188728.0,Crypto,unknown,2466.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 NSIV,North Square Disciplined Value ETF,P,True,False,False,False,False,False,False,False,False,,False,,,77011512.0,Factor / Style,unknown,2467.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 GNOM,Global X Genomics & Biotechnology ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,76762632.0,Industry / Theme,unknown,2468.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-ILS,Brookmont Catastrophic Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,76672464.0,Bond,unknown,2469.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+ILS,Brookmont Catastrophic Bond ETF,F,True,False,False,False,False,False,False,False,False,,False,,,76672464.0,Bond,unknown,2469.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 SAGP,Strategas Global Policy Opportunities ETF,P,True,False,False,False,False,False,False,False,False,,False,,,76606792.0,Global Equity,unknown,2470.0,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 PUI,Invesco Dorsey Wright Utilities Momentum ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,76488904.0,Sector,unknown,2471.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
 FXB,Invesco CurrencyShares British Pound Sterling Trust,P,True,False,False,False,False,False,False,False,False,,False,,,76474088.0,Other,unknown,2472.0,False,,False,False,Other,Other,Other,Other,Other
