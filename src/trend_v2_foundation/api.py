@@ -1535,8 +1535,23 @@ class ReadOnlyTrendApi:
                     body=response_body,
                     headers={"X-Request-ID": request_id, "Content-Type": "application/json; charset=utf-8"},
                 )
-            registry = self.registry_builder.load_or_rebuild()
-            body = self._route(path, query, registry)
+            workflow_prefix = f"{API_PATH_PREFIX}/workflows"
+            workflow_parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
+            if self.workflow_coordinator is not None and (
+                path == workflow_prefix
+                or (len(workflow_parts) == 2 and workflow_parts[0] == "workflows")
+            ):
+                self._allow_query(query, set())
+                body = (
+                    self.workflow_coordinator.list()
+                    if path == workflow_prefix
+                    else self.workflow_coordinator.read(
+                        self._identifier(workflow_parts[1], "workflow")
+                    )
+                )
+            else:
+                registry = self.registry_builder.load_or_rebuild()
+                body = self._route(path, query, registry)
             response_body = (
                 {} if normalized_method == "HEAD" else _redact_secrets(canonical_data(body))
             )
