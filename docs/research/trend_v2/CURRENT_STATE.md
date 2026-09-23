@@ -103,7 +103,10 @@ Product foundation -- persisted decision reports
 
 ## Exact next task
 
-Foundation 10D -- decision-report user acceptance and bounded usability verification
+Foundation 10D -- one-pass decision-report smoke acceptance on the critical
+create, reopen, and evidence-integrity path. Do not turn this into a standalone
+audit loop or run the full suite; if no blocker is found, proceed immediately
+to the next product implementation phase.
 
 ## Required product direction
 
