@@ -3,9 +3,35 @@
 const API = "/api/v1";
 const CURVE_PAGE_SIZE = 250;
 const LIST_PAGE_SIZE = 20;
+const WORKSPACE_AUTO_ECONOMIC_LIMIT = 8;
+const WORKSPACE_AUTO_TOTAL_LIMIT = 16;
+const WORKSPACE_POLL_LIMIT = 60;
+const WORKSPACE_STATUS_LABELS = Object.freeze({
+  not_started: "대기",
+  needs_action: "실행 필요",
+  draft: "초안",
+  normalized: "정규화됨",
+  estimated: "후보 계산됨",
+  confirmation_required: "확인 필요",
+  economic_pending: "경제 실행 대기",
+  economic_running: "경제 실행 중",
+  economic_completed: "경제 실행 완료",
+  pending: "대기 중",
+  queued: "대기 중",
+  running: "실행 중",
+  completed: "완료",
+  failed: "실패",
+  cancelled: "취소됨",
+  blocked: "중단됨",
+  stale: "근거 만료",
+  missing: "근거 없음",
+  incompatible: "호환 불가",
+  optional: "선택 사항",
+  decision_report_ready: "결정 보고서 준비됨",
+});
 const routes = {
-  workflow: "워크플로",
-  construction: "전략 구성",
+  workflow: "연구 워크스페이스",
+  construction: "고급 전략 구성",
   profiles: "평가 프로필 스튜디오",
   requests: "실행 요청",
   overview: "개요",
@@ -37,6 +63,13 @@ const state = {
   confirmationId: null,
   lastExecutionRequestId: null,
   studioSourceProfileId: null,
+  workspacePollTimer: null,
+  workspacePollCount: 0,
+  workspacePollId: null,
+  workspaceList: null,
+  workspaceProfiles: null,
+  workspaceOptions: null,
+  workspaceCreating: false,
 };
 
 const view = document.getElementById("view");
@@ -717,6 +750,77 @@ function workspaceKey(workflowId, operation) {
   return value;
 }
 
+function stopWorkspacePolling({ reset = true } = {}) {
+  if (state.workspacePollTimer !== null) clearTimeout(state.workspacePollTimer);
+  state.workspacePollTimer = null;
+  if (reset) {
+    state.workspacePollCount = 0;
+    state.workspacePollId = null;
+  }
+}
+
+function scheduleWorkspacePolling(workflowId, status) {
+  stopWorkspacePolling({ reset: false });
+  if (!new Set(["pending", "running"]).has(status)) return;
+  if (state.workspacePollId !== workflowId) {
+    state.workspacePollId = workflowId;
+    state.workspacePollCount = 0;
+  }
+  if (state.workspacePollCount >= WORKSPACE_POLL_LIMIT) {
+    setMessage("자동 상태 갱신을 60회에서 멈췄습니다. 실행 이력에서 상태를 확인하거나 이 화면을 다시 여세요.");
+    return;
+  }
+  const delay = status === "running" ? 8000 : 10000;
+  state.workspacePollTimer = setTimeout(async () => {
+    const route = location.hash.replace(/^#/, "").split("/")[0] || "workflow";
+    if (route !== "workflow" || localStorage.getItem("trend-v2-workflow-id") !== workflowId) return;
+    state.workspacePollCount += 1;
+    try { await renderResearchWorkspace({ polling: true }); }
+    catch (error) { showFatal(error); }
+  }, delay);
+}
+
+function workspaceEstimateFacts(estimate) {
+  if (!estimate || typeof estimate !== "object") return null;
+  const economic = numericValue(
+    estimate.valid_unique_economic_candidates
+      ?? estimate.economic_strategy_run_candidate_count
+      ?? estimate.deduplicated_normalized_candidate_count
+  );
+  const total = numericValue(estimate.total_estimated_work ?? estimate.estimated_total_execution_units);
+  return {
+    economic,
+    total,
+    confirmationRequired: Boolean(estimate.confirmation_required),
+    hardLimitExceeded: Boolean(estimate.hard_limit_exceeded),
+    autoAllowed: economic !== null && total !== null
+      && economic <= WORKSPACE_AUTO_ECONOMIC_LIMIT
+      && total <= WORKSPACE_AUTO_TOTAL_LIMIT,
+  };
+}
+
+function workspaceEstimatePanel(estimate, started) {
+  const facts = workspaceEstimateFacts(estimate);
+  if (!facts) return '<p class="notice">아직 후보 수를 계산하지 않았습니다.</p>';
+  const guard = facts.autoAllowed
+    ? '<p class="notice safe">노트북 안전 자동 실행 범위입니다.</p>'
+    : `<p class="notice danger">자동 실행 한도(경제 후보 ${WORKSPACE_AUTO_ECONOMIC_LIMIT}개, 총 실행 단위 ${WORKSPACE_AUTO_TOTAL_LIMIT}개)를 넘었습니다. 고급 구성 화면에서 범위를 줄이거나 명시적으로 검토하세요.</p>`;
+  const confirmation = facts.confirmationRequired
+    ? '<p class="notice">서버 정책상 해시에 묶인 명시적 확인이 필요합니다.</p>' : '';
+  const hard = facts.hardLimitExceeded
+    ? '<p class="notice danger">서버 하드 한도를 넘어 실행할 수 없습니다.</p>' : '';
+  let action = "";
+  if (!started && !facts.hardLimitExceeded && facts.autoAllowed) {
+    action = facts.confirmationRequired
+      ? '<button id="workspace-confirm-start">이 추정을 명시적으로 확인하고 시작</button>'
+      : '<button id="workspace-advance">안전 범위로 실행 시작</button>';
+  }
+  return `<div class="workspace-estimate"><div class="card-grid compact-grid">
+    <article class="card metric-card"><small>경제 후보</small><strong>${fmt(facts.economic, 0)}</strong></article>
+    <article class="card metric-card"><small>총 실행 단위</small><strong>${fmt(facts.total, 0)}</strong></article>
+  </div>${guard}${confirmation}${hard}<div class="actions">${action}<a class="button-link" href="#construction">고급 구성 열기</a></div></div>`;
+}
+
 function workspaceConstruction(profileId) {
   return {
     schema_version: "strategy_construction_request_v1",
@@ -726,7 +830,7 @@ function workspaceConstruction(profileId) {
     universe: { option_id: "phase_a2_historical_eligible_v1", parameters: {} },
     benchmark: { option_id: "spy_adjusted_close_v1", parameters: {} },
     trend_filter: { option_id: document.getElementById("workspace-trend").value, parameters: {} },
-    signal: { option_id: "prior_price_high_v2", parameters: { lookback: { kind: "fixed", value: Number(document.getElementById("workspace-lookback").value) } } },
+    signal: { option_id: "prior_price_high_v2", parameters: { lookback: parameterSpace(document.getElementById("workspace-lookback").value) } },
     entry_rule: { option_id: "first_event_next_open_v1", parameters: {} },
     initial_stop: { option_id: "signal_day_low20_v1", parameters: {} },
     trailing_exit: { option_id: "ratcheting_low20_v1", parameters: {} },
@@ -740,33 +844,258 @@ function workspaceConstruction(profileId) {
 }
 
 function workspaceCard(number, title, status, body) {
-  return `<section class="card section"><p class="eyebrow">${number}단계</p><h2>${title} ${statusBadge(status || "not_started", status || "not_started")}</h2>${body}</section>`;
+  const code = status || "not_started";
+  return `<section class="card section"><p class="eyebrow">${number}단계</p><h2>${title} ${statusBadge(code, WORKSPACE_STATUS_LABELS[code] || availabilityLabel(code))}</h2>${body}</section>`;
 }
 
-async function renderResearchWorkspace() {
-  const workflows = await api("/workflows");
-  let workflowId = localStorage.getItem("trend-v2-workflow-id");
-  if (!workflowId || !workflows.items.some((item) => item.workflow_id === workflowId)) workflowId = workflows.items[0]?.workflow_id || null;
+function workspaceMetricValue(key, value) {
+  const number = numericValue(value);
+  if (number === null) return "근거 없음";
+  if (new Set(["cagr", "annualized_volatility", "maximum_drawdown", "cdar95", "transaction_cost_drag", "average_gross_exposure", "average_cash_weight"]).has(key)) {
+    const suffix = key === "transaction_cost_drag" ? "%p" : "%";
+    return `${fmt(number * 100, 2)}${suffix}`;
+  }
+  if (key.endsWith("_spy_ratio")) return `${fmt(number, 2)}×`;
+  if (key === "recovery_duration_days" || key === "longest_recovery_duration_days" || key === "current_time_under_water_days") return `${fmt(number, 0)}일`;
+  if (key === "annual_turnover") return `${fmt(number, 2)}×/년`;
+  return fmt(number, 2);
+}
+
+function workspaceMetricCard(key, label, metrics, secondaryKey = null, secondaryLabel = "") {
+  const value = metrics?.[key];
+  const secondary = secondaryKey
+    ? `<span>${escapeHtml(secondaryLabel)} ${escapeHtml(workspaceMetricValue(secondaryKey, metrics?.[secondaryKey]))}</span>` : "";
+  return `<article class="card metric-card result-metric"><small>${explanationButton(key, label)}</small><strong>${escapeHtml(workspaceMetricValue(key, value))}</strong>${secondary}</article>`;
+}
+
+function workspaceCatalogNames(options) {
+  const names = new Map();
+  const categories = options?.foundation_6_catalog?.categories || {};
+  Object.values(categories).flat().forEach((option) => {
+    if (option?.option_id) names.set(option.option_id, option.name_ko || option.name_en || option.option_id);
+  });
+  return names;
+}
+
+function workspaceParameterLabel(value) {
+  if (value === null || value === undefined) return "—";
+  if (typeof value !== "object") return String(value);
+  if (value.kind === "fixed") return String(value.value);
+  if (Array.isArray(value.values)) return value.values.join("/");
+  return Object.entries(value).map(([key, item]) => `${key}:${workspaceParameterLabel(item)}`).join(",");
+}
+
+function workspaceComponentLabel(component, catalogNames) {
+  if (!component || typeof component !== "object") return "—";
+  const optionId = component.option_id || component.id || component.type || component.family || "알 수 없음";
+  const name = catalogNames.get(optionId) || optionId;
+  const parameters = Object.entries(component.parameters || {}).map(([key, value]) => `${key}=${workspaceParameterLabel(value)}`);
+  return parameters.length ? `${name} (${parameters.join(", ")})` : name;
+}
+
+function workspaceStrategyLabel(run, catalogNames) {
+  const specification = run?.canonical_specification || run?.specification || {};
+  const parts = [
+    ["추세", specification.trend_filter], ["신호", specification.signal], ["진입", specification.entry_rule],
+    ["손절", specification.initial_stop], ["청산", specification.trailing_exit], ["크기", specification.position_sizing],
+  ];
+  if (!parts.some(([, component]) => component)) return shortId(run?.strategy_run_id || "전략 명세 없음", 24);
+  return parts.map(([label, component]) => `${label}: ${workspaceComponentLabel(component, catalogNames)}`).join(" · ");
+}
+
+function workspaceCandidateDecision(candidate) {
+  const labels = candidate.final_labels || [];
+  if (labels.includes("constraint_pareto_selected")) return ["selected", "선택 가능"];
+  if (labels.includes("mandatory_gate_failed")) return ["failed", "필수 관문 실패"];
+  if (labels.includes("pareto_metric_missing")) return ["warn", "파레토 근거 없음"];
+  if (labels.includes("epsilon_pareto_dominated")) return ["neutral", "파레토 지배됨"];
+  if (labels.includes("robustness_vetoed")) return ["failed", "강건성 거부"];
+  if (labels.includes("behavior_duplicate_non_representative")) return ["neutral", "행동 중복"];
+  return ["neutral", labels[0] || "판정 없음"];
+}
+
+function workspaceRobustnessLabel(candidate, profile) {
+  if (!(profile.robustness_vetoes || []).length) return statusBadge("neutral", "미설정");
+  if (candidate.robustness_passed) return statusBadge("passed", "통과");
+  const missing = (candidate.robustness_results || []).some((item) => item.value === null || /missing|unavailable|evidence/i.test(item.reason || ""));
+  return statusBadge(missing ? "warn" : "failed", missing ? "근거 없음" : "실패");
+}
+
+function workspaceCandidateOrder(candidate) {
+  const selected = (candidate.final_labels || []).includes("constraint_pareto_selected");
+  const duplicated = Boolean(candidate.behavior_deduplication_metadata?.duplicated);
+  const stage = selected ? 0
+    : candidate.mandatory_gates_passed && candidate.pareto_member && candidate.robustness_passed && !duplicated ? 1
+    : candidate.mandatory_gates_passed && candidate.pareto_member ? 2
+    : candidate.mandatory_gates_passed ? 3 : 4;
+  return [stage, candidate.lexicographic_order ?? Number.MAX_SAFE_INTEGER, candidate.strategy_run_id];
+}
+
+function workspaceCompareCandidates(left, right) {
+  const a = workspaceCandidateOrder(left), b = workspaceCandidateOrder(right);
+  return a[0] - b[0] || a[1] - b[1] || String(a[2]).localeCompare(String(b[2]));
+}
+
+async function workspaceResultSummary(evaluationRunId, options) {
+  const evaluation = await api(`/evaluation-runs/${encodeURIComponent(evaluationRunId)}?page_size=64`);
+  const profile = await api(`/evaluation-profiles/${encodeURIComponent(evaluation.evaluation_profile_id)}`);
+  const candidates = [...(evaluation.items || [])].sort(workspaceCompareCandidates);
+  if (!candidates.length) return emptyState("평가 후보 없음", "EvaluationRun에 표시할 후보가 없습니다.");
+  const visible = candidates.slice(0, 8);
+  const runResponses = await Promise.all(visible.map((candidate) => api(`/runs/${encodeURIComponent(candidate.strategy_run_id)}`, { optional: true })));
+  const runs = new Map(runResponses.filter((item) => !item.__error).map((item) => [item.strategy_run_id, item]));
+  const catalogNames = workspaceCatalogNames(options);
+  const selected = candidates.filter((candidate) => (candidate.final_labels || []).includes("constraint_pareto_selected"));
+  const representative = selected[0] || null;
+  const robustnessConfigured = (profile.robustness_vetoes || []).length > 0;
+  const nonDuplicate = candidates.filter((candidate) => !candidate.behavior_deduplication_metadata?.duplicated).length;
+  const funnel = [
+    ["평가", candidates.length],
+    ["관문 통과", candidates.filter((candidate) => candidate.mandatory_gates_passed).length],
+    ["파레토", candidates.filter((candidate) => candidate.pareto_member).length],
+    ["강건성", robustnessConfigured ? candidates.filter((candidate) => candidate.robustness_passed).length : "미설정"],
+    ["비중복", nonDuplicate],
+    ["선택 가능", selected.length],
+  ];
+  const headline = representative
+    ? `<p class="notice safe"><strong>대표 후보:</strong> 평가 규칙을 통과한 ${selected.length}개 중 동률 해소 순서 ${fmt(representative.lexicographic_order, 0)}위입니다.</p>
+       <div class="card-grid result-grid">
+         ${workspaceMetricCard("cagr", "연복리수익률", representative.raw_metrics, "cagr_spy_ratio", "SPY 대비")}
+         ${workspaceMetricCard("maximum_drawdown", "최대낙폭", representative.raw_metrics, "maximum_drawdown_spy_ratio", "SPY 대비")}
+         ${workspaceMetricCard("cdar95", "CDaR95", representative.raw_metrics, "cdar95_spy_ratio", "SPY 대비")}
+         ${workspaceMetricCard("calmar_ratio", "칼마지수", representative.raw_metrics, "calmar_spy_ratio", "SPY 대비")}
+         ${workspaceMetricCard("recovery_duration_days", "회복기간", representative.raw_metrics)}
+         ${workspaceMetricCard("annual_turnover", "연환산 회전율", representative.raw_metrics, "transaction_cost_drag", "비용 잠식")}
+       </div>`
+    : '<p class="notice danger"><strong>현재 후보군에서 적격 전략이 없습니다.</strong><br>기준을 억지로 낮추거나 최하위 후보를 승자로 만들지 않습니다. 다음 탐색에서는 허용 카탈로그에 새로운 신호·청산·사이징 전략군을 추가할 여지를 남겨두세요.</p>';
+  const rows = visible.map((candidate, index) => {
+    const metrics = candidate.raw_metrics || {};
+    const decision = workspaceCandidateDecision(candidate);
+    const run = runs.get(candidate.strategy_run_id) || { strategy_run_id: candidate.strategy_run_id };
+    return `<tr><th scope="row"><span class="candidate-index">${index + 1}</span>${escapeHtml(workspaceStrategyLabel(run, catalogNames))}<small class="id">${escapeHtml(shortId(candidate.strategy_run_id, 24))}</small></th>
+      <td>${statusBadge(decision[0], decision[1])}<br>${workspaceRobustnessLabel(candidate, profile)}</td>
+      <td>${escapeHtml(workspaceMetricValue("cagr", metrics.cagr))}<small>SPY ${escapeHtml(workspaceMetricValue("cagr_spy_ratio", metrics.cagr_spy_ratio))}</small></td>
+      <td>${escapeHtml(workspaceMetricValue("maximum_drawdown", metrics.maximum_drawdown))}<small>SPY ${escapeHtml(workspaceMetricValue("maximum_drawdown_spy_ratio", metrics.maximum_drawdown_spy_ratio))}</small></td>
+      <td>${escapeHtml(workspaceMetricValue("cdar95", metrics.cdar95))}<small>SPY ${escapeHtml(workspaceMetricValue("cdar95_spy_ratio", metrics.cdar95_spy_ratio))}</small></td>
+      <td>${escapeHtml(workspaceMetricValue("calmar_ratio", metrics.calmar_ratio))}<small>SPY ${escapeHtml(workspaceMetricValue("calmar_spy_ratio", metrics.calmar_spy_ratio))}</small></td>
+      <td>${escapeHtml(workspaceMetricValue("recovery_duration_days", metrics.recovery_duration_days))}</td>
+      <td>${escapeHtml(workspaceMetricValue("annual_turnover", metrics.annual_turnover))}<small>비용 ${escapeHtml(workspaceMetricValue("transaction_cost_drag", metrics.transaction_cost_drag))}</small></td></tr>`;
+  }).join("");
+  return `<section class="workspace-results" aria-label="전략 평가 수치 요약">
+    <div class="funnel-grid">${funnel.map(([label, value]) => `<div><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>
+    ${headline}
+    <div class="section-header"><div><h3>후보 수치 비교</h3><p>전체 ${evaluation.page.total}개 중 판정 우선순위 상위 ${visible.length}개만 표시합니다. 시계열과 차트는 불러오지 않았습니다.</p></div><a class="button-link" href="#evaluations">평가 상세</a></div>
+    <div class="table-wrap compact-results"><table><thead><tr><th>전략 구성</th><th>판정·강건성</th><th>${explanationButton("cagr", "CAGR / SPY")}</th><th>${explanationButton("maximum_drawdown", "MDD / SPY")}</th><th>${explanationButton("cdar95", "CDaR95 / SPY")}</th><th>${explanationButton("calmar_ratio", "Calmar / SPY")}</th><th>${explanationButton("recovery_duration_days", "회복")}</th><th>${explanationButton("annual_turnover", "회전율·비용")}</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </section>`;
+}
+
+async function advanceWorkspace(workflowId, current) {
+  let data = current;
+  let refs = data.references || {};
+  if (!refs.normalized_construction) {
+    data = await api(`/workflows/${encodeURIComponent(workflowId)}/normalize`, { method: "POST", body: {} });
+    refs = data.references || {};
+  }
+  if (!refs.candidate_estimate) {
+    data = await api(`/workflows/${encodeURIComponent(workflowId)}/estimate`, { method: "POST", body: {} });
+    refs = data.references || {};
+  }
+  const facts = workspaceEstimateFacts(refs.candidate_estimate);
+  if (!facts || facts.hardLimitExceeded) {
+    setMessage("후보 추정이 없거나 서버 하드 한도를 넘었습니다. 고급 구성 화면에서 요청을 확인하세요.");
+    await renderResearchWorkspace();
+    return;
+  }
+  if (!facts.autoAllowed) {
+    setMessage(`노트북 자동 실행 한도는 경제 후보 ${WORKSPACE_AUTO_ECONOMIC_LIMIT}개, 총 실행 단위 ${WORKSPACE_AUTO_TOTAL_LIMIT}개입니다. 고급 구성 화면에서 요청을 검토하세요.`);
+    await renderResearchWorkspace();
+    return;
+  }
+  if (facts.confirmationRequired && !refs.confirmation) {
+    setMessage("서버의 명시적 확인이 필요합니다. 계산된 후보 수를 확인한 뒤 확인 버튼을 누르세요.");
+    await renderResearchWorkspace();
+    return;
+  }
+  if (!refs.economic) {
+    await api(`/workflows/${encodeURIComponent(workflowId)}/start-economic`, { method: "POST", body: {}, idempotencyKey: workspaceKey(workflowId, "start") });
+  }
+  await renderResearchWorkspace();
+}
+
+async function renderResearchWorkspace({ polling = false } = {}) {
+  const renderController = state.controller;
+  const workflows = polling && state.workspaceList ? state.workspaceList : await api("/workflows");
+  if (renderController !== state.controller || renderController?.signal.aborted) return;
+  state.workspaceList = workflows;
+  let workflowId = state.workspaceCreating ? null : localStorage.getItem("trend-v2-workflow-id");
+  if (!state.workspaceCreating && (!workflowId || !workflows.items.some((item) => item.workflow_id === workflowId))) workflowId = workflows.items[0]?.workflow_id || null;
   if (!workflowId) {
-    const [profiles, options] = await Promise.all([api("/evaluation-profiles?page_size=200"), api("/construction/options")]);
-    const profileOptions = profiles.items.map((item) => `<option value="${escapeHtml(item.evaluation_profile_id)}">${escapeHtml(item.name)}</option>`).join("");
+    const [profiles, options] = await Promise.all([
+      state.workspaceProfiles || api("/evaluation-profiles?page_size=50"),
+      state.workspaceOptions || api("/construction/options"),
+    ]);
+    if (renderController !== state.controller || renderController?.signal.aborted) return;
+    state.workspaceProfiles = profiles; state.workspaceOptions = options;
+    const orderedProfiles = [...profiles.items].sort((left, right) => (left.name === "research_default" ? -1 : right.name === "research_default" ? 1 : left.name.localeCompare(right.name)));
+    const profileOptions = orderedProfiles.map((item) => `<option value="${escapeHtml(item.evaluation_profile_id)}">${escapeHtml(item.name)}</option>`).join("");
     const trendOptions = (options.foundation_6_catalog?.categories?.trend_filter || []).filter((item) => item.engine_adapter_support === "supported").map((item) => `<option value="${escapeHtml(item.option_id)}" ${item.option_id === "price_above_rising_ma200_v0" ? "selected" : ""}>${escapeHtml(item.name_ko)}</option>`).join("");
-    view.innerHTML = `<p class="lede">저장된 연구 절차를 한 화면에서 이어갑니다. 각 결과는 참조로만 연결되며 경제 백테스트 결과를 복사하지 않습니다.</p>${workspaceCard("1", "전략 구성", "needs_action", `<form id="workspace-create"><div class="form-grid"><div class="field"><label>워크플로우 이름</label><input id="workspace-label" maxlength="120" required value="새 연구 워크플로우"></div><div class="field"><label>시작일</label><input id="workspace-start" type="date" value="2024-01-02" required></div><div class="field"><label>종료일</label><input id="workspace-end" type="date" value="2024-12-31" required></div><div class="field"><label>추세 필터</label><select id="workspace-trend">${trendOptions}</select></div><div class="field"><label>고점 lookback</label><input id="workspace-lookback" type="number" min="20" max="55" value="20"></div><div class="field"><label>거래비용 bp</label><input id="workspace-cost" value="5"></div><div class="field"><label>슬리피지 bp</label><input id="workspace-slippage" value="2"></div><div class="field"><label>EvaluationProfile</label><select id="workspace-profile">${profileOptions}</select></div></div><button type="submit" ${profiles.items.length ? "" : "disabled"}>워크플로우 만들기</button><a class="button-link" href="#profiles">프로필 스튜디오</a></form>`)}`;
-    document.getElementById("workspace-create")?.addEventListener("submit", async (event) => { event.preventDefault(); try { const key = workspaceKey("new", "create"); const profileId = document.getElementById("workspace-profile").value; const saved = await api("/workflows", {method:"POST", body:{label_ko:document.getElementById("workspace-label").value, construction:workspaceConstruction(profileId)}, idempotencyKey:key}); localStorage.setItem("trend-v2-workflow-id", saved.workflow_id); localStorage.removeItem("trend-v2-workspace-key:new:create"); await renderResearchWorkspace(); } catch (error) { document.getElementById("workspace-create").insertAdjacentHTML("beforeend", `<p class="notice danger">${escapeHtml(error.message)}</p>`); } });
+    view.innerHTML = `<p class="lede">구성부터 후보 실행과 평가까지 한 화면에서 이어갑니다. 기본 흐름은 노트북 안전 한도 안에서만 자동 실행하며, 큰 탐색은 고급 구성으로 분리합니다.</p>${workspaceCard("1", "전략 구성", "needs_action", `<form id="workspace-create"><div class="form-grid"><div class="field"><label>워크플로우 이름</label><input id="workspace-label" maxlength="120" required value="새 연구 워크플로우"></div><div class="field"><label>시작일</label><input id="workspace-start" type="date" value="2024-01-02" required></div><div class="field"><label>종료일</label><input id="workspace-end" type="date" value="2024-12-31" required></div><div class="field"><label>추세 필터</label><select id="workspace-trend">${trendOptions}</select></div><div class="field"><label>고점 lookback 목록</label><input id="workspace-lookback" value="20,40,55" inputmode="numeric" aria-describedby="workspace-lookback-help"><small id="workspace-lookback-help">쉼표로 구분한 최대 8개 값</small></div><div class="field"><label>거래비용 bp</label><input id="workspace-cost" value="5"></div><div class="field"><label>슬리피지 bp</label><input id="workspace-slippage" value="2"></div><div class="field"><label>평가 프로필</label><select id="workspace-profile">${profileOptions}</select></div></div><div class="actions"><button type="submit" ${profiles.items.length ? "" : "disabled"}>만들고 안전 범위 실행</button>${workflows.items.length ? '<button type="button" id="workspace-cancel-new">기존 워크플로우로 돌아가기</button>' : ""}<a class="button-link" href="#construction">고급 전략 구성</a><a class="button-link" href="#profiles">평가 기준 편집</a></div></form>`)}`;
+    document.getElementById("workspace-create")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button[type="submit"]'); button.disabled = true; try { const key = workspaceKey("new", "create"); const profileId = document.getElementById("workspace-profile").value; const saved = await api("/workflows", {method:"POST", body:{label_ko:document.getElementById("workspace-label").value, construction:workspaceConstruction(profileId)}, idempotencyKey:key}); state.workspaceCreating = false; localStorage.setItem("trend-v2-workflow-id", saved.workflow_id); localStorage.removeItem("trend-v2-workspace-key:new:create"); await advanceWorkspace(saved.workflow_id, saved); } catch (error) { form.insertAdjacentHTML("beforeend", `<p class="notice danger">${escapeHtml(error.message)}</p>`); button.disabled = false; } });
+    document.getElementById("workspace-cancel-new")?.addEventListener("click", () => { state.workspaceCreating=false; renderResearchWorkspace().catch(showFatal); });
     return;
   }
   localStorage.setItem("trend-v2-workflow-id", workflowId);
-  const [data, profiles] = await Promise.all([api(`/workflows/${encodeURIComponent(workflowId)}`), api("/evaluation-profiles?page_size=200")]);
-  const refs = data.references || {}; const economic = refs.economic_progress || {}; const robustness = refs.robustness_progress || {};
+  if (state.workspacePollId && state.workspacePollId !== workflowId) stopWorkspacePolling();
+  const profilesPromise = state.workspaceProfiles ? Promise.resolve(state.workspaceProfiles) : api("/evaluation-profiles?page_size=50");
+  const optionsPromise = state.workspaceOptions ? Promise.resolve(state.workspaceOptions) : api("/construction/options");
+  let [data, profiles, options] = await Promise.all([api(`/workflows/${encodeURIComponent(workflowId)}`), profilesPromise, optionsPromise]);
+  if (renderController !== state.controller || renderController?.signal.aborted) return;
+  state.workspaceProfiles = profiles; state.workspaceOptions = options;
+  let refs = data.references || {}; let economic = refs.economic_progress || {}; let robustness = refs.robustness_progress || {};
+  let evaluationError = "";
+  if (economic.status === "completed" && !refs.evaluation) {
+    const profileId = data.construction?.evaluation_profile_ids?.[0] || refs.normalized_construction?.normalized?.evaluation_profile_ids?.[0];
+    if (profileId) {
+      try {
+        data = await api(`/workflows/${encodeURIComponent(workflowId)}/evaluate`, { method: "POST", body: { evaluation_profile_id: profileId }, idempotencyKey: workspaceKey(workflowId, `evaluate:${profileId}`) });
+        if (renderController !== state.controller || renderController?.signal.aborted) return;
+        refs = data.references || {}; economic = refs.economic_progress || {}; robustness = refs.robustness_progress || {};
+      } catch (error) { evaluationError = error.message; }
+    }
+  }
+  let resultSummary = "<p>평가 완료 후 대표 수치와 후보 비교가 여기에 표시됩니다.</p>";
+  if (refs.evaluation?.evaluation_run_id) {
+    try { resultSummary = await workspaceResultSummary(refs.evaluation.evaluation_run_id, options); }
+    catch (error) { if (error?.name === "AbortError") throw error; resultSummary = `<p class="notice danger">수치 요약을 불러오지 못했습니다. ${escapeHtml(error.message)}</p>`; }
+  }
+  if (renderController !== state.controller || renderController?.signal.aborted) return;
   const action = (id, label, disabled=false) => `<button id="workspace-${id}" ${disabled ? "disabled" : ""}>${label}</button>`;
-  view.innerHTML = `<div class="toolbar"><div><p class="eyebrow">Research Workspace</p><h2>${escapeHtml(data.label_ko)}</h2><p class="id">${escapeHtml(data.workflow_id)}</p></div><select id="workspace-select">${workflows.items.map((item)=>`<option value="${escapeHtml(item.workflow_id)}" ${item.workflow_id===workflowId?"selected":""}>${escapeHtml(item.label_ko)} · ${escapeHtml(item.stage)}</option>`).join("")}</select><button id="workspace-new">새 워크플로우</button></div>${workspaceCard("1", "전략 구성", refs.normalized_construction ? "completed" : "needs_action", `${refs.normalized_construction ? `<p class="id">${escapeHtml(refs.normalized_construction.construction_hash || "정규화됨")}</p>` : action("normalize", "구성 정규화")}`)}${workspaceCard("2", "호환성 및 후보 수", refs.candidate_estimate ? "completed" : (refs.normalized_construction ? "needs_action" : "not_started"), refs.candidate_estimate ? `<pre>${jsonText(refs.candidate_estimate)}</pre>` : action("estimate", "후보 수 계산", !refs.normalized_construction))}${workspaceCard("3", "경제 실행 및 후보 진행", economic.status || (refs.candidate_estimate ? "needs_action" : "not_started"), economic.attempts ? `<p>상태: ${escapeHtml(economic.status)} · 후보 ${economic.attempts.length}개</p><a class="button-link" href="#requests">실행 요청 상세</a><pre>${jsonText(economic.attempts.map((item)=>({execution_attempt_id:item.execution_attempt_id,status:item.operational_status,stage:item.current_stage})))}</pre>` : action("start", "실행 요청 및 시작", !refs.candidate_estimate))}${workspaceCard("4", "강건성", robustness.status || (economic.status === "completed" ? "needs_action" : "not_started"), robustness.attempt ? `<p>상태: ${escapeHtml(robustness.status)}</p><a class="button-link" href="#robustness">강건성 전문 화면</a>` : `<p class="notice">완료된 StrategyRun의 강건성 계획과 실행은 기존 전문 화면에서 구성합니다.</p><a class="button-link" href="#robustness">강건성 열기</a>`) }${workspaceCard("5", "EvaluationProfile 적용", refs.evaluation ? "completed" : (economic.status === "completed" ? "needs_action" : "not_started"), refs.evaluation ? `<p class="id">${escapeHtml(refs.evaluation.evaluation_run_id)}</p><a class="button-link" href="#evaluations">평가 결과 상세</a>` : `<div class="field"><label>저장된 EvaluationProfile</label><select id="workspace-evaluation-profile">${profiles.items.map((item)=>`<option value="${escapeHtml(item.evaluation_profile_id)}">${escapeHtml(item.name)}</option>`).join("")}</select></div>${action("evaluate", "저장된 결과에 프로필 적용", economic.status !== "completed")}`)}${workspaceCard("6", "결과 확인", refs.evaluation ? "completed" : "not_started", refs.evaluation ? `<a class="button-link" href="#evaluations">EvaluationRun 보기</a> <a class="button-link" href="#runs">StrategyRun 보기</a>` : "<p>평가 완료 후 기존 결과 화면으로 이동할 수 있습니다.</p>")}`;
+  const estimateBody = refs.candidate_estimate
+    ? workspaceEstimatePanel(refs.candidate_estimate, Boolean(refs.economic))
+    : `<p>아직 후보 수를 계산하지 않았습니다.</p>${!refs.economic ? action("advance", "정규화 → 후보 계산 → 안전 범위 실행") : ""}`;
+  const economicBody = economic.attempts
+    ? `<p>상태: ${statusBadge(economic.status, WORKSPACE_STATUS_LABELS[economic.status] || availabilityLabel(economic.status))} · 후보 ${economic.attempts.length}개 · 자동 갱신 ${state.workspacePollCount}/${WORKSPACE_POLL_LIMIT}</p><a class="button-link" href="#requests">실행 요청 상세</a><details><summary>후보별 진행 보기</summary><div class="status-list">${economic.attempts.map((item) => `${statusBadge(item.operational_status, WORKSPACE_STATUS_LABELS[item.operational_status] || availabilityLabel(item.operational_status))}<span class="id">${escapeHtml(shortId(item.execution_attempt_id, 16))} · ${escapeHtml(item.current_stage || "대기")}</span>`).join("")}</div></details>`
+    : `<p>실행 전입니다. 위의 안전 범위 버튼 한 번으로 정규화, 추정, 실행 요청을 순서대로 처리합니다.</p>`;
+  const evaluationBody = refs.evaluation
+    ? `<p class="id">${escapeHtml(refs.evaluation.evaluation_run_id)}</p><p class="notice safe">저장된 경제 결과를 재실행하지 않고 평가 프로필을 적용했습니다.</p><a class="button-link" href="#evaluations">평가 규칙 상세</a>`
+    : economic.status === "completed"
+      ? `<p class="notice ${evaluationError ? "danger" : ""}">${escapeHtml(evaluationError || "완료된 경제 결과에 저장 평가 프로필을 연결하는 중입니다.")}</p>${evaluationError ? `<div class="field"><label>평가 프로필</label><select id="workspace-evaluation-profile">${profiles.items.map((item)=>`<option value="${escapeHtml(item.evaluation_profile_id)}">${escapeHtml(item.name)}</option>`).join("")}</select></div>${action("evaluate", "평가 다시 연결")}` : ""}`
+      : "<p>경제 후보가 완료되면 선택한 프로필을 자동 적용합니다.</p>";
+  view.innerHTML = `<div class="toolbar"><div><p class="eyebrow">Research Workspace</p><h2>${escapeHtml(data.label_ko)}</h2><p class="id">${escapeHtml(data.workflow_id)}</p></div><select id="workspace-select">${workflows.items.map((item)=>{ const stage=item.workflow_id===workflowId?data.stage:item.stage; return `<option value="${escapeHtml(item.workflow_id)}" ${item.workflow_id===workflowId?"selected":""}>${escapeHtml(item.label_ko)} · ${escapeHtml(WORKSPACE_STATUS_LABELS[stage] || stage)}</option>`; }).join("")}</select><button id="workspace-new">새 워크플로우</button><a class="button-link" href="#construction">고급 구성</a></div>
+    ${workspaceCard("1", "전략 구성", refs.normalized_construction ? "completed" : "needs_action", refs.normalized_construction ? `<p>구성이 정규화되었습니다.</p><p class="id">${escapeHtml(refs.normalized_construction.normalized_construction_hash || "정규화됨")}</p>` : "<p>저장된 구성을 아직 정규화하지 않았습니다.</p>")}
+    ${workspaceCard("2", "후보 수와 노트북 실행 한도", refs.candidate_estimate ? "completed" : "needs_action", estimateBody)}
+    ${workspaceCard("3", "경제 실행 및 후보 진행", economic.status || (refs.candidate_estimate ? "needs_action" : "not_started"), economicBody)}
+    ${workspaceCard("4", "강건성 검증 · 선택 사항", robustness.status || "optional", robustness.attempt ? `<p>상태: ${escapeHtml(robustness.status)}</p><a class="button-link" href="#robustness">강건성 전문 화면</a>` : `<p class="notice">자동 실행하지 않습니다. 후보를 좁힌 뒤 필요할 때 저장 근거를 구성하세요.</p><a class="button-link" href="#robustness">강건성 전문 화면</a>`)}
+    ${workspaceCard("5", "평가 프로필 적용", refs.evaluation ? "completed" : (economic.status === "completed" ? "needs_action" : "not_started"), evaluationBody)}
+    ${workspaceCard("6", "핵심 수치와 후보 비교", refs.evaluation ? "completed" : "not_started", resultSummary)}`;
   if (refs.evaluation) {
     const reportRuns = refs.evaluation.strategy_run_ids || economic.strategy_run_ids || [];
     const attachedPlan = robustness.status === "completed" ? refs.robustness_plan?.robustness_plan_id : null;
     const existingReport = refs.decision_report;
-    view.insertAdjacentHTML("beforeend", workspaceCard("7", "결정 보고서", existingReport ? "completed" : "needs_action", existingReport
+    const reportBody = existingReport
       ? `<p class="id">${escapeHtml(existingReport.decision_report_id)}</p><a class="button-link" href="#decision-reports">결정 보고서 보기</a>`
-      : `<div class="field"><label>StrategyRun</label><select id="workspace-decision-report-run">${reportRuns.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(shortId(id, 36))}</option>`).join("")}</select></div><button id="workspace-decision-report" ${reportRuns.length ? "" : "disabled"}>결정 보고서 생성/복원</button>`));
+      : `<div class="field"><label>StrategyRun</label><select id="workspace-decision-report-run">${reportRuns.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(shortId(id, 36))}</option>`).join("")}</select></div><button id="workspace-decision-report" ${reportRuns.length ? "" : "disabled"}>결정 보고서 생성/복원</button>`;
+    view.insertAdjacentHTML("beforeend", workspaceCard("7", "결정 보고서 · 선택 사항", existingReport ? "completed" : "optional", `<details><summary>보고서가 필요할 때만 열기</summary>${reportBody}</details>`));
     document.getElementById("workspace-decision-report")?.addEventListener("click", async () => {
       try {
         const response = await api(`/workflows/${encodeURIComponent(workflowId)}/decision-report`, {
@@ -784,11 +1113,13 @@ async function renderResearchWorkspace() {
       } catch (error) { setMessage(error.message); }
     });
   }
-  document.getElementById("workspace-select").addEventListener("change", (event)=>{ localStorage.setItem("trend-v2-workflow-id", event.target.value); renderResearchWorkspace().catch(showFatal); });
-  document.getElementById("workspace-new").addEventListener("click", ()=>{ localStorage.removeItem("trend-v2-workflow-id"); renderResearchWorkspace().catch(showFatal); });
-  const bind = (id, endpoint, body={}) => document.getElementById(`workspace-${id}`)?.addEventListener("click", async()=>{ try { await api(`/workflows/${encodeURIComponent(workflowId)}${endpoint}`, {method:"POST", body, idempotencyKey:workspaceKey(workflowId,id)}); await renderResearchWorkspace(); } catch(error) { setMessage(error.message); }});
-  bind("normalize", "/normalize"); bind("estimate", "/estimate"); bind("start", "/start-economic");
-  document.getElementById("workspace-evaluate")?.addEventListener("click", async()=>{ try { await api(`/workflows/${encodeURIComponent(workflowId)}/evaluate`, {method:"POST", body:{evaluation_profile_id:document.getElementById("workspace-evaluation-profile").value}, idempotencyKey:workspaceKey(workflowId,"evaluate")}); await renderResearchWorkspace(); } catch(error) { setMessage(error.message); }});
+  document.getElementById("workspace-select").addEventListener("change", (event)=>{ stopWorkspacePolling(); state.workspaceCreating=false; localStorage.setItem("trend-v2-workflow-id", event.target.value); renderResearchWorkspace().catch(showFatal); });
+  document.getElementById("workspace-new").addEventListener("click", ()=>{ stopWorkspacePolling(); state.workspaceCreating=true; localStorage.removeItem("trend-v2-workflow-id"); renderResearchWorkspace().catch(showFatal); });
+  document.getElementById("workspace-advance")?.addEventListener("click", async(event)=>{ event.currentTarget.disabled=true; try { await advanceWorkspace(workflowId,data); } catch(error) { setMessage(error.message); event.currentTarget.disabled=false; }});
+  document.getElementById("workspace-confirm-start")?.addEventListener("click", async(event)=>{ event.currentTarget.disabled=true; try { const confirmed=await api(`/workflows/${encodeURIComponent(workflowId)}/confirm`, {method:"POST",body:{},idempotencyKey:workspaceKey(workflowId,"confirm")}); await advanceWorkspace(workflowId,confirmed); } catch(error) { setMessage(error.message); event.currentTarget.disabled=false; }});
+  document.getElementById("workspace-evaluate")?.addEventListener("click", async()=>{ try { const profileId=document.getElementById("workspace-evaluation-profile").value; await api(`/workflows/${encodeURIComponent(workflowId)}/evaluate`, {method:"POST", body:{evaluation_profile_id:profileId}, idempotencyKey:workspaceKey(workflowId,`evaluate:${profileId}`)}); await renderResearchWorkspace(); } catch(error) { setMessage(error.message); }});
+  bindExplanationLinks();
+  scheduleWorkspacePolling(workflowId, economic.status);
 }
 
 async function renderDecisionReports() {
@@ -899,7 +1230,7 @@ async function renderProfileStudioEditor(sourceId, source, options) {
   let validated = null;
   document.getElementById("studio-cancel").addEventListener("click",()=>renderProfileStudio().catch(showFatal));
   document.getElementById("studio-validate").addEventListener("click",async()=>{try { const payload=studioPayload(sourceId,source); const result=await api("/evaluation-profiles/validate",{method:"POST",body:payload}); validated=result.valid?{payload,draftHash:result.draft_hash}:null; document.getElementById("studio-save").disabled=!validated; document.getElementById("studio-validation").innerHTML=result.valid?'<p class="notice">검증 완료: 현재 초안만 저장할 수 있습니다.</p>':`<div class="notice">${(result.errors||[]).map((item)=>escapeHtml(item.message_ko||item.code)).join("<br>")}</div>`; } catch(error) { validated=null; document.getElementById("studio-save").disabled=true; document.getElementById("studio-validation").textContent=error.message; }});
-  document.getElementById("studio-save").addEventListener("click",async()=>{if(!validated)return; const current=studioPayload(sourceId,source); const response=await api("/evaluation-profiles",{method:"POST",body:{...current,validated_draft_hash:validated.draftHash},idempotencyKey:idempotencyKey("profile-save")}); await renderProfileStudioSaved(response).catch(showFatal);});
+  document.getElementById("studio-save").addEventListener("click",async()=>{if(!validated)return; const current=studioPayload(sourceId,source); const response=await api("/evaluation-profiles",{method:"POST",body:{...current,validated_draft_hash:validated.draftHash},idempotencyKey:idempotencyKey("profile-save")}); state.workspaceProfiles=null; await renderProfileStudioSaved(response).catch(showFatal);});
 }
 
 async function renderProfileStudioSaved(saved) {
@@ -922,8 +1253,8 @@ function showFatal(error) {
 }
 
 async function navigate() {
-  state.controller?.abort(); state.controller=new AbortController(); setMessage(""); setLoading("화면을 불러오는 중입니다…");
-  const raw=location.hash.replace(/^#/,"")||"overview"; const [routeRaw,detailRaw]=raw.split("/"); const route=routes[routeRaw]?routeRaw:"overview"; const detail=detailRaw?decodeURIComponent(detailRaw):null;
+  stopWorkspacePolling(); state.controller?.abort(); state.controller=new AbortController(); setMessage(""); setLoading("화면을 불러오는 중입니다…");
+  const raw=location.hash.replace(/^#/,"")||"workflow"; const [routeRaw,detailRaw]=raw.split("/"); const route=routes[routeRaw]?routeRaw:"workflow"; const detail=detailRaw?decodeURIComponent(detailRaw):null;
   pageTitle.textContent=route==="runs"&&detail?"StrategyRun 상세":routes[route];
   document.querySelectorAll("#primary-nav a").forEach((link)=>{if(link.dataset.route===route)link.setAttribute("aria-current","page");else link.removeAttribute("aria-current");});
   try {

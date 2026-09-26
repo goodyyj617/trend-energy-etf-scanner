@@ -19,13 +19,22 @@ persistent project context.
 
 ## Work discipline
 
-- Implement the requested phase before performing a broad audit.
+- Implement the requested phase or coherent batch of adjacent phases before
+  doing more than the minimum checks needed to keep implementation moving.
+- Default to this delivery loop: implement first, run one small directly
+  relevant smoke check at the end, then publish or continue to the next phase.
+- Do not create a standalone validation, audit, or user-acceptance phase unless
+  the user explicitly requests it or a concrete security, migration,
+  data-integrity, or release risk requires it.
 - Do not revisit merged or settled work unless the task explicitly asks for it.
 - Do not reopen decisions recorded in `DECISIONS.md` without an explicit user request.
 - Do not perform repeated validation or review loops.
-- Run targeted tests while implementing code.
-- Run the complete bounded suite at most once, after implementation is complete.
-- Perform at most one final audit pass.
+- Do not run a test suite after each substep or phase in a requested sequence.
+- Run the complete bounded suite only when the change is cross-cutting or
+  high-risk, or when the user explicitly requests it, and at most once after
+  implementation is complete.
+- Do not perform a routine final audit pass; inspect again only when a concrete
+  failure or contradiction gives a reason.
 - Report blocking defects separately from non-blocking follow-up ideas.
 - Do not expand the requested scope merely because adjacent improvements are possible.
 - Ask a question only when a genuinely blocking ambiguity cannot be resolved from repository files.
@@ -35,10 +44,10 @@ persistent project context.
 
 For a documentation-only task:
 
-- do not run the complete pytest suite;
-- run `git diff --check`;
-- verify the exact changed-file list;
-- verify that no generated data, workflow, source, config, or dependency file changed.
+- do not run tests;
+- run `git diff --check` once;
+- inspect `git status --short` once to verify the changed-file list and that no
+  generated data, workflow, source, config, or dependency file changed.
 
 ## Trend Strategy v2 principles
 
@@ -144,15 +153,21 @@ Do not reread files whose relevant contracts have already been established in th
 
 ### Validation policy
 
-Run directly relevant targeted tests during implementation.
+For an ordinary implementation phase, run the smallest directly relevant smoke
+test once after the coherent implementation batch. Do not interrupt every
+substep with tests, reviews, or fresh audits.
 
-Run the bounded full suite at most once, after implementation is complete, unless a concrete failure requires another run.
+Do not run the bounded full suite by default. Reserve it for cross-cutting
+contract changes, security or data-integrity boundaries, migrations, release
+checkpoints, or an explicit user request. When justified, run it at most once
+after implementation is complete unless a concrete failure requires one
+targeted rerun.
 
 Do not repeat successful test suites.
 
 Do not run all supported dependency-version suites unless the task changes compatibility-sensitive behavior or the user explicitly requires them.
 
-Use existing CI for redundant platform validation where appropriate.
+Use existing CI for broader and redundant platform validation.
 
 ### Publishing policy
 

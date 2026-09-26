@@ -82,16 +82,27 @@
   immutable lineage-aware profile revisions, validates only Metric
   Registry-backed decision settings, and applies a selected profile to stored
   evidence without rerunning the economic backtest.
+- Foundation 10B adds a persisted research workspace that restores normalized
+  construction, workload estimates, economic execution, evaluation, and report
+  references from server-side records rather than browser state.
 - Foundation 10C adds immutable, StrategyRun-specific Decision Reports that
   reference (rather than copy) stored StrategyRun, EvaluationRun,
   EvaluationProfile, behavior, and optional completed robustness evidence.
   Creation and restoration are idempotent and fail closed on missing, stale,
   incompatible, or incomplete references; the Korean-first workspace and
   report view do not start economic, evaluation, or robustness execution.
+- Foundation 10D makes that workspace the default product path. One action can
+  create, normalize, estimate, and start a laptop-bounded economic search;
+  active work uses low-frequency polling that does not rebuild the full saved
+  run registry, and completed attempts reuse their existing EvaluationRun.
+  The result view loads no curves, shows at most eight candidates with the
+  representative CAGR, SPY-relative return and downside, Calmar, recovery,
+  turnover, and cost figures, and reports an empty eligible set without
+  inventing a winner. Reports and robustness remain explicit optional steps.
 
 ## Current phase
 
-Product foundation -- persisted decision reports
+Product foundation -- unified laptop-bounded strategy discovery workspace
 
 ## Phase A2 record
 
@@ -103,7 +114,11 @@ Product foundation -- persisted decision reports
 
 ## Exact next task
 
-Foundation 10D -- decision-report user acceptance and bounded usability verification
+Foundation 11A -- connect the selected-candidate robustness planner and executor
+to the research workspace with an exact workload preview and explicit
+laptop-safe confirmation. Do not auto-run robustness or broaden the strategy
+search in the same phase; an empty eligible set must retain a clear future path
+for bounded signal, exit, and sizing family additions.
 
 ## Required product direction
 
@@ -131,7 +146,8 @@ Foundation 10D -- decision-report user acceptance and bounded usability verifica
 
 ## Explicitly deferred
 
-- new signal-family screening;
+- unrestricted or automatic new signal-family screening; bounded catalog
+  additions remain available to a later strategy-expansion phase;
 - entry, stop, and exit optimization;
 - position-sizing optimization;
 - point-in-time universe reconstruction;
