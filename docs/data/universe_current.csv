@@ -4266,7 +4266,10 @@ OAKG,Oakmark Global Large Cap ETF,P,True,False,False,False,False,False,False,Fal
 OEI,Optimized Equity Income ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,equity income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 OPPG,WisdomTree GeoAlpha Opportunities Fund,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ORR,Militia Long/Short Equity ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+PBCS,Portfolio Building Block World Consumer Staples ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Sector,unknown,,False,,False,False,Sector,Sector,Sector,Sector,Sector
 PBOT,Pictet AI & Automation ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+PBUB,Portfolio Building Block US Banks ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+PBWN,Portfolio Building Block World Ex US Industrials ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 PCEB,Polen Euro High Yield Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 PCLN,Pictet Cleaner Planet ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 PCPC,Porter & Company Property & Casualty Index ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,REIT / Infra,unknown,,False,,False,False,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra
