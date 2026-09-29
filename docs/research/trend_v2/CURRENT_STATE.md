@@ -99,6 +99,12 @@
   representative CAGR, SPY-relative return and downside, Calmar, recovery,
   turnover, and cost figures, and reports an empty eligible set without
   inventing a winner. Reports and robustness remain explicit optional steps.
+- Foundation 11A connects one selected workspace candidate to the bounded
+  robustness planner and local executor. The Korean UI previews exact policy
+  units, caps its own laptop workload, and requires an explicit start action;
+  server confirmation is bound to the plan and estimate hashes when required.
+  Read-only progress and stored evidence show compact numeric outcomes without
+  automatically changing the existing EvaluationRun or approving live trading.
 
 ## Current phase
 
@@ -114,11 +120,11 @@ Product foundation -- unified laptop-bounded strategy discovery workspace
 
 ## Exact next task
 
-Foundation 11A -- connect the selected-candidate robustness planner and executor
-to the research workspace with an exact workload preview and explicit
-laptop-safe confirmation. Do not auto-run robustness or broaden the strategy
-search in the same phase; an empty eligible set must retain a clear future path
-for bounded signal, exit, and sizing family additions.
+Foundation 11B -- connect completed selected-candidate robustness evidence to
+reusable EvaluationRun calculation and the profile's non-compensatory vetoes,
+without rerunning an unchanged economic path. Keep incomplete or failed evidence
+explicit, and leave an empty eligible set open to later bounded signal, exit,
+and sizing family additions instead of lowering the gates automatically.
 
 ## Required product direction
 
@@ -136,8 +142,9 @@ for bounded signal, exit, and sizing family additions.
 - Storage limits and the boundary between Git-tracked summaries and external/local large artifacts remain an open design decision.
 - First and last stored calendar years are conservatively marked incomplete
   because Foundation 2 does not introduce an exchange-calendar service.
-- Robustness simulations are not recomputed; missing evidence fails referenced
-  vetoes closed with a stored reason.
+- The existing stored-run EvaluationRun does not yet consume a newly completed
+  Foundation 7 robustness plan automatically; missing evidence still fails
+  referenced vetoes closed with a stored reason.
 - External object storage and distributed calculation remain deferred.
 - The local API deliberately has no authentication and must remain loopback-only
   until a later remote-access security design is approved.

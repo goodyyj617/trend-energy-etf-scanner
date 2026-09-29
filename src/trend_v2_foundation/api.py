@@ -388,6 +388,12 @@ class ReadOnlyTrendApi:
             if robustness is None:
                 raise ApiContractError(405, "method_not_allowed", "Robustness execution API is disabled.")
             return 200, robustness.normalize(payload)["estimate"]
+        if path == f"{API_PATH_PREFIX}/robustness/confirm" and method == "POST":
+            if robustness is None:
+                raise ApiContractError(405, "method_not_allowed", "Robustness execution API is disabled.")
+            if set(payload) != {"request", "plan_hash", "estimate_hash"} or not isinstance(payload["request"], Mapping) or not isinstance(payload["plan_hash"], str) or not isinstance(payload["estimate_hash"], str):
+                raise ApiContractError(400, "robustness_plan_invalid", "Confirmation requires a request and exact preview hashes.")
+            return 201, robustness.confirm_request(payload["request"], plan_hash=payload["plan_hash"], estimate_hash=payload["estimate_hash"], idempotency_key=self._idempotency_key(headers))
         if path == f"{API_PATH_PREFIX}/robustness/plans" and method == "POST":
             if robustness is None:
                 raise ApiContractError(405, "method_not_allowed", "Robustness execution API is disabled.")
@@ -395,6 +401,18 @@ class ReadOnlyTrendApi:
             if not isinstance(request, Mapping):
                 raise ApiContractError(400, "robustness_plan_invalid", "Robustness request must be an object.")
             return 201, robustness.create_plan(request, confirmation_id=payload.get("confirmation_id"))
+        parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
+        if robustness is not None and len(parts) == 4 and parts[0] == "robustness" and parts[1] == "plans" and method == "POST":
+            plan_id = self._identifier(parts[2], "robustness plan")
+            if parts[3] == "start":
+                if payload:
+                    raise ApiContractError(400, "robustness_plan_invalid", "Start accepts an empty JSON object only.")
+                return 202, robustness.schedule(plan_id)
+        if robustness is not None and len(parts) == 4 and parts[0] == "robustness" and parts[1] == "attempts" and method == "POST":
+            attempt_id = self._identifier(parts[2], "robustness attempt")
+            if parts[3] == "resume": return 202, robustness.resume(attempt_id)
+            if parts[3] == "cancel":
+                raise ApiContractError(405, "method_not_allowed", "Scenario cancellation is cooperative and not exposed by this adapter.")
         if service is None:
             raise ApiContractError(405, "method_not_allowed", "Controlled write API is disabled.")
         if path == f"{API_PATH_PREFIX}/construction/normalize" and method == "POST":
@@ -439,18 +457,6 @@ class ReadOnlyTrendApi:
             if self.persisted_execution_manager is None:
                 raise ApiContractError(404, "not_found", "Foundation 6 execution manager is disabled.")
             return 200, {"compatible": True, "normalized_construction": normalize_selection(self.persisted_execution_manager.catalog, payload)}
-        parts = path.removeprefix(f"{API_PATH_PREFIX}/").split("/")
-        if robustness is not None and len(parts) == 4 and parts[0] == "robustness" and parts[1] == "plans" and method == "POST":
-            plan_id = self._identifier(parts[2], "robustness plan")
-            if parts[3] == "start":
-                if payload:
-                    raise ApiContractError(400, "robustness_plan_invalid", "Start accepts an empty JSON object only.")
-                return 202, robustness.start(plan_id)
-        if robustness is not None and len(parts) == 4 and parts[0] == "robustness" and parts[1] == "attempts" and method == "POST":
-            attempt_id = self._identifier(parts[2], "robustness attempt")
-            if parts[3] == "resume": return 202, robustness.resume(attempt_id)
-            if parts[3] == "cancel":
-                raise ApiContractError(405, "method_not_allowed", "Scenario cancellation is cooperative and not exposed by this adapter.")
         if (
             parts[0] == "execution-requests"
             and len(parts) == 3
@@ -1340,7 +1346,10 @@ class ReadOnlyTrendApi:
             if self.robustness_execution_service is None:
                 raise ApiContractError(404, "not_found", "Robustness execution API is disabled.")
             plan_id = self._identifier(path.split("/")[-2], "robustness plan")
-            return self.robustness_execution_service.evidence(plan_id)
+            try:
+                return self.robustness_execution_service.read_evidence(plan_id)
+            except Exception as error:
+                raise ApiContractError(409, "integrity_validation_failed", "Stored robustness evidence is unavailable.", object_identity=plan_id) from error
         if path.startswith(f"{API_PATH_PREFIX}/robustness/plans/") and path.endswith("/stored-evidence"):
             self._allow_query(query, set())
             if self.robustness_execution_service is None:
@@ -1583,7 +1592,7 @@ class ReadOnlyTrendApi:
                 headers={"X-Request-ID": request_id},
             )
         except RobustnessError as error:
-            status = 409 if error.code in {"robustness_confirmation_required", "robustness_confirmation_stale", "robustness_hard_limit_exceeded", "robustness_provenance_invalid"} else 400
+            status = 409 if error.code in {"robustness_confirmation_required", "robustness_confirmation_stale", "robustness_hard_limit_exceeded", "robustness_provenance_invalid", "robustness_resume_not_allowed", "robustness_task_active"} else 400
             return ApiResponse(status_code=status, body={"error": error.to_dict(request_id)}, headers={"X-Request-ID": request_id})
         except WorkflowError as error:
             status = 404 if error.code == "workflow_not_found" else 409 if error.code.endswith("incomplete") or error.code.endswith("unavailable") else 400

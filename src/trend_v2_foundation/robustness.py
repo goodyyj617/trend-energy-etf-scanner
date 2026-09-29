@@ -11,10 +11,12 @@ import math
 import os
 import random
 import statistics
+import time
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from threading import RLock, Thread, get_ident
 from typing import Any, Callable, Mapping, Sequence
 
 from .canonical import canonical_bytes, canonical_data, content_hash, deterministic_id
@@ -50,6 +52,7 @@ class RobustnessError(ValueError):
             "cost_stress_scenario_invalid": "비용 스트레스 시나리오가 유효하지 않습니다.",
             "robustness_resume_not_allowed": "이 강건성 시나리오는 재개할 수 없습니다.",
             "robustness_provenance_invalid": "강건성 증거의 출처가 유효하지 않습니다.",
+            "robustness_task_active": "다른 강건성 작업이 실행 중입니다.",
         }.get(code, "강건성 실행 오류가 발생했습니다.")
 
     def to_dict(self, request_id: str = "local") -> dict[str, Any]:
@@ -285,6 +288,9 @@ class RobustnessExecutionService:
     def __init__(self, store: LocalResultStore, policy: RobustnessPolicy, catalog: Mapping[str, Any], *, source_commit: str, cost_stress_runner: Callable[[str, float], Mapping[str, Any]] | None = None, clock: Callable[[], str] = _now) -> None:
         self.store, self.policy, self.catalog, self.source_commit, self.cost_stress_runner, self.clock = store, policy, catalog, source_commit, cost_stress_runner, clock
         self.root = store.root / "robustness_execution_v1"; self.root.mkdir(parents=True, exist_ok=True)
+        self._worker_lock = RLock()
+        self._active_attempt_id: str | None = None
+        self._worker: Thread | None = None
 
     def _path(self, kind: str, identity: str) -> Path: return self.root / kind / f"{identity}.json"
     def _write(self, kind: str, identity: str, value: Mapping[str, Any]) -> None: _atomic(self._path(kind, identity), value)
@@ -299,6 +305,8 @@ class RobustnessExecutionService:
             daily_record = self.store.get_strategy_artifact_record(base_id, "daily_portfolio_curve"); benchmark_record = self.store.get_strategy_artifact_record(base_id, "benchmark_daily_portfolio_curve")
         except KeyError as error: raise RobustnessError("robustness_plan_invalid", "A valid base StrategyRun and aligned benchmark are required.", object_identity=base_id) from error
         dates = _dates(daily); methods: dict[str, Any] = {}
+        if (date.fromisoformat(dates[-1]) - date.fromisoformat(dates[0])).days > int(self.policy.document["maximum_date_span_days"]):
+            raise RobustnessError("robustness_hard_limit_exceeded", "Base economic date span exceeds robustness policy.")
         for method, settings in request["methods"].items():
             if method not in _METHODS: raise RobustnessError("robustness_method_unsupported", "Method is not in the bounded catalog.", object_identity=str(method))
             if not isinstance(settings, Mapping): raise RobustnessError("robustness_plan_invalid", "Method settings must be an object.")
@@ -306,7 +314,7 @@ class RobustnessExecutionService:
             elif method == "leave_one_year_out_v1": methods[method] = {"years": list(generate_loyo_years(dates, settings, self.policy)), "settings": canonical_data(settings)}
             elif method == "paired_moving_block_bootstrap_v1":
                 count, length, confidence = int(settings.get("sample_count", 0)), int(settings.get("block_length", 0)), float(settings.get("confidence_level", 0))
-                if count > int(self.policy.document["maximum_bootstrap_samples"]): raise RobustnessError("bootstrap_sample_limit_exceeded", "Bootstrap sample limit exceeded.")
+                if not 1 <= count <= int(self.policy.document["maximum_bootstrap_samples"]): raise RobustnessError("bootstrap_sample_limit_exceeded", "Bootstrap sample count violates policy.")
                 if not int(self.policy.document["minimum_block_length"]) <= length <= int(self.policy.document["maximum_block_length"]): raise RobustnessError("bootstrap_block_length_invalid", "Bootstrap block length violates policy.")
                 pairs = aligned_paired_returns(daily, benchmark); methods[method] = {"sample_count": count, "block_length": length, "confidence_level": confidence, "aligned_observations": len(pairs), "seed": int(settings.get("seed", request.get("seed", 0)))}
             else:
@@ -314,21 +322,53 @@ class RobustnessExecutionService:
                 if not isinstance(multipliers, list) or not multipliers or len(multipliers) > int(self.policy.document["maximum_cost_stress_scenarios"]) or any(float(item) < 1 for item in multipliers): raise RobustnessError("cost_stress_scenario_invalid", "Cost stress multipliers must be finite allow-listed non-negative stress.")
                 methods[method] = {"multipliers": sorted(set(float(item) for item in multipliers)), "survival_metric": str(settings.get("survival_metric", "net_cagr_nonnegative"))}
         specification = StrategyRunSpec.from_dict(manifest.canonical_specification)
-        plan = {"schema_version": ROBUSTNESS_PLAN_VERSION, "base_strategy_run_id": base_id, "economic_specification_identity": manifest.strategy_run_id, "source_data_snapshot_identity": specification.data_snapshot_hash, "source_data_snapshot_hash": specification.data_snapshot_hash, "benchmark_identity": specification.benchmark.get("option_id", "stored_benchmark"), "benchmark_hash": benchmark_record.content_hash, "economic_artifact_hash": daily_record.content_hash, "calculation_engine_version": specification.engine_version, "robustness_engine_version": ROBUSTNESS_ENGINE_VERSION, "catalog_hash": self.catalog["catalog_hash"], "methods": methods, "seed": int(request.get("seed", 0)), "evaluation_units": int(request.get("evaluation_units", 0)), "policy_version": self.policy.document["schema_version"], "policy_hash": self.policy.policy_hash, "source_commit": self.source_commit, "created_timestamp": self.clock()}
+        evaluation_units = int(request.get("evaluation_units", 0))
+        if evaluation_units < 0:
+            raise RobustnessError("robustness_plan_invalid", "Evaluation units must be nonnegative.")
+        plan = {"schema_version": ROBUSTNESS_PLAN_VERSION, "base_strategy_run_id": base_id, "economic_specification_identity": manifest.strategy_run_id, "source_data_snapshot_identity": specification.data_snapshot_hash, "source_data_snapshot_hash": specification.data_snapshot_hash, "benchmark_identity": specification.benchmark.get("option_id", "stored_benchmark"), "benchmark_hash": benchmark_record.content_hash, "economic_artifact_hash": daily_record.content_hash, "calculation_engine_version": specification.engine_version, "robustness_engine_version": ROBUSTNESS_ENGINE_VERSION, "catalog_hash": self.catalog["catalog_hash"], "methods": methods, "seed": int(request.get("seed", 0)), "evaluation_units": evaluation_units, "policy_version": self.policy.document["schema_version"], "policy_hash": self.policy.policy_hash, "source_commit": self.source_commit, "created_timestamp": self.clock()}
         plan["plan_hash"] = content_hash({key: value for key, value in plan.items() if key not in {"created_timestamp", "plan_hash"}}); plan["robustness_plan_id"] = deterministic_id("robustness_plan", {"plan_hash": plan["plan_hash"]}); plan["estimate"] = estimate_work(plan, self.policy); return canonical_data(plan)
 
     def confirm(self, plan: Mapping[str, Any], *, confirmation_id: str) -> Mapping[str, Any]:
         if plan["estimate"]["hard_limit_exceeded"]: raise RobustnessError("robustness_hard_limit_exceeded", "Hard policy limits cannot be confirmed.")
-        confirmation = {"schema_version": "robustness_confirmation_v1", "confirmation_id": confirmation_id, "plan_hash": plan["plan_hash"], "estimate_hash": plan["estimate"]["estimate_hash"], "policy_hash": self.policy.policy_hash, "created_timestamp": self.clock(), "expires_timestamp": (datetime.fromisoformat(self.clock().replace("Z", "+00:00")) + timedelta(seconds=int(self.policy.document["confirmation_ttl_seconds"]))).isoformat().replace("+00:00", "Z")}
+        path = self._path("confirmations", confirmation_id)
+        if path.exists():
+            existing = self._load("confirmations", confirmation_id)
+            if (existing.get("plan_hash"), existing.get("estimate_hash"), existing.get("policy_hash")) != (plan["plan_hash"], plan["estimate"]["estimate_hash"], self.policy.policy_hash):
+                raise RobustnessError("robustness_confirmation_stale", "Confirmation identity conflicts with this plan.")
+            return existing
+        created = self.clock()
+        confirmation = {"schema_version": "robustness_confirmation_v1", "confirmation_id": confirmation_id, "plan_hash": plan["plan_hash"], "estimate_hash": plan["estimate"]["estimate_hash"], "policy_hash": self.policy.policy_hash, "created_timestamp": created, "expires_timestamp": (datetime.fromisoformat(created.replace("Z", "+00:00")) + timedelta(seconds=int(self.policy.document["confirmation_ttl_seconds"]))).isoformat().replace("+00:00", "Z")}
         self._write("confirmations", confirmation_id, confirmation); return confirmation
+
+    def confirm_request(self, request: Mapping[str, Any], *, plan_hash: str, estimate_hash: str, idempotency_key: str) -> Mapping[str, Any]:
+        plan = self.normalize(request)
+        if plan_hash != plan["plan_hash"] or estimate_hash != plan["estimate"]["estimate_hash"]:
+            raise RobustnessError("robustness_confirmation_stale", "Preview hashes do not match the current plan.")
+        confirmation_id = deterministic_id("robustness_confirmation", {"idempotency_key": idempotency_key})
+        return self.confirm(plan, confirmation_id=confirmation_id)
 
     def create_plan(self, request: Mapping[str, Any], *, confirmation_id: str | None = None) -> Mapping[str, Any]:
         plan = self.normalize(request)
         if plan["estimate"]["hard_limit_exceeded"]: raise RobustnessError("robustness_hard_limit_exceeded", "Robustness plan exceeds hard policy limit.")
-        if plan["estimate"]["confirmation_required"]:
+        path = self._path("plans", plan["robustness_plan_id"])
+        existing = self._load("plans", plan["robustness_plan_id"]) if path.exists() else None
+        if existing is not None and (existing.get("plan_hash") != plan["plan_hash"] or existing.get("estimate", {}).get("estimate_hash") != plan["estimate"]["estimate_hash"]):
+            raise RobustnessError("robustness_provenance_invalid", "Persisted plan identity conflicts with current preview.", object_identity=plan["robustness_plan_id"], recoverable=False)
+        if confirmation_id is not None or plan["estimate"]["confirmation_required"]:
             if not confirmation_id: raise RobustnessError("robustness_confirmation_required", "Confirmation is required for this plan.")
-            confirmation = self._load("confirmations", confirmation_id)
+            try:
+                confirmation = self._load("confirmations", confirmation_id)
+            except RobustnessError as error:
+                raise RobustnessError("robustness_confirmation_stale", "Confirmation identity is missing or invalid.", object_identity=confirmation_id) from error
             if confirmation.get("plan_hash") != plan["plan_hash"] or confirmation.get("estimate_hash") != plan["estimate"]["estimate_hash"] or confirmation.get("policy_hash") != self.policy.policy_hash: raise RobustnessError("robustness_confirmation_stale", "Confirmation does not bind this plan.")
+            try:
+                expired = datetime.fromisoformat(str(confirmation.get("expires_timestamp", "")).replace("Z", "+00:00")) <= datetime.fromisoformat(self.clock().replace("Z", "+00:00"))
+            except (TypeError, ValueError) as error:
+                raise RobustnessError("robustness_confirmation_stale", "Confirmation expiry is invalid.") from error
+            if expired and existing is None:
+                raise RobustnessError("robustness_confirmation_stale", "Confirmation has expired.")
+        if existing is not None:
+            return existing
         self._write("plans", plan["robustness_plan_id"], plan); return plan
 
     def start(self, plan_id: str) -> Mapping[str, Any]:
@@ -343,14 +383,91 @@ class RobustnessExecutionService:
         attempt = {"schema_version": ROBUSTNESS_ATTEMPT_VERSION, "robustness_attempt_id": attempt_id, "robustness_plan_id": plan_id, "plan_hash": plan["plan_hash"], "created_timestamp": self.clock(), "scenarios": scenarios, "status": "pending"}; self._write("attempts", attempt_id, attempt); return attempt
 
     def _save_attempt(self, attempt: Mapping[str, Any]) -> None:
-        path = self._path("attempts", str(attempt["robustness_attempt_id"])); path.unlink(missing_ok=True); _atomic(path, attempt)
+        path = self._path("attempts", str(attempt["robustness_attempt_id"]))
+        temporary = path.with_name(f".{path.name}.{os.getpid()}.{get_ident()}.tmp")
+        temporary.write_bytes(canonical_bytes(attempt))
+        for retry in range(10):
+            try:
+                os.replace(temporary, path)
+                return
+            except PermissionError:
+                if retry == 9:
+                    raise
+                time.sleep(0.01)
+
+    def schedule(self, plan_id: str) -> Mapping[str, Any]:
+        """Start one explicit local worker; workflow polling only reads persisted state."""
+        with self._worker_lock:
+            if self._active_attempt_id is not None:
+                active = self._load("attempts", self._active_attempt_id)
+                if active.get("robustness_plan_id") == plan_id:
+                    return active
+                raise RobustnessError("robustness_task_active", "A local robustness task is already active.")
+            attempt = self.start(plan_id)
+            if attempt.get("status") == "completed" and self._path("evidence", plan_id).exists():
+                return attempt
+            if attempt.get("status") not in {"pending", "completed"} or any(item.get("state") == "running" for item in attempt["scenarios"]):
+                raise RobustnessError("robustness_resume_not_allowed", "An interrupted or failed robustness attempt requires explicit resume.", object_identity=str(attempt["robustness_attempt_id"]))
+            attempt_id = str(attempt["robustness_attempt_id"])
+            attempt = {**attempt, "status": "queued", "scheduled_timestamp": self.clock()}
+            self._save_attempt(attempt)
+            self._active_attempt_id = attempt_id
+            worker = Thread(target=self._run_scheduled, args=(plan_id, attempt_id), name="trend-v2-robustness", daemon=True)
+            self._worker = worker
+            try:
+                worker.start()
+            except Exception:
+                self._active_attempt_id = None
+                self._worker = None
+                self._save_attempt({**attempt, "status": "failed", "failure_code": "robustness_worker_start_failed"})
+                raise
+            return attempt
+
+    def is_active(self, attempt_id: str) -> bool:
+        with self._worker_lock:
+            return self._active_attempt_id == attempt_id
+
+    def _run_scheduled(self, plan_id: str, attempt_id: str) -> None:
+        try:
+            self.evidence(plan_id)
+        except Exception as error:
+            attempt = dict(self._load("attempts", attempt_id))
+            failure_code = error.code if isinstance(error, RobustnessError) else "robustness_worker_failed"
+            scenarios = []
+            for source in attempt["scenarios"]:
+                scenario = dict(source)
+                if scenario["state"] not in _TERMINAL:
+                    scenario.update({"state": "failed", "failure_code": failure_code, "failure_message": str(error), "completed_timestamp": self.clock()})
+                scenarios.append(scenario)
+            attempt.update({"scenarios": scenarios, "status": "failed", "failure_code": failure_code})
+            self._save_attempt(attempt)
+        finally:
+            with self._worker_lock:
+                self._active_attempt_id = None
+                self._worker = None
 
     def execute(self, attempt_id: str) -> Mapping[str, Any]:
         attempt = dict(self._load("attempts", attempt_id)); plan = self._load("plans", str(attempt["robustness_plan_id"])); daily = self.store.load_artifact_payload(plan["base_strategy_run_id"], "daily_portfolio_curve"); benchmark = self.store.load_artifact_payload(plan["base_strategy_run_id"], "benchmark_daily_portfolio_curve"); dates = _dates(daily); scenarios = []
-        for source in attempt["scenarios"]:
+        for index, source in enumerate(attempt["scenarios"]):
             scenario = dict(source)
             if scenario["state"] in _TERMINAL: scenarios.append(scenario); continue
+            result_path = self._path("results", str(scenario["scenario_id"]))
+            if result_path.exists():
+                stored_result = self._load("results", str(scenario["scenario_id"]))
+                if (stored_result.get("schema_version"), stored_result.get("scenario_id"), stored_result.get("method")) != (ROBUSTNESS_RESULT_VERSION, scenario["scenario_id"], scenario["method"]):
+                    raise RobustnessError("robustness_provenance_invalid", "Persisted scenario result identity conflicts with the attempt.", object_identity=str(scenario["scenario_id"]), recoverable=False)
+                scenario["state"] = "incomplete" if stored_result.get("incomplete") else "reused"
+                scenario["artifact_references"] = [{"result_hash": content_hash(stored_result)}]
+                scenario["reuse_source"] = scenario["scenario_id"]
+                scenario["completed_timestamp"] = self.clock()
+                scenarios.append(scenario)
+                attempt["scenarios"][index] = scenario
+                self._save_attempt(attempt)
+                continue
             scenario["state"], scenario["started_timestamp"] = "running", self.clock()
+            attempt["scenarios"][index] = scenario
+            attempt["status"] = "running"
+            self._save_attempt(attempt)
             try:
                 method, setting = scenario["method"], scenario["scenario_settings"]
                 if method == "walk_forward_fixed_v1":
@@ -374,6 +491,8 @@ class RobustnessExecutionService:
             except RobustnessError as error:
                 scenario["state"], scenario["failure_code"], scenario["failure_message"] = "failed", error.code, error.diagnostic_en
             scenario["completed_timestamp"] = self.clock(); scenarios.append(scenario)
+            attempt["scenarios"][index] = scenario
+            self._save_attempt(attempt)
         attempt["scenarios"] = scenarios; attempt["status"] = "completed" if all(item["state"] in _TERMINAL for item in scenarios) else "running"; self._save_attempt(attempt); return attempt
 
     def evidence(self, plan_id: str) -> Mapping[str, Any]:
@@ -405,11 +524,20 @@ class RobustnessExecutionService:
         attempt = dict(self._load("attempts", attempt_id)); changed = []
         for scenario in attempt["scenarios"]:
             if scenario["state"] == "running": scenario.update({"state": "blocked", "failure_code": "robustness_scenario_interrupted", "failure_message": "No trustworthy live owner after restart.", "incomplete_reason": "interrupted_running_no_live_owner"}); changed.append(scenario["scenario_id"])
-        attempt["status"] = "reconciled"; self._save_attempt(attempt); return {"robustness_attempt_id": attempt_id, "blocked_scenarios": changed}
+        if changed or attempt.get("status") in {"queued", "running"}:
+            attempt["status"] = "reconciled"
+            self._save_attempt(attempt)
+        return {"robustness_attempt_id": attempt_id, "blocked_scenarios": changed}
 
     def resume(self, attempt_id: str) -> Mapping[str, Any]:
+        if self.is_active(attempt_id):
+            raise RobustnessError("robustness_resume_not_allowed", "An active robustness attempt cannot be resumed.", object_identity=attempt_id)
         attempt = dict(self._load("attempts", attempt_id)); resumed = []
         for scenario in attempt["scenarios"]:
-            if scenario["state"] in {"pending", "failed", "cancelled", "blocked", "incomplete"}:
-                scenario.update({"state": "pending", "retry_of_state": scenario["state"], "failure_code": None, "failure_message": None}); resumed.append(scenario["scenario_id"])
+            if scenario["state"] in {"pending", "running", "failed", "cancelled", "blocked"}:
+                previous_state = scenario["state"]
+                scenario.update({"state": "pending", "retry_of_state": previous_state, "failure_code": None, "failure_message": None}); resumed.append(scenario["scenario_id"])
+        if resumed or (attempt.get("status") == "failed" and not self._path("evidence", str(attempt["robustness_plan_id"])).exists()):
+            attempt["status"] = "pending"
+            attempt.pop("failure_code", None)
         self._save_attempt(attempt); return {"robustness_attempt_id": attempt_id, "resumed_scenarios": resumed, "bootstrap_resume": "restart_from_seed_new_attempt_state"}
