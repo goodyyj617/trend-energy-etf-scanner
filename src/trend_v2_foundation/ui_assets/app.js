@@ -5,6 +5,8 @@ const CURVE_PAGE_SIZE = 250;
 const LIST_PAGE_SIZE = 20;
 const WORKSPACE_AUTO_ECONOMIC_LIMIT = 8;
 const WORKSPACE_AUTO_TOTAL_LIMIT = 16;
+const WORKSPACE_ROBUSTNESS_TOTAL_LIMIT = 128;
+const WORKSPACE_ROBUSTNESS_ECONOMIC_LIMIT = 8;
 const WORKSPACE_POLL_LIMIT = 60;
 const WORKSPACE_STATUS_LABELS = Object.freeze({
   not_started: "대기",
@@ -23,6 +25,7 @@ const WORKSPACE_STATUS_LABELS = Object.freeze({
   failed: "실패",
   cancelled: "취소됨",
   blocked: "중단됨",
+  incomplete: "일부 미완료",
   stale: "근거 만료",
   missing: "근거 없음",
   incompatible: "호환 불가",
@@ -70,6 +73,10 @@ const state = {
   workspaceProfiles: null,
   workspaceOptions: null,
   workspaceCreating: false,
+  workspaceResultSummary: null,
+  workspaceRobustnessRun: null,
+  workspaceRobustnessPreview: null,
+  workspaceRobustnessEvidence: null,
 };
 
 const view = document.getElementById("view");
@@ -180,8 +187,8 @@ function explanationButton(key, label) {
   return `<button type="button" class="definition-link" data-term="${escapeHtml(key)}">${escapeHtml(label || state.terminology[key].korean_term)}</button>`;
 }
 
-function bindExplanationLinks() {
-  document.querySelectorAll("[data-term]").forEach((button) => {
+function bindExplanationLinks(root = document) {
+  root.querySelectorAll("[data-term]").forEach((button) => {
     button.addEventListener("click", () => {
       const key = button.dataset.term;
       location.hash = `#explanations/${encodeURIComponent(key)}`;
@@ -821,6 +828,123 @@ function workspaceEstimatePanel(estimate, started) {
   </div>${guard}${confirmation}${hard}<div class="actions">${action}<a class="button-link" href="#construction">고급 구성 열기</a></div></div>`;
 }
 
+function workspaceRobustnessRequest() {
+  const runId = document.getElementById("workspace-robustness-run")?.value;
+  if (!runId) throw new Error("검증할 후보를 하나 선택해 주세요.");
+  const methods = {};
+  if (document.getElementById("workspace-robustness-loyo")?.checked) {
+    methods.leave_one_year_out_v1 = {
+      minimum_observations: 60,
+      partial_year_eligibility: document.getElementById("workspace-robustness-partial").value,
+    };
+  }
+  if (document.getElementById("workspace-robustness-bootstrap")?.checked) {
+    const sampleCount = Number(document.getElementById("workspace-robustness-samples").value);
+    const blockLength = Number(document.getElementById("workspace-robustness-block").value);
+    if (!Number.isInteger(sampleCount) || sampleCount < 20 || sampleCount > 100 || !Number.isInteger(blockLength) || blockLength < 2 || blockLength > 20) {
+      throw new Error("부트스트랩 반복은 20~100회, 블록 길이는 2~20일로 입력해 주세요.");
+    }
+    methods.paired_moving_block_bootstrap_v1 = { sample_count: sampleCount, block_length: blockLength, confidence_level: 0.95 };
+  }
+  if (document.getElementById("workspace-robustness-cost")?.checked) {
+    const multipliers = document.getElementById("workspace-robustness-multipliers").value.split(",").map((value) => Number(value.trim()));
+    if (!multipliers.length || multipliers.length > 4 || multipliers.some((value) => !Number.isFinite(value) || value < 1)) {
+      throw new Error("비용 배수는 1 이상 숫자 최대 4개를 쉼표로 구분해 주세요.");
+    }
+    methods.canonical_cost_stress_v1 = { multipliers };
+  }
+  if (!Object.keys(methods).length) throw new Error("검증 방법을 하나 이상 선택해 주세요.");
+  return { base_strategy_run_id: runId, methods, seed: 11, evaluation_units: 0 };
+}
+
+function workspaceRobustnessPreviewPanel(plan) {
+  const estimate = plan.estimate || {};
+  const tooLarge = estimate.hard_limit_exceeded
+    || estimate.total_policy_units > WORKSPACE_ROBUSTNESS_TOTAL_LIMIT
+    || estimate.economic_backtest_units > WORKSPACE_ROBUSTNESS_ECONOMIC_LIMIT;
+  const warning = estimate.hard_limit_exceeded
+    ? "서버의 하드 한도를 넘어 실행할 수 없습니다."
+    : tooLarge
+      ? `이 화면의 노트북 한도(총 ${WORKSPACE_ROBUSTNESS_TOTAL_LIMIT}단위, 경제 작업 ${WORKSPACE_ROBUSTNESS_ECONOMIC_LIMIT}단위)를 넘었습니다. 방법이나 반복 횟수를 줄여 주세요.`
+      : estimate.confirmation_required
+        ? "서버 정책상 이 계획의 해시와 작업량에 묶인 추가 확인을 기록합니다."
+        : "이 숫자를 확인한 뒤 버튼을 누를 때만 실행합니다.";
+  return `<div class="card-grid result-grid">
+    <article class="card metric-card"><small>${explanationButton("robustness_total_policy_units", "총 정책 작업 단위")}</small><strong>${fmt(estimate.total_policy_units, 0)}</strong></article>
+    <article class="card metric-card"><small>${explanationButton("robustness_economic_units", "경제 작업 단위")}</small><strong>${fmt(estimate.economic_backtest_units, 0)}</strong></article>
+    <article class="card metric-card"><small>${explanationButton("loyo", "연도 제외")}</small><strong>${fmt(estimate.loyo_backtest_units, 0)}</strong></article>
+    <article class="card metric-card"><small>${explanationButton("paired_block_bootstrap", "부트스트랩 반복")}</small><strong>${fmt(estimate.bootstrap_resample_units, 0)}</strong></article>
+    <article class="card metric-card"><small>${explanationButton("cost_stress", "비용 재실행")}</small><strong>${fmt(estimate.cost_stress_backtest_units, 0)}</strong></article>
+  </div><p class="notice ${tooLarge ? "danger" : "safe"}">${escapeHtml(warning)}</p>
+  <p class="id">계획 ${escapeHtml(shortId(plan.plan_hash, 24))} · 후보 ${escapeHtml(shortId(plan.base_strategy_run_id, 24))}</p>
+  <button type="button" id="workspace-robustness-start" ${tooLarge ? "disabled" : ""}>이 작업량을 확인하고 선택 후보 검증 실행</button>`;
+}
+
+function workspaceRobustnessEvidencePanel(evidence) {
+  const cards = [];
+  const loyo = evidence.loyo || {};
+  const bootstrap = evidence.bootstrap || null;
+  const cost = evidence.cost_stress || {};
+  const walkForward = evidence.walk_forward || {};
+  if (walkForward.fold_count) cards.push(["selected_walk_forward_pass_ratio", "워크포워드 통과", walkForward.pass_ratio === null ? "근거 없음" : `${fmt(walkForward.pass_ratio * 100, 1)}%`, `${fmt(walkForward.completed_fold_count, 0)}/${fmt(walkForward.fold_count, 0)} 완료`]);
+  if (loyo.evaluated_year_count || loyo.incomplete_years?.length) cards.push(["selected_loyo_stability_ratio", "연도 제외 안정성", loyo.stability_ratio === null ? "근거 없음" : `${fmt(loyo.stability_ratio * 100, 1)}%`, `${fmt(loyo.evaluated_year_count, 0)}개 평가 · 반전 ${fmt(loyo.reversing_years?.length || 0, 0)}개`]);
+  if (bootstrap) {
+    const ci = bootstrap.confidence_interval || {};
+    cards.push(["selected_bootstrap_daily_effect", "SPY 대비 일평균 차이", `${fmt(bootstrap.effect * 100, 3)}%p`, `${fmt(ci.lower * 100, 3)}~${fmt(ci.upper * 100, 3)}%p`, "confidence_interval"]);
+  }
+  if (cost.total_scenarios) cards.push(["selected_cost_survival_ratio", "비용 스트레스 생존", cost.survival_ratio === null ? "근거 없음" : `${fmt(cost.survival_ratio * 100, 1)}%`, `${fmt(cost.completed, 0)}/${fmt(cost.total_scenarios, 0)} 완료 · 실패 ${fmt(cost.failed, 0)}`]);
+  const scenarioResults = Object.values(evidence.scenario_results || {}).flat();
+  const incomplete = scenarioResults.filter((item) => !new Set(["succeeded", "reused"]).has(item.scenario?.state)).length;
+  return `<div class="card-grid result-grid">${cards.map(([term, label, value, secondary, secondaryTerm]) => `<article class="card metric-card result-metric"><small>${explanationButton(term, label)}</small><strong>${escapeHtml(value)}</strong><span>${secondaryTerm ? `${explanationButton(secondaryTerm, "95% 신뢰구간")} ` : ""}${escapeHtml(secondary)}</span></article>`).join("")}</div>
+    ${incomplete ? `<p class="notice danger">미완료·실패 시나리오 ${fmt(incomplete, 0)}개가 있어 근거를 완전한 통과로 해석할 수 없습니다.</p>` : ""}
+    <p class="id">저장 근거 ${escapeHtml(shortId(evidence.evidence_hash, 28))}</p>
+    <p class="notice">이 결과는 선택 후보의 별도 강건성 근거입니다. 기존 평가 결과나 적격 판정을 자동으로 바꾸지 않으며, 실거래 적합성 승인도 아닙니다.</p>`;
+}
+
+function workspaceRobustnessBody(workflowId, refs, evidence, candidateChoices) {
+  const plan = refs.robustness_plan;
+  const progress = refs.robustness_progress || {};
+  if (plan && !refs.robustness) {
+    return `<p class="id">저장된 계획 ${escapeHtml(shortId(plan.robustness_plan_id, 28))}</p>
+      <p>총 ${fmt(plan.estimate?.total_policy_units, 0)}단위의 계획이 저장되었으나 아직 실행되지 않았습니다.</p>
+      <button type="button" id="workspace-robustness-start-existing">저장된 계획 실행</button>`;
+  }
+  if (refs.robustness) {
+    const scenarios = progress.attempt?.scenarios || [];
+    const complete = scenarios.filter((item) => new Set(["succeeded", "reused", "incomplete", "failed", "blocked", "cancelled", "skipped"]).has(item.state)).length;
+    const label = WORKSPACE_STATUS_LABELS[progress.status] || progress.status || "상태 확인 중";
+    const status = `<p>선택 후보 ${escapeHtml(shortId(plan?.base_strategy_run_id, 28))} · ${statusBadge(progress.status, label)} · 시나리오 ${fmt(complete, 0)}/${fmt(scenarios.length, 0)}</p>`;
+    if (evidence && !evidence.__error) return `${status}${progress.status === "completed" ? "" : '<p class="notice danger">일부 시나리오가 실패하거나 미완료되었습니다. 아래 숫자를 통과 판정으로 해석하지 마세요.</p>'}${workspaceRobustnessEvidencePanel(evidence)}`;
+    if (evidence?.__error) return `${status}<p class="notice danger">저장 근거를 읽지 못했습니다. ${escapeHtml(evidence.__error.message_ko || "근거 확인 필요")}</p><button type="button" id="workspace-robustness-refresh">상태 다시 확인</button>`;
+    const failed = scenarios.find((item) => item.failure_message || item.failure_code);
+    return `${status}${failed ? `<p class="notice danger">${escapeHtml(failed.failure_message || failed.failure_code)}</p>` : ""}<p class="notice">시나리오 전체를 화면에 펼치지 않고 약 10초 간격으로 상태만 확인합니다.</p>${new Set(["failed", "blocked", "incomplete"]).has(progress.status) ? '<button type="button" id="workspace-robustness-refresh">상태 다시 확인</button>' : ""}`;
+  }
+  if (!candidateChoices.length) return "<p>경제 실행과 평가가 끝나면 저장된 후보 하나를 선택할 수 있습니다.</p>";
+  const selected = state.workspaceRobustnessRun?.workflowId === workflowId
+    && candidateChoices.some((item) => item.id === state.workspaceRobustnessRun.runId)
+    ? state.workspaceRobustnessRun.runId : candidateChoices[0].id;
+  const previewRecord = state.workspaceRobustnessPreview?.workflowId === workflowId
+    && state.workspaceRobustnessPreview.request.base_strategy_run_id === selected
+    ? state.workspaceRobustnessPreview : null;
+  const preview = previewRecord?.plan;
+  const methods = previewRecord?.request.methods || {};
+  const bootstrap = methods.paired_moving_block_bootstrap_v1;
+  const loyo = methods.leave_one_year_out_v1;
+  const cost = methods.canonical_cost_stress_v1;
+  return `<p>한 번에 후보 하나만 검증합니다. 기본값은 계산량이 작은 SPY 쌍 부트스트랩 50회입니다.</p>
+    <form id="workspace-robustness-form"><div class="form-grid">
+      <div class="field"><label for="workspace-robustness-run">검증할 후보</label><select id="workspace-robustness-run">${candidateChoices.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === selected ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select></div>
+      <div class="field"><label for="workspace-robustness-bootstrap"><input id="workspace-robustness-bootstrap" type="checkbox" ${!previewRecord || bootstrap ? "checked" : ""}> SPY 쌍 부트스트랩</label> ${explanationButton("paired_block_bootstrap", "계산 설명")}<small>저장된 공통 거래일 수익률을 재표본화합니다.</small></div>
+      <div class="field"><label for="workspace-robustness-samples">반복 횟수</label><input id="workspace-robustness-samples" type="number" min="20" max="100" step="1" value="${fmt(bootstrap?.sample_count ?? 50, 0)}"></div>
+      <div class="field"><label for="workspace-robustness-block">블록 길이(거래일)</label><input id="workspace-robustness-block" type="number" min="2" max="20" step="1" value="${fmt(bootstrap?.block_length ?? 5, 0)}"></div>
+      <div class="field"><label for="workspace-robustness-loyo"><input id="workspace-robustness-loyo" type="checkbox" ${loyo ? "checked" : ""}> 연도 하나 제외</label> ${explanationButton("loyo", "계산 설명")}<small>여러 연도에서만 유용하며 양 끝 부분 연도는 기본 제외합니다.</small></div>
+      <div class="field"><label for="workspace-robustness-partial">부분 연도 처리</label><select id="workspace-robustness-partial"><option value="exclude" ${loyo?.partial_year_eligibility !== "allow_flagged" ? "selected" : ""}>제외</option><option value="allow_flagged" ${loyo?.partial_year_eligibility === "allow_flagged" ? "selected" : ""}>표시하고 포함</option></select></div>
+      <div class="field"><label for="workspace-robustness-cost"><input id="workspace-robustness-cost" type="checkbox" ${cost ? "checked" : ""}> 거래비용 스트레스</label> ${explanationButton("cost_stress", "계산 설명")}<small>선택한 후보의 경제 실행을 비용만 높여 재실행합니다.</small></div>
+      <div class="field"><label for="workspace-robustness-multipliers">비용 배수</label><input id="workspace-robustness-multipliers" value="${escapeHtml((cost?.multipliers || [1.5, 2]).join(","))}" inputmode="decimal"></div>
+    </div><button type="submit">선택 후보의 정확한 작업량 계산</button></form>
+    <div id="workspace-robustness-preview-area" aria-live="polite">${preview ? workspaceRobustnessPreviewPanel(preview) : '<p class="notice">계산 후 작업 단위와 한도를 확인하고 별도로 실행하세요. 자동 실행하지 않습니다.</p>'}</div>`;
+}
+
 function workspaceConstruction(profileId) {
   return {
     schema_version: "strategy_construction_request_v1",
@@ -940,7 +1064,7 @@ async function workspaceResultSummary(evaluationRunId, options) {
   const evaluation = await api(`/evaluation-runs/${encodeURIComponent(evaluationRunId)}?page_size=64`);
   const profile = await api(`/evaluation-profiles/${encodeURIComponent(evaluation.evaluation_profile_id)}`);
   const candidates = [...(evaluation.items || [])].sort(workspaceCompareCandidates);
-  if (!candidates.length) return emptyState("평가 후보 없음", "EvaluationRun에 표시할 후보가 없습니다.");
+  if (!candidates.length) return { html: emptyState("평가 후보 없음", "EvaluationRun에 표시할 후보가 없습니다."), candidateChoices: [] };
   const visible = candidates.slice(0, 8);
   const runResponses = await Promise.all(visible.map((candidate) => api(`/runs/${encodeURIComponent(candidate.strategy_run_id)}`, { optional: true })));
   const runs = new Map(runResponses.filter((item) => !item.__error).map((item) => [item.strategy_run_id, item]));
@@ -981,12 +1105,19 @@ async function workspaceResultSummary(evaluationRunId, options) {
       <td>${escapeHtml(workspaceMetricValue("recovery_duration_days", metrics.recovery_duration_days))}</td>
       <td>${escapeHtml(workspaceMetricValue("annual_turnover", metrics.annual_turnover))}<small>비용 ${escapeHtml(workspaceMetricValue("transaction_cost_drag", metrics.transaction_cost_drag))}</small></td></tr>`;
   }).join("");
-  return `<section class="workspace-results" aria-label="전략 평가 수치 요약">
+  const candidateChoices = candidates.map((candidate) => {
+    const decision = workspaceCandidateDecision(candidate);
+    const cagr = workspaceMetricValue("cagr", candidate.raw_metrics?.cagr);
+    const drawdown = workspaceMetricValue("maximum_drawdown", candidate.raw_metrics?.maximum_drawdown);
+    return { id: candidate.strategy_run_id, label: `${decision[1]} · 연복리 ${cagr} · 최대낙폭 ${drawdown} · ${shortId(candidate.strategy_run_id, 15)}` };
+  });
+  const html = `<section class="workspace-results" aria-label="전략 평가 수치 요약">
     <div class="funnel-grid">${funnel.map(([label, value]) => `<div><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>
     ${headline}
     <div class="section-header"><div><h3>후보 수치 비교</h3><p>전체 ${evaluation.page.total}개 중 판정 우선순위 상위 ${visible.length}개만 표시합니다. 시계열과 차트는 불러오지 않았습니다.</p></div><a class="button-link" href="#evaluations">평가 상세</a></div>
     <div class="table-wrap compact-results"><table><thead><tr><th>전략 구성</th><th>판정·강건성</th><th>${explanationButton("cagr", "CAGR / SPY")}</th><th>${explanationButton("maximum_drawdown", "MDD / SPY")}</th><th>${explanationButton("cdar95", "CDaR95 / SPY")}</th><th>${explanationButton("calmar_ratio", "Calmar / SPY")}</th><th>${explanationButton("recovery_duration_days", "회복")}</th><th>${explanationButton("annual_turnover", "회전율·비용")}</th></tr></thead><tbody>${rows}</tbody></table></div>
   </section>`;
+  return { html, candidateChoices };
 }
 
 async function advanceWorkspace(workflowId, current) {
@@ -1064,9 +1195,28 @@ async function renderResearchWorkspace({ polling = false } = {}) {
     }
   }
   let resultSummary = "<p>평가 완료 후 대표 수치와 후보 비교가 여기에 표시됩니다.</p>";
+  let candidateChoices = [];
   if (refs.evaluation?.evaluation_run_id) {
-    try { resultSummary = await workspaceResultSummary(refs.evaluation.evaluation_run_id, options); }
+    try {
+      const evaluationRunId = refs.evaluation.evaluation_run_id;
+      const summary = state.workspaceResultSummary?.evaluationRunId === evaluationRunId
+        ? state.workspaceResultSummary
+        : { evaluationRunId, ...await workspaceResultSummary(evaluationRunId, options) };
+      state.workspaceResultSummary = summary;
+      resultSummary = summary.html;
+      candidateChoices = summary.candidateChoices;
+    }
     catch (error) { if (error?.name === "AbortError") throw error; resultSummary = `<p class="notice danger">수치 요약을 불러오지 못했습니다. ${escapeHtml(error.message)}</p>`; }
+  }
+  let robustnessEvidence = null;
+  const robustnessPlanId = refs.robustness_plan?.robustness_plan_id;
+  if (robustnessPlanId && new Set(["completed", "failed", "blocked", "incomplete"]).has(robustness.status)) {
+    try {
+      robustnessEvidence = state.workspaceRobustnessEvidence?.planId === robustnessPlanId
+        ? state.workspaceRobustnessEvidence.evidence
+        : await api(`/robustness/plans/${encodeURIComponent(robustnessPlanId)}/stored-evidence`, { optional: true });
+      if (!robustnessEvidence.__error) state.workspaceRobustnessEvidence = { planId: robustnessPlanId, evidence: robustnessEvidence };
+    } catch (error) { if (error?.name === "AbortError") throw error; robustnessEvidence = { __error: { message_ko: error.message } }; }
   }
   if (renderController !== state.controller || renderController?.signal.aborted) return;
   const action = (id, label, disabled=false) => `<button id="workspace-${id}" ${disabled ? "disabled" : ""}>${label}</button>`;
@@ -1085,9 +1235,9 @@ async function renderResearchWorkspace({ polling = false } = {}) {
     ${workspaceCard("1", "전략 구성", refs.normalized_construction ? "completed" : "needs_action", refs.normalized_construction ? `<p>구성이 정규화되었습니다.</p><p class="id">${escapeHtml(refs.normalized_construction.normalized_construction_hash || "정규화됨")}</p>` : "<p>저장된 구성을 아직 정규화하지 않았습니다.</p>")}
     ${workspaceCard("2", "후보 수와 노트북 실행 한도", refs.candidate_estimate ? "completed" : "needs_action", estimateBody)}
     ${workspaceCard("3", "경제 실행 및 후보 진행", economic.status || (refs.candidate_estimate ? "needs_action" : "not_started"), economicBody)}
-    ${workspaceCard("4", "강건성 검증 · 선택 사항", robustness.status || "optional", robustness.attempt ? `<p>상태: ${escapeHtml(robustness.status)}</p><a class="button-link" href="#robustness">강건성 전문 화면</a>` : `<p class="notice">자동 실행하지 않습니다. 후보를 좁힌 뒤 필요할 때 저장 근거를 구성하세요.</p><a class="button-link" href="#robustness">강건성 전문 화면</a>`)}
-    ${workspaceCard("5", "평가 프로필 적용", refs.evaluation ? "completed" : (economic.status === "completed" ? "needs_action" : "not_started"), evaluationBody)}
-    ${workspaceCard("6", "핵심 수치와 후보 비교", refs.evaluation ? "completed" : "not_started", resultSummary)}`;
+    ${workspaceCard("4", "평가 프로필 적용", refs.evaluation ? "completed" : (economic.status === "completed" ? "needs_action" : "not_started"), evaluationBody)}
+    ${workspaceCard("5", "핵심 수치와 후보 비교", refs.evaluation ? "completed" : "not_started", resultSummary)}
+    ${workspaceCard("6", "강건성 검증 · 선택 사항", robustness.status || (refs.robustness_plan ? "needs_action" : "optional"), `${workspaceRobustnessBody(workflowId, refs, robustnessEvidence, candidateChoices)}<div class="actions"><a class="button-link" href="#robustness">기존 저장 근거 보기</a></div>`)}`;
   if (refs.evaluation) {
     const reportRuns = refs.evaluation.strategy_run_ids || economic.strategy_run_ids || [];
     const attachedPlan = robustness.status === "completed" ? refs.robustness_plan?.robustness_plan_id : null;
@@ -1118,8 +1268,59 @@ async function renderResearchWorkspace({ polling = false } = {}) {
   document.getElementById("workspace-advance")?.addEventListener("click", async(event)=>{ event.currentTarget.disabled=true; try { await advanceWorkspace(workflowId,data); } catch(error) { setMessage(error.message); event.currentTarget.disabled=false; }});
   document.getElementById("workspace-confirm-start")?.addEventListener("click", async(event)=>{ event.currentTarget.disabled=true; try { const confirmed=await api(`/workflows/${encodeURIComponent(workflowId)}/confirm`, {method:"POST",body:{},idempotencyKey:workspaceKey(workflowId,"confirm")}); await advanceWorkspace(workflowId,confirmed); } catch(error) { setMessage(error.message); event.currentTarget.disabled=false; }});
   document.getElementById("workspace-evaluate")?.addEventListener("click", async()=>{ try { const profileId=document.getElementById("workspace-evaluation-profile").value; await api(`/workflows/${encodeURIComponent(workflowId)}/evaluate`, {method:"POST", body:{evaluation_profile_id:profileId}, idempotencyKey:workspaceKey(workflowId,`evaluate:${profileId}`)}); await renderResearchWorkspace(); } catch(error) { setMessage(error.message); }});
+  const invalidateRobustnessPreview = (event) => {
+    if (event.target.id === "workspace-robustness-run") state.workspaceRobustnessRun = { workflowId, runId: event.target.value };
+    state.workspaceRobustnessPreview = null;
+    const area = document.getElementById("workspace-robustness-preview-area");
+    if (area) area.innerHTML = '<p class="notice">설정이 바뀌었습니다. 정확한 작업량을 다시 계산해 주세요.</p>';
+  };
+  document.getElementById("workspace-robustness-form")?.addEventListener("input", invalidateRobustnessPreview);
+  document.getElementById("workspace-robustness-form")?.addEventListener("change", invalidateRobustnessPreview);
+  document.getElementById("workspace-robustness-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      const request = workspaceRobustnessRequest();
+      const plan = await api("/robustness/normalize", { method: "POST", body: request });
+      state.workspaceRobustnessRun = { workflowId, runId: request.base_strategy_run_id };
+      state.workspaceRobustnessPreview = { workflowId, request, plan };
+      document.getElementById("workspace-robustness-preview-area").innerHTML = workspaceRobustnessPreviewPanel(plan);
+      bindExplanationLinks(document.getElementById("workspace-robustness-preview-area"));
+    } catch (error) { setMessage(error.message); }
+    finally { button.disabled = false; }
+  });
+  document.getElementById("workspace-robustness-preview-area")?.addEventListener("click", async (event) => {
+    const button = event.target.closest("#workspace-robustness-start");
+    if (!button) return;
+    button.disabled = true;
+    try {
+      const preview = state.workspaceRobustnessPreview;
+      if (!preview || preview.workflowId !== workflowId || JSON.stringify(workspaceRobustnessRequest()) !== JSON.stringify(preview.request)) throw new Error("설정이 바뀌었습니다. 작업량을 다시 계산해 주세요.");
+      const estimate = preview.plan.estimate;
+      if (estimate.hard_limit_exceeded || estimate.total_policy_units > WORKSPACE_ROBUSTNESS_TOTAL_LIMIT || estimate.economic_backtest_units > WORKSPACE_ROBUSTNESS_ECONOMIC_LIMIT) throw new Error("노트북 안전 한도를 넘었습니다. 방법이나 반복 횟수를 줄여 주세요.");
+      let confirmationId = null;
+      if (estimate.confirmation_required) {
+        const confirmation = await api("/robustness/confirm", { method: "POST", body: { request: preview.request, plan_hash: preview.plan.plan_hash, estimate_hash: estimate.estimate_hash }, idempotencyKey: idempotencyKey("robustness-confirm") });
+        confirmationId = confirmation.confirmation_id;
+      }
+      await api(`/workflows/${encodeURIComponent(workflowId)}/robustness`, { method: "POST", body: { request: preview.request, ...(confirmationId ? { confirmation_id: confirmationId } : {}) } });
+      await api(`/workflows/${encodeURIComponent(workflowId)}/start-robustness`, { method: "POST", body: {} });
+      state.workspaceRobustnessPreview = null;
+      await renderResearchWorkspace();
+    } catch (error) { setMessage(error.message); await renderResearchWorkspace(); }
+  });
+  document.getElementById("workspace-robustness-start-existing")?.addEventListener("click", async (event) => {
+    event.currentTarget.disabled = true;
+    try { await api(`/workflows/${encodeURIComponent(workflowId)}/start-robustness`, { method: "POST", body: {} }); await renderResearchWorkspace(); }
+    catch (error) { setMessage(error.message); event.currentTarget.disabled = false; }
+  });
+  document.getElementById("workspace-robustness-refresh")?.addEventListener("click", () => {
+    state.workspaceRobustnessEvidence = null;
+    renderResearchWorkspace().catch(showFatal);
+  });
   bindExplanationLinks();
-  scheduleWorkspacePolling(workflowId, economic.status);
+  scheduleWorkspacePolling(workflowId, new Set(["pending", "running"]).has(economic.status) ? economic.status : robustness.status);
 }
 
 async function renderDecisionReports() {

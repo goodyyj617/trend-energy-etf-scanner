@@ -155,6 +155,7 @@ pre { white-space: pre-wrap; word-break: break-word; background: #1b2c26; color:
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .9rem; margin-bottom: 1rem; }
 .form-grid .field { min-width: 0; }
 .form-grid input, .form-grid select { width: 100%; box-sizing: border-box; }
+.form-grid input[type="checkbox"] { width: auto; margin: 0 .35rem 0 0; vertical-align: middle; }
 .form-grid abbr { cursor: help; color: var(--blue); text-decoration-style: dotted; }
 .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
 .notice.danger { border-left-color: var(--red); background: var(--red-soft); color: #7a1f25; }
