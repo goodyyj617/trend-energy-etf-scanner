@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import RLock
 from typing import Any, Mapping
 
 from .canonical import canonical_data, content_hash
@@ -41,7 +42,16 @@ class WorkflowError(ValueError):
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+def _event_timestamp(value: Any) -> datetime:
+    if not isinstance(value, str):
+        raise ValueError("workflow event timestamp must be an ISO-8601 string")
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("workflow event timestamp must include a timezone")
+    return parsed.astimezone(timezone.utc)
 
 
 class WorkflowCoordinator:
@@ -50,6 +60,7 @@ class WorkflowCoordinator:
     def __init__(self, execution: ControlledExecutionService, robustness: RobustnessExecutionService | None = None, *, manager: PersistedExecutionManager | None = None, clock: callable = _now) -> None:
         self.execution, self.robustness, self.manager, self.clock = execution, robustness, manager, clock
         self.root = execution.store.root / "workflow_v1"
+        self._event_lock = RLock()
         for name in ("workflows", "events", "idempotency"):
             (self.root / name).mkdir(parents=True, exist_ok=True)
 
@@ -108,20 +119,68 @@ class WorkflowCoordinator:
         for path in sorted((self.root / "events").glob(f"{prefix}*.json")):
             try:
                 item = json.loads(path.read_text(encoding="utf-8"))
-                if item.get("integrity_hash") != content_hash({key: value for key, value in item.items() if key != "integrity_hash"}):
+                if (
+                    item.get("schema_version") != WORKFLOW_SCHEMA_VERSION
+                    or item.get("integrity_hash")
+                    != content_hash({key: value for key, value in item.items() if key != "integrity_hash"})
+                ):
                     raise ValueError("hash mismatch")
+                _event_timestamp(item.get("created_timestamp"))
                 values.append(item)
             except (OSError, ValueError, TypeError) as error:
                 raise WorkflowError("workflow_integrity_invalid", "Workflow event is corrupt.", object_identity=workflow_id, recoverable=False) from error
-        return values
+        return sorted(values, key=lambda item: (_event_timestamp(item["created_timestamp"]), str(item["event_id"])))
 
     def _event(self, workflow_id: str, action: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         self._read("workflows", workflow_id)
-        identity = content_hash({"workflow_id": workflow_id, "action": action, "payload": canonical_data(payload)})
-        value = {"schema_version": WORKFLOW_SCHEMA_VERSION, "workflow_id": workflow_id, "event_id": identity, "action": action, "payload": canonical_data(payload), "created_timestamp": self.clock()}
-        value["integrity_hash"] = content_hash(value)
-        self._write_once("events", f"{workflow_id}_{identity}", value)
-        return value
+        canonical_payload = canonical_data(payload)
+        identity = content_hash({"workflow_id": workflow_id, "action": action, "payload": canonical_payload})
+        event_identity = f"{workflow_id}_{identity}"
+        with self._event_lock:
+            if self._path("events", event_identity).exists():
+                existing = self._read("events", event_identity)
+                expected = {
+                    "schema_version": WORKFLOW_SCHEMA_VERSION,
+                    "workflow_id": workflow_id,
+                    "event_id": identity,
+                    "action": action,
+                    "payload": canonical_payload,
+                }
+                try:
+                    _event_timestamp(existing.get("created_timestamp"))
+                except (ValueError, TypeError) as error:
+                    raise WorkflowError(
+                        "workflow_integrity_invalid",
+                        "Persisted workflow event has an invalid timestamp.",
+                        object_identity=identity,
+                        recoverable=False,
+                    ) from error
+                if (
+                    existing.get("integrity_hash")
+                    != content_hash({key: value for key, value in existing.items() if key != "integrity_hash"})
+                    or any(existing.get(key) != value for key, value in expected.items())
+                ):
+                    raise WorkflowError(
+                        "workflow_integrity_invalid",
+                        "Persisted workflow event conflicts with its deterministic identity.",
+                        object_identity=identity,
+                        recoverable=False,
+                    )
+                return existing
+            created_timestamp = self.clock()
+            try:
+                _event_timestamp(created_timestamp)
+            except (ValueError, TypeError) as error:
+                raise WorkflowError(
+                    "workflow_integrity_invalid",
+                    "Workflow event clock returned an invalid timestamp.",
+                    object_identity=identity,
+                    recoverable=False,
+                ) from error
+            value = {"schema_version": WORKFLOW_SCHEMA_VERSION, "workflow_id": workflow_id, "event_id": identity, "action": action, "payload": canonical_payload, "created_timestamp": created_timestamp}
+            value["integrity_hash"] = content_hash(value)
+            self._write_once("events", event_identity, value)
+            return value
 
     @staticmethod
     def _latest(events: list[Mapping[str, Any]], action: str) -> Mapping[str, Any] | None:
@@ -254,9 +313,13 @@ class WorkflowCoordinator:
         request = self.execution.create_request(record["construction"], confirmation_id=confirmation.get("confirmation_id"), idempotency_key=idempotency_key)
         status = self.execution.start(request.execution_request_id, idempotency_key=idempotency_key)
         attempt_ids = list(status.get("execution_attempt_ids", []))
+        strategy_run_ids = sorted(
+            self.execution.attempt_repository.get(identity).intended_strategy_run_id
+            for identity in attempt_ids
+        )
         if self.manager is not None:
             self.manager.track_controlled_request(request.to_dict(), self.execution.attempt_repository.list())
-        self._event(workflow_id, "economic_started", {"execution_request_id": request.execution_request_id, "execution_attempt_ids": attempt_ids, "strategy_run_ids": [item["strategy_run_id"] for item in request.requested_strategy_run_candidates]})
+        self._event(workflow_id, "economic_started", {"execution_request_id": request.execution_request_id, "execution_attempt_ids": attempt_ids, "strategy_run_ids": strategy_run_ids})
         return self.read(workflow_id)
 
     def configure_robustness(self, workflow_id: str, request: Mapping[str, Any], *, confirmation_id: str | None = None) -> Mapping[str, Any]:
@@ -346,8 +409,43 @@ class WorkflowCoordinator:
             profile = self.execution.store.get_evaluation_profile(evaluation_profile_id)
         except KeyError as error:
             raise WorkflowError("workflow_construction_invalid", "EvaluationProfile is unknown.", object_identity=evaluation_profile_id) from error
-        result = calculate_and_evaluate_saved_runs(self.execution.store, run_ids, profile, creation_time=self.clock())
-        self._event(workflow_id, "evaluated", {"evaluation_profile_id": evaluation_profile_id, "evaluation_run_id": result.evaluation_run.evaluation_run_id, "strategy_run_ids": run_ids, "economic_backtest_started": False})
+        referenced_evaluation_ids = [
+            str(reference["evaluation_run_id"])
+            for attempt in progress.get("attempts", [])
+            for reference in attempt.get("artifact_references", [])
+            if reference.get("artifact_key") == "evaluation_run"
+            and isinstance(reference.get("evaluation_run_id"), str)
+        ]
+        candidate_evaluation_ids = list(dict.fromkeys(referenced_evaluation_ids))
+        existing_evaluation = None
+        for identity in candidate_evaluation_ids:
+            try:
+                candidate = self.execution.store.get_evaluation_run(identity)
+            except (KeyError, ValueError, OSError) as error:
+                raise WorkflowError(
+                    "workflow_integrity_invalid",
+                    "An ExecutionAttempt references a missing or invalid EvaluationRun.",
+                    object_identity=identity,
+                    recoverable=False,
+                ) from error
+            if (
+                candidate.evaluation_profile_id == evaluation_profile_id
+                and tuple(candidate.strategy_run_ids) == tuple(run_ids)
+                and (
+                    not hasattr(profile, "profile_hash")
+                    or candidate.profile_hash == profile.profile_hash
+                )
+            ):
+                existing_evaluation = candidate
+                break
+        if existing_evaluation is None:
+            result = calculate_and_evaluate_saved_runs(
+                self.execution.store, run_ids, profile, creation_time=self.clock()
+            )
+            evaluation_run_id = result.evaluation_run.evaluation_run_id
+        else:
+            evaluation_run_id = existing_evaluation.evaluation_run_id
+        self._event(workflow_id, "evaluated", {"evaluation_profile_id": evaluation_profile_id, "evaluation_run_id": evaluation_run_id, "strategy_run_ids": run_ids, "economic_backtest_started": False})
         if idempotency_key:
             self._bind("evaluate", idempotency_key, request, workflow_id)
         return self.read(workflow_id)
