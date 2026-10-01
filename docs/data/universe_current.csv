@@ -4030,8 +4030,10 @@ ACBE,Pacer Metaurus Enhanced Core Income Autocallable ETF,Q,True,False,False,Fal
 ACBH,Pacer Metaurus High Income Autocallable ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
 ACEI,Innovator Equity Autocallable Income Strategy ETF,P,True,False,False,False,False,False,True,True,True,"option_income,buffer",False,,,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
 ACGR,American Century Large Cap Growth ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+ACIG,Hartford Alpha Capture International Growth ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ACLC,American Century Large Cap Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ACOM,Harbor Active Commodity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+ACSM,Hartford Alpha Capture SMID Cap ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ACTS,FIS Tactical Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ACVU,Hartford Alpha Capture Value ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ACYQ,FT Vest Autocallable Barrier & High Income ETF,P,True,False,False,False,False,False,False,True,True,buffer,False,,,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
@@ -4059,6 +4061,7 @@ ARCP,Aristotle Core Plus Income ETF,P,True,False,False,False,False,False,False,F
 ARMS,Aristotle Multi-Sector Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 AT,Defiance Robotics Actuators ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 AUAU,Global X Gold Miners ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+AVNC,Avantis All International Core Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 BAVA,Common Shares of Beneficial Interest of Bitwise Avalanche ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BBLS,Munificent Seven ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BD,Russell Investments Core Plus Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
@@ -4090,6 +4093,7 @@ CSRA,Cohen & Steers Real Assets Active ETF,P,True,False,False,False,False,False,
 CSSD,Cohen & Steers Short Duration Preferred and Income Active ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 CTAG,Calamos Timpani Active SMID Growth ETF,F,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 DACL,REX Defensive Autocallable Income ETF,P,True,False,False,False,False,False,False,True,True,buffer,False,,,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
+DBAR,IMGP DBI Absolute Return ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 DCAP,T-Strive Digital Credit Preferred Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 DDX,Defined Duration 10 ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 DEPW,Google DeepMind AI Lab Ecosystem ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
@@ -4112,6 +4116,7 @@ EHLS,Even Herd Long Short ETF,Q,True,False,False,False,False,False,False,False,F
 EMET,VanEck Copper and Electrification Metals ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 EMFI,Pictet Emerging Markets Debt ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 EMNT,PIMCO Enhanced Short Maturity Active ESG Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+ENHE,iShares Enhanced Emerging Markets Active ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 ENRG,Ninepoint North American Energy Independence ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ESBG,"First Trust Enhanced Stocks, Bonds & Gold ETF",P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 ESIM,Eventide International ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
@@ -4206,11 +4211,13 @@ JHLN,John Hancock Global Senior Loan ETF,P,True,False,False,False,False,False,Fa
 JIDE,JPMorgan International Dynamic ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 JINT,Janus Henderson International Core Alpha ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 JPRF,JPMorgan Preferred and Income Securities ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+JQTY,Jensen U.S. Quality Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 JTNY,JPMorgan New York Tax Free Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 KAIT,KraneShares Asia AI Technology ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 KCHP,KICK Korea Semiconductor Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 KRYP,ProShares CoinDesk 20 Crypto ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 LBAY,Leatherback Long/Short Alternative Yield ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+LCIV,Logan Capital International ETF,N,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 LPSV,Lone Peak SMID Value ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 LQID,Kurv Enhanced Short Maturity ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 LSCP,Natixis Loomis Sayles Dynamic Core Plus ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
@@ -4351,7 +4358,7 @@ TACN,T. Rowe Price Active Core International Equity ETF,P,True,False,False,False
 TALV,Transamerica Large Value Active ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 TBF,ProShares Short 20+ Year Treasury,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 TBX,ProShares Short 7 10 Year Treasury,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
-TCV,Towle Value ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+TCV,Towle Small-Cap Value ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 TDNA,T. Rowe Price Biotech ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 TEMD,Templeton Emerging Markets Debt ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 TEMR,T. Rowe Price Emerging Markets Equity Research ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
