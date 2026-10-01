@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .canonical import canonical_bytes, canonical_data, content_hash, deterministic_id
+from .contracts import StrategyRunSpec
 
 
 CATALOG_SCHEMA_VERSION = "controlled_strategy_option_catalog_v2"
@@ -267,9 +268,11 @@ class PersistedExecutionManager:
             raise Foundation6Error("execution_request_corrupt", "기존 실행 요청 참조가 올바르지 않습니다.", "Controlled execution request is invalid.")
         candidate_ids = []
         for candidate in candidates:
-            if not isinstance(candidate, Mapping) or not isinstance(candidate.get("strategy_run_id"), str):
-                raise Foundation6Error("execution_request_corrupt", "후보 StrategyRun 참조가 올바르지 않습니다.", "Controlled candidate identity is invalid.")
-            candidate_ids.append(candidate["strategy_run_id"])
+            try:
+                candidate_id = StrategyRunSpec.from_dict(candidate).strategy_run_id
+            except (TypeError, ValueError) as error:
+                raise Foundation6Error("execution_request_corrupt", "후보 StrategyRun 참조가 올바르지 않습니다.", "Controlled candidate specification is invalid.") from error
+            candidate_ids.append(candidate_id)
         record = _hashed({
             "schema_version": MANAGER_SCHEMA_VERSION,
             "execution_request_id": request_id,

@@ -946,6 +946,11 @@ function workspaceRobustnessBody(workflowId, refs, evidence, candidateChoices) {
 }
 
 function workspaceConstruction(profileId) {
+  const start = document.getElementById("workspace-start").value;
+  const end = document.getElementById("workspace-end").value;
+  const range = state.workspaceOptions?.data_snapshots?.find((item) => item.option_id === "phase_a2_frozen_2026_07_30")?.date_range;
+  if (start > end) throw new Error("시작일은 종료일보다 늦을 수 없습니다.");
+  if (range && (start < range.start || end > range.end)) throw new Error(`사용 가능한 데이터 기간은 ${range.start} ~ ${range.end}입니다. 날짜를 이 범위 안으로 수정해 주세요.`);
   return {
     schema_version: "strategy_construction_request_v1",
     data_snapshot: "phase_a2_frozen_2026_07_30",
@@ -1171,7 +1176,26 @@ async function renderResearchWorkspace({ polling = false } = {}) {
     const profileOptions = orderedProfiles.map((item) => `<option value="${escapeHtml(item.evaluation_profile_id)}">${escapeHtml(item.name)}</option>`).join("");
     const trendOptions = (options.foundation_6_catalog?.categories?.trend_filter || []).filter((item) => item.engine_adapter_support === "supported").map((item) => `<option value="${escapeHtml(item.option_id)}" ${item.option_id === "price_above_rising_ma200_v0" ? "selected" : ""}>${escapeHtml(item.name_ko)}</option>`).join("");
     view.innerHTML = `<p class="lede">구성부터 후보 실행과 평가까지 한 화면에서 이어갑니다. 기본 흐름은 노트북 안전 한도 안에서만 자동 실행하며, 큰 탐색은 고급 구성으로 분리합니다.</p>${workspaceCard("1", "전략 구성", "needs_action", `<form id="workspace-create"><div class="form-grid"><div class="field"><label>워크플로우 이름</label><input id="workspace-label" maxlength="120" required value="새 연구 워크플로우"></div><div class="field"><label>시작일</label><input id="workspace-start" type="date" value="2024-01-02" required></div><div class="field"><label>종료일</label><input id="workspace-end" type="date" value="2024-12-31" required></div><div class="field"><label>추세 필터</label><select id="workspace-trend">${trendOptions}</select></div><div class="field"><label>고점 lookback 목록</label><input id="workspace-lookback" value="20,40,55" inputmode="numeric" aria-describedby="workspace-lookback-help"><small id="workspace-lookback-help">쉼표로 구분한 최대 8개 값</small></div><div class="field"><label>거래비용 bp</label><input id="workspace-cost" value="5"></div><div class="field"><label>슬리피지 bp</label><input id="workspace-slippage" value="2"></div><div class="field"><label>평가 프로필</label><select id="workspace-profile">${profileOptions}</select></div></div><div class="actions"><button type="submit" ${profiles.items.length ? "" : "disabled"}>만들고 안전 범위 실행</button>${workflows.items.length ? '<button type="button" id="workspace-cancel-new">기존 워크플로우로 돌아가기</button>' : ""}<a class="button-link" href="#construction">고급 전략 구성</a><a class="button-link" href="#profiles">평가 기준 편집</a></div></form>`)}`;
-    document.getElementById("workspace-create")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button[type="submit"]'); button.disabled = true; try { const key = workspaceKey("new", "create"); const profileId = document.getElementById("workspace-profile").value; const saved = await api("/workflows", {method:"POST", body:{label_ko:document.getElementById("workspace-label").value, construction:workspaceConstruction(profileId)}, idempotencyKey:key}); state.workspaceCreating = false; localStorage.setItem("trend-v2-workflow-id", saved.workflow_id); localStorage.removeItem("trend-v2-workspace-key:new:create"); await advanceWorkspace(saved.workflow_id, saved); } catch (error) { form.insertAdjacentHTML("beforeend", `<p class="notice danger">${escapeHtml(error.message)}</p>`); button.disabled = false; } });
+    document.getElementById("workspace-create")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      form.querySelectorAll(".notice.danger").forEach((notice) => notice.remove());
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      let saved = null;
+      try {
+        const profileId = document.getElementById("workspace-profile").value;
+        const construction = workspaceConstruction(profileId);
+        saved = await api("/workflows", { method: "POST", body: { label_ko: document.getElementById("workspace-label").value, construction }, idempotencyKey: workspaceKey("new", "create") });
+        state.workspaceCreating = false;
+        localStorage.setItem("trend-v2-workflow-id", saved.workflow_id);
+        localStorage.removeItem("trend-v2-workspace-key:new:create");
+        await advanceWorkspace(saved.workflow_id, saved);
+      } catch (error) {
+        if (saved) { setMessage(error.message); await renderResearchWorkspace(); }
+        else { form.insertAdjacentHTML("beforeend", `<p class="notice danger" role="alert">${escapeHtml(error.message)}</p>`); button.disabled = false; }
+      }
+    });
     document.getElementById("workspace-cancel-new")?.addEventListener("click", () => { state.workspaceCreating=false; renderResearchWorkspace().catch(showFatal); });
     return;
   }
