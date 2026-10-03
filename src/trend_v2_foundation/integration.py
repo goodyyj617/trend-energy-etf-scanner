@@ -137,11 +137,15 @@ def calculate_and_evaluate_saved_runs(
         daily = store.load_and_validate_artifact(
             strategy_run_id, "daily_portfolio_curve", validate_daily_portfolio_curve
         )
-        if daily["economic_date_range"] != dict(
-            strategy_manifest.canonical_specification["economic_date_range"]
+        requested_range = strategy_manifest.canonical_specification["economic_date_range"]
+        observed_range = daily["economic_date_range"]
+        # Requests use calendar dates; stored curves use observed trading dates.
+        if not (
+            requested_range["start"] <= observed_range["start"]
+            <= observed_range["end"] <= requested_range["end"]
         ):
             raise ValueError(
-                f"daily_portfolio_curve economic date range does not match StrategyRun:"
+                f"daily_portfolio_curve economic date range is outside StrategyRun:"
                 f"{strategy_run_id}"
             )
         if benchmark_curve is None:
