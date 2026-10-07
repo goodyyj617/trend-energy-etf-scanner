@@ -108,7 +108,10 @@
 
 ## Current phase
 
-Product foundation -- unified laptop-bounded strategy discovery workspace
+Research lab (`lab/`) -- single-screen Streamlit tool for strategy definition,
+portfolio backtest, two-parameter robustness grid, and saved-result comparison.
+See CLAUDE.md and DECISIONS.md 19-25. The Foundation workspace below is preserved
+but is no longer the primary product path.
 
 ## Phase A2 record
 
@@ -120,11 +123,10 @@ Product foundation -- unified laptop-bounded strategy discovery workspace
 
 ## Exact next task
 
-Foundation 11B -- connect completed selected-candidate robustness evidence to
-reusable EvaluationRun calculation and the profile's non-compensatory vetoes,
-without rerunning an unchanged economic path. Keep incomplete or failed evidence
-explicit, and leave an empty eligible set open to later bounded signal, exit,
-and sizing family additions instead of lowering the gates automatically.
+Lab phase 2 -- (a) add further price/volume blocks only when a research question
+needs them, (b) individual-stock universes with a documented survivorship-bias
+mitigation, (c) optional walk-forward view for a selected grid candidate.
+The Foundation 11B task is deferred.
 
 ## Required product direction
 

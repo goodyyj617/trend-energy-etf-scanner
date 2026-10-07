@@ -1,1 +1,7 @@
 .trend_v2_store/
+
+# research lab (local data and saved results)
+lab_data/
+lab_results/
+.venv/
+__pycache__/
