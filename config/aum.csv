@@ -603,6 +603,7 @@ EBND,EBND,State Street SPDR Bloomberg Emerging Markets Local Bond ETF,2260436992
 IYT,IYT,iShares Transportation Average ETF,2252120832.0,2026-07-08,yfinance,ok,2026-07-08T14:50:11Z,
 HTRB,HTRB,Hartford Total Return Bond ETF,2234819072.0,2026-07-08,yfinance,ok,2026-07-08T14:48:11Z,
 FNCL,FNCL,Fidelity MSCI Financials Index ETF,2232913920.0,2026-07-08,yfinance,ok,2026-07-08T14:46:00Z,
+JPRF,JPRF,JPMorgan Preferred and Income Securities ETF,2231075330.0,2026-10-08,yfinance,ok,2026-10-08T01:07:24Z,
 JPHY,JPHY,JPMorgan Active High Yield ETF,2230010880.0,2026-07-08,yfinance,ok,2026-07-08T14:50:40Z,
 DFNM,DFNM,Dimensional National Municipal Bond ETF,2227690752.0,2026-07-08,yfinance,ok,2026-07-08T14:42:52Z,
 USTB,USTB,VictoryShares Short-Term Bond ETF,2224465664.0,2026-07-08,yfinance,ok,2026-07-08T15:00:19Z,
@@ -671,6 +672,7 @@ BNDW,BNDW,Vanguard Total World Bond ETF,1909779968.0,2026-07-08,yfinance,ok,2026
 FPEI,FPEI,First Trust Institutional Preferred Securities and Income ETF,1906768640.0,2026-07-08,yfinance,ok,2026-07-08T14:46:08Z,
 FLDR,FLDR,Fidelity Low Duration Bond Factor ETF,1906415744.0,2026-07-08,yfinance,ok,2026-07-08T14:45:42Z,
 URNM,URNM,Sprott Uranium Miners ETF,1899928704.0,2026-07-08,yfinance,ok,2026-07-08T15:00:07Z,
+IDEQ,IDEQ,Lazard International Dynamic Equity ETF,1895607680.0,2026-10-08,yfinance,ok,2026-10-08T01:07:23Z,
 HFXI,HFXI,NYLI FTSE International Equity Currency Neutral ETF,1894302080.0,2026-07-08,yfinance,ok,2026-07-08T14:48:02Z,
 EWP,EWP,iShares MSCI Spain ETF,1886947968.0,2026-07-08,yfinance,ok,2026-07-08T14:44:40Z,
 ARKB,ARKB,ARK 21Shares Bitcoin ETF,1885744768.0,2026-07-08,yfinance,ok,2026-07-08T14:39:03Z,
@@ -1204,6 +1206,7 @@ IXG,IXG,iShares Global Financials ETF,585764608.0,2026-07-08,yfinance,ok,2026-07
 IBMO,IBMO,iShares iBonds Dec 2026 Term Muni Bond ETF,585047424.0,2026-07-08,yfinance,ok,2026-07-08T14:48:41Z,
 HEZU,HEZU,iShares Currency Hedged MSCI Eurozone ETF,584931072.0,2026-07-08,yfinance,ok,2026-07-08T14:47:59Z,
 SCEC,SCEC,Sterling Capital Enhanced Core Bond ETF,584808064.0,2026-07-08,yfinance,ok,2026-07-08T14:56:47Z,
+FTMH,FTMH,Franklin Municipal High Yield ETF,584747520.0,2026-10-08,yfinance,ok,2026-10-08T01:07:15Z,
 PSCT,PSCT,Invesco S&P SmallCap Information Technology ETF,584721216.0,2026-07-08,yfinance,ok,2026-07-08T14:54:53Z,
 PSFF,PSFF,Pacer Swan SOS Fund of Funds ETF,584181696.0,2026-07-08,yfinance,ok,2026-07-08T14:54:56Z,
 BRNY,BRNY,Burney U.S. Factor Rotation ETF,583867200.0,2026-07-08,yfinance,ok,2026-07-08T14:40:38Z,
@@ -1225,6 +1228,7 @@ BLUX,BLUX,Bluemonte Dynamic Total Market ETF,567631168.0,2026-07-08,yfinance,ok,
 VNM,VNM,VanEck Vietnam ETF,564503872.0,2026-07-08,yfinance,ok,2026-07-08T15:00:54Z,
 NXTG,NXTG,First Trust IndXX NextG ETF,563929472.0,2026-07-08,yfinance,ok,2026-07-08T14:53:33Z,
 BSCY,BSCY,Invesco BulletShares 2034 Corporate Bond ETF,563020864.0,2026-07-08,yfinance,ok,2026-07-08T14:40:43Z,
+FTNY,FTNY,Franklin New York Municipal Income ETF,561571970.0,2026-10-08,yfinance,ok,2026-10-08T01:07:17Z,
 GQGU,GQGU,GQG US Equity ETF,560850176.0,2026-07-08,yfinance,ok,2026-07-08T14:47:21Z,
 FIVA,FIVA,Fidelity International Value Factor ETF,560078272.0,2026-07-08,yfinance,ok,2026-07-08T14:45:34Z,
 SGDM,SGDM,Sprott Gold Miners ETF,558742656.0,2026-07-08,yfinance,ok,2026-07-08T14:57:14Z,
@@ -1243,6 +1247,7 @@ FNGS,FNGS,MicroSectors FANG+ ETN,545840448.0,2026-07-08,yfinance,ok,2026-07-08T1
 VSLU,VSLU,Applied Finance Valuation Large Cap US ETF,545756608.0,2026-07-08,yfinance,ok,2026-07-08T15:01:05Z,
 ABFL,ABFL,Abacus FCF Leaders ETF,545103360.0,2026-07-08,yfinance,ok,2026-07-08T14:38:14Z,
 EZA,EZA,iShares MSCI South Africa ETF,544343936.0,2026-07-08,yfinance,ok,2026-07-08T14:44:46Z,
+FTCA,FTCA,Franklin California Municipal Income ETF,544253500.0,2026-10-08,yfinance,ok,2026-10-08T01:07:15Z,
 BNO,BNO,"United States Brent Oil Fund, LP",543579264.0,2026-07-08,yfinance,ok,2026-07-08T14:40:29Z,
 QFLR,QFLR,Innovator Nasdaq-100 Managed Floor ETF,542748800.0,2026-07-08,yfinance,ok,2026-07-08T14:55:25Z,
 BSJT,BSJT,Invesco BulletShares 2029 High Yield Corporate Bond ETF,540154816.0,2026-07-08,yfinance,ok,2026-07-08T14:40:46Z,
@@ -1282,6 +1287,7 @@ WIP,WIP,State Street SPDR FTSE International Government Inflation-Protected Bond
 ACLO,ACLO,TCW AAA CLO ETF,510700256.0,2026-07-08,yfinance,ok,2026-07-08T14:38:20Z,
 CSM,CSM,ProShares Large Cap Core Plus,510190144.0,2026-07-08,yfinance,ok,2026-07-08T14:42:14Z,
 VBND,VBND,Vident U.S. Bond Strategy ETF,510169728.0,2026-07-08,yfinance,ok,2026-07-08T15:00:33Z,
+JCAL,JCAL,JPMorgan California Tax Free Bond ETF,507659232.0,2026-10-08,yfinance,ok,2026-10-08T01:07:24Z,
 FIGB,FIGB,Fidelity Investment Grade Bond ETF,507012320.0,2026-07-08,yfinance,ok,2026-07-08T14:45:31Z,
 GRNJ,GRNJ,Fundstrat Granny Shots US Small- & Mid-Cap ETF,506576480.0,2026-08-12,yfinance,ok,2026-08-12T22:09:05Z,
 EFAA,EFAA,Invesco MSCI EAFE Income Advantage ETF,506574496.0,2026-07-08,yfinance,ok,2026-07-08T14:43:47Z,
@@ -1344,6 +1350,7 @@ ENFR,ENFR,Alerian Energy Infrastructure ETF,467906656.0,2026-07-08,yfinance,ok,2
 XES,XES,State Street SPDR S&P Oil & Gas Equipment & Services ETF,467288768.0,2026-07-08,yfinance,ok,2026-07-08T15:01:46Z,
 DJD,DJD,Invesco Dow Jones Industrial Average Dividend ETF,463926784.0,2026-07-08,yfinance,ok,2026-07-08T14:43:07Z,
 IBND,IBND,State Street SPDR Bloomberg International Corporate Bond ETF,461598976.0,2026-07-08,yfinance,ok,2026-07-08T14:48:44Z,
+SOFR,SOFR,Amplify Samsung SOFR ETF,459297792.0,2026-10-08,yfinance,ok,2026-10-08T01:07:35Z,
 MMIN,MMIN,NYLI MacKay Muni Insured ETF,459150848.0,2026-07-08,yfinance,ok,2026-07-08T14:52:26Z,
 TCPB,TCPB,Thrivent Core Plus Bond ETF,459131232.0,2026-07-08,yfinance,ok,2026-07-08T14:58:48Z,
 NUBD,NUBD,Nuveen ESG U.S. Aggregate Bond ETF,457948512.0,2026-07-08,yfinance,ok,2026-07-08T14:53:22Z,
@@ -1377,6 +1384,7 @@ DEHP,DEHP,Dimensional Emerging Markets High Profitability ETF,445455808.0,2026-0
 QMOM,QMOM,Alpha Architect U.S. Quantitative Momentum ETF,444236928.0,2026-07-08,yfinance,ok,2026-07-08T14:55:31Z,
 AMZA,AMZA,InfraCap MLP ETF,443470848.0,2026-07-08,yfinance,ok,2026-07-08T14:38:51Z,
 SECA,SECA,Main Active Rotation ETF,442811776.0,2026-10-06,yfinance,ok,2026-10-06T01:50:37Z,
+FTMU,FTMU,Franklin Municipal Income ETF,442380832.0,2026-10-08,yfinance,ok,2026-10-08T01:07:16Z,
 DRIV,DRIV,Global X Autonomous & Electric Vehicles ETF,441411872.0,2026-07-08,yfinance,ok,2026-07-08T14:43:13Z,
 AVMC,AVMC,Avantis U.S. Mid Cap Equity ETF,441309920.0,2026-07-08,yfinance,ok,2026-07-08T14:39:23Z,
 CSRE,CSRE,Cohen & Steers Real Estate Active ETF,440866976.0,2026-07-08,yfinance,ok,2026-07-08T14:42:16Z,
@@ -1407,6 +1415,7 @@ DDLS,DDLS,WisdomTree Dynamic International SmallCap Equity ETF,425723680.0,2026-
 APLU,APLU,Allspring Core Plus ETF,425065728.0,2026-07-08,yfinance,ok,2026-07-08T14:38:57Z,
 JUSA,JUSA,JPMorgan U.S. Research Enhanced Large Cap ETF,424402304.0,2026-07-08,yfinance,ok,2026-07-08T14:50:51Z,
 KBWD,KBWD,Invesco KBW High Dividend Yield Financial ETF,423492224.0,2026-07-08,yfinance,ok,2026-07-08T14:50:55Z,
+JTNY,JTNY,JPMorgan New York Tax Free Bond ETF,422467552.0,2026-10-08,yfinance,ok,2026-10-08T01:07:25Z,
 IAK,IAK,iShares U.S. Insurance ETF,421508544.0,2026-07-08,yfinance,ok,2026-07-08T14:48:25Z,
 CVIE,CVIE,Calvert International Responsible Index ETF,421374816.0,2026-07-08,yfinance,ok,2026-07-08T14:42:20Z,
 PFLD,PFLD,AAM Low Duration Preferred and Income Securities ETF,420170336.0,2026-07-08,yfinance,ok,2026-07-08T14:54:22Z,
@@ -1849,6 +1858,7 @@ GINN,GINN,Goldman Sachs Innovate Equity ETF,208646960.0,2026-07-08,yfinance,ok,2
 BSMW,BSMW,Invesco Bulletshares 2032 Municipal Bond ETF,208058224.0,2026-07-08,yfinance,ok,2026-07-08T14:40:50Z,
 EFNL,EFNL,iShares MSCI Finland ETF,207836704.0,2026-07-08,yfinance,ok,2026-07-08T14:43:50Z,
 IVAL,IVAL,Alpha Architect International Quantitative Value ETF,207776688.0,2026-07-08,yfinance,ok,2026-07-08T14:49:53Z,
+FTMS,FTMS,Franklin Short-Term Municipal Income ETF,206984752.0,2026-10-08,yfinance,ok,2026-10-08T01:07:16Z,
 GEQ,GEQ,Cambria Global EW 2 ETF,206914704.0,2026-07-08,yfinance,ok,2026-07-08T14:46:57Z,
 JHPI,JHPI,John Hancock Preferred Income ETF,206558752.0,2026-07-08,yfinance,ok,2026-07-08T14:50:30Z,
 PBD,PBD,Invesco Global Clean Energy ETF,206513408.0,2026-07-08,yfinance,ok,2026-07-08T14:54:04Z,
@@ -3081,6 +3091,7 @@ RAAA,RAAA,Reckoner Yield Enhanced AAA CLO ETF,35131300.0,2026-07-08,yfinance,ok,
 TXXI,TXXI,BondBloxx IR+M Tax-Aware Intermediate Duration ETF,35052952.0,2026-07-08,yfinance,ok,2026-07-08T14:59:55Z,
 EVPF,EVPF,Eaton Vance Preferred Securities And Income ETF,35038936.0,2026-07-08,yfinance,ok,2026-07-08T14:44:33Z,
 PSCC,PSCC,Invesco S&P SmallCap Consumer Staples ETF,34890332.0,2026-07-08,yfinance,ok,2026-07-08T14:54:50Z,
+EMET,EMET,VanEck Copper and Electrification Metals ETF,34839160.0,2026-10-08,yfinance,ok,2026-10-08T01:07:12Z,
 CPSN,CPSN,Calamos S&P 500 Structured Alt Protection ETF - November,34692400.0,2026-07-08,yfinance,ok,2026-07-08T14:42:06Z,
 MYCI,MYCI,State Street My2029 Corporate Bond ETF,34663188.0,2026-07-08,yfinance,ok,2026-07-08T14:52:52Z,
 MAYZ,MAYZ,TrueShares Structured Outcome (May) ETF,34653032.0,2026-07-08,yfinance,ok,2026-07-08T14:51:55Z,
@@ -3271,6 +3282,7 @@ CPSO,CPSO,Calamos S&P 500 Structured Alt Protection ETF - October,26515376.0,202
 EYEG,EYEG,AB Corporate Bond ETF,26476306.0,2026-07-08,yfinance,ok,2026-07-08T14:44:45Z,
 CPSY,CPSY,Calamos S&P 500 Structured Alt Protection ETF - January,26430636.0,2026-07-08,yfinance,ok,2026-07-08T14:42:08Z,
 RDTY,RDTY,YieldMax Russell 2000 0DTE Covered Call Strategy ETF,26384142.0,2026-07-08,yfinance,ok,2026-07-08T14:55:57Z,
+REIX,REIX,NYLIM CBRE Real Estate & Infrastructure ETF,26370772.0,2026-10-08,yfinance,ok,2026-10-08T01:07:31Z,
 TAX,TAX,Cambria Tax Aware ETF,26359612.0,2026-07-08,yfinance,ok,2026-07-08T14:58:40Z,
 JELM,JELM,Janus Henderson Equity Linked Moderate Income ETF,26319072.0,2026-07-08,yfinance,ok,2026-07-08T14:50:21Z,
 LCOW,LCOW,Pacer S&P 500 Quality FCF Aristocrats ETF,26243560.0,2026-07-08,yfinance,ok,2026-07-08T14:51:18Z,
@@ -3340,6 +3352,7 @@ FTXG,FTXG,First Trust Nasdaq Food & Beverage ETF,23359668.0,2026-07-08,yfinance,
 MCH,MCH,Matthews China Active ETF,23288716.0,2026-07-08,yfinance,ok,2026-07-08T14:51:59Z,
 GGM,GGM,GGM Macro Alignment ETF,23222580.0,2026-07-08,yfinance,ok,2026-07-08T14:46:58Z,
 YFYA,YFYA,Yields for You Strategy A ETF,23215672.0,2026-07-08,yfinance,ok,2026-07-08T15:02:20Z,
+TIZE,TIZE,TCW Securitized Income ETF,23201724.0,2026-10-08,yfinance,ok,2026-10-08T01:07:39Z,
 JAPN,JAPN,Horizon Kinetics Japan Owner Operator ETF,23170876.0,2026-07-08,yfinance,ok,2026-07-08T14:50:16Z,
 TGLB,TGLB,T. Rowe Price Global Equity ETF,23155944.0,2026-07-08,yfinance,ok,2026-07-08T14:59:02Z,
 TMED,TMED,T. Rowe Price Health Care ETF,23028730.0,2026-07-08,yfinance,ok,2026-07-08T14:59:20Z,
@@ -3482,6 +3495,7 @@ GLDW,GLDW,Roundhill Gold WeeklyPay ETF,17166440.0,2026-07-08,yfinance,ok,2026-07
 BOUT,BOUT,CapForce IBD Breakout Opportunities ETF,17138024.0,2026-07-08,yfinance,ok,2026-07-08T14:40:31Z,
 LAZR,LAZR,Tema Photonics & Optical ETF,17086942.0,2026-08-10,yfinance,ok,2026-08-10T22:04:46Z,
 JPFP,JPFP,JPMorgan Managed Futures Plus ETF,17073980.0,2026-07-08,yfinance,ok,2026-07-08T14:50:39Z,
+GGTL,GGTL,Gabelli Global Technology Leaders ETF,17035930.0,2026-10-08,yfinance,ok,2026-10-08T01:07:19Z,
 CBIL,CBIL,Corgi 3-12 Month T-Bill ETF,17013016.0,2026-07-08,yfinance,ok,2026-07-08T14:41:13Z,
 PRTO,PRTO,RCN Pareto Strategic Allocation ETF,17000668.0,2026-10-07,yfinance,ok,2026-10-07T00:52:37Z,
 TEXN,TEXN,iShares Texas Equity ETF,16901652.0,2026-07-08,yfinance,ok,2026-07-08T14:58:58Z,
@@ -3532,6 +3546,7 @@ JANJ,JANJ,Innovator Premium Income 30 Barrier ETF - January,15445811.0,2026-07-0
 PZIV,PZIV,Pzena International Value ETF,15437507.0,2026-10-07,yfinance,ok,2026-10-07T00:52:38Z,
 FTHB,FTHB,FIS Faith Income ETF,15432865.0,2026-10-07,yfinance,ok,2026-10-07T00:52:03Z,
 MFMO,MFMO,Motley Fool Momentum Factor ETF,15410357.0,2026-07-08,yfinance,ok,2026-07-08T14:52:10Z,
+MEME,MEME,Roundhill Meme Stock ETF,15347538.0,2026-10-08,yfinance,ok,2026-10-08T01:07:26Z,
 SDUR,SDUR,Aristotle Short Term Income ETF,15326253.0,2026-10-07,yfinance,ok,2026-10-07T00:52:46Z,
 OWNB,OWNB,Bitwise Bitcoin Standard Corporations ETF,15136414.0,2026-07-08,yfinance,ok,2026-07-08T14:53:57Z,
 FOWF,FOWF,Pacer Solactive Whitney Future of Warfare ETF,15133773.0,2026-07-08,yfinance,ok,2026-07-08T14:46:05Z,
@@ -3648,6 +3663,7 @@ FIZY,FIZY,Fitz-Gerald Must Have Portfolio and Options Overlay ETF,11605560.0,202
 XBTY,XBTY,GraniteShares YieldBOOST Bitcoin ETF,11576483.0,2026-07-08,yfinance,ok,2026-07-08T15:01:41Z,
 BITY,BITY,,11520410.0,,,,,
 CCML,CCML,Roundhill MLCC & PCB ETF,11514228.0,2026-10-07,yfinance,ok,2026-10-07T00:51:48Z,
+GCPU,GCPU,Grayscale AI Compute ETF,11480657.0,2026-10-08,yfinance,ok,2026-10-08T01:07:18Z,
 PQNT,PQNT,Pictet AI Enhanced International Equity ETF,11463295.0,2026-10-07,yfinance,ok,2026-10-07T00:52:36Z,
 QOWZ,QOWZ,Invesco Nasdaq Free Cash Flow Achievers ETF,11417464.0,2026-07-08,yfinance,ok,2026-07-08T14:55:33Z,
 RDOG,RDOG,ALPS REIT Dividend Dogs ETF,11411847.0,2026-07-08,yfinance,ok,2026-07-08T14:55:56Z,
@@ -4351,6 +4367,7 @@ CRAM,CRAM,Defiance China Memory ETF,473685.0,2026-10-06,yfinance,ok,2026-10-06T0
 BWOW,BWOW,Bitwise Dogecoin ETF,473607.0,2026-07-08,yfinance,ok,2026-07-08T14:41:02Z,
 LPSV,LPSV,Lone Peak SMID Value ETF,473533.0,2026-10-07,yfinance,ok,2026-10-07T00:52:20Z,
 AINF,AINF,Defiance Inference AI Chip ETF,463998.0,2026-09-07,yfinance,ok,2026-09-07T23:37:35Z,
+GARA,GARA,Guinness Atkinson Real Assets Income ETF,382976.0,2026-10-08,yfinance,ok,2026-10-08T01:07:17Z,
 ELOL,ELOL,Leverage Shares 100% Tsla And 100% Spcx Daily ETF,376466.0,2026-08-07,yfinance,ok,2026-08-07T04:44:36Z,
 MSR,MSR,Graniteshares Autocallable Mstr ETF,374892.0,2026-07-08,yfinance,ok,2026-07-08T14:52:39Z,
 TYYY,TYYY,xETFs TSLA Daily Income ETF,367444.0,2026-10-07,yfinance,ok,2026-10-07T00:53:00Z,
@@ -4373,146 +4390,135 @@ LLMA,LLMA,Global X Llm ETF,25.0,2026-10-06,yfinance,ok,2026-10-06T01:49:50Z,
 TRIL,TRIL,Vegashares Trillions ETF,25.0,2026-10-06,yfinance,ok,2026-10-06T01:50:56Z,
 ISRL,ISRL,Defiance KSM Israel 120 ETF,24.0,2026-09-04,yfinance,ok,2026-09-04T23:07:45Z,
 XX,XX,"Roundhill S&P 500 Target 10,000 2030 ETF",24.0,2026-10-06,yfinance,ok,2026-10-06T01:51:18Z,
-ABLD,ABLD,Abacus FCF ETF Trust - Abacus FCF Real Assets Leaders ETF,,,yfinance,failed,2026-10-07T00:51:36Z,missing_totalAssets
-ABLG,ABLG,Abacus FCF ETF Trust - Abacus FCF International Leaders ETF,,,yfinance,failed,2026-10-07T00:51:37Z,missing_totalAssets
-ABOT,ABOT,Abacus FCF ETF Trust - Abacus FCF Innovation Leaders ETF,,,yfinance,failed,2026-10-07T00:51:37Z,missing_totalAssets
-ABXB,ABXB,Abacus FCF ETF Trust - Abacus Flexible Bond Leaders ETF,,,yfinance,failed,2026-10-07T00:51:37Z,missing_totalAssets
-ACBH,ACBH,Pacer Metaurus High Income Autocallable ETF,,,yfinance,failed,2026-10-07T00:51:38Z,missing_totalAssets
-ACGR,ACGR,American Century ETF Trust - American Century Large Cap Growth ETF,,,yfinance,failed,2026-10-07T00:51:38Z,missing_totalAssets
-ACLC,ACLC,American Century ETF Trust - American Century Large Cap Equity ETF,,,yfinance,failed,2026-10-07T00:51:39Z,missing_totalAssets
-ACVU,ACVU,Hartford Funds Exchange-Traded Trust - Hartford Alpha Capture Value ETF,,,yfinance,failed,2026-10-07T00:51:40Z,missing_totalAssets
-AELV,AELV,Harbor ETF Trust,,,yfinance,failed,2026-10-07T00:51:41Z,missing_totalAssets
+ABLD,ABLD,Abacus FCF ETF Trust - Abacus FCF Real Assets Leaders ETF,,,yfinance,failed,2026-10-08T01:07:03Z,missing_totalAssets
+ABLG,ABLG,Abacus FCF ETF Trust - Abacus FCF International Leaders ETF,,,yfinance,failed,2026-10-08T01:07:03Z,missing_totalAssets
+ABOT,ABOT,Abacus FCF ETF Trust - Abacus FCF Innovation Leaders ETF,,,yfinance,failed,2026-10-08T01:07:04Z,missing_totalAssets
+ABXB,ABXB,Abacus FCF ETF Trust - Abacus Flexible Bond Leaders ETF,,,yfinance,failed,2026-10-08T01:07:04Z,missing_totalAssets
+ACBH,ACBH,Pacer Metaurus High Income Autocallable ETF,,,yfinance,failed,2026-10-08T01:07:05Z,missing_totalAssets
+ACGR,ACGR,American Century ETF Trust - American Century Large Cap Growth ETF,,,yfinance,failed,2026-10-08T01:07:05Z,missing_totalAssets
+ACLC,ACLC,American Century ETF Trust - American Century Large Cap Equity ETF,,,yfinance,failed,2026-10-08T01:07:05Z,missing_totalAssets
+ACVU,ACVU,Hartford Funds Exchange-Traded Trust - Hartford Alpha Capture Value ETF,,,yfinance,failed,2026-10-08T01:07:06Z,missing_totalAssets
+AELV,AELV,Harbor ETF Trust,,,yfinance,failed,2026-10-08T01:07:06Z,missing_totalAssets
 AIQD,AIQD,,,,,,,
-AIQU,AIQU,"MicroSectors - MicroSectors 3× Long Artificial Intelligence (AI) ETNs due May 30, 2046",,,yfinance,failed,2026-10-07T00:51:44Z,missing_totalAssets
-AMHI,AMHI,American Beacon Aberdeen Municipal High Income ETF,,,yfinance,failed,2026-10-07T00:51:44Z,missing_totalAssets
+AIQU,AIQU,"MicroSectors - MicroSectors 3× Long Artificial Intelligence (AI) ETNs due May 30, 2046",,,yfinance,failed,2026-10-08T01:07:07Z,missing_totalAssets
+AMHI,AMHI,American Beacon Aberdeen Municipal High Income ETF,,,yfinance,failed,2026-10-08T01:07:07Z,missing_totalAssets
 AOTS,AOTS,AOT Software Platform ETF,,,yfinance,failed,2026-08-18T21:44:29Z,missing_totalAssets
-AVNC,AVNC,Avantis ALL International Core Equity ETF,,,yfinance,failed,2026-10-07T00:51:45Z,missing_totalAssets
-BCOM,BCOM,Rareview Bloomberg Commodity Index ETF,,,yfinance,failed,2026-10-07T00:51:46Z,missing_totalAssets
-BSMA,BSMA,Invesco BulletShares 2036 Muncpl Bd ETF,,,yfinance,failed,2026-10-07T00:51:47Z,missing_totalAssets
-BTCI,BTCI,NEOS ETF Trust - NEOS Bitcoin High Income ETF,,,yfinance,failed,2026-10-07T00:51:48Z,missing_totalAssets
+AVNC,AVNC,Avantis ALL International Core Equity ETF,,,yfinance,failed,2026-10-08T01:07:08Z,missing_totalAssets
+BCOM,BCOM,Rareview Bloomberg Commodity Index ETF,,,yfinance,failed,2026-10-08T01:07:08Z,missing_totalAssets
+BSMA,BSMA,Invesco BulletShares 2036 Muncpl Bd ETF,,,yfinance,failed,2026-10-08T01:07:08Z,missing_totalAssets
+BTCI,BTCI,NEOS ETF Trust - NEOS Bitcoin High Income ETF,,,yfinance,failed,2026-10-08T01:07:09Z,missing_totalAssets
 BUCK,BUCK,,,,,,,
 BUXX,BUXX,,,,,,,
-CEF,CEF,Sprott Physical Gold and Silver Trust,,,yfinance,failed,2026-10-07T00:51:49Z,missing_totalAssets
+CEF,CEF,Sprott Physical Gold and Silver Trust,,,yfinance,failed,2026-10-08T01:07:09Z,missing_totalAssets
 CLIX,CLIX,,,,,,,
 CLSE,CLSE,,,,,,,
-CTAG,CTAG,Calamos Timpani Active SMID Gro,,,yfinance,failed,2026-10-07T00:51:51Z,missing_totalAssets
-DBAR,DBAR,iM Global Partner Funds -  iMGP DBi Absolute Return ETF,,,yfinance,failed,2026-10-07T00:51:52Z,missing_totalAssets
-DDX,DDX,EA Series Trust - Defined Duration 10 ETF,,,yfinance,failed,2026-10-07T00:51:52Z,missing_totalAssets
+CPU,CPU,EQUITY,,,yfinance,failed,2026-10-08T01:07:10Z,missing_totalAssets
+CTAG,CTAG,Calamos Timpani Active SMID Gro,,,yfinance,failed,2026-10-08T01:07:10Z,missing_totalAssets
+DBAR,DBAR,iM Global Partner Funds -  iMGP DBi Absolute Return ETF,,,yfinance,failed,2026-10-08T01:07:11Z,missing_totalAssets
+DDX,DDX,EA Series Trust - Defined Duration 10 ETF,,,yfinance,failed,2026-10-08T01:07:11Z,missing_totalAssets
 DFSD,DFSD,,,,,,,
-DOJE,DOJE,REX-Osprey™ DOGE ETF,,,yfinance,failed,2026-10-07T00:51:54Z,missing_totalAssets
+DOJE,DOJE,REX-Osprey™ DOGE ETF,,,yfinance,failed,2026-10-08T01:07:11Z,missing_totalAssets
 DWSH,DWSH,,,,,,,
-EAFH,EAFH,Xtrackers MSCI EAFE 50% Hedged Equity ETF,,,yfinance,failed,2026-10-07T00:51:55Z,missing_totalAssets
+EAFH,EAFH,Xtrackers MSCI EAFE 50% Hedged Equity ETF,,,yfinance,failed,2026-10-08T01:07:12Z,missing_totalAssets
 EFZ,EFZ,,,,,,,
 EHLS,EHLS,,,,,,,
-EMET,EMET,VanEck ETF Trust - VanEck Copper And Electrification Metals ETF,,,yfinance,failed,2026-10-07T00:51:56Z,missing_totalAssets
 EMNT,EMNT,,,,,,,
-ESUM,ESUM,Strategy Shares - Eventide US Market ETF,,,yfinance,failed,2026-10-07T00:51:58Z,missing_totalAssets
+ESUM,ESUM,Strategy Shares - Eventide US Market ETF,,,yfinance,failed,2026-10-08T01:07:13Z,missing_totalAssets
 ETTY,ETTY,,,,,,,
-EUHY,EUHY,"iShares, Inc. - iShares Euro High Yield Corporate Bond USD Hedged ETF",,,yfinance,failed,2026-10-07T00:51:59Z,missing_totalAssets
+EUHY,EUHY,"iShares, Inc. - iShares Euro High Yield Corporate Bond USD Hedged ETF",,,yfinance,failed,2026-10-08T01:07:13Z,missing_totalAssets
 EUM,EUM,,,,,,,
-FFLC,FFLC,Fidelity Covington Trust - Fidelity Fundamental Large Cap Core ETF,,,yfinance,failed,2026-10-07T00:52:00Z,missing_totalAssets
-FFLG,FFLG,Fidelity Covington Trust - Fidelity Fundamental Large Cap Growth ETF,,,yfinance,failed,2026-10-07T00:52:01Z,missing_totalAssets
+FFLC,FFLC,Fidelity Covington Trust - Fidelity Fundamental Large Cap Core ETF,,,yfinance,failed,2026-10-08T01:07:13Z,missing_totalAssets
+FFLG,FFLG,Fidelity Covington Trust - Fidelity Fundamental Large Cap Growth ETF,,,yfinance,failed,2026-10-08T01:07:14Z,missing_totalAssets
 FFLS,FFLS,,,,,,,
-FFSM,FFSM,Fidelity Covington Trust - Fidelity Fundamental Small-Mid Cap ETF,,,yfinance,failed,2026-10-07T00:52:01Z,missing_totalAssets
-FTCA,FTCA,Putnam ETF Trust - Franklin California Municipal Income ETF,,,yfinance,failed,2026-10-07T00:52:03Z,missing_totalAssets
+FFSM,FFSM,Fidelity Covington Trust - Fidelity Fundamental Small-Mid Cap ETF,,,yfinance,failed,2026-10-08T01:07:14Z,missing_totalAssets
 FTLS,FTLS,,,,,,,
-FTMH,FTMH,Putnam ETF Trust - Putnam Franklin Municipal High Yield ETF,,,yfinance,failed,2026-10-07T00:52:04Z,missing_totalAssets
-FTMS,FTMS,Putnam ETF Trust  - Franklin Short-Term Municipal Income ETF,,,yfinance,failed,2026-10-07T00:52:04Z,missing_totalAssets
-FTMU,FTMU,Putnam ETF Trust - Franklin Municipal Income ETF,,,yfinance,failed,2026-10-07T00:52:04Z,missing_totalAssets
-FTNY,FTNY,Putnam ETF Trust - Putnam Franklin New York Municipal Income ETF,,,yfinance,failed,2026-10-07T00:52:04Z,missing_totalAssets
-FTPA,FTPA,Franklin Pennsylvania Municipal Income ETF,,,yfinance,failed,2026-10-07T00:52:05Z,missing_totalAssets
+FTPA,FTPA,Franklin Pennsylvania Municipal Income ETF,,,yfinance,failed,2026-10-08T01:07:17Z,missing_totalAssets
 FTSM,FTSM,,,,,,,
-GARA,GARA,Guinness Atkinson Funds - Guinness Atkinson Real Assets Income ETF,,,yfinance,failed,2026-10-07T00:52:05Z,missing_totalAssets
-GARP,GARP,iShares Trust - iShares MSCI USA Quality GARP ETF,,,yfinance,failed,2026-10-07T00:52:05Z,missing_totalAssets
-GCPU,GCPU,Grayscale Funds Trust - Grayscale AI Compute ETF,,,yfinance,failed,2026-10-07T00:52:06Z,missing_totalAssets
-GGTL,GGTL,Gabelli ETFs Trust - Gabelli Global Technology Leaders ETF,,,yfinance,failed,2026-10-07T00:52:07Z,missing_totalAssets
-GMAC,GMAC,Simplify Brookwood Global Macro ETF,,,yfinance,failed,2026-10-07T00:52:08Z,missing_totalAssets
-GOLY,GOLY,Strategy Shares - Strategy Shares Gold Enhanced Yield ETF,,,yfinance,failed,2026-10-07T00:52:09Z,missing_totalAssets
-GSWO,GSWO,Goldman Sachs ETF Trust - Goldman Sachs ActiveBeta World Equity ETF,,,yfinance,failed,2026-10-07T00:52:09Z,missing_totalAssets
-GTOH,GTOH,Invesco Actively Managed Exchange-Traded Fund Trust - Invesco Short Duration High Yield ETF,,,yfinance,failed,2026-10-07T00:52:10Z,missing_totalAssets
-GTOS,GTOS,Invesco Actively Managed Exchange-Traded Fund Trust - Invesco Short Duration Total Return Bond ETF,,,yfinance,failed,2026-10-07T00:52:10Z,missing_totalAssets
-HF,HF,DGA Core Plus Absolute Return ETF,,,yfinance,failed,2026-10-07T00:52:12Z,missing_totalAssets
+GARP,GARP,iShares Trust - iShares MSCI USA Quality GARP ETF,,,yfinance,failed,2026-10-08T01:07:18Z,missing_totalAssets
+GMAC,GMAC,Simplify Brookwood Global Macro ETF,,,yfinance,failed,2026-10-08T01:07:19Z,missing_totalAssets
+GOLY,GOLY,Strategy Shares - Strategy Shares Gold Enhanced Yield ETF,,,yfinance,failed,2026-10-08T01:07:19Z,missing_totalAssets
+GSWO,GSWO,Goldman Sachs ETF Trust - Goldman Sachs ActiveBeta World Equity ETF,,,yfinance,failed,2026-10-08T01:07:20Z,missing_totalAssets
+GTOH,GTOH,Invesco Actively Managed Exchange-Traded Fund Trust - Invesco Short Duration High Yield ETF,,,yfinance,failed,2026-10-08T01:07:20Z,missing_totalAssets
+GTOS,GTOS,Invesco Actively Managed Exchange-Traded Fund Trust - Invesco Short Duration Total Return Bond ETF,,,yfinance,failed,2026-10-08T01:07:21Z,missing_totalAssets
+HF,HF,DGA Core Plus Absolute Return ETF,,,yfinance,failed,2026-10-08T01:07:21Z,missing_totalAssets
 HFEQ,HFEQ,,,,,,,
-HFIX,HFIX,Nomura High Yield Total Return ETF,,,yfinance,failed,2026-10-07T00:52:12Z,missing_totalAssets
-HFSI,HFSI,Hartford Funds Exchange-Traded Trust - Hartford Strategic Income ETF,,,yfinance,failed,2026-10-07T00:52:12Z,missing_totalAssets
-HSBH,HSBH,HSBC Holdings PLC ADRhedged,,,yfinance,failed,2026-10-07T00:52:13Z,missing_totalAssets
-IDEQ,IDEQ,Lazard Active ETF Trust - Lazard International Dynamic Equity ETF,,,yfinance,failed,2026-10-07T00:52:15Z,missing_totalAssets
-IPB,IPB,Merrill Lynch Depositor Inc.,,,yfinance,failed,2026-10-07T00:52:16Z,missing_totalAssets
-IROC,IROC,Invesco Actively Managed Exchange-Traded Fund Trust - Invesco Rochester High Yield Municipal ETF,,,yfinance,failed,2026-10-07T00:52:17Z,missing_totalAssets
-JCAL,JCAL,J.P. Morgan Exchange-Traded Fund Trust - JPMorgan California Tax Free Bond ETF,,,yfinance,failed,2026-10-07T00:52:17Z,missing_totalAssets
-JPRF,JPRF,J P MORGAN Exchange-Traded Fund Trust - Preferred and Income Securities ETF,,,yfinance,failed,2026-10-07T00:52:18Z,missing_totalAssets
-JTNY,JTNY,J.P. Morgan Exchange-Traded Fund Trust - JPMorgan New York Tax Free Bond ETF,,,yfinance,failed,2026-10-07T00:52:19Z,missing_totalAssets
+HFIX,HFIX,Nomura High Yield Total Return ETF,,,yfinance,failed,2026-10-08T01:07:21Z,missing_totalAssets
+HFSI,HFSI,Hartford Funds Exchange-Traded Trust - Hartford Strategic Income ETF,,,yfinance,failed,2026-10-08T01:07:22Z,missing_totalAssets
+HSBH,HSBH,HSBC Holdings PLC ADRhedged,,,yfinance,failed,2026-10-08T01:07:22Z,missing_totalAssets
+IPB,IPB,Merrill Lynch Depositor Inc.,,,yfinance,failed,2026-10-08T01:07:23Z,missing_totalAssets
+IROC,IROC,Invesco Actively Managed Exchange-Traded Fund Trust - Invesco Rochester High Yield Municipal ETF,,,yfinance,failed,2026-10-08T01:07:23Z,missing_totalAssets
 LBAY,LBAY,,,,,,,
-LCIV,LCIV,Advisors Series Trust - Logan Capital International ETF,,,yfinance,failed,2026-10-07T00:52:20Z,missing_totalAssets
+LCIV,LCIV,Advisors Series Trust - Logan Capital International ETF,,,yfinance,failed,2026-10-08T01:07:25Z,missing_totalAssets
 LQID,LQID,,,,,,,
 LSEQ,LSEQ,,,,,,,
-MAGC,MAGC,Roundhill ETF Trust - Roundhill China Magnificent Seven ETF,,,yfinance,failed,2026-10-07T00:52:21Z,missing_totalAssets
-MBCE,MBCE,Northern Lights Fund Trust IV - Monarch Blue Chips Elite Index ETF,,,yfinance,failed,2026-10-07T00:52:22Z,missing_totalAssets
+MAGC,MAGC,Roundhill ETF Trust - Roundhill China Magnificent Seven ETF,,,yfinance,failed,2026-10-08T01:07:25Z,missing_totalAssets
+MBCE,MBCE,Northern Lights Fund Trust IV - Monarch Blue Chips Elite Index ETF,,,yfinance,failed,2026-10-08T01:07:26Z,missing_totalAssets
 MEAR,MEAR,,,,,,,
-MEME,MEME,Roundhill ETF Trust - Roundhill Meme Stock ETF,,,yfinance,failed,2026-10-07T00:52:22Z,missing_totalAssets
 MINT,MINT,,,,,,,
-MN,MN,Corgi Mangos ETF,,,yfinance,failed,2026-10-07T00:52:25Z,missing_totalAssets
-MUNJ,MUNJ,EQUITY,,,yfinance,failed,2026-10-07T00:52:29Z,missing_totalAssets
+MN,MN,Corgi Mangos ETF,,,yfinance,failed,2026-10-08T01:07:27Z,missing_totalAssets
+MUNJ,MUNJ,EQUITY,,,yfinance,failed,2026-10-08T01:07:27Z,missing_totalAssets
 NLSI,NLSI,,,,,,,
-NVDW,NVDW,Roundhill ETF Trust - Roundhill NVDA WeeklyPay ETF,,,yfinance,failed,2026-10-07T00:52:32Z,missing_totalAssets
+NVDW,NVDW,Roundhill ETF Trust - Roundhill NVDA WeeklyPay ETF,,,yfinance,failed,2026-10-08T01:07:28Z,missing_totalAssets
+OAKL,OAKL,EQUITY,,,yfinance,failed,2026-10-08T01:07:28Z,missing_totalAssets
 ORR,ORR,,,,,,,
-PFRX,PFRX,Putnam ETF Trust - Putnam Focused U.S. Research ETF,,,yfinance,failed,2026-10-07T00:52:35Z,missing_totalAssets
-PHYS,PHYS,Sprott Physical Gold Trust,,,yfinance,failed,2026-10-07T00:52:35Z,missing_totalAssets
+PFRX,PFRX,Putnam ETF Trust - Putnam Focused U.S. Research ETF,,,yfinance,failed,2026-10-08T01:07:28Z,missing_totalAssets
+PHYS,PHYS,Sprott Physical Gold Trust,,,yfinance,failed,2026-10-08T01:07:29Z,missing_totalAssets
 PRVT,PRVT,Tema ETF Trust - Tema Listed Private Managers ETF,,,yfinance,failed,2026-09-02T23:27:21Z,missing_totalAssets
-PSLV,PSLV,Sprott Physical Silver Trust,,,yfinance,failed,2026-10-07T00:52:38Z,missing_totalAssets
-PSOX,PSOX,Tema ETF Trust - Tema MLCC & PowerSemi ETF,,,yfinance,failed,2026-10-07T00:52:38Z,missing_totalAssets
-PWRX,PWRX,Westwood Salient Enhanced Power,,,yfinance,failed,2026-10-07T00:52:38Z,missing_totalAssets
-REGS,REGS,Columbia ETF Trust I - Columbia Large Cap Growth ETF,,,yfinance,failed,2026-10-07T00:52:42Z,missing_totalAssets
-REIX,REIX,NYLIM ETF Trust - NYLIM CBRE Real Estate & Infrastructure ETF,,,yfinance,failed,2026-10-07T00:52:42Z,missing_totalAssets
+PSLV,PSLV,Sprott Physical Silver Trust,,,yfinance,failed,2026-10-08T01:07:29Z,missing_totalAssets
+PSOX,PSOX,Tema ETF Trust - Tema MLCC & PowerSemi ETF,,,yfinance,failed,2026-10-08T01:07:30Z,missing_totalAssets
+PWRX,PWRX,Westwood Salient Enhanced Power,,,yfinance,failed,2026-10-08T01:07:30Z,missing_totalAssets
+REGS,REGS,Columbia ETF Trust I - Columbia Large Cap Growth ETF,,,yfinance,failed,2026-10-08T01:07:30Z,missing_totalAssets
 REK,REK,,,,,,,
-RNMN,RNMN,Elevation Series Trust - RiverNorth Market Neutral ETF,,,yfinance,failed,2026-10-07T00:52:44Z,missing_totalAssets
+RINK,RINK,Russell Investments Exchange Traded Funds - Russell Investments Multisector Bond ETF,,,yfinance,failed,2026-10-08T01:07:31Z,missing_totalAssets
+RNMN,RNMN,Elevation Series Trust - RiverNorth Market Neutral ETF,,,yfinance,failed,2026-10-08T01:07:32Z,missing_totalAssets
 SARK,SARK,,,,,,,
-SCOP,SCOP,Sprott Physical Copper Trust,,,yfinance,failed,2026-10-07T00:52:45Z,missing_totalAssets
+SCOP,SCOP,Sprott Physical Copper Trust,,,yfinance,failed,2026-10-08T01:07:32Z,missing_totalAssets
 SEF,SEF,,,,,,,
 SETH,SETH,,,,,,,
-SEUS,SEUS,SEI QiM U.S. Equity Factor Allocation Active ETF,,,yfinance,failed,2026-10-07T00:52:46Z,missing_totalAssets
-SFGV,SFGV,EA Series Trust - Sequoia Global Value ETF,,,yfinance,failed,2026-10-07T00:52:46Z,missing_totalAssets
-SHEH,SHEH,Shell PLC ADRhedged,,,yfinance,failed,2026-10-07T00:52:47Z,missing_totalAssets
+SEUS,SEUS,SEI QiM U.S. Equity Factor Allocation Active ETF,,,yfinance,failed,2026-10-08T01:07:33Z,missing_totalAssets
+SFGV,SFGV,EA Series Trust - Sequoia Global Value ETF,,,yfinance,failed,2026-10-08T01:07:33Z,missing_totalAssets
+SHEH,SHEH,Shell PLC ADRhedged,,,yfinance,failed,2026-10-08T01:07:34Z,missing_totalAssets
 SHRT,SHRT,,,,,,,
 SHYD,SHYD,,,,,,,
-SHYM,SHYM,BlackRock ETF Trust II - iShares Short Duration High Yield Muni Active ETF,,,yfinance,failed,2026-10-07T00:52:47Z,missing_totalAssets
+SHYM,SHYM,BlackRock ETF Trust II - iShares Short Duration High Yield Muni Active ETF,,,yfinance,failed,2026-10-08T01:07:34Z,missing_totalAssets
 SIC,SIC,Tema Power Semiconductor ETF,,,yfinance,failed,2026-08-25T21:52:32Z,missing_totalAssets
 SJB,SJB,,,,,,,
-SOFR,SOFR,Amplify Samsung SOFR ETF,,,yfinance,failed,2026-10-07T00:52:49Z,missing_totalAssets
+SLVI,SLVI,EQUITY,,,yfinance,failed,2026-10-08T01:07:35Z,missing_totalAssets
+SMTJ,SMTJ,EQUITY,,,yfinance,failed,2026-10-08T01:07:35Z,missing_totalAssets
 SOLM,SOLM,,,,,,,
-SPPP,SPPP,Sprott Physical Platinum & Palladium Tr,,,yfinance,failed,2026-10-07T00:52:49Z,missing_totalAssets
-SSK,SSK,REX-Osprey SOL + Staking ETF,,,yfinance,failed,2026-10-07T00:52:49Z,missing_totalAssets
+SPPP,SPPP,Sprott Physical Platinum & Palladium Tr,,,yfinance,failed,2026-10-08T01:07:36Z,missing_totalAssets
+SPXP,SPXP,Direxion Shares ETF Trust - Direxion S&P 500 Plus ETF,,,yfinance,failed,2026-10-08T01:07:36Z,missing_totalAssets
+SSK,SSK,REX-Osprey SOL + Staking ETF,,,yfinance,failed,2026-10-08T01:07:37Z,missing_totalAssets
 TBF,TBF,,,,,,,
 TBX,TBX,,,,,,,
-TDEM,TDEM,T. Rowe Price Dynamic Emerging Markets Bond ETF,,,yfinance,failed,2026-10-07T00:52:51Z,missing_totalAssets
-TDNA,TDNA,T. Rowe Price Biotech ETF,,,yfinance,failed,2026-10-07T00:52:51Z,missing_totalAssets
-TETH,TETH,21Shares Ethereum ETF,,,yfinance,failed,2026-10-07T00:52:52Z,missing_totalAssets
-TIPE,TIPE,EQUITY,,,yfinance,failed,2026-10-07T00:52:54Z,missing_totalAssets
-TIPG,TIPG,EQUITY,,,yfinance,failed,2026-10-07T00:52:54Z,missing_totalAssets
-TIZE,TIZE,TCW ETF Trust - TCW Securitized Income ETF,,,yfinance,failed,2026-10-07T00:52:55Z,missing_totalAssets
+TDEM,TDEM,T. Rowe Price Dynamic Emerging Markets Bond ETF,,,yfinance,failed,2026-10-08T01:07:37Z,missing_totalAssets
+TDNA,TDNA,T. Rowe Price Biotech ETF,,,yfinance,failed,2026-10-08T01:07:38Z,missing_totalAssets
+TETH,TETH,21Shares Ethereum ETF,,,yfinance,failed,2026-10-08T01:07:38Z,missing_totalAssets
+TIPE,TIPE,EQUITY,,,yfinance,failed,2026-10-08T01:07:38Z,missing_totalAssets
+TIPG,TIPG,EQUITY,,,yfinance,failed,2026-10-08T01:07:39Z,missing_totalAssets
 TLTP,TLTP,,,,,,,
-TMID,TMID,T. Rowe Price Mid-Cap Equity Research ETF,,,yfinance,failed,2026-10-07T00:52:55Z,missing_totalAssets
+TMID,TMID,T. Rowe Price Mid-Cap Equity Research ETF,,,yfinance,failed,2026-10-08T01:07:40Z,missing_totalAssets
 TOAK,TOAK,,,,,,,
-TOPW,TOPW,Roundhill ETF Trust - Roundhill Top WeeklyPay ETF,,,yfinance,failed,2026-10-07T00:52:56Z,missing_totalAssets
-TORK,TORK,KraneShares Actuator ETF,,,yfinance,failed,2026-10-07T00:52:56Z,missing_totalAssets
-TPAY,TPAY,Roundhill ETF Trust - Roundhill S&P 500 Target 10 Managed Distribution ETF,,,yfinance,failed,2026-10-07T00:52:57Z,missing_totalAssets
-TRPA,TRPA,Hartford Funds Exchange-Traded Trust - Hartford AAA CLO ETF,,,yfinance,failed,2026-10-07T00:52:58Z,missing_totalAssets
-TSEE,TSEE,T. Rowe Price Small-Cap ETF,,,yfinance,failed,2026-10-07T00:52:58Z,missing_totalAssets
-TSLW,TSLW,Roundhill ETF Trust - Roundhill TSLA WeeklyPay ETF,,,yfinance,failed,2026-10-07T00:52:59Z,missing_totalAssets
-TXCA,TXCA,Northern Trust California Intermediate Tax-Exempt Bond ETF,,,yfinance,failed,2026-10-07T00:53:00Z,missing_totalAssets
-TXNY,TXNY,Northern Trust New York Intermediate Tax-Exempt Bond ETF,,,yfinance,failed,2026-10-07T00:53:00Z,missing_totalAssets
-UBIQ,UBIQ,AAM Ubiquitous ETF,,,yfinance,failed,2026-10-07T00:53:01Z,missing_totalAssets
-UPSD,UPSD,ETF Series Solutions - Aptus Large Cap Upside ETF,,,yfinance,failed,2026-10-07T00:53:01Z,missing_totalAssets
-USFI,USFI,Brandywineglobal-U.S. Fixed Income ETF,,,yfinance,failed,2026-10-07T00:53:01Z,missing_totalAssets
-VMHY,VMHY,VictoryShares Municipal High Yield ETF,,,yfinance,failed,2026-10-07T00:53:03Z,missing_totalAssets
-VOOB,VOOB,Vistashares Shieldtm S&P 500 Enhanced Protection ETF,,,yfinance,failed,2026-10-07T00:53:03Z,missing_totalAssets
-VOXP,VOXP,Advisors Series Trust - Vox Populi ETF,,,yfinance,failed,2026-10-07T00:53:04Z,missing_totalAssets
+TOPW,TOPW,Roundhill ETF Trust - Roundhill Top WeeklyPay ETF,,,yfinance,failed,2026-10-08T01:07:40Z,missing_totalAssets
+TORK,TORK,KraneShares Actuator ETF,,,yfinance,failed,2026-10-08T01:07:40Z,missing_totalAssets
+TPAY,TPAY,Roundhill ETF Trust - Roundhill S&P 500 Target 10 Managed Distribution ETF,,,yfinance,failed,2026-10-08T01:07:41Z,missing_totalAssets
+TRPA,TRPA,Hartford Funds Exchange-Traded Trust - Hartford AAA CLO ETF,,,yfinance,failed,2026-10-08T01:07:41Z,missing_totalAssets
+TSEE,TSEE,T. Rowe Price Small-Cap ETF,,,yfinance,failed,2026-10-08T01:07:42Z,missing_totalAssets
+TSLW,TSLW,Roundhill ETF Trust - Roundhill TSLA WeeklyPay ETF,,,yfinance,failed,2026-10-08T01:07:42Z,missing_totalAssets
+TXCA,TXCA,Northern Trust California Intermediate Tax-Exempt Bond ETF,,,yfinance,failed,2026-10-08T01:07:42Z,missing_totalAssets
+TXNY,TXNY,Northern Trust New York Intermediate Tax-Exempt Bond ETF,,,yfinance,failed,2026-10-08T01:07:43Z,missing_totalAssets
+UBIQ,UBIQ,ETF Series Solutions - AAM Ubiquitous ETF,,,yfinance,failed,2026-10-08T01:07:43Z,missing_totalAssets
+UPSD,UPSD,ETF Series Solutions - Aptus Large Cap Upside ETF,,,yfinance,failed,2026-10-08T01:07:44Z,missing_totalAssets
+USFI,USFI,Brandywineglobal-U.S. Fixed Income ETF,,,yfinance,failed,2026-10-08T01:07:44Z,missing_totalAssets
+VMHY,VMHY,VictoryShares Municipal High Yield ETF,,,yfinance,failed,2026-10-08T01:07:45Z,missing_totalAssets
+VOOB,VOOB,Vistashares Shieldtm S&P 500 Enhanced Protection ETF,,,yfinance,failed,2026-10-08T01:07:45Z,missing_totalAssets
+VOXP,VOXP,Advisors Series Trust - Vox Populi ETF,,,yfinance,failed,2026-10-08T01:07:46Z,missing_totalAssets
 WEEL,WEEL,,,,,,,
-WSML,WSML,iShares MSCI World Small-Cap ETF,,,yfinance,failed,2026-10-07T00:53:06Z,missing_totalAssets
+WSML,WSML,iShares MSCI World Small-Cap ETF,,,yfinance,failed,2026-10-08T01:07:46Z,missing_totalAssets
 WTLS,WTLS,,,,,,,
-XOEX,XOEX,DBX ETF Trust - Xtrackers S&P 100 Ex Top 20 ETF,,,yfinance,failed,2026-10-07T00:53:08Z,missing_totalAssets
+XOEX,XOEX,DBX ETF Trust - Xtrackers S&P 100 Ex Top 20 ETF,,,yfinance,failed,2026-10-08T01:07:46Z,missing_totalAssets
 XRPM,XRPM,,,,,,,
-XRPR,XRPR,REX-Osprey™ XRP ETF,,,yfinance,failed,2026-10-07T00:53:08Z,missing_totalAssets
-XUSM,XUSM,MarketDesk International Momentum ETF,,,yfinance,failed,2026-10-07T00:53:09Z,missing_totalAssets
+XRPR,XRPR,REX-Osprey™ XRP ETF,,,yfinance,failed,2026-10-08T01:07:47Z,missing_totalAssets
+XUSM,XUSM,MarketDesk International Momentum ETF,,,yfinance,failed,2026-10-08T01:07:47Z,missing_totalAssets
 YBMN,YBMN,,,,,,,
 YXI,YXI,,,,,,,
