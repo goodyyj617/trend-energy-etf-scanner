@@ -225,3 +225,54 @@ def test_checklist_and_baselines_run():
     assert set(base) == {"spy", "spy_ma200", "equal_weight"}
     items = strategy_checklist(panel, c, Gates(), res, base["spy_ma200"], 0.5)
     assert [i["key"] for i in items] == ["gate", "neighbors", "cost", "loyo", "halves", "simple", "dsr"]
+
+
+# --------------------------------------------------------------------------- strategy-family comparison
+
+from lab import families, store  # noqa: E402
+from lab.blocks import ENTRY_BLOCKS, EXIT_BLOCKS  # noqa: E402
+from lab.engine import SignalCache  # noqa: E402
+from lab.grid import run_grid  # noqa: E402
+
+
+def _random_panel(n=600, seed=4):
+    rng = np.random.default_rng(seed)
+    prices = {s: list(50 * np.cumprod(1 + rng.normal(0.0005, 0.012, n))) for s in ("AAA", "BBB", "CCC", "SPY")}
+    return make_panel(prices)[0]
+
+
+def test_menu_values_are_inside_block_bounds():
+    for menu, blocks in ((families.ENTRY_MENU, ENTRY_BLOCKS), (families.EXIT_MENU, EXIT_BLOCKS)):
+        for key, vals in menu.items():
+            p = blocks[key].param
+            assert len(vals) == 6 and vals == sorted(vals)
+            assert all(p.minimum <= v <= p.maximum for v in vals)
+    assert families.cell_count() == 9 * 36
+
+
+def test_shared_cache_gives_identical_grid():
+    panel = _random_panel()
+    c = cfg(entries={"breakout": 20}, exits={"low_break": 10}, max_positions=2)
+    fresh = run_grid(panel, c, "breakout", [10, 20], "low_break", [5, 10], Gates())
+    shared = SignalCache(panel)
+    run_grid(panel, c, "breakout", [20, 30], "low_break", [10, 15], Gates(), cache=shared)  # warm a different window use
+    again = run_grid(panel, c, "breakout", [10, 20], "low_break", [5, 10], Gates(), cache=shared)
+    pd.testing.assert_series_equal(fresh.cells["cagr"], again.cells["cagr"])
+    pd.testing.assert_series_equal(fresh.cells["n_trades"], again.cells["n_trades"])
+
+
+def test_family_comparison_summary_and_save(tmp_path, monkeypatch):
+    monkeypatch.setattr(families, "ENTRY_MENU", {"breakout": [10, 20], "momentum": [21, 42]})
+    monkeypatch.setattr(families, "EXIT_MENU", {"low_break": [5, 10], "atr_trail": [2.0, 3.0]})
+    panel = _random_panel()
+    seen = []
+    fc = families.run_family_comparison(panel, cfg(max_positions=2), Gates(min_cagr_ratio=0.0, max_mdd_ratio=2.0),
+                                        on_result=lambda c, r: seen.append(c))
+    assert len(seen) == 16 and len(fc.all_cells()) == 16
+    s = fc.summary()
+    assert list(s["순위"]) == [1, 2, 3, 4]
+    keys = list(zip(s["pass_share"], s["largest_region"], s["beat_ma200"], s["median_calmar"]))
+    assert keys == sorted(keys, reverse=True)  # lexicographic, no weights
+    monkeypatch.setattr(store, "RESULTS_DIR", tmp_path)
+    path = store.save_family(fc, "t", "test", ["AAA"])
+    assert len(store.load_family_summary(path)) == 4 and len(store.load_cells(path)) == 16

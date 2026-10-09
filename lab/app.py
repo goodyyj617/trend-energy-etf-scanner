@@ -19,6 +19,9 @@ from lab import research_log as rlog  # noqa: E402
 from lab import store  # noqa: E402
 from lab.blocks import ALL_BLOCKS, ENTRY_BLOCKS, EXIT_BLOCKS  # noqa: E402
 from lab.data import BENCHMARK, LONG_HISTORY_ETFS, Panel, download_panel, load_snapshot, snapshot_available  # noqa: E402
+from lab.families import (  # noqa: E402
+    ENTRY_MENU, EXIT_MENU, MENU_VERSION, SUMMARY_TEXT, cell_count, run_family_comparison,
+)
 from lab.engine import BASELINE_HELP, BASELINE_LABELS, RULES_KO, StrategyConfig, baselines, run_backtest  # noqa: E402
 from lab.grid import (  # noqa: E402
     CHECK_TEXT, GATE_TEXT, MAX_AXIS_VALUES, ROBUST_TEXT, Gates, axis_values, check_gates, run_grid, strategy_checklist,
@@ -34,7 +37,6 @@ BLUE, ORANGE, GRAY, AQUA = "#2a78d6", "#eb6834", "#8a8984", "#1baf7a"
 BASE_STYLE = {"spy": dict(color=ORANGE, width=2), "spy_ma200": dict(color=GRAY, width=2, dash="dash"),
               "equal_weight": dict(color=AQUA, width=1.5, dash="dot")}
 SEQ_BLUE = [[0, "#cde2fb"], [0.5, "#5598e7"], [1, "#0d366b"]]
-SECONDS_PER_BACKTEST = 0.4  # measured on ~170 ETFs; used only for the time estimate
 BR = "  " + chr(10)  # markdown hard line break
 LONG_COUNT = sum(len(v) for v in LONG_HISTORY_ETFS.values())
 SOURCES = {
@@ -64,6 +66,12 @@ def init(key: str, value) -> str:
     if key not in st.session_state:
         st.session_state[key] = value
     return key
+
+
+def estimate_seconds(panel: Panel, cfg: StrategyConfig, n_backtests: int) -> float:
+    """Rough run time; calibrated on a 24-year, 33-ETF family comparison (~0.3 s per backtest)."""
+    days = int(((panel.close.index >= pd.Timestamp(cfg.start)) & (panel.close.index <= pd.Timestamp(cfg.end))).sum())
+    return n_backtests * (0.05 + days * len(panel.tradable_symbols) * 1.5e-6)
 
 
 def gates_now() -> Gates:
@@ -157,7 +165,7 @@ def universe_section() -> Panel | None:
         chosen = sorted(table.loc[table["status"] == "선택", "symbol"])
         with st.expander(f"종목 목록 보기 (선택 {len(chosen)}개 · 제외 {len(table) - len(chosen)}개)"):
             shown = table.assign(_sel=table["status"] != "선택").sort_values(["_sel", "asset_class", "aum"], ascending=[True, True, False])
-            st.dataframe(shown.drop(columns="_sel"), hide_index=True, use_container_width=True, column_config={
+            st.dataframe(shown.drop(columns="_sel"), hide_index=True, width="stretch", column_config={
                 "symbol": "티커", "name": "이름", "category": "분류 (Morningstar)", "asset_class": "자산군",
                 "aum": st.column_config.NumberColumn("운용 규모 ($)", format="compact"),
                 "expense_ratio": st.column_config.NumberColumn("총보수 (%)", format="%.2f"),
@@ -334,7 +342,7 @@ def scorecard(res, base: dict) -> None:
         for name, v in vals.items():
             row[name] = fmt_value(key, v) + (" ★" if name == best else "")
         rows.append(row)
-    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True, column_config={
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
         "전략": st.column_config.TextColumn("전략", help="지금 설정한 전략"),
         **{BASELINE_LABELS[k]: st.column_config.TextColumn(BASELINE_LABELS[k], help=BASELINE_HELP[k]) for k in base},
     })
@@ -416,7 +424,7 @@ def checklist_view(bt: dict, dsr: float) -> None:
 def metric_table(m: dict, keys: list[str]) -> None:
     rows = [{"지표": DEFINITIONS[k].label, "값": fmt_value(k, m[k]),
              "뜻 (계산식)": f"{DEFINITIONS[k].short} ({DEFINITIONS[k].formula})"} for k in keys]
-    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True,
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
                  column_config={"뜻 (계산식)": st.column_config.TextColumn(width="large")})
 
 
@@ -441,8 +449,8 @@ def show_backtest(bt: dict) -> None:
     st.markdown("#### 기준선과 비교")
     scorecard(res, base)
     log = st.toggle("로그 눈금", value=False, key="log_scale")
-    st.plotly_chart(equity_chart(res, base, log), use_container_width=True)
-    st.plotly_chart(drawdown_chart(res.equity, res.benchmark), use_container_width=True)
+    st.plotly_chart(equity_chart(res, base, log), width="stretch")
+    st.plotly_chart(drawdown_chart(res.equity, res.benchmark), width="stretch")
 
     st.markdown("#### 최소 통과 조건 (Gate)")
     gate_check(m)
@@ -450,9 +458,9 @@ def show_backtest(bt: dict) -> None:
 
     st.markdown("#### 연도별")
     ann = annual_table(res)
-    st.plotly_chart(annual_chart(ann), use_container_width=True)
+    st.plotly_chart(annual_chart(ann), width="stretch")
     with st.expander("연도별 표"):
-        st.dataframe(ann, hide_index=True, use_container_width=True, column_config={
+        st.dataframe(ann, hide_index=True, width="stretch", column_config={
             "연도": st.column_config.NumberColumn(format="%d"),
             **{c: st.column_config.NumberColumn(format="percent") for c in ["전략", "SPY", "차이", "전략 MDD", "평균 거래 수익"]},
             "부분 연도": st.column_config.CheckboxColumn(help="거래일이 240일 미만인 시작/끝 연도."),
@@ -462,19 +470,19 @@ def show_backtest(bt: dict) -> None:
     metric_table(m, ["n_trades", "win_rate", "avg_trade", "median_trade", "profit_factor", "payoff", "t_stat",
                      "avg_hold", "trades_per_year", "exposure"])
     with st.expander(f"거래 목록 ({len(res.trades)}건) · 현재 보유 {len(res.open_positions)}종목"):
-        st.dataframe(res.trades.sort_values("entry_date", ascending=False), hide_index=True, use_container_width=True,
+        st.dataframe(res.trades.sort_values("entry_date", ascending=False), hide_index=True, width="stretch",
                      column_config={"return": st.column_config.NumberColumn("수익률", format="percent"),
                                     "holding_days": st.column_config.NumberColumn("보유 거래일"),
                                     "exit_reason": "청산 사유"})
         if len(res.open_positions):
             st.markdown("**기간 끝 시점 보유 종목** (완료 거래 통계에는 포함되지 않음)")
-            st.dataframe(res.open_positions, hide_index=True, use_container_width=True,
+            st.dataframe(res.open_positions, hide_index=True, width="stretch",
                          column_config={"unrealized_return": st.column_config.NumberColumn("평가 수익률", format="percent")})
 
     with st.form("save_bt", border=False):
         c1, c2 = st.columns([3, 1])
         name = c1.text_input("결과 이름", value="", placeholder="예: 55일 돌파 + 20일 저가 이탈")
-        if c2.form_submit_button("💾 결과 저장", use_container_width=True,
+        if c2.form_submit_button("💾 결과 저장", width="stretch",
                                  help="저장한 결과만 ‘최종 검증’에서 보류 구간 평가를 할 수 있습니다."):
             path = store.save_backtest(res, m, name or res.config.describe(), panel)
             st.success(f"저장했습니다: lab_results/{path.name}")
@@ -581,7 +589,7 @@ def show_grid_result(cells: pd.DataFrame, x_key: str, y_key: str | None, summary
     metric = st.selectbox("히트맵에 표시할 지표", GRID_METRICS, key=f"hm_metric_{key}",
                           format_func=lambda k: DEFINITIONS[k].label, help="✓ 표시는 Gate를 통과한 조합입니다.")
     st.caption(DEFINITIONS[metric].short)
-    st.plotly_chart(heatmap(cells, x_key, y_key, metric), use_container_width=True)
+    st.plotly_chart(heatmap(cells, x_key, y_key, metric), width="stretch")
 
     cand = cells[cells["pass"]].sort_values(["region_size", "neighbor_survival", "loyo_ratio", "calmar"], ascending=False, na_position="last")
     st.markdown("#### 통과 후보 정렬")
@@ -592,7 +600,7 @@ def show_grid_result(cells: pd.DataFrame, x_key: str, y_key: str | None, summary
     cols = ["x"] + (["y"] if y_key else []) + ["region_size", "neighbor_survival", "loyo_ratio", "loyo_fail_years",
                                                "cagr", "mdd", "calmar", "cagr_ratio", "mdd_ratio", "n_trades", "t_stat"]
     num = st.column_config.NumberColumn
-    st.dataframe(cand[cols], hide_index=True, use_container_width=True, column_config={
+    st.dataframe(cand[cols], hide_index=True, width="stretch", column_config={
         "x": num(param_label(x_key), format="%g"),
         "y": num(param_label(y_key) if y_key else "", format="%g"),
         "region_size": num(ROBUST_TEXT["region_size"][0], help=ROBUST_TEXT["region_size"][1]),
@@ -627,7 +635,7 @@ def grid_tab(panel: Panel, cfg: StrategyConfig) -> None:
     x_key, xs, y_key, ys, gates = grid_controls(cfg)
     n = len(xs or []) * (len(ys) if y_key else 1)
     too_big = (len(xs or []) > MAX_AXIS_VALUES) or (y_key and len(ys or []) > MAX_AXIS_VALUES)
-    st.caption(f"조합 {n}개 · 예상 소요 약 {max(1, round(n * SECONDS_PER_BACKTEST * max(len(panel.tradable_symbols), 50) / 170))}초"
+    st.caption(f"조합 {n}개 · 예상 소요 약 {max(1, round(estimate_seconds(panel, cfg, n)))}초"
                + (f" · ⚠️ 축마다 최대 {MAX_AXIS_VALUES}개" if too_big else ""))
     if st.button("▶ 격자 실행", type="primary", disabled=bool(too_big or n == 0)):
         bar = st.progress(0.0, text="실행 중…")
@@ -657,14 +665,133 @@ def grid_tab(panel: Panel, cfg: StrategyConfig) -> None:
         pick = c1.selectbox("후보를 골라 단일 백테스트로 자세히 보기", range(len(labels)), format_func=lambda i: labels[i])
         r = cand.iloc[pick]
         vals = {g.x_key: r["x"], **({g.y_key: r["y"]} if g.y_key else {})}
-        c2.button("이 값으로 설정 + 실행", on_click=apply_params, args=(vals,), use_container_width=True,
+        c2.button("이 값으로 설정 + 실행", on_click=apply_params, args=(vals,), width="stretch",
                   help="위 ②–④의 해당 파라미터를 이 값으로 바꾸고 ‘백테스트’ 탭에서 실행합니다.")
     with st.form("save_grid", border=False):
         c1, c2 = st.columns([3, 1])
         name = c1.text_input("결과 이름", value="", placeholder="예: 돌파 N × 저가 이탈 N")
-        if c2.form_submit_button("💾 격자 저장", use_container_width=True):
+        if c2.form_submit_button("💾 격자 저장", width="stretch"):
             s, e = pd.Timestamp(g.base.start), pd.Timestamp(g.base.end)
             path = store.save_grid(g, name or f"격자 {param_label(g.x_key)} × {param_label(g.y_key) if g.y_key else '-'}", source, (s, e))
+            st.success(f"저장했습니다: lab_results/{path.name}")
+
+
+# =========================================================================== family comparison view
+
+FAMILY_FMT = {"pass_share": "percent", "largest_region": "%d", "beat_ma200": "percent", "median_calmar": "%.2f",
+              "p25_calmar": "%.2f", "median_cagr": "percent", "median_mdd": "percent", "median_trades": "%d"}
+
+
+def _fam_fmt(metric: str, v: float) -> str:
+    if v is None or not np.isfinite(v):
+        return "–"
+    kind = FAMILY_FMT[metric]
+    return f"{v:.0%}" if kind == "percent" else (f"{v:,.0f}" if kind == "%d" else f"{v:.2f}")
+
+
+def family_matrix(summary: pd.DataFrame, metric: str) -> go.Figure:
+    entries = [e for e in ENTRY_MENU if e in set(summary["entry"])]
+    exits = [x for x in EXIT_MENU if x in set(summary["exit"])]
+    z, text = [], []
+    for e in entries:
+        row = [summary.loc[(summary["entry"] == e) & (summary["exit"] == x), metric].iloc[0] for x in exits]
+        z.append(row)
+        text.append([_fam_fmt(metric, v) for v in row])
+    fig = go.Figure(go.Heatmap(
+        z=z, x=[EXIT_BLOCKS[x].label for x in exits], y=[ENTRY_BLOCKS[e].label for e in entries], text=text,
+        texttemplate="%{text}", colorscale=SEQ_BLUE, xgap=3, ygap=3, colorbar=dict(title=""),
+        hovertemplate="진입: %{y}<br>청산: %{x}<br>" + SUMMARY_TEXT[metric][0] + ": %{text}<extra></extra>",
+    ))
+    fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10), xaxis_title="청산 계열", yaxis_title="진입 계열",
+                      yaxis_autorange="reversed")
+    return fig
+
+
+def show_family_result(summary: pd.DataFrame, cells: pd.DataFrame, gates: dict, ma200: float, key: str) -> None:
+    st.caption(f"Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · |MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · "
+               f"완료 거래 ≥ {gates['min_trades']} · 같은 조건의 SPY 200일선 칼마 = {ma200:.2f}")
+    st.markdown("#### 계열 순위")
+    st.caption("정렬(사전식): ① Gate 통과 비율 → ② 가장 큰 연결 영역 → ③ SPY 200일선 이긴 비율 → ④ 중간 칼마. "
+               "앞 기준이 같을 때만 다음 기준을 봅니다. 가중 점수는 없습니다. 각 열 이름에 마우스를 올리면 정의가 보입니다.")
+    num = st.column_config.NumberColumn
+    st.dataframe(summary.drop(columns=["entry", "exit"]), hide_index=True, width="stretch", column_config={
+        "family": st.column_config.TextColumn("계열 (진입 × 청산)", width="large"),
+        **{k: num(SUMMARY_TEXT[k][0], format=FAMILY_FMT[k], help=SUMMARY_TEXT[k][1]) for k in SUMMARY_TEXT},
+    })
+    metric = st.selectbox("계열 지도에 표시할 값", list(SUMMARY_TEXT), key=f"fam_metric_{key}",
+                          format_func=lambda k: SUMMARY_TEXT[k][0], help="행 = 진입 계열, 열 = 청산 계열")
+    st.caption(SUMMARY_TEXT[metric][1])
+    st.plotly_chart(family_matrix(summary, metric), width="stretch")
+
+    st.markdown("#### 계열 자세히 보기")
+    labels = {f"{r['entry']}|{r['exit']}": f"{r['순위']}위 · {r['family']}" for _, r in summary.iterrows()}
+    pick = st.selectbox("계열 선택", list(labels), format_func=labels.get, key=f"fam_pick_{key}")
+    e, x = pick.split("|")
+    sub = cells[(cells["entry"] == e) & (cells["exit"] == x)].reset_index(drop=True)
+    passed = sub[sub["pass"]]
+    show_grid_result(sub, e, x, {"total": len(sub), "passed": len(passed), "regions": passed["region"].nunique(),
+                                 "largest_region": int(sub["region_size"].max())}, gates, f"fam_{key}")
+    if key == "live":
+        cand = passed.sort_values(["region_size", "neighbor_survival", "loyo_ratio", "calmar"], ascending=False)
+        pool = cand if len(cand) else sub.sort_values("calmar", ascending=False)
+        opts = [(r["x"], r["y"]) for _, r in pool.head(20).iterrows()]
+        c1, c2 = st.columns([3, 1])
+        i = c1.selectbox("이 계열의 한 칸을 단일 백테스트로 보기" + ("" if len(cand) else " (통과 칸 없음 · 칼마 순)"),
+                         range(len(opts)), key=f"fam_cell_{pick}",
+                         format_func=lambda k: f"{param_label(e)}={opts[k][0]:g}, {param_label(x)}={opts[k][1]:g}")
+        c2.button("이 계열·값으로 설정 + 실행", on_click=apply_family, args=(e, opts[i][0], x, opts[i][1]),
+                  width="stretch", help="② 진입·③ 청산 조건을 이 계열 하나씩으로 바꾸고 ‘백테스트’ 탭에서 실행합니다.")
+
+
+def apply_family(entry_key: str, entry_value: float, exit_key: str, exit_value: float) -> None:
+    """Callback: replace the builder's entry/exit selection with one family cell."""
+    for k in ENTRY_BLOCKS:
+        st.session_state[f"entry_on_{k}"] = k == entry_key
+    for k in EXIT_BLOCKS:
+        st.session_state[f"exit_on_{k}"] = k == exit_key
+    apply_params({entry_key: entry_value, exit_key: exit_value})
+
+
+def family_tab(panel: Panel, cfg: StrategyConfig) -> None:
+    st.caption("미리 정해 둔 메뉴(진입 3종 × 청산 3종 = 9개 계열)를 각각 6×6 격자로 돌려, **최고점이 아니라 격자 전체가 얼마나 넓게 통하는지**로 "
+               "계열을 비교합니다. 위 ①(유니버스·기간)과 ④(포트폴리오·비용·현금) 설정을 쓰고, ②·③에서 고른 조건은 쓰지 않습니다. "
+               f"Gate 기준은 ‘🧭 강건성 격자’ 탭의 값을 씁니다. 모든 칸({cell_count()}개)이 시험 횟수에 기록됩니다.")
+    with st.expander(f"고정 메뉴 보기 ({MENU_VERSION})"):
+        st.markdown("각 축의 값은 결과를 보기 전에 정했습니다. 짧은·중간·긴 기간을 대략 등비 간격으로 덮습니다. "
+                    "결과를 본 뒤 값을 바꾸면 그것은 새로운 시험입니다.")
+        st.dataframe(pd.DataFrame(
+            [{"구분": "진입", "계열": ENTRY_BLOCKS[k].label, "조건": ENTRY_BLOCKS[k].rule,
+              "격자 값": ", ".join(f"{v:g}" for v in vals)} for k, vals in ENTRY_MENU.items()]
+            + [{"구분": "청산", "계열": EXIT_BLOCKS[k].label, "조건": EXIT_BLOCKS[k].rule,
+                "격자 값": ", ".join(f"{v:g}" for v in vals)} for k, vals in EXIT_MENU.items()]),
+            hide_index=True, width="stretch")
+    est = estimate_seconds(panel, cfg, cell_count())
+    st.caption(f"예상 소요 약 {max(1, round(est / 60))}분 (컴퓨터 상태에 따라 더 걸릴 수 있음) · 실행 중에는 다른 조작을 하지 마세요.")
+    if st.button("▶ 9개 계열 비교 실행", type="primary"):
+        bar = st.progress(0.0, text="계열 비교 중…")
+        collected = []
+        try:
+            fc = run_family_comparison(panel, cfg, gates_now(),
+                                       progress=lambda f: bar.progress(min(f, 1.0), text=f"계열 비교 중… {f:.0%}"),
+                                       on_result=lambda c, r: collected.append(("family", c, panel.tradable_symbols, r.equity)))
+            st.session_state["family_result"] = (fc, panel.source, panel.tradable_symbols)
+            rlog.log_trials(collected)
+        except ValueError as exc:
+            st.error(str(exc))
+        bar.empty()
+    stored = st.session_state.get("family_result")
+    if stored is None:
+        return
+    fc, source, universe = stored
+    if fc.base.start != cfg.start or fc.base.end != cfg.end or universe != panel.tradable_symbols:
+        st.warning("아래 결과는 현재 유니버스·기간과 다른 설정으로 실행한 것입니다.")
+    st.caption(f"기간 {fc.base.start} → {fc.base.end} · 거래 대상 {len(universe)}종목 · {fc.seconds:.0f}초")
+    show_family_result(fc.summary(), fc.all_cells(), fc.gates.to_dict(), fc.ma200_calmar, "live")
+    with st.form("save_family", border=False):
+        c1, c2 = st.columns([3, 1])
+        name = c1.text_input("결과 이름", value="", placeholder="예: 장기 ETF 2000–2023 계열 비교")
+        if c2.form_submit_button("💾 계열 비교 저장", width="stretch"):
+            path = store.save_family(fc, name or f"계열 비교 {fc.base.start} – {fc.base.end}", source, universe)
             st.success(f"저장했습니다: lab_results/{path.name}")
 
 
@@ -684,7 +811,7 @@ def research_page() -> None:
         st.markdown(RULES_KO)
     st.divider()
 
-    tab_bt, tab_grid = st.tabs(["📈 백테스트", "🧭 강건성 격자"])
+    tab_bt, tab_grid, tab_fam = st.tabs(["📈 백테스트", "🧭 강건성 격자", "🧩 전략 계열 비교"])
     with tab_bt:
         if st.button("▶ 백테스트 실행", type="primary") or st.session_state.pop("auto_run", False):
             try:
@@ -699,6 +826,8 @@ def research_page() -> None:
             show_backtest(bt)
     with tab_grid:
         grid_tab(panel, cfg)
+    with tab_fam:
+        family_tab(panel, cfg)
 
 
 def holdout_page() -> None:
@@ -762,12 +891,12 @@ def holdout_page() -> None:
                 } for k in keys] + [
                     {"지표": "SPY CAGR", "연구 기간": fmt_value("cagr", ins.get("spy_cagr")), "보류 구간": fmt_value("cagr", m["spy_cagr"])},
                     {"지표": "SPY MDD", "연구 기간": fmt_value("mdd", ins.get("spy_mdd")), "보류 구간": fmt_value("mdd", m["spy_mdd"])},
-                ]), hide_index=True, use_container_width=True)
+                ]), hide_index=True, width="stretch")
                 failed = check_gates(m, gates_now())
                 st.markdown(("✅ 보류 구간에서도 Gate 통과" if not failed else "❌ 보류 구간 Gate 미달: " + ", ".join(failed))
                             + f"  \n<small>보류 구간이 {len(res.equity) / 252:.1f}년으로 짧아 우연의 영향이 큽니다. "
                               "통과/미달 하나로 결론 내리지 말고 연구 기간과의 차이를 보세요.</small>", unsafe_allow_html=True)
-                st.plotly_chart(equity_chart(res, base, False), use_container_width=True)
+                st.plotly_chart(equity_chart(res, base, False), width="stretch")
 
     if hold["evaluations"]:
         st.markdown("#### 평가 기록")
@@ -775,7 +904,7 @@ def holdout_page() -> None:
             "시각": e["time"], "이름": e["name"], "기간": " → ".join(e["period"]),
             "CAGR": e["metrics"].get("cagr"), "MDD": e["metrics"].get("mdd"), "SPY CAGR": e["metrics"].get("spy_cagr"),
             "전략": e["description"],
-        } for e in reversed(hold["evaluations"])]), hide_index=True, use_container_width=True, column_config={
+        } for e in reversed(hold["evaluations"])]), hide_index=True, width="stretch", column_config={
             "CAGR": st.column_config.NumberColumn(format="percent"), "MDD": st.column_config.NumberColumn(format="percent"),
             "SPY CAGR": st.column_config.NumberColumn(format="percent"),
         })
@@ -789,7 +918,8 @@ def saved_page() -> None:
         return
     bts = [i for i in items if i["kind"] == "backtest"]
     grids = [i for i in items if i["kind"] == "grid"]
-    t1, t2 = st.tabs([f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})"])
+    fams = [i for i in items if i["kind"] == "family"]
+    t1, t2, t3 = st.tabs([f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})", f"계열 비교 ({len(fams)})"])
     with t1:
         if not bts:
             st.info("저장된 백테스트가 없습니다.")
@@ -799,7 +929,7 @@ def saved_page() -> None:
                      "전략": b["description"], **{DEFINITIONS[k].label: b["metrics"].get(k) for k in keys}}
                     for i, b in enumerate(bts)]
             df = pd.DataFrame(rows)
-            edited = st.data_editor(df, hide_index=True, use_container_width=True, disabled=[c for c in df.columns if c != "선택"],
+            edited = st.data_editor(df, hide_index=True, width="stretch", disabled=[c for c in df.columns if c != "선택"],
                                     column_config={DEFINITIONS["cagr"].label: st.column_config.NumberColumn(format="percent"),
                                                    DEFINITIONS["mdd"].label: st.column_config.NumberColumn(format="percent")})
             chosen = [bts[i] for i in np.flatnonzero(edited["선택"].to_numpy())]
@@ -813,7 +943,7 @@ def saved_page() -> None:
                 fig.add_scatter(x=eq0.index, y=eq0["SPY"], name="SPY (첫 결과 기간)", line=dict(color=GRAY, width=1.5, dash="dot"))
                 fig.update_layout(height=380, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10),
                                   title="자산 곡선 비교 (최대 8개)", legend=dict(orientation="h", y=-0.15))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 st.caption("서로 기간이 다른 결과는 시작점이 달라 직접 비교에 주의하세요.")
     with t2:
         if not grids:
@@ -824,6 +954,17 @@ def saved_page() -> None:
             gm = grids[idx]
             st.caption(f"기간 {' → '.join(gm['period'])} · 데이터: {gm['data_source']}")
             show_grid_result(store.load_cells(gm["path"]), gm["x_key"], gm["y_key"], gm["summary"], gm["gates"], "saved")
+    with t3:
+        if not fams:
+            st.info("저장된 계열 비교가 없습니다.")
+        else:
+            idx = st.selectbox("계열 비교 선택", range(len(fams)), key="saved_fam",
+                               format_func=lambda i: f"{fams[i]['saved_at']} · {fams[i]['name']}")
+            fm = fams[idx]
+            st.caption(f"기간 {' – '.join(fm['period'])} · 데이터: {fm['data_source']} · 거래 대상 {len(fm['universe'])}종목 · "
+                       f"메뉴 {fm['menu_version']}")
+            show_family_result(store.load_family_summary(fm["path"]), store.load_cells(fm["path"]), fm["gates"],
+                               fm["ma200_calmar"], "saved")
 
 
 def glossary_page() -> None:
@@ -853,6 +994,11 @@ def glossary_page() -> None:
                          "앞 기준이 같을 때만 다음 기준을 봅니다. 가중 합산 점수는 쓰지 않습니다."]))
     st.markdown("**단일 전략 강건성 점검 항목**")
     for label, rule in CHECK_TEXT.values():
+        st.markdown(BR.join([f"· **{label}**", rule]))
+    st.subheader("전략 계열 비교")
+    st.markdown("미리 정한 메뉴(진입 3종 × 청산 3종)의 각 계열을 6×6 격자로 돌려, 격자 전체의 성적으로 비교합니다. "
+                f"메뉴: {MENU_VERSION}. 순위는 Gate 통과 비율 → 가장 큰 연결 영역 → SPY 200일선 이긴 비율 → 중간 칼마 순의 사전식 정렬입니다.")
+    for label, rule in SUMMARY_TEXT.values():
         st.markdown(BR.join([f"· **{label}**", rule]))
     st.subheader("보류 구간 (최종 검증)")
     st.markdown("정해 둔 날짜 이후의 데이터는 연구(백테스트·격자·강건성 점검)에 쓰지 않고 남겨 둡니다. 연구가 끝난 전략을 그 기간에 "

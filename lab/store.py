@@ -81,3 +81,24 @@ def load_trades(path: Path) -> pd.DataFrame:
 
 def load_cells(path: Path) -> pd.DataFrame:
     return pd.read_csv(path / "cells.csv")
+
+
+def save_family(fc, name: str, data_source: str, universe: list[str]) -> Path:
+    """Strategy-family comparison: meta.json, summary.csv, cells.csv (every cell, with entry/exit columns)."""
+    from .families import ENTRY_MENU, EXIT_MENU, MENU_VERSION
+
+    path = _folder("family", name)
+    _write_meta(path, {
+        "kind": "family", "name": name, "saved_at": datetime.now().isoformat(timespec="seconds"),
+        "data_source": data_source, "universe": universe, "period": [fc.base.start, fc.base.end],
+        "base_config": fc.base.to_dict(), "description": f"계열 비교 ({MENU_VERSION})",
+        "menu_version": MENU_VERSION, "entry_menu": ENTRY_MENU, "exit_menu": EXIT_MENU,
+        "gates": fc.gates.to_dict(), "ma200_calmar": fc.ma200_calmar, "seconds": fc.seconds,
+    })
+    fc.summary().to_csv(path / "summary.csv", index=False)
+    fc.all_cells().to_csv(path / "cells.csv", index=False)
+    return path
+
+
+def load_family_summary(path: Path) -> pd.DataFrame:
+    return pd.read_csv(path / "summary.csv")

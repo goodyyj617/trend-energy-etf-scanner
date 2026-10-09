@@ -43,6 +43,19 @@ All decisions in this section have status `Accepted`.
 31. Single-strategy robustness is a 7-item pass/fail checklist with no weights: gates, neighbor parameters (> 50% of +/-1-step variants pass), 2x cost, LOYO, both halves, Calmar above SPY 200-day timing, DSR >= 0.95.
 32. Strategy blocks may be fixed rules with no numeric parameter (moving-average stack, up candle); such blocks are excluded from grids.
 
+### Strategy-family comparison (2026-10-09)
+
+33. Pre-registered family menu `family-menu-v1`, fixed before any results were seen:
+    entries breakout N {20, 30, 50, 80, 120, 200}, above_ma N {50, 80, 100, 150, 200, 250},
+    momentum N {21, 42, 63, 126, 189, 252}; exits low_break N {10, 15, 20, 30, 50, 80},
+    below_ma N {20, 30, 50, 100, 150, 200}, atr_trail k {1.5, 2, 2.5, 3, 4, 5}.
+    Values cover short/medium/long horizons with roughly geometric spacing. Changing the menu after
+    seeing results is a new pre-registration (new version), not an edit.
+34. Families are compared by whole-grid behaviour, ordered lexicographically by Gate pass share,
+    largest connected passing region, share of cells with Calmar above SPY 200-day timing, then
+    median Calmar. Lower-quartile Calmar, median CAGR/MDD and median trade count are shown but do
+    not order. Every cell is logged as a trial.
+
 ## Open decisions
 
 - final trend-filter definition;

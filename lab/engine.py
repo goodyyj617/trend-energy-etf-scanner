@@ -117,6 +117,13 @@ class SignalCache:
         self._frames: dict[tuple[str, float | None], pd.DataFrame] = {}
         self._dv: dict[int, pd.DataFrame] = {}
         self._atr: pd.DataFrame | None = None
+        self._memo: dict[tuple, object] = {}
+
+    def memo(self, key: tuple, make):
+        """Per-window derived data (plain lists for the daily loop). Grids reuse one window."""
+        if key not in self._memo:
+            self._memo[key] = make()
+        return self._memo[key]
 
     def frame(self, key: str, value: float | None) -> pd.DataFrame:
         k = (key, None if value is None else float(value))
@@ -152,53 +159,74 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         raise ValueError("선택한 기간에 거래일이 2일 미만입니다.")
     dates = idx[in_period]
 
-    entry = None
-    for key, value in cfg.entries.items():
-        f = cache.frame(key, value)
-        entry = f if entry is None else (entry & f)
-    dv = cache.dollar_volume(int(cfg.liquidity_days))
-    eligible = (panel.close >= cfg.min_price) & (dv >= cfg.min_dollar_volume)
-    tradable = panel.close.columns.isin(panel.tradable_symbols)
-    entry = (entry & eligible).loc[dates].to_numpy() & tradable
+    w = (dates[0], dates[-1])
+    liq = int(cfg.liquidity_days)
+    dv = cache.dollar_volume(liq)
 
+    def make_candidates():
+        entry = None
+        for key, value in cfg.entries.items():
+            f = cache.frame(key, value)
+            entry = f if entry is None else (entry & f)
+        eligible = (panel.close >= cfg.min_price) & (dv >= cfg.min_dollar_volume)
+        tradable = panel.close.columns.isin(panel.tradable_symbols)
+        mask = (entry & eligible).loc[dates].to_numpy() & tradable
+        rows, cols = np.nonzero(mask)
+        bounds = np.searchsorted(rows, np.arange(len(dates) + 1)).tolist()
+        cols = cols.tolist()
+        return [cols[bounds[i]:bounds[i + 1]] for i in range(len(dates))]
+
+    candidates = cache.memo(("entry", w, tuple(cfg.entries.items()), cfg.min_price, cfg.min_dollar_volume, liq),
+                            make_candidates)
     signal_exits = [k for k in cfg.exits if EXIT_BLOCKS[k].compute is not None]
-    exit_frames = {k: cache.frame(k, cfg.exits[k]).loc[dates].to_numpy() for k in signal_exits}
+    # Plain Python lists: the daily loop touches single values, and Python floats are far
+    # faster than numpy scalars for that. Results are bit-for-bit identical (both are doubles).
+    exit_rows = {k: cache.memo(("exit", w, k, cfg.exits[k]),
+                               lambda k=k: cache.frame(k, cfg.exits[k]).loc[dates].to_numpy().tolist())
+                 for k in signal_exits}
     trail = cfg.exits.get("trailing_pct")
     stop = cfg.exits.get("stop_loss_pct")
     atr_k = cfg.exits.get("atr_trail")
-    A = cache.atr14.loc[dates].to_numpy(dtype=float) if atr_k is not None else None
-
-    O = panel.open.loc[dates].to_numpy(dtype=float)
-    C = panel.close.loc[dates].to_numpy(dtype=float)
-    rank = np.nan_to_num(dv.loc[dates].to_numpy(dtype=float), nan=-1.0)
-    cash_r = (panel.cash.reindex(dates).fillna(0.0).to_numpy() if (cfg.cash_yield and panel.cash is not None)
-              else np.zeros(len(dates)))
+    A = cache.memo(("atr", w), lambda: cache.atr14.loc[dates].to_numpy(dtype=float).tolist()) if atr_k is not None else None
+    O = cache.memo(("open", w), lambda: panel.open.loc[dates].to_numpy(dtype=float).tolist())
+    LC = cache.memo(("last_close", w),  # last known close of each symbol, within the window
+                    lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float).tolist())
+    C = cache.memo(("close", w), lambda: panel.close.loc[dates].to_numpy(dtype=float).tolist())
+    rank = cache.memo(("rank", w, liq), lambda: np.nan_to_num(dv.loc[dates].to_numpy(dtype=float), nan=-1.0).tolist())
+    tradable = panel.close.columns.isin(panel.tradable_symbols)
+    cash_r = (panel.cash.reindex(dates).fillna(0.0).to_numpy().tolist() if (cfg.cash_yield and panel.cash is not None)
+              else [0.0] * len(dates))
     symbols = panel.symbols
     c = cfg.cost_bps / 10_000.0
     K = int(cfg.max_positions)
+    trail_mult = None if trail is None else 1 - trail / 100.0
+    stop_mult = None if stop is None else 1 - stop / 100.0
+    exit_keys = list(cfg.exits)
 
     n = len(dates)
+    day = list(dates)  # plain list: indexing a DatetimeIndex one item at a time is slow
     cash = 1.0
-    last_close = np.full(len(symbols), np.nan)
+    last_close = [float("nan")] * len(symbols)  # yesterday's LC row (all NaN before the first day)
     pos: dict[int, dict] = {}
     pending_entry: list[int] = []
     pending_exit: dict[int, str] = {}
-    equity = np.empty(n)
-    exposure = np.empty(n)
+    equity = [0.0] * n
+    exposure = [0.0] * n
     trades: list[dict] = []
 
     for i in range(n):
+        Oi, Ci = O[i], C[i]
         # 1) execute yesterday's orders at today's open
         for j in list(pending_exit):
-            px = O[i, j]
-            if np.isnan(px):
+            px = Oi[j]
+            if px != px:
                 continue  # no bar today; try again tomorrow
             p = pos.pop(j)
             cash += p["shares"] * px * (1 - c)
             trades.append({
                 "symbol": symbols[j],
-                "entry_date": dates[p["entry_i"]],
-                "exit_date": dates[i],
+                "entry_date": day[p["entry_i"]],
+                "exit_date": day[i],
                 "entry_price": p["entry_price"],
                 "exit_price": px,
                 "return": (px * (1 - c)) / (p["entry_price"] * (1 + c)) - 1.0,
@@ -207,13 +235,13 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
             })
             del pending_exit[j]
         if pending_entry:
-            held_value = sum(p["shares"] * (O[i, j] if not np.isnan(O[i, j]) else last_close[j]) for j, p in pos.items())
+            held_value = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
             target = (cash + held_value) / K
             for j in pending_entry:
                 if len(pos) >= K or cash <= 1e-9:
                     break
-                px = O[i, j]
-                if np.isnan(px) or px <= 0:
+                px = Oi[j]
+                if px != px or px <= 0:
                     continue
                 alloc = min(target, cash)
                 pos[j] = {"shares": alloc / (px * (1 + c)), "entry_price": px, "entry_i": i, "peak": px}
@@ -222,9 +250,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
 
         # 2) cash earns today's T-bill return, then mark to market at today's close
         cash *= 1.0 + cash_r[i]
-        today = C[i]
-        has = ~np.isnan(today)
-        last_close[has] = today[has]
+        last_close = LC[i]
         invested = sum(p["shares"] * last_close[j] for j, p in pos.items())
         equity[i] = cash + invested
         exposure[i] = invested / equity[i] if equity[i] > 0 else 0.0
@@ -234,19 +260,21 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
 
         # 3) exit checks on today's close
         for j, p in pos.items():
-            if j in pending_exit or np.isnan(today[j]):
+            cj = Ci[j]
+            if j in pending_exit or cj != cj:
                 continue
-            p["peak"] = max(p["peak"], today[j])
+            p["peak"] = max(p["peak"], cj)
             reason = None
-            for k in cfg.exits:
-                if k in exit_frames:
-                    hit = exit_frames[k][i, j]
+            for k in exit_keys:
+                if k in exit_rows:
+                    hit = exit_rows[k][i][j]
                 elif k == "trailing_pct":
-                    hit = today[j] < p["peak"] * (1 - trail / 100.0)
+                    hit = cj < p["peak"] * trail_mult
                 elif k == "atr_trail":
-                    hit = not np.isnan(A[i, j]) and today[j] < p["peak"] - atr_k * A[i, j]
+                    a = A[i][j]
+                    hit = a == a and cj < p["peak"] - atr_k * a
                 else:  # stop_loss_pct
-                    hit = today[j] < p["entry_price"] * (1 - stop / 100.0)
+                    hit = cj < p["entry_price"] * stop_mult
                 if hit:
                     reason = k
                     break
@@ -256,16 +284,16 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         # 4) entry candidates on today's close
         free = K - (len(pos) - len(pending_exit))
         if free > 0:
-            cand = np.flatnonzero(entry[i])
-            cand = [j for j in cand if j not in pos]
-            cand.sort(key=lambda j: -rank[i, j])
+            ri = rank[i]
+            cand = [j for j in candidates[i] if j not in pos]
+            cand.sort(key=lambda j: -ri[j])
             pending_entry = cand[:free]
 
     trades_df = pd.DataFrame(trades, columns=[
         "symbol", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days", "exit_reason",
     ])
     open_df = pd.DataFrame([
-        {"symbol": symbols[j], "entry_date": dates[p["entry_i"]], "entry_price": p["entry_price"],
+        {"symbol": symbols[j], "entry_date": day[p["entry_i"]], "entry_price": p["entry_price"],
          "last_close": last_close[j], "unrealized_return": last_close[j] * (1 - c) / (p["entry_price"] * (1 + c)) - 1.0}
         for j, p in pos.items()
     ], columns=["symbol", "entry_date", "entry_price", "last_close", "unrealized_return"])
@@ -277,8 +305,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     bench = bench / bench.dropna().iloc[0]
     return BacktestResult(
         config=cfg,
-        equity=pd.Series(equity, index=dates, name="strategy"),
-        exposure=pd.Series(exposure, index=dates, name="exposure"),
+        equity=pd.Series(equity, index=dates, name="strategy", dtype=float),
+        exposure=pd.Series(exposure, index=dates, name="exposure", dtype=float),
         benchmark=bench.rename(BENCHMARK),
         trades=trades_df,
         open_positions=open_df,

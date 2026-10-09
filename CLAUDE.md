@@ -52,6 +52,8 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`universe.py` / `etf_meta.py`**: ETF 필터 깔때기(현금성 제외 → 자산군 → AUM → 총보수 → 상관 ≥ 0.98 중복 정리). 각 단계 제외 사유를 기록해 화면에 보여준다.
   ETF 메타데이터(총보수·AUM·Morningstar 분류)는 `lab/etf_meta.csv`(커밋됨)에서 읽는다. 갱신: `.venv/Scripts/python.exe -m lab.etf_meta`.
   분류 → 자산군 매핑은 `asset_class()`의 키워드 목록이다. 새 분류가 '기타'로 빠지면 여기를 고친다.
+- **`families.py`**: 사전 등록된 고정 메뉴(진입 3 × 청산 3, 각 6×6)로 `run_grid`를 9번 돌려 계열을 격자 전체 성적으로 비교한다(DECISIONS 33–34).
+  메뉴 값은 결과를 본 뒤 고치지 않는다. 바꾸려면 `MENU_VERSION`을 올려 새 메뉴로 등록한다.
 - **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).
   앱에서 실행한 백테스트·격자 칸·점검 변형은 모두 여기에 기록된다. 스크립트로 돌린 실험은 기록되지 않는다.
   사용자의 연구 기록이므로 테스트하면서 생긴 항목은 지울 것.
@@ -65,6 +67,8 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`engine.py`**: 신호는 t일 종가로 계산하고 t+1일 시가에 체결. 동일 금액 슬롯(`max_positions`), 리밸런싱 없음, 편도 비용 bp, 신호 초과 시 20일 평균 거래대금 순으로 선택.
   - `SignalCache`가 블록 출력을 `(key, value)`로 재사용한다. 격자 속도의 핵심이다.
   - `RULES_KO`는 화면에 그대로 보여주는 규칙 설명이다. 엔진 동작을 바꾸면 함께 고칠 것.
+  - 일간 루프는 numpy 스칼라 대신 파이썬 리스트를 쓴다(수 배 빠름, 결과는 비트 단위로 동일). 기간(window)별 리스트는 `SignalCache.memo`로 격자 칸끼리 재사용한다.
+    루프를 고치면 고치기 전 결과를 저장해 두고 동일한지 비교할 것.
 - **`metrics.py`**: `DEFINITIONS`가 지표 이름·뜻·계산식의 **단일 출처**다. 화면 툴팁, 결과 표, 용어 설명 페이지가 모두 여기서 읽는다. 지표를 추가하면 계산과 정의를 같이 넣을 것.
 - **`grid.py`**: 1~2개 파라미터 격자(축당 최대 12값) 다음 순서로 판정한다:
   1. Gate (`check_gates`)
@@ -80,6 +84,7 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 
 - 화면을 바꾼 뒤에는 앱을 실제로 띄워 눌러 본 다음 완료라고 말한다. 서버를 띄운 채 `lab/*.py`(app.py 제외)를 고치면 이전 모듈이 남아 있으니 서버를 재시작할 것.
 - Streamlit markdown에서 `~` 두 개는 취소선이 된다. 범위는 `–`로 쓴다.
+- 폭 지정은 `width="stretch"`를 쓴다(`use_container_width`는 지원 종료 예정).
 - `.streamlit/config.toml`: `magicEnabled = false`(단독 표현식이 화면에 출력되는 것 방지), `address = 127.0.0.1`(외부 노출 방지).
 - `.cmd` 런처의 echo 문구는 ASCII로만 쓴다. 한글 echo는 cmd 인코딩 문제로 깨진다(PR #44).
 - 사용자 화면에 내부 구조 용어(StrategyRun, hash 등)를 노출하지 않는다. 모든 지표·옵션에 정의를 붙인다.
