@@ -49,6 +49,15 @@ class StrategyConfig:
     liquidity_days: int = 20
     cash_yield: bool = True
 
+    def __post_init__(self):
+        # numpy numbers (e.g. values read back from a grid table) become plain Python numbers,
+        # so configs serialise to JSON and hash identically however they were built
+        def native(v):
+            return v.item() if hasattr(v, "item") else v
+
+        object.__setattr__(self, "entries", {k: native(v) for k, v in self.entries.items()})
+        object.__setattr__(self, "exits", {k: native(v) for k, v in self.exits.items()})
+
     def with_param(self, key: str, value: float) -> "StrategyConfig":
         if key in self.entries:
             return replace(self, entries={**self.entries, key: value})

@@ -92,6 +92,14 @@ def _momentum(p: Panel, n: float) -> pd.DataFrame:
     return p.close / p.close.shift(int(n)) - 1.0 > 0
 
 
+def _market_trend(p: Panel, n: float) -> pd.DataFrame:
+    from .data import BENCHMARK
+
+    spy = p.close[BENCHMARK]
+    up = (spy > spy.rolling(int(n), min_periods=int(n)).mean()).to_numpy()
+    return pd.DataFrame(np.repeat(up[:, None], p.close.shape[1], axis=1), index=p.close.index, columns=p.close.columns)
+
+
 def _ma_stack(p: Panel, _: float | None) -> pd.DataFrame:
     m20, m60, m120, m200 = (sma(p.close, n) for n in (20, 60, 120, 200))
     return (m20 > m60) & (m60 > m120) & (m120 > m200)
@@ -151,6 +159,10 @@ ENTRY_BLOCKS: dict[str, Block] = {
         Block("momentum", "N일 수익률 플러스", "오늘 종가 / N거래일 전 종가 − 1 > 0",
               "N일 전보다 가격이 높을 때만 진입(시계열 모멘텀).",
               Param("N (거래일)", 126, 21, 252, 21, "거래일", "수익률을 재는 기간 (21거래일 ≈ 1개월)"), _momentum, "가격"),
+        Block("market_trend", "시장 추세 (SPY 이동평균 위)", "SPY 종가 > SPY의 최근 N거래일 SMA",
+              "시장 전체(SPY)가 상승 추세일 때만 새로 매수합니다. 개별 종목 신호와 상관없이 하락장에서 신규 진입을 막는 국면 필터. "
+              "이미 보유한 종목은 청산 조건으로만 팝니다.",
+              Param("N (거래일)", 200, 50, 300, 10, "거래일", "SPY 이동평균 기간"), _market_trend, "가격"),
         Block("ma_stack", "이동평균 정배열", "SMA20 > SMA60 > SMA120 > SMA200",
               "단기부터 장기까지 이동평균이 위에서 아래로 차례대로 놓인 상태. 고정 규칙이라 조정할 파라미터가 없습니다.",
               None, _ma_stack, "가격"),

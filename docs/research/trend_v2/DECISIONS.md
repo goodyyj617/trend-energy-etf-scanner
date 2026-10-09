@@ -56,6 +56,18 @@ All decisions in this section have status `Accepted`.
     median Calmar. Lower-quartile Calmar, median CAGR/MDD and median trade count are shown but do
     not order. Every cell is logged as a trial.
 
+### Confirmation-condition test (2026-10-09)
+
+35. A family is refined by adding ONE entry block at a time at that block's default value
+    (no tuning of the added parameter), rerunning the family's 6x6 grid. A variant is an
+    improvement only if it is a Pareto improvement on the four family ordering metrics.
+36. An added condition is adopted only if it is an improvement on every universe tested
+    (here: ETF snapshot 2017-2023 and long-history multi-asset 2000-2023), and only if the
+    improvement is material (simpler rules preferred, CHARTER principle 8).
+    Finalists for refinement are the families with the lowest sum of family-comparison ranks
+    across universes. Results: `docs/research/lab/2026-10-09_family_comparison_and_refinement.md`.
+37. New block: market trend (SPY close > SPY N-day SMA), a regime filter for new entries.
+
 ## Open decisions
 
 - final trend-filter definition;

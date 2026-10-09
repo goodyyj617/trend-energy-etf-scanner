@@ -276,3 +276,44 @@ def test_family_comparison_summary_and_save(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "RESULTS_DIR", tmp_path)
     path = store.save_family(fc, "t", "test", ["AAA"])
     assert len(store.load_family_summary(path)) == 4 and len(store.load_cells(path)) == 16
+
+
+# --------------------------------------------------------------------------- confirmation-condition test
+
+from lab import refine  # noqa: E402
+
+
+def test_verdict_is_pareto_on_ordering_metrics():
+    base = {"pass_share": 0.2, "largest_region": 5, "beat_ma200": 0.1, "median_calmar": 0.15}
+    assert refine.verdict(base, {**base, "median_calmar": 0.2}) == "improve"
+    assert refine.verdict(base, {**base, "pass_share": 0.1}) == "worse"
+    assert refine.verdict(base, {**base, "pass_share": 0.3, "median_calmar": 0.1}) == "mixed"
+    assert refine.verdict(base, dict(base)) == "same"
+
+
+def test_market_trend_block_follows_spy_only():
+    n = 260
+    spy = list(np.linspace(100, 200, n))  # steadily rising -> SPY above its MA once the MA exists
+    panel, _ = make_panel({"AAA": list(np.linspace(200, 100, n)), "SPY": spy})
+    f = ENTRY_BLOCKS["market_trend"].compute(panel, 200).fillna(False)
+    assert not f.iloc[150].any() and f.iloc[-1].all()  # same value for every symbol, set by SPY alone
+
+
+def test_refinement_runs_every_addon_on_the_family_grid(monkeypatch):
+    monkeypatch.setattr(refine, "ENTRY_MENU", {"breakout": [10, 20]})
+    monkeypatch.setattr(refine, "EXIT_MENU", {"low_break": [5, 10]})
+    monkeypatch.setattr(refine, "addon_candidates", lambda e: ["up_candle", "rsi_min"])
+    panel = _random_panel()
+    seen = []
+    ref = refine.run_refinement(panel, cfg(max_positions=2), "breakout", "low_break", Gates(),
+                                on_result=lambda c, r: seen.append(c))
+    assert len(seen) == 12
+    assert {c.entries.get("rsi_min") for c in seen if "rsi_min" in c.entries} == {55}  # default value only
+    t = ref.table()
+    assert t.iloc[0]["verdict"] == "base" and set(t["addon"]) == {"", "up_candle", "rsi_min"}
+
+
+def test_config_converts_numpy_numbers():
+    c = cfg(entries={"breakout": np.int64(20), "momentum": np.float64(126.0)}, exits={"low_break": np.int64(10)})
+    assert type(c.entries["breakout"]) is int and type(c.exits["low_break"]) is int
+    assert c.fingerprint() == cfg(entries={"breakout": 20, "momentum": 126.0}, exits={"low_break": 10}).fingerprint()
