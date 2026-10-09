@@ -26,7 +26,10 @@ from .data import BENCHMARK, Panel
 RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, 주문은 **t+1일 시가**에 체결합니다 (미래 데이터 사용 없음).
 - 진입: 선택한 진입 조건이 **모두** 참이고, 최소 주가·최소 거래대금 조건을 통과한 종목.
 - 청산: 선택한 청산 조건 중 **하나라도** 참이면 다음 날 시가에 전량 매도.
-- 최대 보유 종목 수만큼 슬롯이 있고, 새 종목에는 min(총자산 ÷ 최대 보유 수, 남은 현금)을 배정합니다. 이후 리밸런싱은 하지 않습니다.
+- 최대 보유 종목 수만큼 슬롯이 있고, 새 종목에는 min(목표 금액, 남은 현금)을 배정합니다. 이후 리밸런싱은 하지 않습니다.
+  - **동일 금액**: 목표 금액 = 총자산 ÷ 최대 보유 수.
+  - **변동성 역가중**: 목표 금액 = (총자산 ÷ 최대 보유 수) × min(유니버스 중앙 변동성 ÷ 그 종목 변동성, 2). 변동성 = 신호일까지 60거래일 일간 수익률의 표준편차.
+    변동성이 낮은 종목은 더 많이(최대 2배), 높은 종목은 적게 사서 종목마다 위험을 비슷하게 맞춥니다.
 - 빈 슬롯보다 신호가 많으면 **평균 거래대금이 큰 종목**부터 매수합니다 (성과와 무관한 유동성 기준).
 - 남는 현금은 **단기국채 ETF(BIL) 수익률**을 받습니다 (BIL 상장 전 2007년 이전은 13주 국채금리 ÷ 252). 끄면 0%.
   현금 대용 ETF를 사고파는 비용은 무시합니다 (호가 차이가 매우 작음).
@@ -34,6 +37,11 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 - 다음 날 시가가 없으면(거래 정지 등) 매도는 다음 거래일로 미루고, 매수는 취소합니다.
 - 가격은 배당·분할 조정 가격(yfinance auto_adjust)이므로 배당 재투자 효과가 포함됩니다. 세금은 반영하지 않습니다.
 """
+
+
+VOL_DAYS = 60  # volatility window for inverse-volatility sizing
+SIZE_CAP = 2.0  # a position is at most twice the equal slot
+SIZING_LABELS = {"equal": "동일 금액", "inverse_vol": "변동성 역가중"}
 
 
 @dataclass(frozen=True)
@@ -48,6 +56,7 @@ class StrategyConfig:
     min_dollar_volume: float = 5_000_000.0
     liquidity_days: int = 20
     cash_yield: bool = True
+    sizing: str = "equal"  # "equal" | "inverse_vol"
 
     def __post_init__(self):
         # numpy numbers (e.g. values read back from a grid table) become plain Python numbers,
@@ -84,10 +93,14 @@ class StrategyConfig:
         def fmt(blocks, chosen):
             return " + ".join(blocks[k].label + ("" if v is None else f"({_num(v)})") for k, v in chosen.items()) or "없음"
 
-        return f"진입: {fmt(ENTRY_BLOCKS, self.entries)} | 청산: {fmt(EXIT_BLOCKS, self.exits)} | 최대 {self.max_positions}종목"
+        size = "" if self.sizing == "equal" else f" | {SIZING_LABELS[self.sizing]}"
+        return f"진입: {fmt(ENTRY_BLOCKS, self.entries)} | 청산: {fmt(EXIT_BLOCKS, self.exits)} | 최대 {self.max_positions}종목{size}"
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        if d["sizing"] == "equal":  # fields added later are omitted at their default: earlier keys stay valid
+            del d["sizing"]
+        return d
 
     @staticmethod
     def from_dict(d: dict) -> "StrategyConfig":
@@ -96,6 +109,11 @@ class StrategyConfig:
 
     def fingerprint(self) -> str:
         return hashlib.sha1(json.dumps(self.to_dict(), sort_keys=True).encode()).hexdigest()[:10]
+
+    def strategy_fingerprint(self) -> str:
+        """Identity of the rules alone (dates excluded): the same strategy on another period matches."""
+        d = {k: v for k, v in self.to_dict().items() if k not in ("start", "end")}
+        return hashlib.sha1(json.dumps(d, sort_keys=True).encode()).hexdigest()[:10]
 
 
 def _num(v: float) -> str:
@@ -140,6 +158,14 @@ class SignalCache:
             block = ALL_BLOCKS[key]
             self._frames[k] = block.compute(self.panel, value).fillna(False).astype(bool)
         return self._frames[k]
+
+    def vol_rows(self, dates: pd.DatetimeIndex) -> tuple[list, list]:
+        """60-day volatility of each symbol and its cross-sectional median over the tradable universe."""
+        rets = self.panel.close.pct_change(fill_method=None)
+        vol = rets.rolling(VOL_DAYS, min_periods=VOL_DAYS).std()
+        tradable = vol[self.panel.tradable_symbols]
+        ref = tradable.median(axis=1, skipna=True)
+        return vol.loc[dates].to_numpy(dtype=float).tolist(), ref.loc[dates].to_numpy(dtype=float).tolist()
 
     def dollar_volume(self, days: int) -> pd.DataFrame:
         if days not in self._dv:
@@ -202,6 +228,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                     lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float).tolist())
     C = cache.memo(("close", w), lambda: panel.close.loc[dates].to_numpy(dtype=float).tolist())
     rank = cache.memo(("rank", w, liq), lambda: np.nan_to_num(dv.loc[dates].to_numpy(dtype=float), nan=-1.0).tolist())
+    inv_vol = cfg.sizing == "inverse_vol"
+    if inv_vol:
+        V, VREF = cache.memo(("vol", w), lambda: cache.vol_rows(dates))
     tradable = panel.close.columns.isin(panel.tradable_symbols)
     cash_r = (panel.cash.reindex(dates).fillna(0.0).to_numpy().tolist() if (cfg.cash_yield and panel.cash is not None)
               else [0.0] * len(dates))
@@ -212,6 +241,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     stop_mult = None if stop is None else 1 - stop / 100.0
     exit_keys = list(cfg.exits)
 
+    nan_ = float("nan")
     n = len(dates)
     day = list(dates)  # plain list: indexing a DatetimeIndex one item at a time is slow
     cash = 1.0
@@ -245,13 +275,18 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
             del pending_exit[j]
         if pending_entry:
             held_value = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
-            target = (cash + held_value) / K
+            slot = (cash + held_value) / K
             for j in pending_entry:
                 if len(pos) >= K or cash <= 1e-9:
                     break
                 px = Oi[j]
                 if px != px or px <= 0:
                     continue
+                target = slot
+                if inv_vol:  # signal day = previous session
+                    v, ref = V[i - 1][j] if i else nan_, VREF[i - 1] if i else nan_
+                    if v == v and v > 0 and ref == ref:
+                        target = slot * min(ref / v, SIZE_CAP)
                 alloc = min(target, cash)
                 pos[j] = {"shares": alloc / (px * (1 + c)), "entry_price": px, "entry_i": i, "peak": px}
                 cash -= alloc

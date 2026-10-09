@@ -23,7 +23,9 @@ from lab.families import (  # noqa: E402
     ENTRY_MENU, EXIT_MENU, MENU_VERSION, SUMMARY_TEXT, cell_count, run_family_comparison,
 )
 from lab.refine import VERDICT_TEXT, addon_candidates, addon_value, family_label, run_refinement  # noqa: E402
-from lab.engine import BASELINE_HELP, BASELINE_LABELS, RULES_KO, StrategyConfig, baselines, run_backtest  # noqa: E402
+from lab.engine import (  # noqa: E402
+    BASELINE_HELP, BASELINE_LABELS, RULES_KO, SIZING_LABELS, StrategyConfig, baselines, run_backtest,
+)
 from lab.grid import (  # noqa: E402
     CHECK_TEXT, GATE_TEXT, MAX_AXIS_VALUES, ROBUST_TEXT, Gates, axis_values, check_gates, run_grid, strategy_checklist,
 )
@@ -300,7 +302,14 @@ def strategy_section() -> StrategyConfig | None:
                              help="신호일까지 N거래일 평균 (종가 × 거래량)이 이보다 작으면 매수하지 않습니다. "
                                   "그날까지의 데이터만 쓰므로 미래 정보가 섞이지 않습니다.")
     liq = c5.selectbox("거래대금 평균 기간", [20, 60], key=init("liq_days", 20), format_func=lambda d: f"{d}거래일")
-    cash = st.checkbox("남는 현금에 단기국채 수익률 적용 (BIL, 2007년 이전은 13주 국채금리)", key=init("cash_yield", True),
+    c1, c2 = st.columns([1, 2])
+    sizing = c1.selectbox(
+        "포지션 크기", list(SIZING_LABELS), format_func=SIZING_LABELS.get, key=init("sizing", "inverse_vol"),
+        help="동일 금액: 새 종목마다 총자산 ÷ 최대 보유 수.\n\n"
+             "변동성 역가중: 새 종목마다 (총자산 ÷ 최대 보유 수) × min(유니버스 중앙 변동성 ÷ 그 종목 변동성, 2). "
+             "변동성 = 신호일까지 60거래일 일간 수익률의 표준편차. 잔잔한 종목은 더 많이(최대 2배), 출렁이는 종목은 적게 사서 "
+             "종목마다 위험을 비슷하게 맞춥니다. 진입 후 비중은 다시 맞추지 않습니다.")
+    cash = c2.checkbox("남는 현금에 단기국채 수익률 적용 (BIL, 2007년 이전은 13주 국채금리)", key=init("cash_yield", True),
                        help="추세추종은 하락장에서 현금으로 피하는 것이 핵심이라, 현금 수익률 0%는 전략을 부당하게 불리하게 만듭니다. "
                             "실제로는 SGOV·BIL 같은 단기국채 ETF나 증권사 달러 예수금 이자로 비슷한 수익을 얻을 수 있습니다.")
     if not entries or not exits:
@@ -309,7 +318,7 @@ def strategy_section() -> StrategyConfig | None:
     return StrategyConfig(entries=entries, exits=exits, start=str(st.session_state["start"]),
                           end=str(st.session_state["end"]), max_positions=int(k), cost_bps=float(cost),
                           min_price=float(min_price), min_dollar_volume=float(min_dv) * 1e6,
-                          liquidity_days=int(liq), cash_yield=bool(cash))
+                          liquidity_days=int(liq), cash_yield=bool(cash), sizing=str(sizing))
 
 
 # =========================================================================== backtest view
@@ -433,7 +442,8 @@ def show_backtest(bt: dict) -> None:
     res, base, panel = bt["res"], bt["base"], bt["panel"]
     m = all_metrics(res)
     n_trials, sr_var = rlog.trial_stats()
-    dsr = deflated_sharpe(res.equity, n_trials, sr_var)
+    n_eff, rho, _ = rlog.effective_trials()
+    dsr = deflated_sharpe(res.equity, max(1, int(round(n_eff))), sr_var)
     m["dsr"] = dsr
     s, e = res.period
     st.info(f"**백테스트 기간 {s.date()} → {e.date()}** ({len(res.equity):,} 거래일) · 거래 대상 {res.universe_size}종목 · "
@@ -445,7 +455,8 @@ def show_backtest(bt: dict) -> None:
     st.markdown("#### 핵심 성과")
     kpi_row(m, ["total_return", "cagr", "mdd", "sharpe"])
     kpi_row(m, ["calmar", "sortino", "worst_12m", "dsr"])
-    st.caption(f"DSR 계산에 쓴 시험 횟수 N = {n_trials} (왼쪽 아래 표시 참고)")
+    st.caption(f"DSR 계산: 시험 횟수 N = {n_trials:,} · 시험끼리의 평균 상관 ρ = {rho:.2f} → 유효 시험 수 "
+               f"N_eff = ρ + (1−ρ)·N ≈ {n_eff:,.0f} (비슷한 시험을 중복으로 세지 않도록 보정)")
 
     st.markdown("#### 기준선과 비교")
     scorecard(res, base)
@@ -958,7 +969,9 @@ def holdout_page() -> None:
             st.warning("이 결과는 이전 버전에서 저장되어 유니버스 정보가 없습니다. 같은 전략을 다시 실행해 저장하세요.")
         else:
             cfg0 = StrategyConfig.from_dict(meta["config"])
-            prior = [e for e in hold["evaluations"] if e["fingerprint"] == cfg0.fingerprint()]
+            sf = cfg0.strategy_fingerprint()
+            prior = [e for e in hold["evaluations"]  # older records have no strategy fingerprint: match the rule text
+                     if e.get("strategy_fingerprint", sf if e["description"] == cfg0.describe() else None) == sf]
             if prior:
                 st.warning(f"이 전략은 이미 보류 구간에서 {len(prior)}번 평가했습니다 (마지막 {prior[-1]['time']}). "
                            "다시 평가해도 새로운 정보는 없습니다.")
@@ -992,10 +1005,14 @@ def holdout_page() -> None:
                     {"지표": "SPY CAGR", "연구 기간": fmt_value("cagr", ins.get("spy_cagr")), "보류 구간": fmt_value("cagr", m["spy_cagr"])},
                     {"지표": "SPY MDD", "연구 기간": fmt_value("mdd", ins.get("spy_mdd")), "보류 구간": fmt_value("mdd", m["spy_mdd"])},
                 ]), hide_index=True, width="stretch")
-                failed = check_gates(m, gates_now())
-                st.markdown(("✅ 보류 구간에서도 Gate 통과" if not failed else "❌ 보류 구간 Gate 미달: " + ", ".join(failed))
-                            + f"  \n<small>보류 구간이 {len(res.equity) / 252:.1f}년으로 짧아 우연의 영향이 큽니다. "
-                              "통과/미달 하나로 결론 내리지 말고 연구 기간과의 차이를 보세요.</small>", unsafe_allow_html=True)
+                # holdout verdict: return and drawdown gates only; the trade count of a short window says how
+                # reliable the result is, not how good it is
+                g = gates_now()
+                failed = check_gates(m, Gates(g.min_cagr_ratio, g.max_mdd_ratio, 0))
+                st.markdown(("✅ 보류 구간에서도 수익·낙폭 Gate 통과" if not failed else "❌ 보류 구간 Gate 미달: " + ", ".join(failed))
+                            + f"  \n<small>완료 거래 {int(m['n_trades'])}건 · 보류 구간이 {len(res.equity) / 252:.1f}년으로 짧아 "
+                              "우연의 영향이 큽니다. 통과/미달 하나로 결론 내리지 말고 연구 기간과의 차이를 보세요.</small>",
+                            unsafe_allow_html=True)
                 st.plotly_chart(equity_chart(res, base, False), width="stretch")
 
     if hold["evaluations"]:
@@ -1142,17 +1159,18 @@ def glossary_page() -> None:
 
 def sidebar_status() -> None:
     n, _ = rlog.trial_stats()
+    n_eff = rlog.effective_trials()[0]
     hold = rlog.load_holdout()
     with st.sidebar:
         st.caption(BR.join([
-            f"🧪 지금까지 시험한 전략: **{n}개**",
-            "<small>같은 설정의 재실행은 세지 않음 · DSR에 반영</small>",
+            f"🧪 지금까지 시험한 전략: **{n:,}개** (유효 ≈ {n_eff:,.0f})",
+            "<small>같은 설정의 재실행은 세지 않음 · 서로 비슷한 시험은 유효 개수로 보정해 DSR에 반영</small>",
             f"🔒 보류 구간: **{hold['start'] + ' 이후' if hold['enabled'] else '꺼짐'}** · 평가 {len(hold['evaluations'])}회",
         ]), unsafe_allow_html=True)
 
 
 PERSIST_PREFIXES = ("entry_", "exit_", "max_positions", "cost_bps", "min_price", "min_dv", "liq_days", "cash_yield",
-                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_")
+                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_", "sizing")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES):
         st.session_state[_k] = st.session_state[_k]  # keeps settings when visiting another page

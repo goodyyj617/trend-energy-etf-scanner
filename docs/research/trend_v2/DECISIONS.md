@@ -68,6 +68,25 @@ All decisions in this section have status `Accepted`.
     across universes. Results: `docs/research/lab/2026-10-09_family_comparison_and_refinement.md`.
 37. New block: market trend (SPY close > SPY N-day SMA), a regime filter for new entries.
 
+### Holdout, criteria review, sizing (2026-10-10)
+
+38. F1 (120d breakout + 126d momentum / 80d low exit, equal sizing, long-history universe)
+    was evaluated once on the holdout (2024-01-02 - 2026-10-08) under the unchanged criteria and
+    failed (return 0.71 x SPY, drawdown 0.82 x SPY). F1 is not adopted.
+39. The return gate (CAGR >= 0.80 x SPY CAGR) is retained by user decision.
+40. Checklist "halves" v2: in each half of the research period, strategy Calmar >= SPY Calmar.
+    v1 (full gate in each half) passed 0 of 49 gate-passing cells and re-imposed the
+    full-period return requirement on bull-only halves.
+41. DSR uses the effective number of trials N_eff = rho + (1 - rho) * N, where rho is the mean
+    pairwise correlation of the trials' monthly returns (pairs with >= 24 overlapping months).
+    Monthly trial returns are stored in lab_results/trial_returns.pkl. Threshold 0.95 unchanged.
+42. The holdout verdict uses the return and drawdown gates only; the trade count of a short
+    holdout is shown as reliability information.
+43. Inverse-volatility sizing (target = equity / K x min(median vol / own vol, 2), 60-day vol)
+    met its pre-declared adoption rule (Pareto improvement for >= 5 of 9 families in both
+    universes: 7 and 6) and is the app's default sizing; equal sizing remains selectable.
+    Record: docs/research/lab/2026-10-10_holdout_criteria_sizing.md.
+
 ## Open decisions
 
 - final trend-filter definition;
