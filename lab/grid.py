@@ -53,6 +53,15 @@ ROBUST_TEXT = {
 }
 
 
+def _cagr_mdd(values: np.ndarray) -> tuple[float, float]:
+    """CAGR and MDD only (fast path for LOYO and half-period checks; same formulas as curve_metrics)."""
+    v = values[~np.isnan(values)]
+    if len(v) < 2 or v[0] <= 0:
+        return float("nan"), float("nan")
+    cagr = (v[-1] / v[0]) ** (252 / (len(v) - 1)) - 1.0 if v[-1] > 0 else -1.0
+    return float(cagr), float((v / np.maximum.accumulate(v) - 1.0).min())
+
+
 def _return_gate(strat_cagr: float, bench_cagr: float, g: Gates) -> bool:
     if bench_cagr > 0:
         return strat_cagr >= g.min_cagr_ratio * bench_cagr
@@ -80,9 +89,9 @@ def loyo(equity: pd.Series, bench: pd.Series, g: Gates) -> tuple[float, list[int
     failed = []
     for y in years:
         keep = equity.index.year != y
-        s = curve_metrics((1 + r_s[keep]).cumprod())
-        b = curve_metrics((1 + r_b[keep]).cumprod())
-        ok = _return_gate(s["cagr"], b["cagr"], g) and abs(s["mdd"]) <= g.max_mdd_ratio * abs(b["mdd"])
+        s_cagr, s_mdd = _cagr_mdd(np.cumprod(1 + r_s.to_numpy()[keep]))
+        b_cagr, b_mdd = _cagr_mdd(np.cumprod(1 + r_b.to_numpy()[keep]))
+        ok = _return_gate(s_cagr, b_cagr, g) and abs(s_mdd) <= g.max_mdd_ratio * abs(b_mdd)
         if not ok:
             failed.append(int(y))
     return 1 - len(failed) / len(years), failed
@@ -121,15 +130,16 @@ class GridResult:
 
 def run_grid(panel: Panel, base: StrategyConfig, x_key: str, x_values: list[float],
              y_key: str | None, y_values: list[float] | None, gates: Gates, progress=None,
-             on_result=None) -> GridResult:
-    """on_result(cfg, result) is called for every cell (the app uses it to log trials)."""
+             on_result=None, cache: SignalCache | None = None) -> GridResult:
+    """on_result(cfg, result) is called for every cell (the app uses it to log trials).
+    Pass `cache` to share indicator frames across several grids on the same panel."""
     if y_key == x_key:
         raise ValueError("X축과 Y축에는 서로 다른 파라미터를 고르세요.")
     y_values = y_values if y_key else [None]
     if len(x_values) > MAX_AXIS_VALUES or len(y_values) > MAX_AXIS_VALUES:
         raise ValueError(f"축마다 값은 최대 {MAX_AXIS_VALUES}개입니다.")
     t0 = time.time()
-    cache = SignalCache(panel)
+    cache = cache or SignalCache(panel)
     rows = []
     total = len(x_values) * len(y_values)
     for yi, y in enumerate(y_values):
@@ -208,8 +218,9 @@ CHECK_TEXT = {
 
 
 def _half_ok(eq: pd.Series, bench: pd.Series, g: Gates) -> bool:
-    s, b = curve_metrics(eq / eq.iloc[0]), curve_metrics(bench / bench.iloc[0])
-    return _return_gate(s["cagr"], b["cagr"], g) and abs(s["mdd"]) <= g.max_mdd_ratio * abs(b["mdd"])
+    s_cagr, s_mdd = _cagr_mdd(eq.to_numpy(dtype=float))
+    b_cagr, b_mdd = _cagr_mdd(bench.to_numpy(dtype=float))
+    return _return_gate(s_cagr, b_cagr, g) and abs(s_mdd) <= g.max_mdd_ratio * abs(b_mdd)
 
 
 def strategy_checklist(panel: Panel, cfg: StrategyConfig, gates: Gates, result, spy200: pd.Series,
