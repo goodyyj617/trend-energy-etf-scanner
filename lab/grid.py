@@ -73,7 +73,7 @@ def check_gates(m: dict, g: Gates) -> list[str]:
 
 def loyo(equity: pd.Series, bench: pd.Series, g: Gates) -> tuple[float, list[int]]:
     """Leave-one-year-out check of the return and drawdown gates."""
-    r_s, r_b = equity.pct_change().fillna(0.0), bench.pct_change().fillna(0.0)
+    r_s, r_b = equity.pct_change(fill_method=None).fillna(0.0), bench.pct_change(fill_method=None).fillna(0.0)
     years = sorted(set(equity.index.year))
     if len(years) < 2:
         return np.nan, []

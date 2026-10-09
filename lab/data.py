@@ -97,7 +97,7 @@ def cash_from_closes(index: pd.DatetimeIndex, bil_close: pd.Series | None, irx_c
         out = (irx_close.reindex(index).ffill().fillna(0.0) / 100.0 / 252.0).rename(None)
     if bil_close is not None and len(bil_close):
         bil = bil_close.reindex(index).ffill()
-        r = bil.pct_change()
+        r = bil.pct_change(fill_method=None)
         has = bil.shift(1).notna() & r.notna()
         out = out.where(~has, r)
     return out.fillna(0.0)

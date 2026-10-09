@@ -116,7 +116,7 @@ def _longest_underwater(equity: pd.Series) -> int:
 
 def curve_metrics(equity: pd.Series) -> dict[str, float]:
     equity = equity.dropna()
-    rets = equity.pct_change().dropna()
+    rets = equity.pct_change(fill_method=None).dropna()
     days = max(len(equity) - 1, 1)
     total = equity.iloc[-1] / equity.iloc[0] - 1.0
     cagr = (equity.iloc[-1] / equity.iloc[0]) ** (TRADING_DAYS / days) - 1.0 if equity.iloc[-1] > 0 else -1.0
@@ -125,7 +125,7 @@ def curve_metrics(equity: pd.Series) -> dict[str, float]:
     downside = np.sqrt((rets.clip(upper=0) ** 2).mean())
     mdd = drawdown(equity).min()
     roll = equity / equity.shift(TRADING_DAYS) - 1.0
-    monthly = equity.resample("ME").last().pct_change().dropna()
+    monthly = equity.resample("ME").last().pct_change(fill_method=None).dropna()
     return {
         "total_return": total,
         "cagr": cagr,
@@ -142,7 +142,7 @@ def curve_metrics(equity: pd.Series) -> dict[str, float]:
 
 def daily_sharpe(equity: pd.Series) -> float:
     """Non-annualised Sharpe of daily returns (the unit the DSR formula uses)."""
-    r = equity.dropna().pct_change().dropna()
+    r = equity.dropna().pct_change(fill_method=None).dropna()
     return float(r.mean() / r.std()) if len(r) > 1 and r.std() > 0 else float("nan")
 
 
@@ -154,7 +154,7 @@ def deflated_sharpe(equity: pd.Series, n_trials: int, sr_variance: float) -> flo
     """
     from statistics import NormalDist
 
-    r = equity.dropna().pct_change().dropna()
+    r = equity.dropna().pct_change(fill_method=None).dropna()
     T = len(r)
     if T < 30 or r.std() == 0:
         return float("nan")
