@@ -1,5 +1,10 @@
 # Repository Instructions
 
+> **2026-10-08:** The primary product is now the research lab in `lab/`. For lab
+> work, `CLAUDE.md` and `DECISIONS.md` items 19-25 take precedence over the
+> Trend Strategy v2 principles below (two-parameter grids are allowed, and
+> trade-level metrics are shown as secondary evidence).
+
 ## Scope
 
 These instructions apply to the entire repository.

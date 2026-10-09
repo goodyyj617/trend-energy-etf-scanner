@@ -1,5 +1,8 @@
 # Trend Energy ETF Scanner Starter
 
+> **추세추종 전략 연구실 (백테스트·강건성 도구):** `추세추종 연구실 시작.cmd`를 실행하세요. 사용법은 [lab/README.md](lab/README.md).
+> 아래 내용은 매일 자동으로 도는 ETF 스캐너(GitHub Pages)에 대한 설명입니다.
+
 Static ETF scanner built with:
 
 - GitHub Actions for scheduled calculation

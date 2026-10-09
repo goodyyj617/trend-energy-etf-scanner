@@ -23,6 +23,16 @@ All decisions in this section have status `Accepted`.
 17. Every acronym and metric must have a dedicated explanation with formulas, variable definitions, numerical examples, interpretation, assumptions, and limitations.
 18. Strategy runs, evaluation profiles, and evaluation runs must be versioned, hashed, and preserved in history to expose threshold or weight changes made after observing results.
 
+### Research lab decisions (2026-10-08)
+
+19. Build a new single-screen research lab (`lab/`, Streamlit) instead of extending the Foundation UI. The Foundation code is preserved but no longer the primary product path.
+20. Portfolio-level metrics compared with SPY on the same dates are primary. Trade-level metrics (t-statistic of mean trade return, Profit Factor, win rate, median trade return) are shown as secondary evidence of a per-trade statistical edge.
+21. Supersedes the Cartesian-product prohibition in decision 8 for the lab: a two-dimensional parameter grid (normally one signal parameter x one exit parameter, at most 12 values per axis) is allowed for robustness analysis. Unrestricted multi-dimensional search remains prohibited.
+22. Strategy blocks start from price and volume with minimal derived indicators (moving average, prior N-day high/low, average volume), one numeric parameter per block. Finer refinement comes later.
+23. ETFs first; individual stocks are allowed through the yfinance path, with an explicit survivorship-bias warning.
+24. Lab robustness uses no weighted score: pass/fail gates, neighbor survival, connected passing regions, leave-one-year-out re-checks, then lexicographic ordering (region size, neighbor survival, LOYO pass share, Calmar).
+25. Default lab gates come from CHARTER.md: CAGR >= 0.80 x SPY CAGR, |MDD| <= 0.75 x |SPY MDD|, at least 30 completed trades. Gates are not lowered automatically when no candidate passes.
+
 ## Open decisions
 
 - final trend-filter definition;
