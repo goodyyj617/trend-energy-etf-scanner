@@ -28,12 +28,14 @@ def _write_meta(path: Path, meta: dict) -> None:
     (path / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 
 
-def save_backtest(result, metrics: dict, name: str, data_source: str) -> Path:
+def save_backtest(result, metrics: dict, name: str, panel) -> Path:
+    """`panel` supplies what is needed to rebuild the run later (holdout evaluation)."""
     path = _folder("backtest", name)
     start, end = result.period
     _write_meta(path, {
         "kind": "backtest", "name": name, "saved_at": datetime.now().isoformat(timespec="seconds"),
-        "data_source": data_source, "universe_size": result.universe_size,
+        "data_source": panel.source, "data_kind": panel.kind, "universe": panel.tradable_symbols,
+        "universe_size": result.universe_size,
         "period": [str(start.date()), str(end.date())],
         "config": result.config.to_dict(), "description": result.config.describe(), "metrics": metrics,
     })

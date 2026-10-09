@@ -37,6 +37,12 @@ DEFINITIONS: dict[str, Definition] = {
                       "min_t ( 자산_t / max_{s≤t} 자산_s − 1 )", "pct", "high", "포트폴리오"),
     "calmar": Definition("칼마 비율 (Calmar)", "최대 낙폭 한 단위당 연수익.",
                          "CAGR / |MDD|", "ratio", "high", "포트폴리오"),
+    "sortino": Definition("소르티노 비율 (Sortino)", "하락 변동성 한 단위당 수익. 오르는 변동성은 벌점으로 치지 않음.",
+                          "mean(일간 수익률) / √mean(min(일간 수익률, 0)²) × √252", "ratio", "high", "포트폴리오"),
+    "worst_12m": Definition("최악의 12개월 수익률", "기간 중 어느 시점에 시작했든 1년(252거래일) 동안 겪은 가장 나쁜 수익률.",
+                            "min_t ( 자산_t / 자산_{t−252} − 1 )", "pct", "high", "포트폴리오"),
+    "month_win": Definition("월간 승률", "수익이 플러스였던 달의 비율.",
+                            "count(월 수익률 > 0) / 전체 월 수", "pct", "high", "포트폴리오"),
     "underwater_days": Definition("최장 회복 기간", "직전 최고점을 회복하지 못한 채 머문 가장 긴 기간.",
                                   "자산 < 직전 최고점 인 연속 거래일 수의 최댓값", "days", "low", "포트폴리오"),
     "exposure": Definition("평균 투자 비중", "자산 중 주식/ETF에 투자된 비율의 평균. 나머지는 현금.",
@@ -68,6 +74,15 @@ DEFINITIONS: dict[str, Definition] = {
                            "mean(청산일 − 진입일, 거래일)", "days", "", "거래"),
     "trades_per_year": Definition("연간 거래 수", "1년당 평균 완료 거래 수. 비용 부담의 대략적 척도.",
                                   "완료 거래 수 / (거래일 수 / 252)", "num", "", "거래"),
+    # ---- overfitting control
+    "dsr": Definition("DSR (과최적화 보정)",
+                      "지금까지 시험한 전략 수(N)를 감안해도 이 전략의 진짜 샤프 비율이 0보다 클 확률 (Deflated Sharpe Ratio, "
+                      "Bailey & López de Prado 2014). 많이 시험할수록 '운 좋은 최고치'의 기준선 SR₀가 올라가 확률이 낮아집니다. "
+                      "0.95 이상이면 관례적으로 유의. 비슷한 전략(격자 이웃)을 여러 번 센 경우 N이 과대 → 보수적으로 나옵니다.",
+                      "Φ( (SR − SR₀)·√(T−1) / √(1 − γ₃·SR + (γ₄−1)/4·SR²) ),  "
+                      "SR₀ = √V·[(1−γ)·Φ⁻¹(1−1/N) + γ·Φ⁻¹(1−1/(N·e))],  "
+                      "SR=일간 샤프, T=일수, γ₃·γ₄=일간 수익률 왜도·첨도, V=시험한 전략들의 일간 샤프 분산, γ≈0.5772",
+                      "pct", "high", "과최적화"),
 }
 
 
@@ -107,16 +122,55 @@ def curve_metrics(equity: pd.Series) -> dict[str, float]:
     cagr = (equity.iloc[-1] / equity.iloc[0]) ** (TRADING_DAYS / days) - 1.0 if equity.iloc[-1] > 0 else -1.0
     vol = rets.std() * np.sqrt(TRADING_DAYS)
     sharpe = rets.mean() / rets.std() * np.sqrt(TRADING_DAYS) if rets.std() > 0 else np.nan
+    downside = np.sqrt((rets.clip(upper=0) ** 2).mean())
     mdd = drawdown(equity).min()
+    roll = equity / equity.shift(TRADING_DAYS) - 1.0
+    monthly = equity.resample("ME").last().pct_change().dropna()
     return {
         "total_return": total,
         "cagr": cagr,
         "volatility": vol,
         "sharpe": sharpe,
+        "sortino": rets.mean() / downside * np.sqrt(TRADING_DAYS) if downside > 0 else np.nan,
         "mdd": mdd,
         "calmar": cagr / abs(mdd) if mdd < 0 else np.nan,
+        "worst_12m": roll.min() if roll.notna().any() else np.nan,
+        "month_win": (monthly > 0).mean() if len(monthly) else np.nan,
         "underwater_days": float(_longest_underwater(equity)),
     }
+
+
+def daily_sharpe(equity: pd.Series) -> float:
+    """Non-annualised Sharpe of daily returns (the unit the DSR formula uses)."""
+    r = equity.dropna().pct_change().dropna()
+    return float(r.mean() / r.std()) if len(r) > 1 and r.std() > 0 else float("nan")
+
+
+def deflated_sharpe(equity: pd.Series, n_trials: int, sr_variance: float) -> float:
+    """Probability that the true Sharpe is > 0 after selecting the best of n_trials (DSR).
+
+    With n_trials <= 1 or no variance information this is the Probabilistic Sharpe Ratio
+    against zero.
+    """
+    from statistics import NormalDist
+
+    r = equity.dropna().pct_change().dropna()
+    T = len(r)
+    if T < 30 or r.std() == 0:
+        return float("nan")
+    sr = r.mean() / r.std()
+    g3 = float(((r - r.mean()) ** 3).mean() / r.std(ddof=0) ** 3)
+    g4 = float(((r - r.mean()) ** 4).mean() / r.std(ddof=0) ** 4)
+    nd = NormalDist()
+    sr0 = 0.0
+    if n_trials > 1 and sr_variance > 0:
+        gamma = 0.5772156649
+        sr0 = np.sqrt(sr_variance) * ((1 - gamma) * nd.inv_cdf(1 - 1 / n_trials)
+                                      + gamma * nd.inv_cdf(1 - 1 / (n_trials * np.e)))
+    denom = 1 - g3 * sr + (g4 - 1) / 4 * sr ** 2
+    if denom <= 0:
+        return float("nan")
+    return float(nd.cdf((sr - sr0) * np.sqrt(T - 1) / np.sqrt(denom)))
 
 
 def relative_metrics(strat: dict, bench: dict) -> dict[str, float]:
