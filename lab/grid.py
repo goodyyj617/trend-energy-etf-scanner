@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 from .data import Panel
+from .blocks import ALL_BLOCKS
 from .engine import SignalCache, StrategyConfig, run_backtest
 from .metrics import all_metrics, curve_metrics
 
@@ -72,7 +73,7 @@ def check_gates(m: dict, g: Gates) -> list[str]:
 
 def loyo(equity: pd.Series, bench: pd.Series, g: Gates) -> tuple[float, list[int]]:
     """Leave-one-year-out check of the return and drawdown gates."""
-    r_s, r_b = equity.pct_change().fillna(0.0), bench.pct_change().fillna(0.0)
+    r_s, r_b = equity.pct_change(fill_method=None).fillna(0.0), bench.pct_change(fill_method=None).fillna(0.0)
     years = sorted(set(equity.index.year))
     if len(years) < 2:
         return np.nan, []
@@ -119,7 +120,9 @@ class GridResult:
 
 
 def run_grid(panel: Panel, base: StrategyConfig, x_key: str, x_values: list[float],
-             y_key: str | None, y_values: list[float] | None, gates: Gates, progress=None) -> GridResult:
+             y_key: str | None, y_values: list[float] | None, gates: Gates, progress=None,
+             on_result=None) -> GridResult:
+    """on_result(cfg, result) is called for every cell (the app uses it to log trials)."""
     if y_key == x_key:
         raise ValueError("X축과 Y축에는 서로 다른 파라미터를 고르세요.")
     y_values = y_values if y_key else [None]
@@ -135,6 +138,8 @@ def run_grid(panel: Panel, base: StrategyConfig, x_key: str, x_values: list[floa
             if y_key:
                 cfg = cfg.with_param(y_key, y)
             res = run_backtest(panel, cfg, cache)
+            if on_result:
+                on_result(cfg, res)
             m = all_metrics(res)
             failed = check_gates(m, gates)
             lr, lf = loyo(res.equity, res.benchmark, gates) if not failed else (np.nan, [])
@@ -185,3 +190,85 @@ def axis_values(start: float, stop: float, step: float) -> list[float]:
         raise ValueError("시작 ≤ 끝, 간격 > 0 이어야 합니다.")
     vals = np.arange(start, stop + step / 2, step)
     return [float(round(v, 6)) for v in vals]
+
+
+# --------------------------------------------------------------------------- single-strategy checklist
+
+CHECK_TEXT = {
+    "gate": ("기본 Gate", "연구 기간 전체에서 최소 통과 조건(수익 유지·낙폭 축소·최소 거래 수)을 모두 만족."),
+    "neighbors": ("주변 파라미터", "각 파라미터를 한 단계씩 위아래로 바꾼 전략 중 과반(> 50%)이 Gate를 통과. "
+                  "과반이면 '그 숫자에서만 우연히 좋은' 고립점이 아니라는 뜻. 파라미터가 없으면 해당 없음."),
+    "cost": ("거래 비용 2배", "편도 비용을 2배로 올려도 Gate를 통과. 실제 체결이 생각보다 나빠도 버티는지."),
+    "loyo": ("어떤 한 해에도 의존하지 않음 (LOYO)", "한 해씩 빼고 다시 판정해도 수익·낙폭 Gate를 모든 경우 통과."),
+    "halves": ("전반부·후반부 모두 통과", "연구 기간을 반으로 나눠 각각 SPY 대비 수익·낙폭 Gate를 통과. 시기에 따라 성과가 뒤집히지 않는지."),
+    "simple": ("단순 기준선보다 나음", "칼마 비율(수익 ÷ 최대 낙폭)이 'SPY 200일선' 전략보다 높음. "
+               "규칙이 하나뿐인 전략보다 못하면 복잡하게 만들 이유가 없음."),
+    "dsr": ("과최적화 보정 (DSR ≥ 0.95)", "지금까지 시험한 전략 수를 감안해도 샤프 비율이 0보다 클 확률이 95% 이상."),
+}
+
+
+def _half_ok(eq: pd.Series, bench: pd.Series, g: Gates) -> bool:
+    s, b = curve_metrics(eq / eq.iloc[0]), curve_metrics(bench / bench.iloc[0])
+    return _return_gate(s["cagr"], b["cagr"], g) and abs(s["mdd"]) <= g.max_mdd_ratio * abs(b["mdd"])
+
+
+def strategy_checklist(panel: Panel, cfg: StrategyConfig, gates: Gates, result, spy200: pd.Series,
+                       dsr: float, on_result=None) -> list[dict]:
+    """Pass/fail checks for one strategy. Returns [{key, label, passed (True/False/None), detail}]."""
+    cache = SignalCache(panel)
+    m = all_metrics(result)
+    out = []
+
+    def add(key, passed, detail):
+        out.append({"key": key, "label": CHECK_TEXT[key][0], "passed": passed, "detail": detail})
+
+    failed = check_gates(m, gates)
+    add("gate", not failed, "모두 통과" if not failed else "미달: " + ", ".join(failed))
+
+    tried, passed, calmars = 0, 0, []
+    for key in cfg.tunable():
+        p = ALL_BLOCKS[key].param
+        for delta in (-p.step, p.step):
+            v = round(cfg.param_value(key) + delta, 6)
+            if not (p.minimum <= v <= p.maximum):
+                continue
+            ncfg = cfg.with_param(key, v)
+            res = run_backtest(panel, ncfg, cache)
+            if on_result:
+                on_result(ncfg, res)
+            nm = all_metrics(res)
+            tried += 1
+            passed += not check_gates(nm, gates)
+            calmars.append(nm["calmar"])
+    if tried:
+        add("neighbors", passed / tried > 0.5,
+            f"{tried}개 중 {passed}개 통과 · 칼마 {np.nanmin(calmars):.2f} – {np.nanmax(calmars):.2f} (기준 {m['calmar']:.2f})")
+    else:
+        add("neighbors", None, "조정할 파라미터가 없음 (고정 규칙만 사용)")
+
+    ccfg = cfg.with_param("cost_bps", cfg.cost_bps * 2)
+    cres = run_backtest(panel, ccfg, cache)
+    if on_result:
+        on_result(ccfg, cres)
+    cm = all_metrics(cres)
+    add("cost", not check_gates(cm, gates), f"비용 {ccfg.cost_bps:g}bp: CAGR {cm['cagr']:.1%}, MDD {cm['mdd']:.1%}")
+
+    ratio, fail_years = loyo(result.equity, result.benchmark, gates)
+    add("loyo", None if np.isnan(ratio) else ratio == 1.0,
+        "연도가 2개 미만" if np.isnan(ratio) else
+        (f"통과 비율 {ratio:.2f}" + (f" · 빼면 실패하는 해: {', '.join(map(str, fail_years))}" if fail_years else "")))
+
+    eq, bm = result.equity, result.benchmark
+    mid = len(eq) // 2
+    if mid >= 126:
+        first, second = _half_ok(eq.iloc[:mid], bm.iloc[:mid], gates), _half_ok(eq.iloc[mid:], bm.iloc[mid:], gates)
+        add("halves", first and second,
+            f"전반부({eq.index[0].date()} – {eq.index[mid - 1].date()}) {'통과' if first else '미달'} · "
+            f"후반부({eq.index[mid].date()} – {eq.index[-1].date()}) {'통과' if second else '미달'}")
+    else:
+        add("halves", None, "기간이 1년 미만이라 나눌 수 없음")
+
+    s200 = curve_metrics(spy200.dropna())["calmar"]
+    add("simple", bool(m["calmar"] > s200), f"전략 칼마 {m['calmar']:.2f} vs SPY 200일선 {s200:.2f}")
+    add("dsr", None if np.isnan(dsr) else dsr >= 0.95, "계산 불가 (기간이 너무 짧음)" if np.isnan(dsr) else f"DSR {dsr:.2f}")
+    return out

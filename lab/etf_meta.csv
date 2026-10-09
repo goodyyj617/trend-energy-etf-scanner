@@ -1,0 +1,475 @@
+symbol,name,category,expense_ratio,aum,inception,fetched
+AAXJ,iShares MSCI All Country Asia ex Japan ETF,Pacific/Asia ex-Japan Stk,0.72,3963676672,2008-08-13,2026-10-09
+ACWI,iShares MSCI ACWI ETF,Global Large-Stock Blend,0.32,32829794304,2008-03-26,2026-10-09
+ACWV,iShares MSCI Global Min Vol Factor ETF,Global Large-Stock Blend,0.2,3280909824,2011-10-18,2026-10-09
+ACWX,iShares MSCI ACWI ex U.S. ETF,Foreign Large Blend,0.32,17311576064,2008-03-26,2026-10-09
+AGG,iShares Core U.S. Aggregate Bond ETF,Intermediate Core Bond,0.03,135651655680,2003-09-22,2026-10-09
+AIA,iShares Asia 50 ETF,Pacific/Asia ex-Japan Stk,0.5,4913332224,2007-11-13,2026-10-09
+AIQ,Global X Artificial Intelligence & Technology ETF,Technology,0.68,10326885376,2018-05-11,2026-10-09
+AIRR,First Trust RBA American Industrial RenaissanceTM ETF,Industrials,0.69,8937794560,2014-03-10,2026-10-09
+AKRE,Akre Focus ETF,Large Growth,0.98,4492697088,2009-08-31,2026-10-09
+AMLP,Alerian MLP ETF,Energy Limited Partnership,1.01,12619125760,2010-08-25,2026-10-09
+ANGL,VanEck Fallen Angel High Yield Bond ETF,High Yield Bond,0.25,3065770496,2012-04-10,2026-10-09
+AOA,iShares Core 80/20 Aggressive Allocation ETF,Global Moderately Aggressive Allocation,0.15,3291845376,2008-11-04,2026-10-09
+AOR,iShares Core 60/40 Balanced Allocation ETF,Global Moderate Allocation,0.15,3870305024,2008-11-04,2026-10-09
+ARKK,ARK Innovation ETF,Mid-Cap Growth,0.75,7916893184,2014-10-31,2026-10-09
+ARTY,iShares Future AI & Tech ETF,Technology,0.47,4218499072,2018-06-26,2026-10-09
+AVDE,Avantis International Equity ETF,Foreign Large Blend,0.23,19075104768,2019-09-24,2026-10-09
+AVDV,Avantis International Small Cap Value ETF,Foreign Small/Mid Value,0.36,20422823936,2019-09-24,2026-10-09
+AVEM,Avantis Emerging Markets Equity ETF,Diversified Emerging Mkts,0.33,28328701952,2019-09-17,2026-10-09
+AVLV,Avantis US Large Cap Value ETF,Large Value,0.15,21306494976,2021-09-21,2026-10-09
+AVSC,Avantis US Small Cap Equity ETF,Small Value,0.25,3067437312,2022-01-11,2026-10-09
+AVUS,Avantis US Equity ETF,Large Blend,0.15,14435988480,2019-09-24,2026-10-09
+AVUV,Avantis US Small Cap Value ETF,Small Value,0.25,30383890432,2019-09-24,2026-10-09
+BAI,iShares A.I. Innovation and Tech Active ETF,Technology,0.55,14448959488,2024-10-21,2026-10-09
+BBAX,JPMorgan BetaBuilders Developed Asia Pacific ex-Japan ETF,Pacific/Asia ex-Japan Stk,0.19,6585480704,2018-08-07,2026-10-09
+BBCA,JPMorgan BetaBuilders Canada ETF,Focused Region,0.19,10886654976,2018-08-07,2026-10-09
+BBEU,JPMorgan BetaBuilders Europe ETF,Europe Stock,0.09,8881028096,2018-06-15,2026-10-09
+BBIN,JPMorgan BetaBuilders International Equity ETF,Foreign Large Blend,0.07,6523091968,2019-12-03,2026-10-09
+BBJP,JPMorgan BetaBuilders Japan ETF,Japan Stock,0.19,19663382528,2018-06-15,2026-10-09
+BBUS,JPMorgan BetaBuilders U.S. Equity ETF,Large Blend,0.02,9309235200,2019-03-12,2026-10-09
+BIL,State Street SPDR Bloomberg 1-3 Month T-Bill ETF,Ultrashort Bond,0.1353,49792606208,2007-05-25,2026-10-09
+BILS,State Street SPDR Bloomberg 3-12 Month T-Bill ETF,Ultrashort Bond,0.1354,3903963648,2020-09-24,2026-10-09
+BINC,iShares Flexible Income Active ETF,Multisector Bond,0.4,16448807936,2023-05-19,2026-10-09
+BIV,Vanguard Intermediate-Term Bond Index Fund ETF Shares,Intermediate Core Bond,0.03,50439286784,2007-04-03,2026-10-09
+BKLC,BNY Mellon US Large Cap Core Equity ETF,Large Blend,0.0,5783113728,2020-04-07,2026-10-09
+BKLN,Invesco Senior Loan ETF,Bank Loan,0.65,6492554752,2011-03-03,2026-10-09
+BLCR,iShares Large Cap Core Active ETF,Large Blend,0.36,9208093696,2023-10-24,2026-10-09
+BLV,Vanguard Long-Term Bond Index Fund ETF Shares,Long-Term Bond,0.03,7789053440,2007-04-03,2026-10-09
+BND,Vanguard Total Bond Market Index Fund ETF Shares,Intermediate Core Bond,0.03,389050990592,2007-04-03,2026-10-09
+BNDX,Vanguard Total International Bond Index Fund ETF Shares,Global Bond-USD Hedged,0.07,121629974528,2013-05-31,2026-10-09
+BOND,PIMCO Active Bond Exchange-Traded Fund,Intermediate Core-Plus Bond,0.54,8536468992,2012-02-29,2026-10-09
+BOTZ,Global X Robotics & Artificial Intelligence ETF,Technology,0.68,3334113536,2016-09-12,2026-10-09
+BOXX,Alpha Architect 1-3 Month Box ETF,Ultrashort Bond,0.19,14637613056,2022-12-27,2026-10-09
+BSCQ,Invesco BulletShares 2026 Corporate Bond ETF,Target Maturity,0.1,3222309376,2016-09-14,2026-10-09
+BSCR,Invesco BulletShares 2027 Corporate Bond ETF,Target Maturity,0.1,4587033600,2017-09-27,2026-10-09
+BSCS,Invesco BulletShares 2028 Corporate Bond ETF,Target Maturity,0.1,3523689216,2018-08-09,2026-10-09
+BSV,Vanguard Short-Term Bond Index Fund ETF Shares,Short-Term Bond,0.03,69540601856,2007-04-03,2026-10-09
+BTC,Grayscale Bitcoin Mini Trust ETF,Digital Assets,0.15,5271132160,2024-07-31,2026-10-09
+CALF,Pacer US Small Cap Cash Cows 100 ETF,Small Value,0.59,3544585472,2017-06-16,2026-10-09
+CGBL,Capital Group Core Balanced ETF,Moderate Allocation,0.33,7654107136,2023-09-26,2026-10-09
+CGCB,Capital Group Core Bond ETF,Intermediate Core Bond,0.27,6436522496,2023-09-26,2026-10-09
+CGCP,Capital Group Core Plus Income ETF,Intermediate Core-Plus Bond,0.34,8320269312,2022-02-22,2026-10-09
+CGGO,Capital Group Global Growth Equity ETF,Global Large-Stock Growth,0.47,12038640640,2022-02-22,2026-10-09
+CGGR,Capital Group Growth ETF,Large Growth,0.39,26009657344,2022-02-22,2026-10-09
+CGHM,Capital Group Municipal High-Income ETF,High Yield Muni,0.34,3247811584,2024-06-25,2026-10-09
+CGMM,Capital Group U.S. Small and Mid Cap ETF,Mid-Cap Blend,0.51,3416880384,2025-01-14,2026-10-09
+CGMS,Capital Group U.S. Multi-Sector Income ETF,Multisector Bond,0.39,5357908480,2022-10-25,2026-10-09
+CGMU,Capital Group Municipal Income ETF,Muni National Interm,0.27,6756494336,2022-10-25,2026-10-09
+CGUS,Capital Group Core Equity ETF,Large Blend,0.33,11910912000,2022-02-22,2026-10-09
+CGXU,Capital Group International Focus Equity ETF,Foreign Large Growth,0.54,6891282432,2022-02-22,2026-10-09
+CIBR,First Trust NASDAQ Cybersecurity ETF,Technology,0.58,17322008576,2015-07-06,2026-10-09
+CLIP,Global X 1-3 Month T-Bill ETF,Ultrashort Bond,0.07,2380186624,2023-06-20,2026-10-09
+CMF,iShares California Muni Bond ETF,Muni California Long,0.08,4751928320,2007-10-04,2026-10-09
+COPX,Global X Copper Miners ETF,Natural Resources,0.65,7253978112,2010-04-19,2026-10-09
+CORO,iShares International Country Rotation Active ETF,Foreign Large Blend,0.55,12792548352,2024-12-03,2026-10-09
+COWZ,Pacer US Cash Cows 100 ETF,Mid-Cap Value,0.49,18588141568,2016-12-16,2026-10-09
+CQQQ,Invesco China Technology ETF,Greater China Region,0.65,2526017024,2009-12-08,2026-10-09
+CWB,State Street SPDR Bloomberg Convertible Securities ETF,Convertibles,0.4,5546307584,2009-04-14,2026-10-09
+DBEF,Xtrackers MSCI EAFE Hedged Equity ETF,Foreign Large Blend,0.35,9252574208,2011-06-09,2026-10-09
+DBMF,iMGP DBi Managed Futures Strategy ETF,Systematic Trend,0.85,5243820544,2019-05-07,2026-10-09
+DCOR,DFA U.S. Core Equity 1 Portfolio – ETF Class Shares,Large Blend,0.15,44651995136,2005-09-15,2026-10-09
+DFAC,U.S. Core Equity 2 Portfolio-ETF Class Shares,Large Blend,0.18,38353334272,2026-10-02,2026-10-09
+DFAE,Dimensional Emerging Core Equity Market ETF,Diversified Emerging Mkts,0.29,10061051904,2020-12-01,2026-10-09
+DFAI,Dimensional International Core Equity Market ETF,Foreign Large Blend,0.18,17899186176,2020-11-17,2026-10-09
+DFAS,U.S. Small Cap Portfolio-ETF Class Shares,Small Blend,0.27,18544642048,2026-10-02,2026-10-09
+DFAT,U.S. Targeted Value Portfolio-ETF Class Shares,Small Value,0.29,16001360896,2026-10-02,2026-10-09
+DFAU,Dimensional US Core Equity Market ETF,Large Blend,0.12,12783483904,2020-11-17,2026-10-09
+DFAX,Dimensional World ex U.S. Core Equity 2 ETF,Foreign Large Blend,0.28,12395408384,2008-03-06,2026-10-09
+DFCF,Dimensional Core Fixed Income ETF,Intermediate Core Bond,0.17,11410551808,2021-11-15,2026-10-09
+DFEM,Dimensional Emerging Markets Core Equity 2 ETF,Diversified Emerging Mkts,0.39,9588943872,2022-04-26,2026-10-09
+DFGR,Dimensional Global Real Estate ETF,Global Real Estate,0.22,3668213760,2022-12-06,2026-10-09
+DFIC,Dimensional International Core Equity 2 ETF,Foreign Large Blend,0.22,15147606016,2022-03-23,2026-10-09
+DFIS,Dimensional International Small Cap ETF,Foreign Small/Mid Blend,0.39,5814140416,2022-03-23,2026-10-09
+DFIV,Dimensional International Value ETF,Foreign Large Value,0.27,21751332864,1999-04-16,2026-10-09
+DFLV,Dimensional US Large Cap Value ETF,Large Value,0.21,6930782208,2022-12-06,2026-10-09
+DFSV,DFA U.S. Small Cap Value Portfolio – ETF Class Shares,Small Value,0.31,26491832320,2026-09-25,2026-10-09
+DFUS,Dimensional U.S. Equity Market ETF,Large Blend,0.09,21302054912,2001-09-25,2026-10-09
+DFUV,Dimensional US Marketwide Value ETF,Large Value,0.21,15115533312,1998-12-16,2026-10-09
+DIA,State Street SPDR Dow Jones Industrial Average ETF Trust,Large Value,0.16,43860340736,1998-01-13,2026-10-09
+DIHP,Dimensional International High Profitability ETF,Foreign Large Blend,0.27,6434883584,2022-03-23,2026-10-09
+DISV,Dimensional International Small Cap Value ETF,Foreign Small/Mid Value,0.42,5181800448,2022-03-23,2026-10-09
+DRAM,Roundhill Memory ETF,Technology,0.65,26015375360,2026-04-01,2026-10-09
+DSI,iShares ESG MSCI KLD 400 ETF,Large Blend,0.25,5467616768,2006-11-14,2026-10-09
+DUHP,DFA U.S. High Relative Profitability Portfolio – ETF Class Shares,Large Blend,0.22,12696741888,2022-02-23,2026-10-09
+DXJ,WisdomTree Japan Hedged Equity Fund,Japan Stock,0.48,7093118976,2006-06-16,2026-10-09
+DYNF,iShares U.S. Equity Factor Rotation Active ETF,Large Blend,0.26,41843949568,2019-03-19,2026-10-09
+EAGG,iShares ESG U.S. Aggregate Bond ETF,Intermediate Core Bond,0.1,4952568832,2018-10-18,2026-10-09
+EAGL,Eagle Capital Select Equity ETF,Large Blend,0.8,4608157184,2024-03-21,2026-10-09
+EDV,Vanguard Extended Duration Treasury Index Fund ETF Shares,Long Government,0.05,4044910336,2007-12-06,2026-10-09
+EEM,iShares MSCI Emerging Markets ETF,Diversified Emerging Mkts,0.72,31071397888,2003-04-07,2026-10-09
+EEMV,iShares MSCI Emerging Markets Min Vol Factor ETF,Diversified Emerging Mkts,0.25,3577220096,2011-10-18,2026-10-09
+EFA,iShares MSCI EAFE ETF,Foreign Large Blend,0.32,76699582464,2001-08-14,2026-10-09
+EFAV,iShares MSCI EAFE Min Vol Factor ETF,Foreign Large Blend,0.2,5276212736,2011-10-18,2026-10-09
+EFG,iShares MSCI EAFE Growth ETF,Foreign Large Growth,0.34,15033347072,2005-08-01,2026-10-09
+EFV,iShares MSCI EAFE Value ETF,Foreign Large Value,0.31,30765787136,2005-08-01,2026-10-09
+EMB,iShares J.P. Morgan USD Emerging Markets Bond ETF,Emerging Markets Bond,0.39,12927995904,2007-12-17,2026-10-09
+EMLC,VanEck J.P. Morgan EM Local Currency Bond ETF,Emerging-Markets Local-Currency Bond,0.3,4949328896,2010-07-22,2026-10-09
+EMLP,First Trust North American Energy Infrastructure Fund,Energy Limited Partnership,0.95,3917667840,2012-06-20,2026-10-09
+EMXC,iShares MSCI Emerging Markets ex China ETF,Diversified Emerging Mkts,0.25,25333065728,2017-07-18,2026-10-09
+ESGD,iShares ESG Aware MSCI EAFE ETF,Foreign Large Blend,0.2,11874225152,2016-06-28,2026-10-09
+ESGE,iShares ESG Aware MSCI EM ETF,Diversified Emerging Mkts,0.25,6925700608,2016-06-28,2026-10-09
+ESGU,iShares ESG Aware MSCI USA ETF,Large Blend,0.15,17903245312,2016-12-01,2026-10-09
+ESGV,Vanguard ESG U.S. Stock ETF,Large Blend,0.09,13416897536,2018-09-18,2026-10-09
+ETHA,iShares Ethereum Trust ETF,Digital Assets,0.25,9825040384,2024-06-24,2026-10-09
+EUFN,iShares MSCI Europe Financials ETF,Europe Stock,0.49,3923030784,2010-01-20,2026-10-09
+EVTR,Eaton Vance Total Return Bond ETF,Intermediate Core-Plus Bond,0.32,6014044672,1984-11-14,2026-10-09
+EWA,iShares MSCI Australia ETF,Focused Region,0.5,1211079808,1996-03-12,2026-10-09
+EWC,iShares MSCI Canada ETF,Focused Region,0.5,7015600640,1996-03-12,2026-10-09
+EWG,iShares MSCI Germany ETF,Focused Region,0.49,1473391232,1996-03-12,2026-10-09
+EWH,iShares MSCI Hong Kong ETF,Greater China Region,0.5,1173037184,1996-03-12,2026-10-09
+EWJ,iShares MSCI Japan ETF,Japan Stock,0.49,23533963264,1996-03-12,2026-10-09
+EWT,iShares MSCI Taiwan ETF,Greater China Region,0.59,12344310784,2000-06-20,2026-10-09
+EWU,iShares MSCI United Kingdom ETF,Focused Region,0.5,3668140800,1996-03-12,2026-10-09
+EWY,iShares MSCI South Korea ETF,Focused Region,0.59,26213310464,2000-05-09,2026-10-09
+EWZ,iShares MSCI Brazil ETF,Focused Region,0.59,8635897856,2000-07-10,2026-10-09
+EZU,iShares MSCI Eurozone ETF,Europe Stock,0.5,9422069760,2000-07-25,2026-10-09
+FBCG,Fidelity Blue Chip Growth ETF,Large Growth,0.57,7619538432,2020-06-02,2026-10-09
+FBND,Fidelity Total Bond ETF,Intermediate Core-Plus Bond,0.36,27898273792,2014-10-06,2026-10-09
+FBTC,Fidelity Wise Origin Bitcoin Fund,Digital Assets,0.25,15454059520,2024-01-10,2026-10-09
+FDL,First Trust Morningstar Dividend Leaders Index Fund,Large Value,0.43,7540028416,2006-03-09,2026-10-09
+FDN,First Trust Dow Jones Internet Index Fund,Technology,0.49,5234000896,2006-06-19,2026-10-09
+FELC,Fidelity Enhanced Large Cap Core ETF,Large Blend,0.18,8612261888,2007-04-19,2026-10-09
+FELG,Fidelity Enhanced Large Cap Growth ETF,Large Growth,0.18,5784626176,2007-04-19,2026-10-09
+FELV,Fidelity Enhanced Large Cap Value ETF,Large Value,0.18,3409566464,2007-04-19,2026-10-09
+FENI,Fidelity Enhanced International ETF,Foreign Large Blend,0.28,11467452416,2007-12-20,2026-10-09
+FESM,Fidelity Enhanced Small Cap Core ETF,Small Blend,0.28,6412970496,2007-12-20,2026-10-09
+FEZ,State Street SPDR EURO STOXX 50 ETF,Europe Stock,0.29,4282942208,2002-10-15,2026-10-09
+FHLC,Fidelity MSCI Health Care Index ETF,Health,0.084,3539196928,2013-10-21,2026-10-09
+FIMU,Fidelity Intermediate Municipal Income Fund ETF,Muni National Interm,0.3,13052312576,2005-10-31,2026-10-09
+FIXD,First Trust Smith Opportunistic Fixed Income ETF,Intermediate Core-Plus Bond,0.65,2867515904,2017-02-14,2026-10-09
+FLCB,Franklin U.S. Core Bond ETF,Intermediate Core Bond,0.15,3017393152,2019-09-17,2026-10-09
+FLJP,Franklin FTSE Japan ETF,Japan Stock,0.09,4172302848,2017-11-02,2026-10-09
+FLOT,iShares Floating Rate Bond ETF,Ultrashort Bond,0.15,11124411392,2011-06-14,2026-10-09
+FLXR,TCW Flexible Income ETF,Multisector Bond,0.4,3609839360,2018-11-30,2026-10-09
+FMDE,Fidelity Enhanced Mid Cap Core ETF,Mid-Cap Blend,0.23,8087516672,2007-12-20,2026-10-09
+FNDA,Schwab Fundamental U.S. Small Company ETF,Small Blend,0.25,8614898688,2013-08-15,2026-10-09
+FNDE,Schwab Fundamental Emerging Markets Equity ETF,Diversified Emerging Mkts,0.39,10299469824,2013-08-15,2026-10-09
+FNDF,Schwab Fundamental International Equity ETF,Foreign Large Value,0.25,25612226560,2013-08-15,2026-10-09
+FNDX,Schwab Fundamental U.S. Large Company ETF,Large Value,0.25,27085967360,2013-08-15,2026-10-09
+FPE,First Trust Preferred Securities and Income ETF,Preferred Stock,0.83,5986199552,2013-02-11,2026-10-09
+FRDM,Freedom 100 Emerging Markets ETF,Diversified Emerging Mkts,0.49,3546248704,2019-05-22,2026-10-09
+FREI,Fidelity Real Estate Income Fund ETF,Miscellaneous Allocation,0.57,4222993152,2026-06-16,2026-10-09
+FSEC,Fidelity Investment Grade Securitized ETF,Securitized Bond - Diversified,0.36,4463725568,2021-03-02,2026-10-09
+FTCS,First Trust Capital Strength ETF,Large Blend,0.53,7392604672,2006-07-06,2026-10-09
+FTEC,Fidelity MSCI Information Technology Index ETF,Technology,0.084,22147737600,2013-10-21,2026-10-09
+FV,First Trust Dorsey Wright Focus 5 ETF,Mid-Cap Blend,0.89,3817544704,2014-03-05,2026-10-09
+FWD,AB Disruptors ETF,Global Large-Stock Growth,0.65,3416700672,2023-03-21,2026-10-09
+FXI,iShares China Large-Cap ETF,Greater China Region,0.73,3926357504,2004-10-05,2026-10-09
+GBIL,Goldman Sachs Access Treasury 0-1 Year ETF,Ultrashort Bond,0.12,7915498496,2016-09-06,2026-10-09
+GBTC,Grayscale Bitcoin Trust ETF,Digital Assets,1.5,10610214912,2013-09-25,2026-10-09
+GDX,VanEck Gold Miners ETF,Equity Precious Metals,0.51,26254737408,2006-05-16,2026-10-09
+GDXJ,VanEck Junior Gold Miners ETF,Equity Precious Metals,0.52,8368538624,2009-11-10,2026-10-09
+GLD,SPDR Gold Shares,Commodities Focused,0.4,141702414336,2004-11-18,2026-10-09
+GLDM,SPDR Gold MiniShares,Commodities Focused,0.1,30708434944,2018-06-25,2026-10-09
+GNR,State Street SPDR S&P Global Natural Resources ETF,Natural Resources,0.4,5071671296,2010-09-13,2026-10-09
+GOVT,iShares U.S. Treasury Bond ETF,Intermediate Government,0.05,41371131904,2012-02-14,2026-10-09
+GRID,First Trust NASDAQ Clean Edge Smart Grid Infrastructure Index Fund,Infrastructure,0.56,11866589184,2009-11-16,2026-10-09
+GRNY,Fundstrat Granny Shots US Large Cap ETF,Large Growth,0.75,4473816064,2024-11-06,2026-10-09
+GSIE,Goldman Sachs ActiveBeta International Equity ETF,Foreign Large Blend,0.25,5916710400,2015-11-06,2026-10-09
+GSLC,Goldman Sachs ActiveBeta U.S. Large Cap Equity ETF,Large Blend,0.09,15061948416,2015-09-17,2026-10-09
+GSUS,Goldman Sachs MarketBeta US Equity ETF,Large Blend,0.07,3401998336,2020-05-12,2026-10-09
+GUNR,Northern Trust Morningstar Global Upstream Natural Resources ETF,Natural Resources,0.46,6843832832,2011-09-16,2026-10-09
+GVI,iShares Intermediate Government/Credit Bond ETF,Short-Term Bond,0.2,3735827200,2007-01-05,2026-10-09
+HEFA,iShares Currency Hedged MSCI EAFE ETF,Foreign Large Blend,0.35,7465138688,2014-01-31,2026-10-09
+HELO,Jpmorgan Hedged Equity Laddered Overlay ETF,Equity Hedged,0.5,4822111744,2023-09-28,2026-10-09
+HGER,Harbor Commodity All-Weather Strategy ETF,Commodities Broad Basket,0.68,4760145920,2022-02-09,2026-10-09
+HYD,VanEck High Yield Muni ETF,High Yield Muni,0.32,3885557248,2009-02-04,2026-10-09
+HYG,iShares iBoxx $ High Yield Corporate Bond ETF,High Yield Bond,0.49,16778804224,2007-04-04,2026-10-09
+HYLB,Xtrackers USD High Yield Corporate Bond ETF,High Yield Bond,0.05,3215821056,2016-12-06,2026-10-09
+HYMB,State Street SPDR Nuveen ICE High Yield Municipal Bond ETF,High Yield Muni,0.35,3681908224,2011-04-13,2026-10-09
+IAGG,iShares Core International Aggregate Bond ETF,Global Bond-USD Hedged,0.07,11757919232,2015-11-10,2026-10-09
+IALT,iShares Systematic Alternatives Active ETF,Multistrategy,0.99,6963149312,2025-12-09,2026-10-09
+IAU,iShares Gold Trust,Commodities Focused,0.25,62220972032,2005-01-21,2026-10-09
+IAUM,iShares Gold Trust Micro,Commodities Focused,0.09,7949300736,2021-06-15,2026-10-09
+IBB,iShares Biotechnology ETF,Health,0.44,11196648448,2001-02-05,2026-10-09
+IBDR,iShares iBonds Dec 2026 Term Corporate ETF,Target Maturity,0.1,3137666048,2016-09-13,2026-10-09
+IBDS,iShares iBonds Dec 2027 Term Corporate ETF,Target Maturity,0.1,3921303040,2017-09-12,2026-10-09
+IBDT,iShares iBonds Dec 2028 Term Corporate ETF,Target Maturity,0.1,4095390208,2018-09-18,2026-10-09
+IBDU,iShares iBonds Dec 2029 Term Corporate ETF,Target Maturity,0.1,3961470464,2019-09-17,2026-10-09
+IBDV,iShares iBonds Dec 2030 Term Corporate ETF,Target Maturity,0.1,3282319872,2020-06-23,2026-10-09
+IBIT,iShares Bitcoin Trust ETF,Digital Assets,0.25,67060465664,2024-01-05,2026-10-09
+ICVT,iShares Convertible Bond ETF,Convertibles,0.2,8101091328,2015-06-02,2026-10-09
+IDEF,iShares Defense Industrials Active ETF,Industrials,0.55,3758735872,2025-05-19,2026-10-09
+IDEV,iShares Core MSCI International Developed Markets ETF,Foreign Large Blend,0.04,32156459008,2017-03-21,2026-10-09
+IDMO,Invesco S&P International Developed Momentum ETF,Foreign Large Blend,0.25,4301022720,2012-02-24,2026-10-09
+IEF,iShares 7-10 Year Treasury Bond ETF,Long Government,0.15,41556897792,2002-07-22,2026-10-09
+IEFA,iShares Core MSCI EAFE ETF,Foreign Large Blend,0.07,190214750208,2012-10-18,2026-10-09
+IEI,iShares 3-7 Year Treasury Bond ETF,Intermediate Government,0.15,16787430400,2007-01-05,2026-10-09
+IEMG,iShares Core MSCI Emerging Markets ETF,Diversified Emerging Mkts,0.09,160075055104,2012-10-18,2026-10-09
+IEUR,iShares Core MSCI Europe ETF,Europe Stock,0.1,9244934144,2014-06-10,2026-10-09
+IFRA,iShares U.S. Infrastructure ETF,Infrastructure,0.3,3875609856,2018-04-03,2026-10-09
+IGF,iShares Global Infrastructure ETF,Infrastructure,0.37,10065190912,2007-12-10,2026-10-09
+IGIB,iShares 5-10 Year Investment Grade Corporate Bond ETF,Corporate Bond,0.04,18557360128,2007-01-05,2026-10-09
+IGM,iShares Expanded Tech Sector ETF,Technology,0.37,11436122112,2001-03-13,2026-10-09
+IGSB,iShares 1-5 Year Investment Grade Corporate Bond ETF,Short-Term Bond,0.04,23376680960,2007-01-05,2026-10-09
+IGV,iShares Expanded Tech-Software Sector ETF,Technology,0.38,13912004608,2001-07-10,2026-10-09
+IJH,iShares Core S&P Mid-Cap ETF,Mid-Cap Blend,0.05,120931426304,2000-05-22,2026-10-09
+IJJ,iShares S&P Mid-Cap 400 Value ETF,Mid-Cap Value,0.18,8333864448,2000-07-24,2026-10-09
+IJK,iShares S&P Mid-Cap 400 Growth ETF,Mid-Cap Growth,0.16,10285963264,2000-07-24,2026-10-09
+IJR,iShares Core S&P Small-Cap ETF,Small Blend,0.06,102559449088,2000-05-22,2026-10-09
+IJS,iShares S&P Small-Cap 600 Value ETF,Small Value,0.18,7600923136,2000-07-24,2026-10-09
+IJT,iShares S&P Small-Cap 600 Growth ETF,Small Growth,0.18,7623017472,2000-07-24,2026-10-09
+ILCG,iShares Morningstar Growth ETF,Large Growth,0.04,3211002624,2004-06-28,2026-10-09
+ILF,iShares Latin America 40 ETF,Focused Region,0.47,3843521792,2001-10-25,2026-10-09
+IMCG,iShares Morningstar Mid-Cap Growth ETF,Mid-Cap Growth,0.06,4000648960,2004-06-28,2026-10-09
+IMTM,iShares MSCI Intl Momentum Factor ETF,Foreign Large Blend,0.3,4255186944,2015-01-13,2026-10-09
+INDA,iShares MSCI India ETF,India Equity,0.61,5830681600,2012-02-02,2026-10-09
+INTF,iShares International Equity Factor ETF,Foreign Large Blend,0.16,3698389504,2015-04-28,2026-10-09
+IOO,iShares Global 100 ETF,Global Large-Stock Blend,0.4,9161201664,2000-12-05,2026-10-09
+IQLT,iShares MSCI Intl Quality Factor ETF,Foreign Large Blend,0.3,13607064576,2015-01-13,2026-10-09
+IQMM,Proshares Genius Money Market ETF,Money Market-Taxable,0.15,20325855232,2026-02-17,2026-10-09
+ISTB,iShares Core 1-5 Year USD Bond ETF,Short-Term Bond,0.06,5104943104,2012-10-18,2026-10-09
+ITA,iShares U.S. Aerospace & Defense ETF,Industrials,0.37,12136253440,2006-05-01,2026-10-09
+ITOT,iShares Core S&P Total U.S. Stock Market ETF,Large Blend,0.03,95863930880,2004-01-20,2026-10-09
+IUSB,iShares Core Universal USD Bond ETF,Intermediate Core-Plus Bond,0.06,48077492224,2014-06-10,2026-10-09
+IUSG,iShares Core S&P U.S. Growth ETF,Large Growth,0.04,34000203776,2000-07-24,2026-10-09
+IUSV,iShares Core S&P U.S. Value ETF,Large Value,0.04,27082864640,2000-07-24,2026-10-09
+IVE,iShares S&P 500 Value ETF,Large Value,0.18,48203206656,2000-05-22,2026-10-09
+IVLU,iShares Edge MSCI Intl Value Factor ETF,Foreign Large Value,0.31,4505608192,2015-06-16,2026-10-09
+IVOO,Vanguard S&P Mid-Cap 400 Index Fund ETF Shares,Mid-Cap Blend,0.07,5671377408,2010-09-07,2026-10-09
+IVV,iShares Core S&P 500 ETF,Large Blend,0.03,881268883456,2000-05-15,2026-10-09
+IVW,iShares S&P 500 Growth ETF,Large Growth,0.18,78179057664,2000-05-22,2026-10-09
+IWB,iShares Russell 1000 ETF,Large Blend,0.15,48563396608,2000-05-15,2026-10-09
+IWD,iShares Russell 1000 Value ETF,Large Value,0.18,80959332352,2000-05-22,2026-10-09
+IWF,iShares Russell 1000 Growth ETF,Large Growth,0.18,127738003456,2000-05-22,2026-10-09
+IWM,iShares Russell 2000 ETF,Small Blend,0.19,78041726976,2000-05-22,2026-10-09
+IWN,iShares Russell 2000 Value ETF,Small Value,0.24,13789684736,2000-07-24,2026-10-09
+IWO,iShares Russell 2000 Growth ETF,Small Growth,0.24,14106266624,2000-07-24,2026-10-09
+IWP,iShares Russell Mid-Cap Growth ETF,Mid-Cap Growth,0.23,19347443712,2001-07-17,2026-10-09
+IWR,iShares Russell Mid-Cap ETF,Mid-Cap Blend,0.18,54899474432,2001-07-17,2026-10-09
+IWS,iShares Russell Mid-Cap Value ETF,Mid-Cap Value,0.23,14776222720,2001-07-17,2026-10-09
+IWV,iShares Russell 3000 ETF,Large Blend,0.2,20278747136,2000-05-22,2026-10-09
+IWX,iShares Russell Top 200 Value ETF,Large Value,0.2,3666966016,2009-09-22,2026-10-09
+IWY,iShares Russell Top 200 Growth ETF,Large Growth,0.2,16417813504,2009-09-22,2026-10-09
+IXJ,iShares Global Healthcare ETF,Health,0.38,4315819520,2001-11-13,2026-10-09
+IXN,iShares Global Tech ETF,Technology,0.37,9729082368,2001-11-12,2026-10-09
+IXUS,iShares Core MSCI Total International Stock ETF,Foreign Large Blend,0.07,58758029312,2012-10-18,2026-10-09
+IYF,iShares U.S. Financials ETF,Financial,0.37,3750098432,2000-05-22,2026-10-09
+IYH,iShares U.S. Healthcare ETF,Health,0.37,3964561664,2000-06-12,2026-10-09
+IYR,iShares U.S. Real Estate ETF,Real Estate,0.37,4162730752,2000-06-12,2026-10-09
+IYW,iShares U.S. Technology ETF,Technology,0.37,26532593664,2000-05-15,2026-10-09
+JAAA,Janus Henderson AAA CLO ETF,Securitized Bond - Focused,0.2,31488495616,2020-10-16,2026-10-09
+JAVA,JPMorgan Active Value ETF,Large Value,0.44,7015006720,2021-10-04,2026-10-09
+JBND,Jpmorgan Active Bond ETF,Intermediate Core Bond,0.25,8673764352,2023-10-11,2026-10-09
+JCPB,JPMorgan Core Plus Bond ETF,Intermediate Core-Plus Bond,0.37,15178404864,2019-01-28,2026-10-09
+JGLO,Jpmorgan Global Select Equity ETF,Global Large-Stock Blend,0.47,6407466496,2023-09-13,2026-10-09
+JGRO,JPMorgan Active Growth ETF,Large Growth,0.44,10130885632,2022-08-08,2026-10-09
+JHMM,John Hancock Multifactor Mid Cap ETF,Mid-Cap Blend,0.41,5855335936,2015-09-28,2026-10-09
+JIRE,JPMorgan International Research Enhanced Equity ETF,Foreign Large Blend,0.24,10911440896,1992-10-28,2026-10-09
+JIVE,Jpmorgan International Value ETF,Foreign Large Value,0.55,4093039360,2023-09-13,2026-10-09
+JMBS,Janus Henderson Mortgage-Backed Securities ETF,Government Mortgage-Backed Bond,0.21,6291815424,2018-09-12,2026-10-09
+JMTG,JPMorgan Mortgage-Backed Securities ETF,Securitized Bond - Diversified,0.24,6744418304,2000-08-18,2026-10-09
+JMUB,JPMorgan Municipal ETF,Muni National Interm,0.18,8232574976,2018-10-29,2026-10-09
+JNK,State Street SPDR Bloomberg High Yield Bond ETF,High Yield Bond,0.4,6504680448,2007-11-28,2026-10-09
+JPIE,JPMorgan Income ETF,Multisector Bond,0.39,10896718848,2021-10-28,2026-10-09
+JPLD,J P Morgan Exchange-Traded Fund Trust - Limited Duration Bond ETF,Short-Term Bond,0.24,4057295616,1993-02-02,2026-10-09
+JQUA,JPMorgan U.S. Quality Factor ETF,Large Blend,0.12,8919645184,2017-11-08,2026-10-09
+JTEK,JPMorgan U.S. Tech Leaders ETF,Technology,0.65,4725029376,2023-10-04,2026-10-09
+KBWB,Invesco KBW Bank ETF,Financial,0.35,6195986944,2011-11-01,2026-10-09
+KRE,State Street SPDR S&P Regional Banking ETF,Financial,0.35,3727376896,2006-06-19,2026-10-09
+KWEB,KraneShares CSI China Internet ETF,Greater China Region,0.69,4504588800,2013-07-31,2026-10-09
+LMBS,First Trust Low Duration Opportunities ETF,Short Government,0.66,6428341248,2014-11-04,2026-10-09
+LQD,iShares iBoxx $ Investment Grade Corporate Bond ETF,Corporate Bond,0.14,28273213440,2002-07-22,2026-10-09
+LRGF,iShares U.S. Equity Factor ETF,Large Blend,0.08,3671384320,2015-04-28,2026-10-09
+MAGS,Roundhill Magnificent Seven ETF,Technology,0.3,5496939008,2023-04-10,2026-10-09
+MBB,iShares MBS ETF,Government Mortgage-Backed Bond,0.04,36248539136,2007-03-13,2026-10-09
+MCHI,iShares MSCI China ETF,Greater China Region,0.59,5988706816,2011-03-29,2026-10-09
+MDY,State Street SPDR S&P MIDCAP 400 ETF Trust,Mid-Cap Blend,0.23,25218637824,1995-05-04,2026-10-09
+MGC,Vanguard Morningstar Mega Cap ETF,Large Blend,0.05,11049763840,2007-12-17,2026-10-09
+MGK,Vanguard Morningstar Mega Cap Growth ETF,Large Growth,0.05,35095474176,2007-12-17,2026-10-09
+MGV,Vanguard Morningstar Mega Cap Value ETF,Large Value,0.05,13603106816,2007-12-17,2026-10-09
+MLPX,Global X MLP & Energy Infrastructure ETF,Energy Limited Partnership,0.45,3395061504,2013-08-06,2026-10-09
+MOAT,VanEck Morningstar Wide Moat ETF,Large Blend,0.46,11246236672,2012-04-24,2026-10-09
+MSLC,Morgan Stanley Pathway Large Cap Equity ETF,Large Blend,0.39,4024308992,1991-11-18,2026-10-09
+MTUM,iShares MSCI USA Momentum Factor ETF,Large Blend,0.15,20429352960,2013-04-16,2026-10-09
+MUB,iShares National Muni Bond ETF,Muni National Interm,0.05,46624735232,2007-09-07,2026-10-09
+MUNI,PIMCO Intermediate Municipal Bond Active Exchange-Traded Fund,Muni National Interm,0.35,3089923840,2009-11-30,2026-10-09
+NEAR,iShares Short Duration Bond Active ETF,Short-Term Bond,0.25,5130302464,2013-09-25,2026-10-09
+NLR,VanEck Uranium and Nuclear ETF,Natural Resources,0.52,3546939392,2007-08-13,2026-10-09
+OEF,iShares S&P 100 ETF,Large Blend,0.2,20433901568,2000-10-23,2026-10-09
+OMFL,Invesco Russell 1000 Dynamic Multifactor ETF,Large Blend,0.29,4717386240,2017-11-08,2026-10-09
+ONEQ,Fidelity Nasdaq Composite Index ETF,Large Growth,0.21,10939918336,2003-09-25,2026-10-09
+PAAA,PGIM AAA CLO ETF,Securitized Bond - Focused,0.19,13921687552,2023-07-19,2026-10-09
+PAVE,Global X U.S. Infrastructure Development ETF,Infrastructure,0.47,13355843584,2017-03-06,2026-10-09
+PBUS,Invesco MSCI USA ETF,Large Blend,0.04,11389575168,2017-09-22,2026-10-09
+PDBC,Invesco Optimum Yield Diversified Commodity Strategy No K-1 ETF,Commodities Broad Basket,0.59,7699317248,2014-11-07,2026-10-09
+PFF,iShares Preferred and Income Securities ETF,Preferred Stock,0.45,12322755584,2007-03-26,2026-10-09
+PGX,Invesco Preferred ETF,Preferred Stock,0.5,3605384704,2008-01-31,2026-10-09
+PPA,Invesco Aerospace & Defense ETF,Industrials,0.58,7396231168,2005-10-26,2026-10-09
+PRF,Invesco RAFI US 1000 ETF,Large Value,0.34,9787648000,2005-12-19,2026-10-09
+PSI,Invesco Semiconductors ETF,Technology,0.55,2887981056,2005-06-23,2026-10-09
+PTLC,Pacer Trendpilot US Large Cap ETF,Large Blend,0.6,3318882048,2015-06-11,2026-10-09
+PVAL,Putnam Focused Large Cap Value ETF,Large Value,0.55,15013055488,2021-05-25,2026-10-09
+PYLD,PIMCO ETF Trust - PIMCO Multisector Bond Active Exchange-Traded Fund,Multisector Bond,0.64,15871301632,2023-06-21,2026-10-09
+PZA,Invesco National AMT-Free Municipal Bond ETF,Muni National Long,0.28,4017940736,2007-10-11,2026-10-09
+QLTY,GMO U.S. Quality ETF,Large Blend,0.5,5242839552,2023-11-13,2026-10-09
+QQQ,Invesco QQQ Trust,Large Growth,0.18,498945982464,1999-03-10,2026-10-09
+QQQI,NEOS NASDAQ-100(R) High Income ETF,Derivative Income,0.68,14882040832,2024-01-29,2026-10-09
+QQQM,Invesco NASDAQ 100 ETF,Large Growth,0.15,109808730112,2020-10-13,2026-10-09
+QTEC,First Trust NASDAQ-100-Technology Sector Index Fund,Technology,0.55,4055256832,2006-04-19,2026-10-09
+QTUM,Defiance Quantum ETF,Technology,0.4,5638115328,2018-09-04,2026-10-09
+QUAL,iShares MSCI USA Quality Factor ETF,Large Blend,0.15,47676018688,2013-07-16,2026-10-09
+RECS,Columbia Research Enhanced Core ETF,Large Blend,0.15,6066976256,2019-09-25,2026-10-09
+REET,iShares Global REIT ETF,Global Real Estate,0.14,4640786432,2014-07-08,2026-10-09
+RSP,Invesco S&P 500 Equal Weight ETF,Large Blend,0.2,96059047936,2003-04-24,2026-10-09
+RSPT,Invesco S&P 500 Equal Weight Technology ETF,Technology,0.4,6000905728,2006-11-01,2026-10-09
+RWL,Invesco S&P 500 Revenue ETF,Large Value,0.39,9675855872,2008-02-19,2026-10-09
+SCHA,Schwab U.S. Small-Cap ETF,Small Blend,0.03,21680287744,2009-11-03,2026-10-09
+SCHB,Schwab U.S. Broad Market ETF,Large Blend,0.03,44425461760,2009-11-03,2026-10-09
+SCHC,Schwab International Small-Cap Equity ETF,Foreign Small/Mid Blend,0.06,5616718336,2010-01-14,2026-10-09
+SCHE,Schwab Emerging Markets Equity ETF,Diversified Emerging Mkts,0.06,12777276416,2010-01-14,2026-10-09
+SCHF,Schwab International Equity ETF,Foreign Large Blend,0.03,67947536384,2009-11-03,2026-10-09
+SCHG,Schwab U.S. Large-Cap Growth ETF,Large Growth,0.04,63851294720,2009-12-11,2026-10-09
+SCHH,Schwab U.S. REIT ETF,Real Estate,0.07,10558759936,2011-01-13,2026-10-09
+SCHI,Schwab 5-10 Year Corporate Bond ETF,Corporate Bond,0.03,10839583744,2019-10-09,2026-10-09
+SCHK,Schwab 1000 ETF,Large Blend,0.03,5721143808,2017-10-11,2026-10-09
+SCHM,Schwab U.S. Mid-Cap ETF,Mid-Cap Blend,0.03,14323655680,2011-01-13,2026-10-09
+SCHO,Schwab Short-Term U.S. Treasury ETF,Short Government,0.03,15282102272,2010-08-05,2026-10-09
+SCHP,Schwab U.S. TIPS ETF,Inflation-Protected Bond,0.03,15956761600,2010-08-05,2026-10-09
+SCHR,Schwab Intermediate-Term U.S. Treasury ETF,Intermediate Government,0.03,13080122368,2010-08-05,2026-10-09
+SCHV,Schwab U.S. Large-Cap Value ETF,Large Value,0.04,15090690048,2009-12-11,2026-10-09
+SCHX,Schwab U.S. Large-Cap ETF,Large Blend,0.03,73852100608,2009-11-03,2026-10-09
+SCHZ,Schwab U.S. Aggregate Bond ETF,Intermediate Core Bond,0.03,10451268608,2011-07-14,2026-10-09
+SCMB,Schwab Municipal Bond ETF,Muni National Interm,0.03,3069821440,2022-10-11,2026-10-09
+SCZ,iShares MSCI EAFE Small-Cap ETF,Foreign Small/Mid Blend,0.4,12790174720,2007-12-10,2026-10-09
+SGOL,abrdn Physical Gold Shares ETF,Commodities Focused,0.17,7167043072,2009-09-09,2026-10-09
+SGOV,iShares 0-3 Month Treasury Bond ETF,Ultrashort Bond,0.09,112259588096,2020-05-26,2026-10-09
+SHLD,Global X Defense Tech ETF,Industrials,0.5,6485370880,2023-09-11,2026-10-09
+SHM,State Street SPDR Nuveen ICE Short Term Municipal Bond ETF,Muni National Short,0.2,3457999360,2007-10-10,2026-10-09
+SHV,iShares 0–1 Year Treasury Bond ETF,Ultrashort Bond,0.15,22830276608,2007-01-05,2026-10-09
+SHY,iShares 1-3 Year Treasury Bond ETF,Short Government,0.15,26281537536,2002-07-22,2026-10-09
+SHYG,iShares 0-5 Year High Yield Corporate Bond ETF,High Yield Bond,0.3,7633285120,2013-10-15,2026-10-09
+SIL,Global X Silver Miners ETF,Equity Precious Metals,0.65,4423848448,2010-04-19,2026-10-09
+SILJ,Amplify Junior Silver Miners ETF,Equity Precious Metals,0.69,3552283904,2012-11-28,2026-10-09
+SIVR,abrdn Physical Silver Shares ETF,Commodities Focused,0.3,4259168256,2009-07-24,2026-10-09
+SJNK,State Street SPDR Bloomberg Short Term High Yield Bond ETF,High Yield Bond,0.4,4515020800,2012-03-14,2026-10-09
+SLV,iShares Silver Trust,Commodities Focused,0.5,29961824256,2006-04-21,2026-10-09
+SLYG,State Street SPDR S&P 600 Small Cap Growth ETF,Small Growth,0.15,4734638592,2000-09-25,2026-10-09
+SLYV,State Street SPDR S&P 600 Small Cap Value ETF,Small Value,0.15,4711612928,2000-09-25,2026-10-09
+SMBS,Schwab Mortgage-Backed Securities ETF,Government Mortgage-Backed Bond,0.03,6099571200,2024-11-18,2026-10-09
+SMH,VanEck Semiconductor ETF,Technology,0.35,74879844352,2011-12-20,2026-10-09
+SMLF,iShares U.S. Small-Cap Equity Factor ETF,Small Blend,0.15,4042218752,2015-04-28,2026-10-09
+SMMD,iShares Russell 2500 ETF,Small Blend,0.15,3979522560,2017-07-06,2026-10-09
+SOXX,iShares Semiconductor ETF,Technology,0.33,48434552832,2001-07-10,2026-10-09
+SPAB,State Street SPDR Portfolio Aggregate Bond ETF,Intermediate Core Bond,0.03,9897055232,2007-05-23,2026-10-09
+SPDW,State Street SPDR Portfolio Developed World ex-US ETF,Foreign Large Blend,0.03,41142882304,2007-04-20,2026-10-09
+SPEM,State Street SPDR Portfolio Emerging Markets ETF,Diversified Emerging Mkts,0.07,17536630784,2007-03-19,2026-10-09
+SPHQ,Invesco S&P 500 Quality ETF,Large Blend,0.15,18644170752,2005-12-06,2026-10-09
+SPHY,State Street SPDR Portfolio High Yield Bond ETF,High Yield Bond,0.05,11727128576,2012-06-18,2026-10-09
+SPIB,State Street SPDR Portfolio Intermediate Term Corporate Bond ETF,Corporate Bond,0.04,11286659072,2009-02-10,2026-10-09
+SPMB,State Street SPDR Portfolio Mortgage Backed Bond ETF,Government Mortgage-Backed Bond,0.04,6820689408,2009-01-15,2026-10-09
+SPMD,State Street SPDR Portfolio S&P 400 Mid Cap ETF,Mid-Cap Blend,0.03,17948172288,2005-11-08,2026-10-09
+SPMO,Invesco S&P 500 Momentum ETF,Large Blend,0.13,23015297024,2015-10-09,2026-10-09
+SPSB,State Street SPDR Portfolio Short Term Corporate Bond ETF,Short-Term Bond,0.04,11108336640,2009-12-16,2026-10-09
+SPSM,State Street SPDR Portfolio S&P 600 Small Cap ETF,Small Blend,0.03,15664105472,2013-07-08,2026-10-09
+SPTI,State Street SPDR Portfolio Intermediate Term Treasury ETF,Intermediate Government,0.03,10376130560,2007-05-23,2026-10-09
+SPTL,State Street SPDR Portfolio Long Term Treasury ETF,Long Government,0.03,10674008064,2007-05-23,2026-10-09
+SPTM,State Street SPDR Portfolio S&P 1500 Composite Stock Market ETF,Large Blend,0.03,13993409536,2000-10-04,2026-10-09
+SPTS,State Street SPDR Portfolio Short Term Treasury ETF,Short Government,0.03,7193391104,2011-11-30,2026-10-09
+SPY,State Street SPDR S&P 500 ETF Trust,Large Blend,0.0945,809216114688,1993-01-22,2026-10-09
+SPYG,State Street SPDR Portfolio S&P 500 Growth ETF,Large Growth,0.04,56551608320,2000-09-25,2026-10-09
+SPYI,Neos S&P 500(R) High Income ETF,Derivative Income,0.68,12248726528,2022-08-29,2026-10-09
+SPYM,State Street SPDR Portfolio S&P 500 ETF,Large Blend,0.02,173633224704,2005-11-08,2026-10-09
+SPYV,State Street SPDR Portfolio S&P 500 Value ETF,Large Value,0.04,35618357248,2000-09-25,2026-10-09
+SRLN,State Street Blackstone Senior Loan ETF,Bank Loan,0.7,5528644096,2013-04-03,2026-10-09
+STIP,iShares 0-5 Year TIPS Bond ETF,Short-Term Inflation-Protected Bond,0.03,16322508800,2010-12-01,2026-10-09
+SUB,iShares Short-Term National Muni Bond ETF,Muni National Short,0.07,11883716608,2008-11-05,2026-10-09
+SUSA,iShares ESG Optimized MSCI USA ETF,Large Blend,0.25,4039776000,2005-01-24,2026-10-09
+TBIL,F/m US Treasury 3 Month Bill Fund - ETF Class Shares,Ultrashort Bond,0.15,7403464192,2026-02-12,2026-10-09
+TCAF,T. Rowe Price Capital Appreciation Equity ETF,Large Blend,0.31,9272827904,2023-06-14,2026-10-09
+TFI,State Street SPDR Nuveen ICE Municipal Bond ETF,Muni National Long,0.23,2815166464,2007-09-11,2026-10-09
+TFLO,iShares Treasury Floating Rate Bond ETF,Ultrashort Bond,0.15,6945307136,2014-02-04,2026-10-09
+THRO,iShares U.S. Thematic Rotation Active ETF,Large Blend,0.57,6832399360,2021-12-14,2026-10-09
+TIP,iShares TIPS Bond ETF,Inflation-Protected Bond,0.18,14229889024,2003-12-04,2026-10-09
+TLH,iShares 10-20 Year Treasury Bond ETF,Long Government,0.15,10728644608,2007-01-05,2026-10-09
+TLT,iShares 20+ Year Treasury Bond ETF,Long Government,0.15,46233321472,2002-07-22,2026-10-09
+TOTL,State Street DoubleLine Total Return Tactical ETF,Intermediate Core-Plus Bond,0.55,3677128448,2015-02-23,2026-10-09
+TSPA,T. Rowe Price US Equity Research ETF,Large Blend,0.34,4589436416,2021-06-08,2026-10-09
+UCON,First Trust Smith Unconstrained Plus Bond ETF,Nontraditional Bond,0.86,3196225280,2018-06-04,2026-10-09
+URA,Global X Uranium ETF,Natural Resources,0.69,5591713280,2010-11-04,2026-10-09
+URTH,iShares MSCI World ETF,Global Large-Stock Blend,0.24,8177471488,2012-01-10,2026-10-09
+USCA,Xtrackers MSCI USA Climate Action Equity ETF,Large Blend,0.07,3515603712,2023-04-03,2026-10-09
+USFR,WisdomTree Floating Rate Treasury Fund,Ultrashort Bond,0.15,19778600960,2014-02-04,2026-10-09
+USHY,iShares Broad USD High Yield Corporate Bond ETF,High Yield Bond,0.08,26005198848,2017-10-25,2026-10-09
+USIG,iShares Broad USD Investment Grade Corporate Bond ETF,Corporate Bond,0.04,17489655808,2007-01-05,2026-10-09
+USMC,Principal U.S. Mega-Cap ETF,Large Blend,0.12,5105426432,2017-10-11,2026-10-09
+USMV,iShares MSCI USA Min Vol Factor ETF,Large Blend,0.15,23164264448,2011-10-18,2026-10-09
+USRT,iShares Core U.S. REIT ETF,Real Estate,0.08,4314472960,2007-05-01,2026-10-09
+VAW,Vanguard Materials Index Fund ETF Shares,Natural Resources,0.09,4492329472,2004-01-26,2026-10-09
+VB,Vanguard Morningstar Small-Cap ETF,Small Blend,0.03,175772319744,2004-01-26,2026-10-09
+VBIL,Vanguard 0-3 Month Treasury Bill ETF,Ultrashort Bond,0.06,12726850560,2025-02-10,2026-10-09
+VBK,Vanguard Morningstar Small-Cap Growth ETF,Small Growth,0.05,42941300736,2004-01-26,2026-10-09
+VBR,Vanguard Morningstar Small-Cap Value ETF,Small Value,0.05,64117555200,2004-01-26,2026-10-09
+VCIT,Vanguard Intermediate-Term Corporate Bond Index Fund ETF Shares,Corporate Bond,0.03,68645912576,2009-11-19,2026-10-09
+VCLT,Vanguard Long-Term Corporate Bond Index Fund ETF Shares,Long-Term Bond,0.03,8868049920,2009-11-19,2026-10-09
+VCR,Vanguard Consumer Discretionary Index Fund ETF Shares,Consumer Cyclical,0.09,6153633280,2004-01-26,2026-10-09
+VCRB,Vanguard Core Bond ETF,Intermediate Core Bond,0.1,7562853376,2023-12-14,2026-10-09
+VCSH,Vanguard Short-Term Corporate Bond Index Fund ETF Shares,Short-Term Bond,0.03,50868535296,2009-11-19,2026-10-09
+VDC,Vanguard Consumer Staples Index Fund ETF Shares,Consumer Defensive,0.09,8700480512,2004-01-26,2026-10-09
+VDE,Vanguard Energy Index Fund ETF Shares,Equity Energy,0.09,12669258752,2004-09-23,2026-10-09
+VEA,Vanguard FTSE Developed Markets Index Fund ETF Shares,Foreign Large Blend,0.03,313543393280,2007-07-20,2026-10-09
+VEU,Vanguard FTSE All-World ex-US Index Fund ETF Shares,Foreign Large Blend,0.04,95685828608,2007-03-02,2026-10-09
+VFH,Vanguard Financials Index Fund ETF Shares,Financial,0.09,13847412736,2004-01-26,2026-10-09
+VFLO,Victoryshares Free Cash Flow ETF,Mid-Cap Value,0.39,10953042944,2023-06-21,2026-10-09
+VGIT,Vanguard Intermediate-Term Treasury Index Fund ETF Shares,Intermediate Government,0.03,47829745664,2009-11-19,2026-10-09
+VGK,Vanguard FTSE Europe ETF,Europe Stock,0.06,37173432320,2005-03-04,2026-10-09
+VGLT,Vanguard Long-Term Treasury Index Fund ETF Shares,Long Government,0.03,14842457088,2009-11-19,2026-10-09
+VGSH,Vanguard Short-Term Treasury Index Fund ETF Shares,Short Government,0.03,39489773568,2009-11-19,2026-10-09
+VGT,Vanguard Information Technology Index Fund ETF Shares,Technology,0.09,177927127040,2004-01-26,2026-10-09
+VHT,Vanguard Health Care Index Fund ETF Shares,Health,0.09,21809221632,2004-01-26,2026-10-09
+VIG,Vanguard Dividend Appreciation Index Fund ETF Shares,Large Blend,0.04,127597993984,2006-04-21,2026-10-09
+VIOO,Vanguard S&P Small-Cap 600 Index Fund ETF Shares,Small Blend,0.07,6092856320,2010-09-07,2026-10-09
+VIS,Vanguard Industrials Index Fund ETF Shares,Industrials,0.09,8552468992,2004-09-23,2026-10-09
+VLUE,iShares MSCI USA Value Factor ETF,Large Value,0.15,9367618560,2013-04-16,2026-10-09
+VMBS,Vanguard Mortgage-Backed Securities Index Fund ETF Shares,Government Mortgage-Backed Bond,0.03,17104080896,2009-11-19,2026-10-09
+VNLA,Janus Henderson Short Duration Income ETF,Ultrashort Bond,0.23,3470066688,2016-11-16,2026-10-09
+VNQ,Vanguard Real Estate Index Fund ETF Shares,Real Estate,0.13,66417905664,2004-09-23,2026-10-09
+VNQI,Vanguard Global ex-U.S. Real Estate Index Fund ETF Shares,Global Real Estate,0.12,3551832576,2010-11-01,2026-10-09
+VO,Vanguard Morningstar Mid-Cap ETF,Mid-Cap Blend,0.03,216429658112,2004-01-26,2026-10-09
+VOE,Vanguard Morningstar Mid-Cap Value ETF,Mid-Cap Value,0.05,36742696960,2006-08-17,2026-10-09
+VONE,Vanguard Russell 1000 Index Fund ETF Shares,Large Blend,0.06,12184858624,2010-09-20,2026-10-09
+VONG,Vanguard Russell 1000 Growth Index Fund ETF Shares,Large Growth,0.06,55545090048,2010-09-20,2026-10-09
+VONV,Vanguard Russell 1000 Value Index Fund ETF Shares,Large Value,0.06,23289356288,2010-09-20,2026-10-09
+VOO,Vanguard S&P 500 ETF,Large Blend,0.03,1729312194560,2010-09-07,2026-10-09
+VOOG,Vanguard S&P 500 Growth Index Fund ETF Shares,Large Growth,0.07,27768145920,2010-09-07,2026-10-09
+VOOV,Vanguard S&P 500 Value Index Fund ETF Shares,Large Value,0.07,6770053120,2010-09-07,2026-10-09
+VOT,Vanguard Morningstar Mid-Cap Growth ETF,Mid-Cap Growth,0.05,33194823680,2006-08-17,2026-10-09
+VOX,Vanguard Communication Services Index Fund ETF Shares,Communications,0.09,6295379456,2004-09-23,2026-10-09
+VPL,Vanguard FTSE Pacific Index Fund ETF Shares,Focused Region,0.07,13478658048,2005-03-04,2026-10-09
+VPU,Vanguard Utilities Index Fund ETF Shares,Utilities,0.09,9470347264,2004-01-26,2026-10-09
+VSGX,Vanguard ESG International Stock ETF,Foreign Large Blend,0.1,6738137088,2018-09-18,2026-10-09
+VSS,Vanguard FTSE All-World ex-US Small-Cap Index Fund ETF Shares,Foreign Small/Mid Blend,0.06,13987589120,2009-04-02,2026-10-09
+VT,Vanguard Total World Stock Index Fund ETF Shares,Global Large-Stock Blend,0.06,101182521344,2008-06-24,2026-10-09
+VTEB,Vanguard Tax-Exempt Bond Index Fund ETF Shares,Muni National Interm,0.03,51706888192,2015-08-21,2026-10-09
+VTHR,Vanguard Russell 3000 Index Fund ETF Shares,Large Blend,0.06,6485594112,2010-09-20,2026-10-09
+VTI,Vanguard Morningstar Total Stock Market ETF,Large Blend,0.03,2322096979968,2001-05-24,2026-10-09
+VTIP,Vanguard Short-Term Inflation-Protected Securities Index Fund ETF Shares,Short-Term Inflation-Protected Bond,0.03,73009381376,2012-10-12,2026-10-09
+VTV,Vanguard Morningstar Value ETF,Large Value,0.03,251724939264,2004-01-26,2026-10-09
+VTWO,Vanguard Russell 2000 Index Fund ETF Shares,Small Blend,0.06,17274572800,2010-09-20,2026-10-09
+VUG,Vanguard Morningstar Growth ETF,Large Growth,0.03,392072069120,2004-01-26,2026-10-09
+VV,Vanguard Morningstar Large-Cap ETF,Large Blend,0.03,75985477632,2004-01-27,2026-10-09
+VWO,Vanguard FTSE Emerging Markets Index Fund ETF Shares,Diversified Emerging Mkts,0.06,164656922624,2005-03-04,2026-10-09
+VWOB,Vanguard Emerging Markets Government Bond Index Fund ETF Shares,Emerging Markets Bond,0.15,6576755712,2013-05-31,2026-10-09
+VXF,Vanguard Extended Market Index Fund ETF Shares,Mid-Cap Blend,0.05,91201388544,2001-12-27,2026-10-09
+VXUS,Vanguard Total International Stock Index Fund ETF Shares,Foreign Large Blend,0.05,649285074944,2011-01-26,2026-10-09
+XAR,State Street SPDR S&P Aerospace & Defense ETF,Industrials,0.35,5537439744,2011-09-28,2026-10-09
+XBI,State Street SPDR S&P Biotech ETF,Health,0.35,10357507072,2006-01-31,2026-10-09
+XLB,State Street Materials Select Sector SPDR ETF,Natural Resources,0.08,7776858624,1998-12-16,2026-10-09
+XLC,State Street Communication Services Select Sector SPDR ETF,Communications,0.08,22528514048,2018-06-18,2026-10-09
+XLE,State Street Energy Select Sector SPDR ETF,Equity Energy,0.08,39130157056,1998-12-16,2026-10-09
+XLF,State Street Financial Select Sector SPDR ETF,Financial,0.08,50968727552,1998-12-16,2026-10-09
+XLG,Invesco S&P 500 Top 50 ETF,Large Blend,0.2,11687519232,2005-05-04,2026-10-09
+XLI,State Street Industrial Select Sector SPDR ETF,Industrials,0.08,29827448832,1998-12-16,2026-10-09
+XLK,State Street Technology Select Sector SPDR ETF,Technology,0.08,127297691648,1998-12-16,2026-10-09
+XLP,State Street Consumer Staples Select Sector SPDR ETF,Consumer Defensive,0.08,13445566464,1998-12-16,2026-10-09
+XLRE,State Street Real Estate Select Sector SPDR ETF,Real Estate,0.08,7652509696,2015-10-07,2026-10-09
+XLU,State Street Utilities Select Sector SPDR ETF,Utilities,0.08,21327450112,1998-12-16,2026-10-09
+XLV,State Street Health Care Select Sector SPDR ETF,Health,0.08,43393187840,1998-12-16,2026-10-09
+XLY,State Street Consumer Discretionary Select Sector SPDR ETF,Consumer Cyclical,0.08,21273047040,1998-12-16,2026-10-09
+XME,State Street SPDR S&P Metals & Mining ETF,Natural Resources,0.35,4094420480,2006-06-19,2026-10-09
+XMHQ,Invesco S&P MidCap Quality ETF,Mid-Cap Blend,0.25,5345000448,2006-12-01,2026-10-09
+XMMO,Invesco S&P MidCap Momentum ETF,Mid-Cap Blend,0.34,6995473920,2005-03-03,2026-10-09
+XSD,State Street SPDR S&P Semiconductor ETF,Technology,0.35,3122810112,2006-01-31,2026-10-09
+XSMO,Invesco S&P SmallCap Momentum ETF,Small Blend,0.35,2862272512,2005-03-03,2026-10-09
+XT,iShares Future Exponential Technologies ETF,Technology,0.46,3984048896,2015-03-19,2026-10-09

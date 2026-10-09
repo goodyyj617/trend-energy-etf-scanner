@@ -33,6 +33,16 @@ All decisions in this section have status `Accepted`.
 24. Lab robustness uses no weighted score: pass/fail gates, neighbor survival, connected passing regions, leave-one-year-out re-checks, then lexicographic ordering (region size, neighbor survival, LOYO pass share, Calmar).
 25. Default lab gates come from CHARTER.md: CAGR >= 0.80 x SPY CAGR, |MDD| <= 0.75 x |SPY MDD|, at least 30 completed trades. Gates are not lowered automatically when no candidate passes.
 
+### Research lab test bench (2026-10-09)
+
+26. Uninvested cash earns a T-bill return by default: BIL total return, and before BIL existed (2007-05) the 13-week T-bill rate (^IRX) / 252. A 0% option remains for comparison.
+27. ETF universes go through a recorded filter funnel: cash-like ETFs (Morningstar "Ultrashort Bond" / money market) are never traded and serve only as the cash proxy; default asset classes exclude bonds; AUM >= $1B; expense ratio <= 0.75%; near-duplicates (daily-return correlation >= 0.98, computed only on pre-holdout data) keep the larger fund. Metadata is fetched once into `lab/etf_meta.csv` and is current-day data (survivorship bias acknowledged).
+28. A holdout period (default start 2024-01-01) is excluded from all research runs. Only saved strategies can be evaluated on it, unchanged; every evaluation and every change to the holdout setting is logged.
+29. Every distinct strategy evaluated (single runs, grid cells, checklist variants) is logged; the count and the spread of their Sharpe ratios feed the Deflated Sharpe Ratio.
+30. Every backtest is shown next to three baselines on the same dates, costs and cash: SPY buy-and-hold, SPY 200-day moving-average timing, and an equal-weight daily-rebalanced universe.
+31. Single-strategy robustness is a 7-item pass/fail checklist with no weights: gates, neighbor parameters (> 50% of +/-1-step variants pass), 2x cost, LOYO, both halves, Calmar above SPY 200-day timing, DSR >= 0.95.
+32. Strategy blocks may be fixed rules with no numeric parameter (moving-average stack, up candle); such blocks are excluded from grids.
+
 ## Open decisions
 
 - final trend-filter definition;

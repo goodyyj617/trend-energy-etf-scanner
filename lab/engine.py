@@ -1,12 +1,14 @@
 """Portfolio backtest engine.
 
-Rules (also shown in the UI):
+Rules (also shown in the UI as RULES_KO):
 - Signals use data up to the day-t close; orders execute at the day t+1 open.
-- Entry: every selected entry block is true (AND) and the symbol passes the liquidity filter.
+- Entry: every selected entry block is true (AND) and the symbol passes the price and
+  liquidity filters.
 - Exit: any selected exit block is true (OR).
 - Up to `max_positions` holdings. Each new position receives min(equity / max_positions, cash).
-  Positions are not rebalanced afterwards. Uninvested cash earns 0%.
-- When more symbols signal than free slots, larger 20-day average dollar volume goes first.
+  Positions are not rebalanced afterwards.
+- Uninvested cash earns the panel's cash return (T-bill ETF) when `cash_yield` is on.
+- When more symbols signal than free slots, larger average dollar volume goes first.
 - `cost_bps` is charged on each side (buy and sell) and should include slippage.
 """
 from __future__ import annotations
@@ -18,31 +20,34 @@ from dataclasses import asdict, dataclass, field, replace
 import numpy as np
 import pandas as pd
 
-from .blocks import ENTRY_BLOCKS, EXIT_BLOCKS
+from .blocks import ALL_BLOCKS, ENTRY_BLOCKS, EXIT_BLOCKS, atr
 from .data import BENCHMARK, Panel
 
 RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, 주문은 **t+1일 시가**에 체결합니다 (미래 데이터 사용 없음).
 - 진입: 선택한 진입 조건이 **모두** 참이고, 최소 주가·최소 거래대금 조건을 통과한 종목.
 - 청산: 선택한 청산 조건 중 **하나라도** 참이면 다음 날 시가에 전량 매도.
 - 최대 보유 종목 수만큼 슬롯이 있고, 새 종목에는 min(총자산 ÷ 최대 보유 수, 남은 현금)을 배정합니다. 이후 리밸런싱은 하지 않습니다.
-- 빈 슬롯보다 신호가 많으면 **20일 평균 거래대금이 큰 종목**부터 매수합니다 (성과와 무관한 유동성 기준).
-- 남는 현금의 이자는 0%로 가정합니다.
-- 거래 비용(bp)은 매수와 매도 **각각**에 부과합니다. 슬리피지를 포함한 값으로 넣으세요.
+- 빈 슬롯보다 신호가 많으면 **평균 거래대금이 큰 종목**부터 매수합니다 (성과와 무관한 유동성 기준).
+- 남는 현금은 **단기국채 ETF(BIL) 수익률**을 받습니다 (BIL 상장 전 2007년 이전은 13주 국채금리 ÷ 252). 끄면 0%.
+  현금 대용 ETF를 사고파는 비용은 무시합니다 (호가 차이가 매우 작음).
+- 거래 비용(bp)은 매수와 매도 **각각**에 부과합니다. 수수료와 슬리피지를 합친 값으로 넣으세요.
 - 다음 날 시가가 없으면(거래 정지 등) 매도는 다음 거래일로 미루고, 매수는 취소합니다.
-- 가격은 배당·분할 조정 가격(yfinance auto_adjust)이므로 배당 재투자 효과가 포함됩니다.
+- 가격은 배당·분할 조정 가격(yfinance auto_adjust)이므로 배당 재투자 효과가 포함됩니다. 세금은 반영하지 않습니다.
 """
 
 
 @dataclass(frozen=True)
 class StrategyConfig:
-    entries: dict[str, float]
-    exits: dict[str, float]
+    entries: dict[str, float | None]
+    exits: dict[str, float | None]
     start: str
     end: str
     max_positions: int = 10
     cost_bps: float = 10.0
     min_price: float = 5.0
     min_dollar_volume: float = 5_000_000.0
+    liquidity_days: int = 20
+    cash_yield: bool = True
 
     def with_param(self, key: str, value: float) -> "StrategyConfig":
         if key in self.entries:
@@ -51,6 +56,8 @@ class StrategyConfig:
             return replace(self, exits={**self.exits, key: value})
         if key == "max_positions":
             return replace(self, max_positions=int(value))
+        if key == "cost_bps":
+            return replace(self, cost_bps=float(value))
         raise KeyError(key)
 
     def param_value(self, key: str) -> float:
@@ -60,14 +67,23 @@ class StrategyConfig:
             return self.exits[key]
         return getattr(self, key)
 
+    def tunable(self) -> list[str]:
+        """Selected blocks that have a numeric parameter (fixed-rule blocks are excluded)."""
+        return [k for k in [*self.entries, *self.exits] if ALL_BLOCKS[k].param is not None]
+
     def describe(self) -> str:
         def fmt(blocks, chosen):
-            return " + ".join(f"{blocks[k].label}({_num(v)})" for k, v in chosen.items()) or "없음"
+            return " + ".join(blocks[k].label + ("" if v is None else f"({_num(v)})") for k, v in chosen.items()) or "없음"
 
         return f"진입: {fmt(ENTRY_BLOCKS, self.entries)} | 청산: {fmt(EXIT_BLOCKS, self.exits)} | 최대 {self.max_positions}종목"
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    @staticmethod
+    def from_dict(d: dict) -> "StrategyConfig":
+        known = {k: v for k, v in d.items() if k in StrategyConfig.__dataclass_fields__}
+        return StrategyConfig(**known)
 
     def fingerprint(self) -> str:
         return hashlib.sha1(json.dumps(self.to_dict(), sort_keys=True).encode()).hexdigest()[:10]
@@ -98,16 +114,27 @@ class SignalCache:
 
     def __init__(self, panel: Panel):
         self.panel = panel
-        self._frames: dict[tuple[str, float], pd.DataFrame] = {}
-        dollar_volume = panel.close * panel.volume
-        self.dv20 = dollar_volume.rolling(20, min_periods=20).mean()
+        self._frames: dict[tuple[str, float | None], pd.DataFrame] = {}
+        self._dv: dict[int, pd.DataFrame] = {}
+        self._atr: pd.DataFrame | None = None
 
-    def frame(self, key: str, value: float) -> pd.DataFrame:
-        k = (key, float(value))
+    def frame(self, key: str, value: float | None) -> pd.DataFrame:
+        k = (key, None if value is None else float(value))
         if k not in self._frames:
-            block = ENTRY_BLOCKS.get(key) or EXIT_BLOCKS[key]
+            block = ALL_BLOCKS[key]
             self._frames[k] = block.compute(self.panel, value).fillna(False).astype(bool)
         return self._frames[k]
+
+    def dollar_volume(self, days: int) -> pd.DataFrame:
+        if days not in self._dv:
+            self._dv[days] = (self.panel.close * self.panel.volume).rolling(days, min_periods=days).mean()
+        return self._dv[days]
+
+    @property
+    def atr14(self) -> pd.DataFrame:
+        if self._atr is None:
+            self._atr = atr(self.panel, 14)
+        return self._atr
 
 
 def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None) -> BacktestResult:
@@ -129,7 +156,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     for key, value in cfg.entries.items():
         f = cache.frame(key, value)
         entry = f if entry is None else (entry & f)
-    eligible = (panel.close >= cfg.min_price) & (cache.dv20 >= cfg.min_dollar_volume)
+    dv = cache.dollar_volume(int(cfg.liquidity_days))
+    eligible = (panel.close >= cfg.min_price) & (dv >= cfg.min_dollar_volume)
     tradable = panel.close.columns.isin(panel.tradable_symbols)
     entry = (entry & eligible).loc[dates].to_numpy() & tradable
 
@@ -137,10 +165,14 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     exit_frames = {k: cache.frame(k, cfg.exits[k]).loc[dates].to_numpy() for k in signal_exits}
     trail = cfg.exits.get("trailing_pct")
     stop = cfg.exits.get("stop_loss_pct")
+    atr_k = cfg.exits.get("atr_trail")
+    A = cache.atr14.loc[dates].to_numpy(dtype=float) if atr_k is not None else None
 
     O = panel.open.loc[dates].to_numpy(dtype=float)
     C = panel.close.loc[dates].to_numpy(dtype=float)
-    rank = np.nan_to_num(cache.dv20.loc[dates].to_numpy(dtype=float), nan=-1.0)
+    rank = np.nan_to_num(dv.loc[dates].to_numpy(dtype=float), nan=-1.0)
+    cash_r = (panel.cash.reindex(dates).fillna(0.0).to_numpy() if (cfg.cash_yield and panel.cash is not None)
+              else np.zeros(len(dates)))
     symbols = panel.symbols
     c = cfg.cost_bps / 10_000.0
     K = int(cfg.max_positions)
@@ -188,7 +220,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                 cash -= alloc
             pending_entry = []
 
-        # 2) mark to market at today's close
+        # 2) cash earns today's T-bill return, then mark to market at today's close
+        cash *= 1.0 + cash_r[i]
         today = C[i]
         has = ~np.isnan(today)
         last_close[has] = today[has]
@@ -210,6 +243,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                     hit = exit_frames[k][i, j]
                 elif k == "trailing_pct":
                     hit = today[j] < p["peak"] * (1 - trail / 100.0)
+                elif k == "atr_trail":
+                    hit = not np.isnan(A[i, j]) and today[j] < p["peak"] - atr_k * A[i, j]
                 else:  # stop_loss_pct
                     hit = today[j] < p["entry_price"] * (1 - stop / 100.0)
                 if hit:
@@ -250,3 +285,34 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         universe_size=int(tradable.sum()),
         warnings=warnings,
     )
+
+
+# --------------------------------------------------------------------------- baselines
+
+BASELINE_LABELS = {
+    "spy": "SPY 보유",
+    "spy_ma200": "SPY 200일선",
+    "equal_weight": "유니버스 동일비중",
+}
+BASELINE_HELP = {
+    "spy": "SPY를 기간 내내 보유 (배당 재투자).",
+    "spy_ma200": "SPY 종가 > 200일 이동평균이면 보유, 아래로 내려가면 다음 날 시가에 매도하고 현금(단기국채) 보유. "
+                 "규칙 하나짜리 가장 단순한 추세추종. 같은 거래 비용·현금 수익률 적용.",
+    "equal_weight": "거래 대상 유니버스의 모든 종목을 같은 비중으로 보유하고 매일 비중을 다시 맞춤 (신호 없음). "
+                    "‘종목 선택 없이 이 유니버스를 그냥 샀다면’의 기준.",
+}
+
+
+def baselines(panel: Panel, cfg: StrategyConfig, dates: pd.DatetimeIndex) -> dict[str, pd.Series]:
+    """Simple reference strategies on the same dates, costs and cash assumption."""
+    out: dict[str, pd.Series] = {}
+    spy = panel.close[BENCHMARK].reindex(dates).ffill()
+    out["spy"] = spy / spy.dropna().iloc[0]
+    ma_cfg = replace(cfg, entries={"above_ma": 200}, exits={"below_ma": 200}, max_positions=1,
+                     min_price=0.0, min_dollar_volume=0.0)
+    out["spy_ma200"] = run_backtest(panel.subset([BENCHMARK]), ma_cfg).equity.reindex(dates)
+    rets = panel.close[panel.tradable_symbols].reindex(dates).pct_change(fill_method=None)
+    ew = rets.mean(axis=1, skipna=True).fillna(0.0)
+    ew.iloc[0] = 0.0
+    out["equal_weight"] = (1 + ew).cumprod()
+    return out

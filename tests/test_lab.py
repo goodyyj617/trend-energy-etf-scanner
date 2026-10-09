@@ -105,3 +105,123 @@ def test_gates_and_loyo():
     eq = pd.Series(np.linspace(1, 2, len(idx)), index=idx)
     ratio, failed = loyo(eq, eq.copy(), Gates())
     assert ratio == 1.0 and failed == []
+
+
+# --------------------------------------------------------------------------- phase 1: test bench
+
+from lab import research_log  # noqa: E402
+from lab.blocks import rsi  # noqa: E402
+from lab.data import cash_from_closes  # noqa: E402
+from lab.engine import baselines  # noqa: E402
+from lab.grid import strategy_checklist  # noqa: E402
+from lab.metrics import deflated_sharpe  # noqa: E402
+from lab.universe import UniverseFilter, apply_filter, asset_class, near_duplicates  # noqa: E402
+
+
+def test_rsi_extremes_and_balance():
+    up = pd.DataFrame({"A": np.arange(1.0, 40.0)})
+    assert rsi(up).iloc[-1, 0] == pytest.approx(100.0)
+    zigzag = pd.DataFrame({"A": [10.0 + (i % 2) for i in range(200)]})
+    assert rsi(zigzag).iloc[-1, 0] == pytest.approx(50.0, abs=3)
+
+
+def test_fixed_rule_blocks_have_no_tunable_parameter():
+    flat = [10.0] * 260
+    panel, _ = make_panel({"AAA": flat, "SPY": flat})
+    c = cfg(entries={"ma_stack": None, "up_candle": None}, exits={"low_break": 10})
+    assert c.tunable() == ["low_break"]
+    assert "None" not in c.describe()
+    run_backtest(panel, c)  # runs without a parameter value
+
+
+def test_atr_trailing_exit():
+    closes = [10.0] * 25 + [12.0, 14.0, 16.0, 16.0, 13.0, 13.0, 13.0]
+    panel, dates = make_panel({"AAA": closes, "SPY": [10.0] * len(closes)})
+    res = run_backtest(panel, cfg(exits={"atr_trail": 1.0}))
+    # ATR(14) is ~1 here; close 13 < peak 16 - 1*ATR -> signal on dates[29], exit at the next open
+    assert res.trades.iloc[0]["exit_date"] == dates[30]
+
+
+def test_idle_cash_earns_cash_return():
+    flat = [10.0] * 60
+    panel, _ = make_panel({"AAA": flat, "SPY": flat})
+    panel.cash = pd.Series(0.0001, index=panel.close.index)
+    res = run_backtest(panel, cfg())  # flat prices never break out -> always in cash
+    assert res.equity.iloc[-1] == pytest.approx(1.0001 ** len(res.equity))
+    off = run_backtest(panel, cfg(cash_yield=False))
+    assert off.equity.iloc[-1] == pytest.approx(1.0)
+
+
+def test_cash_series_splices_tbill_rate_before_bil():
+    idx = pd.bdate_range("2007-01-01", periods=6)
+    irx = pd.Series(5.04, index=idx)
+    bil = pd.Series([np.nan, np.nan, np.nan, 100.0, 100.1, 100.2], index=idx)
+    out = cash_from_closes(idx, bil, irx)
+    assert out.iloc[1] == pytest.approx(0.0504 / 252)
+    assert out.iloc[4] == pytest.approx(0.001)
+
+
+def test_asset_class_mapping():
+    assert asset_class("Ultrashort Bond") == "현금성"
+    assert asset_class("Long Government") == "채권"
+    assert asset_class("Target Maturity") == "채권"
+    assert asset_class("Focused Region") == "해외 주식"
+    assert asset_class("Equity Precious Metals") == "섹터·테마 주식"
+    assert asset_class("Commodities Focused") == "원자재"
+    assert asset_class("Large Blend") == "미국 주식"
+    assert asset_class("Digital Assets") == "기타"
+    assert asset_class("", "Bond") == "채권"
+
+
+def test_dedup_keeps_first_of_near_identical_pair():
+    rng = np.random.default_rng(1)
+    a = 100 * np.cumprod(1 + rng.normal(0, 0.01, 400))
+    close = pd.DataFrame({"BIG": a, "CLONE": a * 2.0, "OTHER": 100 * np.cumprod(1 + rng.normal(0, 0.01, 400))},
+                         index=pd.bdate_range("2020-01-01", periods=400))
+    assert near_duplicates(close, ["BIG", "CLONE", "OTHER"]) == {"CLONE": "BIG"}
+
+
+def test_filter_funnel_excludes_cash_like_and_expensive():
+    table = pd.DataFrame([
+        {"symbol": "SPY", "name": "", "category": "Large Blend", "asset_class": "미국 주식", "aum": 5e11, "expense_ratio": 0.09},
+        {"symbol": "BIL", "name": "", "category": "Ultrashort Bond", "asset_class": "현금성", "aum": 5e10, "expense_ratio": 0.13},
+        {"symbol": "PRICY", "name": "", "category": "Technology", "asset_class": "섹터·테마 주식", "aum": 5e9, "expense_ratio": 1.2},
+        {"symbol": "TINY", "name": "", "category": "Technology", "asset_class": "섹터·테마 주식", "aum": 1e8, "expense_ratio": 0.3},
+    ])
+    out, funnel = apply_filter(table, UniverseFilter(dedup=False))
+    assert list(out.loc[out["status"] == "선택", "symbol"]) == ["SPY"]
+    assert [n for _, n in funnel] == [4, 3, 3, 2, 1]
+
+
+def test_deflated_sharpe_falls_with_more_trials():
+    rng = np.random.default_rng(2)
+    eq = pd.Series(np.cumprod(1 + rng.normal(0.0005, 0.01, 1000)), index=pd.bdate_range("2015-01-01", periods=1000))
+    vals = [deflated_sharpe(eq, n, 0.0004) for n in (1, 10, 100)]
+    assert vals[0] > vals[1] > vals[2]
+
+
+def test_trial_log_dedupes_and_holdout_records(tmp_path, monkeypatch):
+    monkeypatch.setattr(research_log, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(research_log, "TRIALS_PATH", tmp_path / "trials.csv")
+    monkeypatch.setattr(research_log, "HOLDOUT_PATH", tmp_path / "holdout.json")
+    eq = pd.Series(np.linspace(1, 1.5, 300), index=pd.bdate_range("2020-01-01", periods=300))
+    research_log.log_trials([("backtest", cfg(), ["AAA"], eq), ("backtest", cfg(), ["AAA"], eq),
+                             ("grid", cfg(max_positions=2), ["AAA"], eq)])
+    assert research_log.trial_stats()[0] == 2
+    state = research_log.set_holdout(True, "2023-01-01")
+    assert state["start"] == "2023-01-01" and len(state["changes"]) == 1
+    state = research_log.record_holdout_evaluation("x", cfg(), {"cagr": 0.1, "spy_cagr": 0.12, "spy_sharpe": 1.0}, ("a", "b"))
+    assert len(state["evaluations"]) == 1 and "spy_sharpe" not in state["evaluations"][0]["metrics"]
+
+
+def test_checklist_and_baselines_run():
+    rng = np.random.default_rng(3)
+    n = 700
+    prices = {s: list(50 * np.cumprod(1 + rng.normal(0.0006, 0.012, n))) for s in ("AAA", "BBB", "SPY")}
+    panel, _ = make_panel(prices)
+    c = cfg(entries={"breakout": 20}, exits={"low_break": 10}, max_positions=2)
+    res = run_backtest(panel, c)
+    base = baselines(panel, c, res.equity.index)
+    assert set(base) == {"spy", "spy_ma200", "equal_weight"}
+    items = strategy_checklist(panel, c, Gates(), res, base["spy_ma200"], 0.5)
+    assert [i["key"] for i in items] == ["gate", "neighbors", "cost", "loyo", "halves", "simple", "dsr"]
