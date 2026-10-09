@@ -5,6 +5,9 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+
+from src.trend_v2_foundation.contracts import StrategyRunSpec
 
 from src.trend_v2_foundation.foundation_6 import (
     CATALOG_SCHEMA_VERSION,
@@ -65,6 +68,37 @@ class Foundation6CatalogTests(unittest.TestCase):
 
 
 class Foundation6PersistenceTests(unittest.TestCase):
+    def test_controlled_request_derives_identity_from_serialized_specification(self):
+        spec = StrategyRunSpec(
+            data_snapshot_hash="a" * 64,
+            economic_date_range={"start": "2024-01-02", "end": "2024-12-31"},
+            engine_version="synthetic",
+            **{field: {"option_id": "synthetic"} for field in (
+                "universe_specification", "benchmark", "trend_filter", "signal",
+                "entry_rule", "initial_stop", "trailing_exit", "position_sizing",
+                "portfolio_constraints", "transaction_costs", "slippage",
+            )},
+        )
+        self.assertNotIn("strategy_run_id", spec.to_dict())
+        controlled = {
+            "execution_request_id": "controlled_request",
+            "requested_strategy_run_candidates": [spec.to_dict()],
+            "request_timestamp": "2026-10-01T00:00:00Z",
+        }
+        attempt = SimpleNamespace(
+            intended_strategy_run_id=spec.strategy_run_id,
+            execution_attempt_id="existing_attempt",
+            operational_status=SimpleNamespace(value="running"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            manager = PersistedExecutionManager(temporary, OptionCatalog.load(CATALOG_PATH))
+            first = manager.track_controlled_request(controlled, [attempt])
+            replay = manager.track_controlled_request(controlled, [attempt])
+            self.assertEqual(first, replay)
+            self.assertEqual(first["candidates"][0]["strategy_run_id"], spec.strategy_run_id)
+            self.assertEqual(first["candidates"][0]["state"], "running")
+            self.assertEqual(first["candidates"][0]["execution_attempt_id"], "existing_attempt")
+
     def test_restart_recovery_lease_exclusivity_and_resume(self):
         catalog = OptionCatalog.load(CATALOG_PATH)
         with tempfile.TemporaryDirectory() as temporary:

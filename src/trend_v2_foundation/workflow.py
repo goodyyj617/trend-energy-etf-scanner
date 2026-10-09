@@ -332,9 +332,9 @@ class WorkflowCoordinator:
             self.execution.attempt_repository.get(identity).intended_strategy_run_id
             for identity in attempt_ids
         )
+        self._event(workflow_id, "economic_started", {"execution_request_id": request.execution_request_id, "execution_attempt_ids": attempt_ids, "strategy_run_ids": strategy_run_ids})
         if self.manager is not None:
             self.manager.track_controlled_request(request.to_dict(), self.execution.attempt_repository.list())
-        self._event(workflow_id, "economic_started", {"execution_request_id": request.execution_request_id, "execution_attempt_ids": attempt_ids, "strategy_run_ids": strategy_run_ids})
         return self.read(workflow_id)
 
     def configure_robustness(self, workflow_id: str, request: Mapping[str, Any], *, confirmation_id: str | None = None) -> Mapping[str, Any]:

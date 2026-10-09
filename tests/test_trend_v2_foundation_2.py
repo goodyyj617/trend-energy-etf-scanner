@@ -337,6 +337,22 @@ class BehaviorTests(unittest.TestCase):
 
 
 class StoredIntegrationTests(unittest.TestCase):
+    def test_calendar_bounds_allow_nontrading_days_but_reject_outside_observations(self) -> None:
+        from dataclasses import replace
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = LocalResultStore(directory, policy())
+            daily = curve([0.0003] * 800, start="2020-01-02")
+            benchmark = curve([0.0002] * 800, start="2020-01-02")
+            requested = replace(spec(1.0), economic_date_range={"start": "2020-01-01", "end": "2023-01-28"})
+            saved = self._save_run(store, requested, daily, benchmark)
+            profile = load_evaluation_profiles(PROFILE_DIR)["research_default"]
+            result = calculate_and_evaluate_saved_runs(store, [saved.strategy_run_id], profile, creation_time=CREATED_AT)
+            self.assertEqual(result.evaluation_run.strategy_run_ids, (saved.strategy_run_id,))
+            outside = self._save_run(store, replace(requested, economic_date_range={"start": "2020-01-03", "end": "2023-01-28"}), daily, benchmark)
+            with self.assertRaisesRegex(ValueError, "outside StrategyRun"):
+                calculate_and_evaluate_saved_runs(store, [outside.strategy_run_id], profile, creation_time=CREATED_AT)
+
     def _save_run(
         self,
         store: LocalResultStore,

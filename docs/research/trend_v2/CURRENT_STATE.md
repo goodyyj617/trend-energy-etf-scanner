@@ -108,6 +108,12 @@
 
 ## Current phase
 
+- Workspace runtime repair: controlled candidate identities are derived from
+  serialized StrategyRun specifications; started attempts remain attached even
+  if the progress projection fails. Stored trading-date curves may sit inside
+  the requested calendar-date range. Invalid workspace dates now show the
+  available snapshot range, and repeated submission errors no longer accumulate.
+
 Product foundation -- unified laptop-bounded strategy discovery workspace
 
 ## Phase A2 record
