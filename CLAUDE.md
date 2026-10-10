@@ -60,8 +60,9 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`universe.py` / `etf_meta.py`**: ETF 필터 깔때기(현금성 제외 → 자산군 → AUM → 총보수 → 상관 ≥ 0.98 중복 정리). 각 단계 제외 사유를 기록해 화면에 보여준다.
   ETF 메타데이터(총보수·AUM·Morningstar 분류)는 `lab/etf_meta.csv`(커밋됨)에서 읽는다. 갱신: `.venv/Scripts/python.exe -m lab.etf_meta`.
   분류 → 자산군 매핑은 `asset_class()`의 키워드 목록이다. 새 분류가 '기타'로 빠지면 여기를 고친다.
-- **`families.py`**: 사전 등록된 고정 메뉴(진입 3 × 청산 3, 각 6×6)로 `run_grid`를 9번 돌려 계열을 격자 전체 성적으로 비교한다(DECISIONS 33–34).
+- **`families.py`**: 사전 등록된 고정 메뉴(v2: 진입 7 × 청산 4 = 28개 계열, 각 6×6)로 `run_grid`를 계열마다 돌려 격자 전체 성적으로 비교한다(DECISIONS 33–34, 45).
   메뉴 값은 결과를 본 뒤 고치지 않는다. 바꾸려면 `MENU_VERSION`을 올려 새 메뉴로 등록한다.
+  공통 조건 시험(`run_addon_test`): 블록 하나를 기본값으로 모든 계열에 더해 계열별 파레토 판정을 센다(DECISIONS 47). `verdict`도 여기 있다.
 - **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
 - 연구 기록: `docs/research/lab/` (날짜별 메모). 연구를 대신 수행했다면 결과·규칙·한계를 여기에 남긴다.
 - **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N), `trial_returns.npz`(시험별 월간 수익률 → 평균 상관 ρ → 유효 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).

@@ -116,6 +116,11 @@ the bar for a final single strategy only.
     universe, otherwise inconclusive. First component tested: initial stop (stop_loss_pct 10%),
     the open "initial-stop families" question. Universes and settings: those of 43 (inverse-vol
     sizing, ETF snapshot 2017-2023 and long-history multi-asset 2000-2023).
+48. Results of 45 and 47: momentum x trailing_pct has the lowest rank sum (1 + 2); the
+    trailing_pct exit family ranks first on average in both universes and below_ma last. The 10%
+    initial stop is inconclusive (improves 18/28 families on the long history, worsens 19/28 on the
+    snapshot) and is not added by default. Trials 6,393, N_eff ~1,402.
+    Record: docs/research/lab/2026-10-10_family_menu_v2.md.
 
 ## Open decisions
 
