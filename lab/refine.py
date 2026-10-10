@@ -17,22 +17,13 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, replace
 
-import numpy as np
 import pandas as pd
 
 from .blocks import ENTRY_BLOCKS, EXIT_BLOCKS
 from .data import Panel
 from .engine import SignalCache, StrategyConfig
-from .families import ENTRY_MENU, EXIT_MENU, ORDER, grid_summary, ma200_calmar
+from .families import ENTRY_MENU, EXIT_MENU, ORDER, VERDICT_TEXT, grid_summary, ma200_calmar, verdict  # noqa: F401
 from .grid import Gates, GridResult, run_grid
-
-VERDICT_TEXT = {
-    "base": "기준 (추가 없음)",
-    "improve": "개선 — 모든 기준에서 같거나 낫고 하나 이상 나음",
-    "worse": "악화 — 모든 기준에서 같거나 못하고 하나 이상 못함",
-    "mixed": "엇갈림 — 나아진 기준과 나빠진 기준이 섞임",
-    "same": "변화 없음",
-}
 
 
 def addon_candidates(entry_key: str) -> list[str]:
@@ -43,22 +34,6 @@ def addon_candidates(entry_key: str) -> list[str]:
 def addon_value(key: str) -> float | None:
     p = ENTRY_BLOCKS[key].param
     return None if p is None else p.default
-
-
-def verdict(base: dict, other: dict) -> str:
-    diffs = []
-    for k in ORDER:
-        a, b = base[k], other[k]
-        if not (np.isfinite(a) and np.isfinite(b)):
-            continue
-        diffs.append(0 if np.isclose(a, b) else (1 if b > a else -1))
-    if not diffs or all(d == 0 for d in diffs):
-        return "same"
-    if all(d >= 0 for d in diffs):
-        return "improve"
-    if all(d <= 0 for d in diffs):
-        return "worse"
-    return "mixed"
 
 
 @dataclass

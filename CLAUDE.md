@@ -27,7 +27,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 .venv/Scripts/python.exe -m pytest -q tests/test_lab.py::test_gates_and_loyo  # 단일 테스트
 .venv/Scripts/python.exe -m pytest -q -W error::FutureWarning                 # 전체 (~1.5분, CI와 동일 플래그)
 
-# 레거시 파이프라인 (GitHub Actions가 매일 실행; 로컬 실행은 docs/data를 덮어쓰므로 하지 말 것)
+# 레거시 파이프라인 (스캔은 GitHub Actions가 매일 실행, 백테스트는 Actions 탭에서 수동 실행만; 로컬 실행은 docs/data를 덮어쓰므로 하지 말 것)
 python -m src.run_daily_scan && python src/postprocess_groups.py
 python -m src.run_backtest_only
 ```
@@ -41,17 +41,17 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 |---|---|---|
 | **연구실 (lab)** | `lab/`, `tests/test_lab.py` | **현재 주력 제품.** 새 기능은 여기에 |
 | Daily ETF Scan | `src/run_daily_scan.py` → `universe`, `features`, `signal_history`, `update_aum`; 결과 `docs/data/`; 화면 `docs/index.html` (GitHub Pages) | 매일 자동 실행. 유지 |
-| v1 Backtest Only | `src/run_backtest_only.py` → `src/backtest.py`, `src/portfolio.py`; 결과 `docs/data/backtest_*`; `docs/backtest_dashboard.js` | score-breakout 기반 레거시. 동결 |
+| v1 Backtest Only | `src/run_backtest_only.py` → `src/backtest.py`, `src/portfolio.py`; 결과 `docs/data/backtest_*`; `docs/backtest_dashboard.js` | score-breakout 기반 레거시. 동결. 자동 실행 꺼짐(수동 실행만, DECISIONS 44) |
 | v2 Foundation | `src/trend_v2_foundation/`, `src/trend_v2*.py`, `scripts/run_trend_v2_*.py`, `config/trend_v2/` | 보존만. Codex용 규칙은 `AGENTS.md` |
 
 - `web/`은 초기 스타터의 오래된 사본(2026-07 이후 갱신 없음)이다. Pages 사이트와 워크플로가 쓰는 곳은 `docs/`. README의 "Folder: /web" 안내는 낡은 내용.
 - `docs/data/`, `config/aum.csv`의 커밋은 GitHub Actions 봇("Update ETF scan data" / "Update backtest data")이 만든다. 손으로 고치지 않는다.
 
-### 해시로 고정된 파일 (수정하면 테스트가 깨짐)
+### 해시로 기록된 파일 (건드리지 않는다)
 
-`tests/test_oos_evaluation_manifest.py`와 `config/oos_evaluation_manifest.json`이 PR #18 OOS 기준선 기록으로 다음 파일의 git blob 해시를 고정한다:
+`config/oos_evaluation_manifest.json`이 PR #18 OOS 기준선 기록으로 다음 파일의 git blob 해시를 적어 두었고, `tests/test_oos_evaluation_manifest.py`는 이 기록값이 바뀌지 않았는지 검사한다(현재 파일의 해시를 다시 계산하지는 않는다). 파일을 고쳐도 테스트는 깨지지 않지만 기준선 기록과 어긋나므로, 고칠 때는 DECISIONS에 이유를 남긴다:
 `src/backtest.py`, `src/features.py`, `src/portfolio.py`, `src/universe.py`, `src/prices.py`, `src/run_daily_scan.py`, `src/run_backtest_only.py`, `config/universe.yml`, `config/exclusions.yml`, `config/manual_overrides.csv`, `.github/workflows/daily_scan.yml`, `.github/workflows/backtest-only.yml`, `scripts/verify_data_publish_base.py`, 그리고 `docs/data`의 일부 백테스트 산출물.
-`lab/data.py`는 `src/prices.py`의 함수를 **가져다 쓰기만** 한다. 필요한 변경은 `lab/` 안에서 할 것. v1 Backtest 자동 실행을 끌지는 사용자 결정 대기 중이다(위 이유로 PR #51에서 보류).
+`lab/data.py`는 `src/prices.py`의 함수를 **가져다 쓰기만** 한다. 필요한 변경은 `lab/` 안에서 할 것. `backtest-only.yml`은 자동 실행을 끄느라 한 번 고쳤다(DECISIONS 44).
 
 ## lab/ 아키텍처
 
@@ -60,8 +60,9 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`universe.py` / `etf_meta.py`**: ETF 필터 깔때기(현금성 제외 → 자산군 → AUM → 총보수 → 상관 ≥ 0.98 중복 정리). 각 단계 제외 사유를 기록해 화면에 보여준다.
   ETF 메타데이터(총보수·AUM·Morningstar 분류)는 `lab/etf_meta.csv`(커밋됨)에서 읽는다. 갱신: `.venv/Scripts/python.exe -m lab.etf_meta`.
   분류 → 자산군 매핑은 `asset_class()`의 키워드 목록이다. 새 분류가 '기타'로 빠지면 여기를 고친다.
-- **`families.py`**: 사전 등록된 고정 메뉴(진입 3 × 청산 3, 각 6×6)로 `run_grid`를 9번 돌려 계열을 격자 전체 성적으로 비교한다(DECISIONS 33–34).
+- **`families.py`**: 사전 등록된 고정 메뉴(v2: 진입 7 × 청산 4 = 28개 계열, 각 6×6)로 `run_grid`를 계열마다 돌려 격자 전체 성적으로 비교한다(DECISIONS 33–34, 45).
   메뉴 값은 결과를 본 뒤 고치지 않는다. 바꾸려면 `MENU_VERSION`을 올려 새 메뉴로 등록한다.
+  공통 조건 시험(`run_addon_test`): 블록 하나를 기본값으로 모든 계열에 더해 계열별 파레토 판정을 센다(DECISIONS 47). `verdict`도 여기 있다.
 - **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
 - 연구 기록: `docs/research/lab/` (날짜별 메모). 연구를 대신 수행했다면 결과·규칙·한계를 여기에 남긴다.
 - **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N), `trial_returns.npz`(시험별 월간 수익률 → 평균 상관 ρ → 유효 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).

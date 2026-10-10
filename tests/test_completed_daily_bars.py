@@ -204,15 +204,14 @@ class BacktestOnlyCompletedBarGuardTest(unittest.TestCase):
 
 
 class BacktestOnlyWorkflowScheduleTest(unittest.TestCase):
-    def test_workflow_uses_new_york_schedule_and_keeps_manual_dispatch(self) -> None:
+    def test_workflow_is_manual_only(self) -> None:
         workflow = (
             Path(__file__).parents[1] / ".github" / "workflows" / "backtest-only.yml"
         ).read_text(encoding="utf-8")
 
         self.assertIn("workflow_dispatch:", workflow)
-        self.assertIn('cron: "30 20 * * 1-5"', workflow)
-        self.assertIn('timezone: "America/New_York"', workflow)
-        self.assertNotIn('cron: "0 18 * * 1-5"', workflow)
+        self.assertNotIn("schedule:", workflow)
+        self.assertNotIn("cron:", workflow)
 
 
 if __name__ == "__main__":
