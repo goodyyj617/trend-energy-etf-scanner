@@ -27,7 +27,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 .venv/Scripts/python.exe -m pytest -q tests/test_lab.py::test_gates_and_loyo  # 단일 테스트
 .venv/Scripts/python.exe -m pytest -q -W error::FutureWarning                 # 전체 (~1.5분, CI와 동일 플래그)
 
-# 레거시 파이프라인 (GitHub Actions가 매일 실행; 로컬 실행은 docs/data를 덮어쓰므로 하지 말 것)
+# 레거시 파이프라인 (스캔은 GitHub Actions가 매일 실행, 백테스트는 Actions 탭에서 수동 실행만; 로컬 실행은 docs/data를 덮어쓰므로 하지 말 것)
 python -m src.run_daily_scan && python src/postprocess_groups.py
 python -m src.run_backtest_only
 ```
@@ -41,17 +41,17 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 |---|---|---|
 | **연구실 (lab)** | `lab/`, `tests/test_lab.py` | **현재 주력 제품.** 새 기능은 여기에 |
 | Daily ETF Scan | `src/run_daily_scan.py` → `universe`, `features`, `signal_history`, `update_aum`; 결과 `docs/data/`; 화면 `docs/index.html` (GitHub Pages) | 매일 자동 실행. 유지 |
-| v1 Backtest Only | `src/run_backtest_only.py` → `src/backtest.py`, `src/portfolio.py`; 결과 `docs/data/backtest_*`; `docs/backtest_dashboard.js` | score-breakout 기반 레거시. 동결 |
+| v1 Backtest Only | `src/run_backtest_only.py` → `src/backtest.py`, `src/portfolio.py`; 결과 `docs/data/backtest_*`; `docs/backtest_dashboard.js` | score-breakout 기반 레거시. 동결. 자동 실행 꺼짐(수동 실행만, DECISIONS 44) |
 | v2 Foundation | `src/trend_v2_foundation/`, `src/trend_v2*.py`, `scripts/run_trend_v2_*.py`, `config/trend_v2/` | 보존만. Codex용 규칙은 `AGENTS.md` |
 
 - `web/`은 초기 스타터의 오래된 사본(2026-07 이후 갱신 없음)이다. Pages 사이트와 워크플로가 쓰는 곳은 `docs/`. README의 "Folder: /web" 안내는 낡은 내용.
 - `docs/data/`, `config/aum.csv`의 커밋은 GitHub Actions 봇("Update ETF scan data" / "Update backtest data")이 만든다. 손으로 고치지 않는다.
 
-### 해시로 고정된 파일 (수정하면 테스트가 깨짐)
+### 해시로 기록된 파일 (건드리지 않는다)
 
-`tests/test_oos_evaluation_manifest.py`와 `config/oos_evaluation_manifest.json`이 PR #18 OOS 기준선 기록으로 다음 파일의 git blob 해시를 고정한다:
+`config/oos_evaluation_manifest.json`이 PR #18 OOS 기준선 기록으로 다음 파일의 git blob 해시를 적어 두었고, `tests/test_oos_evaluation_manifest.py`는 이 기록값이 바뀌지 않았는지 검사한다(현재 파일의 해시를 다시 계산하지는 않는다). 파일을 고쳐도 테스트는 깨지지 않지만 기준선 기록과 어긋나므로, 고칠 때는 DECISIONS에 이유를 남긴다:
 `src/backtest.py`, `src/features.py`, `src/portfolio.py`, `src/universe.py`, `src/prices.py`, `src/run_daily_scan.py`, `src/run_backtest_only.py`, `config/universe.yml`, `config/exclusions.yml`, `config/manual_overrides.csv`, `.github/workflows/daily_scan.yml`, `.github/workflows/backtest-only.yml`, `scripts/verify_data_publish_base.py`, 그리고 `docs/data`의 일부 백테스트 산출물.
-`lab/data.py`는 `src/prices.py`의 함수를 **가져다 쓰기만** 한다. 필요한 변경은 `lab/` 안에서 할 것. v1 Backtest 자동 실행을 끌지는 사용자 결정 대기 중이다(위 이유로 PR #51에서 보류).
+`lab/data.py`는 `src/prices.py`의 함수를 **가져다 쓰기만** 한다. 필요한 변경은 `lab/` 안에서 할 것. `backtest-only.yml`은 자동 실행을 끄느라 한 번 고쳤다(DECISIONS 44).
 
 ## lab/ 아키텍처
 

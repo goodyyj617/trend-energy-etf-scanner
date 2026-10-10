@@ -87,6 +87,15 @@ All decisions in this section have status `Accepted`.
     universes: 7 and 6) and is the app's default sizing; equal sizing remains selectable.
     Record: docs/research/lab/2026-10-10_holdout_criteria_sizing.md.
 
+### Legacy operations (2026-10-10)
+
+44. The v1 Backtest Only workflow no longer runs on a schedule; it is manual-only
+    (workflow_dispatch). v1 is frozen and no longer on the research path, each run took 3-5 hours,
+    and runs that overlapped a merge to main correctly refused to publish (failed 2026-10-09 and
+    2026-10-10). The published v1 outputs in docs/data stay as they are. The OOS manifest
+    records the PR #18 baseline blob of the workflow as history; the OOS collector was never
+    activated, so no cohort is affected. Daily ETF Scan is unchanged.
+
 ## Open decisions
 
 - final trend-filter definition;
