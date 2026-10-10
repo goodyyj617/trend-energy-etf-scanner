@@ -8,6 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 코드를 요청하면 부분 snippet보다 그대로 쓸 수 있는 완성 코드를 선호.
 - 변경은 브랜치 → PR → 사용자가 GitHub에서 병합. `main`에 직접 커밋하지 않는다.
 
+## 새 세션을 시작하면
+
+세션끼리 대화 내용은 공유되지 않는다. 맥락은 이 파일과 아래 기록으로 이어진다.
+
+1. **지금 어디까지 왔는지**: `docs/research/lab/`에서 날짜가 가장 최근인 메모. 끝의 "남은 판단" 절이 사용자 결정 대기 항목이다.
+2. **왜 그렇게 정했는지**: `docs/research/trend_v2/DECISIONS.md` (번호순, 19번부터 lab).
+3. 연구를 대신 수행하거나 기준을 바꿨다면 1·2를 같은 PR에서 갱신한다. 다음 세션이 읽는 곳이 여기뿐이다.
+
 ## 명령어 (Windows, 저장소 루트, `.venv`는 Python 3.13)
 
 ```bash
@@ -56,9 +64,9 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
   메뉴 값은 결과를 본 뒤 고치지 않는다. 바꾸려면 `MENU_VERSION`을 올려 새 메뉴로 등록한다.
 - **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
 - 연구 기록: `docs/research/lab/` (날짜별 메모). 연구를 대신 수행했다면 결과·규칙·한계를 여기에 남긴다.
-- **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N), `trial_returns.pkl`(시험별 월간 수익률 → 평균 상관 ρ → 유효 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).
+- **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N), `trial_returns.npz`(시험별 월간 수익률 → 평균 상관 ρ → 유효 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).
   앱에서 실행한 백테스트·격자 칸·점검 변형은 모두 여기에 기록된다. 스크립트로 돌린 실험은 기록되지 않는다.
-  사용자의 연구 기록이므로 테스트하면서 생긴 항목은 지울 것.
+  사용자의 연구 기록이므로 테스트하면서 생긴 항목은 지울 것. 파일 경로는 호출 시점에 `RESULTS_DIR`에서 만들어지므로, 테스트는 `research_log.RESULTS_DIR`만 임시 폴더로 바꾸면 된다(테스트가 `lab_results/`에 쓰면 안 된다).
 
 - **`data.py`**: `Panel` = 날짜 × 종목의 wide DataFrame(open/high/low/close/volume) + `tradable` 목록 + `cash`(현금 일간 수익률: BIL, 2007년 이전은 ^IRX/252) + `kind`(저장 결과 재구성용). 벤치마크 SPY는 항상 데이터에 포함되지만, 선택한 유니버스에 없으면 매매 대상이 아니다(`Panel.subset`). 출처는 두 가지:
   - ETF 스냅샷: `docs/research/trend_v2/phase_a2/prices/*.csv.gz`(466개 ETF, 2016-08-01 ~ 2026-07-30, 읽기 전용). 첫 로드 때 `lab_data/snapshot_panel.pkl`로 캐시.
@@ -79,25 +87,27 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
   3. LOYO (한 해씩 빼고 수익·낙폭 Gate 재판정)
   4. 사전식 정렬: 영역 크기 → 이웃 생존율 → LOYO → Calmar
 - **`store.py`**: `lab_results/<시각>_<종류>_<이름>/`에 `meta.json` + CSV를 저장한다. `lab_data/`, `lab_results/`는 git 제외.
-- **`app.py`**: Streamlit, `st.navigation`으로 페이지 3개.
+- **`app.py`**: Streamlit, `st.navigation`으로 페이지 4개(전략 연구, 최종 검증, 저장된 결과, 용어 설명).
   - 위젯 기본값은 `init(key, default)`로 session_state에 한 번만 넣는다(`value=`와 key를 같이 쓰면 경고가 난다).
   - 페이지를 옮겨도 설정이 유지되도록 `PERSIST_PREFIXES`의 키를 매 실행 재할당한다. 새 위젯 키를 만들면 여기에 접두어를 추가할 것.
 
 ### 앱 작업 시 주의
 
 - 화면을 바꾼 뒤에는 앱을 실제로 띄워 눌러 본 다음 완료라고 말한다. 서버를 띄운 채 `lab/*.py`(app.py 제외)를 고치면 이전 모듈이 남아 있으니 서버를 재시작할 것.
+  사용자가 런처로 8501을 열어 두었을 수 있으니 확인용 서버는 8502 등 다른 포트로 띄운다. 화면 시험으로 생긴 `lab_results/` 항목은 백업해 두었다가 되돌린다.
 - Streamlit markdown에서 `~` 두 개는 취소선이 된다. 범위는 `–`로 쓴다.
 - 폭 지정은 `width="stretch"`를 쓴다(`use_container_width`는 지원 종료 예정).
 - `.streamlit/config.toml`: `magicEnabled = false`(단독 표현식이 화면에 출력되는 것 방지), `address = 127.0.0.1`(외부 노출 방지).
 - `.cmd` 런처의 echo 문구는 ASCII로만 쓴다. 한글 echo는 cmd 인코딩 문제로 깨진다(PR #44).
 - 사용자 화면에 내부 구조 용어(StrategyRun, hash 등)를 노출하지 않는다. 모든 지표·옵션에 정의를 붙인다.
 
-## 확정된 연구 방법론 (상세: `docs/research/trend_v2/DECISIONS.md` 19–25, 목표: `CHARTER.md`)
+## 확정된 연구 방법론 (상세: `docs/research/trend_v2/DECISIONS.md` 19번 이후, 목표: `CHARTER.md`)
 
 - **포트폴리오 단위 지표(같은 날짜의 SPY 대비)가 주 기준**이다. 거래 단위 지표(t-통계량, 손익비 등)는 거래당 통계적 우위를 보는 **보조**.
 - 강건성 판정에 **가중 합산 점수를 쓰지 않는다.** 판정은 Gate(통과/탈락)와 구조적 기준(영역, 이웃, LOYO), 사전식 정렬로만 한다.
 - Gate 기본값은 CHARTER에서 왔다: CAGR ≥ 0.80×SPY, |MDD| ≤ 0.75×|SPY MDD|, 완료 거래 ≥ 30. 통과 후보가 없어도 기준을 자동으로 낮추지 않는다.
 - 보류 구간(기본 2024-01-01 이후)은 연구에 쓰지 않는다. 앱의 종료일 상한이 보류 구간 직전으로 묶인다. 연구 결과를 보여줄 때 보류 구간 데이터를 섞지 말 것.
+  보류 구간 평가는 **사용자가 그 후보를 지정해 요청할 때만** 한다. 평가할 때마다 `holdout.json`에 남고 볼수록 검증력이 줄어든다. 판정은 수익·낙폭 Gate만 쓴다(거래 수는 참고).
 - 모든 백테스트는 기준선 3개(SPY 보유, SPY 200일선, 유니버스 동일비중)와 같이 본다. 단일 전략 강건성은 7개 통과/미달 체크리스트(DECISIONS 31).
 - 남는 현금은 단기국채 수익률을 받는다(기본). 0%로 두면 추세추종이 부당하게 불리해진다.
 - 2차원 격자(신호 파라미터 × 청산 파라미터)는 허용, 그 이상의 전수 탐색은 금지.
