@@ -210,17 +210,24 @@ CHECK_TEXT = {
                   "과반이면 '그 숫자에서만 우연히 좋은' 고립점이 아니라는 뜻. 파라미터가 없으면 해당 없음."),
     "cost": ("거래 비용 2배", "편도 비용을 2배로 올려도 Gate를 통과. 실제 체결이 생각보다 나빠도 버티는지."),
     "loyo": ("어떤 한 해에도 의존하지 않음 (LOYO)", "한 해씩 빼고 다시 판정해도 수익·낙폭 Gate를 모든 경우 통과."),
-    "halves": ("전반부·후반부 모두 통과", "연구 기간을 반으로 나눠 각각 SPY 대비 수익·낙폭 Gate를 통과. 시기에 따라 성과가 뒤집히지 않는지."),
+    "halves": ("전반부·후반부 모두 SPY보다 칼마 높음",
+               "연구 기간을 반으로 나눠 각 절반에서 전략의 칼마(CAGR ÷ |MDD|)가 SPY의 칼마 이상. 위험 대비 우위가 시기에 따라 "
+               "뒤집히지 않는지 봅니다. (수익 유지 0.8×SPY는 전체 기간 Gate에서 이미 요구하므로 절반마다 다시 요구하지 않습니다.)"),
     "simple": ("단순 기준선보다 나음", "칼마 비율(수익 ÷ 최대 낙폭)이 'SPY 200일선' 전략보다 높음. "
                "규칙이 하나뿐인 전략보다 못하면 복잡하게 만들 이유가 없음."),
     "dsr": ("과최적화 보정 (DSR ≥ 0.95)", "지금까지 시험한 전략 수를 감안해도 샤프 비율이 0보다 클 확률이 95% 이상."),
 }
 
 
-def _half_ok(eq: pd.Series, bench: pd.Series, g: Gates) -> bool:
-    s_cagr, s_mdd = _cagr_mdd(eq.to_numpy(dtype=float))
-    b_cagr, b_mdd = _cagr_mdd(bench.to_numpy(dtype=float))
-    return _return_gate(s_cagr, b_cagr, g) and abs(s_mdd) <= g.max_mdd_ratio * abs(b_mdd)
+def _calmar(values: np.ndarray) -> float:
+    cagr, mdd = _cagr_mdd(values)
+    return cagr / abs(mdd) if mdd < 0 else float("inf") if cagr > 0 else float("nan")
+
+
+def _half_ok(eq: pd.Series, bench: pd.Series) -> tuple[bool, float, float]:
+    """Halves check (v2): strategy Calmar >= SPY Calmar within the half."""
+    s, b = _calmar(eq.to_numpy(dtype=float)), _calmar(bench.to_numpy(dtype=float))
+    return bool(s >= b), s, b
 
 
 def strategy_checklist(panel: Panel, cfg: StrategyConfig, gates: Gates, result, spy200: pd.Series,
@@ -272,10 +279,10 @@ def strategy_checklist(panel: Panel, cfg: StrategyConfig, gates: Gates, result, 
     eq, bm = result.equity, result.benchmark
     mid = len(eq) // 2
     if mid >= 126:
-        first, second = _half_ok(eq.iloc[:mid], bm.iloc[:mid], gates), _half_ok(eq.iloc[mid:], bm.iloc[mid:], gates)
-        add("halves", first and second,
-            f"전반부({eq.index[0].date()} – {eq.index[mid - 1].date()}) {'통과' if first else '미달'} · "
-            f"후반부({eq.index[mid].date()} – {eq.index[-1].date()}) {'통과' if second else '미달'}")
+        (ok1, s1, b1), (ok2, s2, b2) = _half_ok(eq.iloc[:mid], bm.iloc[:mid]), _half_ok(eq.iloc[mid:], bm.iloc[mid:])
+        add("halves", ok1 and ok2,
+            f"전반부({eq.index[0].date()} – {eq.index[mid - 1].date()}) 칼마 {s1:.2f} vs SPY {b1:.2f} · "
+            f"후반부({eq.index[mid].date()} – {eq.index[-1].date()}) 칼마 {s2:.2f} vs SPY {b2:.2f}")
     else:
         add("halves", None, "기간이 1년 미만이라 나눌 수 없음")
 

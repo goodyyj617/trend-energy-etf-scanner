@@ -54,7 +54,9 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
   분류 → 자산군 매핑은 `asset_class()`의 키워드 목록이다. 새 분류가 '기타'로 빠지면 여기를 고친다.
 - **`families.py`**: 사전 등록된 고정 메뉴(진입 3 × 청산 3, 각 6×6)로 `run_grid`를 9번 돌려 계열을 격자 전체 성적으로 비교한다(DECISIONS 33–34).
   메뉴 값은 결과를 본 뒤 고치지 않는다. 바꾸려면 `MENU_VERSION`을 올려 새 메뉴로 등록한다.
-- **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).
+- **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
+- 연구 기록: `docs/research/lab/` (날짜별 메모). 연구를 대신 수행했다면 결과·규칙·한계를 여기에 남긴다.
+- **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N), `trial_returns.pkl`(시험별 월간 수익률 → 평균 상관 ρ → 유효 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).
   앱에서 실행한 백테스트·격자 칸·점검 변형은 모두 여기에 기록된다. 스크립트로 돌린 실험은 기록되지 않는다.
   사용자의 연구 기록이므로 테스트하면서 생긴 항목은 지울 것.
 
@@ -67,6 +69,7 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`engine.py`**: 신호는 t일 종가로 계산하고 t+1일 시가에 체결. 동일 금액 슬롯(`max_positions`), 리밸런싱 없음, 편도 비용 bp, 신호 초과 시 20일 평균 거래대금 순으로 선택.
   - `SignalCache`가 블록 출력을 `(key, value)`로 재사용한다. 격자 속도의 핵심이다.
   - `RULES_KO`는 화면에 그대로 보여주는 규칙 설명이다. 엔진 동작을 바꾸면 함께 고칠 것.
+  - 포지션 크기 `sizing`: `equal` | `inverse_vol`(기본, 60일 변동성·2배 상한). `to_dict()`는 기본값 `equal`일 때 키를 생략해 예전 시험 키를 유지한다. 새 설정 필드를 더할 때도 같은 방식으로.
   - 일간 루프는 numpy 스칼라 대신 파이썬 리스트를 쓴다(수 배 빠름, 결과는 비트 단위로 동일). 기간(window)별 리스트는 `SignalCache.memo`로 격자 칸끼리 재사용한다.
     루프를 고치면 고치기 전 결과를 저장해 두고 동일한지 비교할 것.
 - **`metrics.py`**: `DEFINITIONS`가 지표 이름·뜻·계산식의 **단일 출처**다. 화면 툴팁, 결과 표, 용어 설명 페이지가 모두 여기서 읽는다. 지표를 추가하면 계산과 정의를 같이 넣을 것.

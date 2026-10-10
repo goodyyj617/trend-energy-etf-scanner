@@ -57,6 +57,21 @@ SUMMARY_TEXT = {
 ORDER = ["pass_share", "largest_region", "beat_ma200", "median_calmar"]
 
 
+def grid_summary(cells: pd.DataFrame, ma200: float) -> dict:
+    """Whole-grid behaviour of one family (the SUMMARY_TEXT metrics)."""
+    calmar = cells["calmar"].astype(float)
+    return {
+        "pass_share": float(cells["pass"].mean()),
+        "largest_region": int(cells["region_size"].max()),
+        "beat_ma200": float((calmar > ma200).mean()) if np.isfinite(ma200) else np.nan,
+        "median_calmar": float(calmar.median()),
+        "p25_calmar": float(calmar.quantile(0.25)),
+        "median_cagr": float(cells["cagr"].median()),
+        "median_mdd": float(cells["mdd"].median()),
+        "median_trades": float(cells["n_trades"].median()),
+    }
+
+
 @dataclass
 class FamilyComparison:
     base: StrategyConfig
@@ -66,22 +81,8 @@ class FamilyComparison:
     seconds: float
 
     def summary(self) -> pd.DataFrame:
-        rows = []
-        for (e, x), g in self.grids.items():
-            c = g.cells
-            calmar = c["calmar"].astype(float)
-            rows.append({
-                "entry": e, "exit": x,
-                "family": f"{ENTRY_BLOCKS[e].label} × {EXIT_BLOCKS[x].label}",
-                "pass_share": float(c["pass"].mean()),
-                "largest_region": int(c["region_size"].max()),
-                "beat_ma200": float((calmar > self.ma200_calmar).mean()) if np.isfinite(self.ma200_calmar) else np.nan,
-                "median_calmar": float(calmar.median()),
-                "p25_calmar": float(calmar.quantile(0.25)),
-                "median_cagr": float(c["cagr"].median()),
-                "median_mdd": float(c["mdd"].median()),
-                "median_trades": float(c["n_trades"].median()),
-            })
+        rows = [{"entry": e, "exit": x, "family": f"{ENTRY_BLOCKS[e].label} × {EXIT_BLOCKS[x].label}",
+                 **grid_summary(g.cells, self.ma200_calmar)} for (e, x), g in self.grids.items()]
         out = pd.DataFrame(rows).sort_values(ORDER, ascending=False, na_position="last").reset_index(drop=True)
         out.insert(0, "순위", range(1, len(out) + 1))
         return out

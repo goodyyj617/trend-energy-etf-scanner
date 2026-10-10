@@ -22,7 +22,10 @@ from lab.data import BENCHMARK, LONG_HISTORY_ETFS, Panel, download_panel, load_s
 from lab.families import (  # noqa: E402
     ENTRY_MENU, EXIT_MENU, MENU_VERSION, SUMMARY_TEXT, cell_count, run_family_comparison,
 )
-from lab.engine import BASELINE_HELP, BASELINE_LABELS, RULES_KO, StrategyConfig, baselines, run_backtest  # noqa: E402
+from lab.refine import VERDICT_TEXT, addon_candidates, addon_value, family_label, run_refinement  # noqa: E402
+from lab.engine import (  # noqa: E402
+    BASELINE_HELP, BASELINE_LABELS, RULES_KO, SIZING_LABELS, StrategyConfig, baselines, run_backtest,
+)
 from lab.grid import (  # noqa: E402
     CHECK_TEXT, GATE_TEXT, MAX_AXIS_VALUES, ROBUST_TEXT, Gates, axis_values, check_gates, run_grid, strategy_checklist,
 )
@@ -299,7 +302,14 @@ def strategy_section() -> StrategyConfig | None:
                              help="신호일까지 N거래일 평균 (종가 × 거래량)이 이보다 작으면 매수하지 않습니다. "
                                   "그날까지의 데이터만 쓰므로 미래 정보가 섞이지 않습니다.")
     liq = c5.selectbox("거래대금 평균 기간", [20, 60], key=init("liq_days", 20), format_func=lambda d: f"{d}거래일")
-    cash = st.checkbox("남는 현금에 단기국채 수익률 적용 (BIL, 2007년 이전은 13주 국채금리)", key=init("cash_yield", True),
+    c1, c2 = st.columns([1, 2])
+    sizing = c1.selectbox(
+        "포지션 크기", list(SIZING_LABELS), format_func=SIZING_LABELS.get, key=init("sizing", "inverse_vol"),
+        help="동일 금액: 새 종목마다 총자산 ÷ 최대 보유 수.\n\n"
+             "변동성 역가중: 새 종목마다 (총자산 ÷ 최대 보유 수) × min(유니버스 중앙 변동성 ÷ 그 종목 변동성, 2). "
+             "변동성 = 신호일까지 60거래일 일간 수익률의 표준편차. 잔잔한 종목은 더 많이(최대 2배), 출렁이는 종목은 적게 사서 "
+             "종목마다 위험을 비슷하게 맞춥니다. 진입 후 비중은 다시 맞추지 않습니다.")
+    cash = c2.checkbox("남는 현금에 단기국채 수익률 적용 (BIL, 2007년 이전은 13주 국채금리)", key=init("cash_yield", True),
                        help="추세추종은 하락장에서 현금으로 피하는 것이 핵심이라, 현금 수익률 0%는 전략을 부당하게 불리하게 만듭니다. "
                             "실제로는 SGOV·BIL 같은 단기국채 ETF나 증권사 달러 예수금 이자로 비슷한 수익을 얻을 수 있습니다.")
     if not entries or not exits:
@@ -308,7 +318,7 @@ def strategy_section() -> StrategyConfig | None:
     return StrategyConfig(entries=entries, exits=exits, start=str(st.session_state["start"]),
                           end=str(st.session_state["end"]), max_positions=int(k), cost_bps=float(cost),
                           min_price=float(min_price), min_dollar_volume=float(min_dv) * 1e6,
-                          liquidity_days=int(liq), cash_yield=bool(cash))
+                          liquidity_days=int(liq), cash_yield=bool(cash), sizing=str(sizing))
 
 
 # =========================================================================== backtest view
@@ -432,7 +442,8 @@ def show_backtest(bt: dict) -> None:
     res, base, panel = bt["res"], bt["base"], bt["panel"]
     m = all_metrics(res)
     n_trials, sr_var = rlog.trial_stats()
-    dsr = deflated_sharpe(res.equity, n_trials, sr_var)
+    n_eff, rho, _ = rlog.effective_trials()
+    dsr = deflated_sharpe(res.equity, max(1, int(round(n_eff))), sr_var)
     m["dsr"] = dsr
     s, e = res.period
     st.info(f"**백테스트 기간 {s.date()} → {e.date()}** ({len(res.equity):,} 거래일) · 거래 대상 {res.universe_size}종목 · "
@@ -444,7 +455,8 @@ def show_backtest(bt: dict) -> None:
     st.markdown("#### 핵심 성과")
     kpi_row(m, ["total_return", "cagr", "mdd", "sharpe"])
     kpi_row(m, ["calmar", "sortino", "worst_12m", "dsr"])
-    st.caption(f"DSR 계산에 쓴 시험 횟수 N = {n_trials} (왼쪽 아래 표시 참고)")
+    st.caption(f"DSR 계산: 시험 횟수 N = {n_trials:,} · 시험끼리의 평균 상관 ρ = {rho:.2f} → 유효 시험 수 "
+               f"N_eff = ρ + (1−ρ)·N ≈ {n_eff:,.0f} (비슷한 시험을 중복으로 세지 않도록 보정)")
 
     st.markdown("#### 기준선과 비교")
     scorecard(res, base)
@@ -795,6 +807,103 @@ def family_tab(panel: Panel, cfg: StrategyConfig) -> None:
             st.success(f"저장했습니다: lab_results/{path.name}")
 
 
+# =========================================================================== confirmation-condition test view
+
+VERDICT_SHORT = {"base": "기준", "improve": "✅ 개선", "mixed": "↔ 엇갈림", "same": "＝ 변화 없음", "worse": "❌ 악화"}
+
+
+def show_refinement(table: pd.DataFrame, cells: pd.DataFrame, entry_key: str, exit_key: str, gates: dict,
+                    ma200: float, key: str) -> None:
+    st.caption(f"계열: **{family_label(entry_key, exit_key)}** · Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · "
+               f"|MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · 완료 거래 ≥ {gates['min_trades']} · "
+               f"SPY 200일선 칼마 = {ma200:.2f}")
+    improved = table.loc[table["verdict"] == "improve", "condition"].tolist()
+    if improved:
+        st.success("모든 기준에서 같거나 나아진 조건: " + ", ".join(improved)
+                   + ". 다른 유니버스·기간에서도 개선되는지 확인한 뒤에 채택하세요.")
+    else:
+        st.info("모든 기준에서 같거나 나아진 조건이 없습니다. 이 데이터에서는 확인 조건 없이 기본 계열을 유지하는 것이 맞습니다.")
+    num = st.column_config.NumberColumn
+    shown = table.drop(columns=["addon"]).assign(verdict=table["verdict"].map(VERDICT_SHORT))
+    st.dataframe(shown, hide_index=True, width="stretch", column_config={
+        "condition": st.column_config.TextColumn("추가한 확인 조건 (기본값)", width="medium"),
+        "verdict": st.column_config.TextColumn("판정", help="\n\n".join(f"{VERDICT_SHORT[k]}: {v}" for k, v in VERDICT_TEXT.items())),
+        **{k: num(SUMMARY_TEXT[k][0], format=FAMILY_FMT[k], help=SUMMARY_TEXT[k][1]) for k in SUMMARY_TEXT},
+    })
+    labels = {r["addon"]: f"{VERDICT_SHORT[r['verdict']]} · {r['condition']}" for _, r in table.iterrows()}
+    pick = st.selectbox("격자 자세히 보기", list(labels), format_func=labels.get, key=f"ref_pick_{key}")
+    sub = cells[cells["addon"].fillna("") == pick].reset_index(drop=True)
+    passed = sub[sub["pass"]]
+    show_grid_result(sub, entry_key, exit_key, {"total": len(sub), "passed": len(passed), "regions": passed["region"].nunique(),
+                                                "largest_region": int(sub["region_size"].max())}, gates, f"ref_{key}")
+    if key == "live":
+        pool = passed.sort_values(["region_size", "neighbor_survival", "loyo_ratio", "calmar"], ascending=False)
+        pool = pool if len(pool) else sub.sort_values("calmar", ascending=False)
+        opts = [(r["x"], r["y"]) for _, r in pool.head(20).iterrows()]
+        c1, c2 = st.columns([3, 1])
+        i = c1.selectbox("한 칸을 단일 백테스트로 보기", range(len(opts)), key=f"ref_cell_{pick}",
+                         format_func=lambda k: f"{param_label(entry_key)}={opts[k][0]:g}, {param_label(exit_key)}={opts[k][1]:g}")
+        c2.button("이 조합으로 설정 + 실행", on_click=apply_refinement, width="stretch",
+                  args=(entry_key, opts[i][0], exit_key, opts[i][1], pick),
+                  help="② 진입·③ 청산을 이 계열(+ 확인 조건)로 바꾸고 ‘백테스트’ 탭에서 실행합니다.")
+
+
+def apply_refinement(entry_key: str, entry_value: float, exit_key: str, exit_value: float, addon: str) -> None:
+    for k in ENTRY_BLOCKS:
+        st.session_state[f"entry_on_{k}"] = k in (entry_key, addon)
+    for k in EXIT_BLOCKS:
+        st.session_state[f"exit_on_{k}"] = k == exit_key
+    values = {entry_key: entry_value, exit_key: exit_value}
+    if addon and ENTRY_BLOCKS[addon].param is not None:
+        values[addon] = addon_value(addon)
+    apply_params(values)
+
+
+def refine_tab(panel: Panel, cfg: StrategyConfig) -> None:
+    st.caption("고른 계열 하나에 **확인 조건을 하나씩** 더해 같은 6×6 격자를 다시 돌리고, 계열 비교의 네 기준으로 원래 계열과 비교합니다. "
+               "확인 조건은 각 블록의 **기본값 하나로만** 시험합니다(새 파라미터 탐색 없음). "
+               "네 기준 모두에서 같거나 낫고 하나 이상 나아야 ‘개선’입니다. 위 ①·④ 설정을 쓰고 ②·③은 쓰지 않습니다.")
+    pairs = [(e, x) for e in ENTRY_MENU for x in EXIT_MENU]
+    stored_fam = st.session_state.get("family_result")
+    default = 0
+    if stored_fam is not None:
+        top = stored_fam[0].summary().iloc[0]
+        default = pairs.index((top["entry"], top["exit"]))
+    choice = st.selectbox("다듬을 계열", range(len(pairs)), index=default, key="ref_family",
+                          format_func=lambda i: family_label(*pairs[i]),
+                          help="‘전략 계열 비교’를 실행했다면 1위 계열이 기본으로 선택됩니다.")
+    e, x = pairs[choice]
+    n = (1 + len(addon_candidates(e))) * len(ENTRY_MENU[e]) * len(EXIT_MENU[x])
+    st.caption(f"기준 + 확인 조건 {len(addon_candidates(e))}개 = 격자 {1 + len(addon_candidates(e))}개 · 백테스트 {n}회 · "
+               f"예상 약 {max(1, round(estimate_seconds(panel, cfg, n) / 60))}분 · 모두 시험 횟수에 기록됩니다.")
+    if st.button("▶ 확인 조건 시험 실행", type="primary"):
+        bar = st.progress(0.0, text="시험 중…")
+        collected = []
+        try:
+            ref = run_refinement(panel, cfg, e, x, gates_now(),
+                                 progress=lambda f: bar.progress(min(f, 1.0), text=f"시험 중… {f:.0%}"),
+                                 on_result=lambda c, r: collected.append(("refine", c, panel.tradable_symbols, r.equity)))
+            st.session_state["refine_result"] = (ref, panel.source, panel.tradable_symbols)
+            rlog.log_trials(collected)
+        except ValueError as exc:
+            st.error(str(exc))
+        bar.empty()
+    stored = st.session_state.get("refine_result")
+    if stored is None:
+        return
+    ref, source, universe = stored
+    if ref.base.start != cfg.start or ref.base.end != cfg.end or universe != panel.tradable_symbols:
+        st.warning("아래 결과는 현재 유니버스·기간과 다른 설정으로 실행한 것입니다.")
+    st.caption(f"기간 {ref.base.start} → {ref.base.end} · 거래 대상 {len(universe)}종목 · {ref.seconds:.0f}초")
+    show_refinement(ref.table(), ref.all_cells(), ref.entry_key, ref.exit_key, ref.gates.to_dict(), ref.ma200_calmar, "live")
+    with st.form("save_refine", border=False):
+        c1, c2 = st.columns([3, 1])
+        name = c1.text_input("결과 이름", value="", placeholder="예: 수익률×ATR 확인 조건 · 장기 ETF")
+        if c2.form_submit_button("💾 확인 조건 시험 저장", width="stretch"):
+            path = store.save_refinement(ref, name or f"확인 조건 · {family_label(ref.entry_key, ref.exit_key)}", source, universe)
+            st.success(f"저장했습니다: lab_results/{path.name}")
+
+
 # =========================================================================== pages
 
 def research_page() -> None:
@@ -811,7 +920,7 @@ def research_page() -> None:
         st.markdown(RULES_KO)
     st.divider()
 
-    tab_bt, tab_grid, tab_fam = st.tabs(["📈 백테스트", "🧭 강건성 격자", "🧩 전략 계열 비교"])
+    tab_bt, tab_grid, tab_fam, tab_ref = st.tabs(["📈 백테스트", "🧭 강건성 격자", "🧩 전략 계열 비교", "🧪 확인 조건 시험"])
     with tab_bt:
         if st.button("▶ 백테스트 실행", type="primary") or st.session_state.pop("auto_run", False):
             try:
@@ -828,6 +937,8 @@ def research_page() -> None:
         grid_tab(panel, cfg)
     with tab_fam:
         family_tab(panel, cfg)
+    with tab_ref:
+        refine_tab(panel, cfg)
 
 
 def holdout_page() -> None:
@@ -858,7 +969,9 @@ def holdout_page() -> None:
             st.warning("이 결과는 이전 버전에서 저장되어 유니버스 정보가 없습니다. 같은 전략을 다시 실행해 저장하세요.")
         else:
             cfg0 = StrategyConfig.from_dict(meta["config"])
-            prior = [e for e in hold["evaluations"] if e["fingerprint"] == cfg0.fingerprint()]
+            sf = cfg0.strategy_fingerprint()
+            prior = [e for e in hold["evaluations"]  # older records have no strategy fingerprint: match the rule text
+                     if e.get("strategy_fingerprint", sf if e["description"] == cfg0.describe() else None) == sf]
             if prior:
                 st.warning(f"이 전략은 이미 보류 구간에서 {len(prior)}번 평가했습니다 (마지막 {prior[-1]['time']}). "
                            "다시 평가해도 새로운 정보는 없습니다.")
@@ -892,10 +1005,14 @@ def holdout_page() -> None:
                     {"지표": "SPY CAGR", "연구 기간": fmt_value("cagr", ins.get("spy_cagr")), "보류 구간": fmt_value("cagr", m["spy_cagr"])},
                     {"지표": "SPY MDD", "연구 기간": fmt_value("mdd", ins.get("spy_mdd")), "보류 구간": fmt_value("mdd", m["spy_mdd"])},
                 ]), hide_index=True, width="stretch")
-                failed = check_gates(m, gates_now())
-                st.markdown(("✅ 보류 구간에서도 Gate 통과" if not failed else "❌ 보류 구간 Gate 미달: " + ", ".join(failed))
-                            + f"  \n<small>보류 구간이 {len(res.equity) / 252:.1f}년으로 짧아 우연의 영향이 큽니다. "
-                              "통과/미달 하나로 결론 내리지 말고 연구 기간과의 차이를 보세요.</small>", unsafe_allow_html=True)
+                # holdout verdict: return and drawdown gates only; the trade count of a short window says how
+                # reliable the result is, not how good it is
+                g = gates_now()
+                failed = check_gates(m, Gates(g.min_cagr_ratio, g.max_mdd_ratio, 0))
+                st.markdown(("✅ 보류 구간에서도 수익·낙폭 Gate 통과" if not failed else "❌ 보류 구간 Gate 미달: " + ", ".join(failed))
+                            + f"  \n<small>완료 거래 {int(m['n_trades'])}건 · 보류 구간이 {len(res.equity) / 252:.1f}년으로 짧아 "
+                              "우연의 영향이 큽니다. 통과/미달 하나로 결론 내리지 말고 연구 기간과의 차이를 보세요.</small>",
+                            unsafe_allow_html=True)
                 st.plotly_chart(equity_chart(res, base, False), width="stretch")
 
     if hold["evaluations"]:
@@ -919,7 +1036,9 @@ def saved_page() -> None:
     bts = [i for i in items if i["kind"] == "backtest"]
     grids = [i for i in items if i["kind"] == "grid"]
     fams = [i for i in items if i["kind"] == "family"]
-    t1, t2, t3 = st.tabs([f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})", f"계열 비교 ({len(fams)})"])
+    refs = [i for i in items if i["kind"] == "refine"]
+    t1, t2, t3, t4 = st.tabs([f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})", f"계열 비교 ({len(fams)})",
+                              f"확인 조건 시험 ({len(refs)})"])
     with t1:
         if not bts:
             st.info("저장된 백테스트가 없습니다.")
@@ -965,6 +1084,16 @@ def saved_page() -> None:
                        f"메뉴 {fm['menu_version']}")
             show_family_result(store.load_family_summary(fm["path"]), store.load_cells(fm["path"]), fm["gates"],
                                fm["ma200_calmar"], "saved")
+    with t4:
+        if not refs:
+            st.info("저장된 확인 조건 시험이 없습니다.")
+        else:
+            idx = st.selectbox("확인 조건 시험 선택", range(len(refs)), key="saved_ref",
+                               format_func=lambda i: f"{refs[i]['saved_at']} · {refs[i]['name']}")
+            rm = refs[idx]
+            st.caption(f"기간 {' – '.join(rm['period'])} · 데이터: {rm['data_source']} · 거래 대상 {len(rm['universe'])}종목")
+            show_refinement(store.load_refine_table(rm["path"]), store.load_cells(rm["path"]), rm["entry_key"],
+                            rm["exit_key"], rm["gates"], rm["ma200_calmar"], "saved")
 
 
 def glossary_page() -> None:
@@ -1000,6 +1129,11 @@ def glossary_page() -> None:
                 f"메뉴: {MENU_VERSION}. 순위는 Gate 통과 비율 → 가장 큰 연결 영역 → SPY 200일선 이긴 비율 → 중간 칼마 순의 사전식 정렬입니다.")
     for label, rule in SUMMARY_TEXT.values():
         st.markdown(BR.join([f"· **{label}**", rule]))
+    st.subheader("확인 조건 시험")
+    st.markdown("고른 계열에 확인 조건을 하나씩(각 블록의 기본값으로) 더해 같은 격자를 다시 돌리고, 계열 비교의 네 기준으로 원래 계열과 비교합니다.")
+    for k, v in VERDICT_TEXT.items():
+        st.markdown(f"· {v}")
+    st.markdown("채택 원칙: 여러 유니버스·기간에서 모두 ‘개선’일 때만 조건을 더합니다. 복잡성은 성과로 증명될 때만 남깁니다.")
     st.subheader("보류 구간 (최종 검증)")
     st.markdown("정해 둔 날짜 이후의 데이터는 연구(백테스트·격자·강건성 점검)에 쓰지 않고 남겨 둡니다. 연구가 끝난 전략을 그 기간에 "
                 "한 번 적용해 ‘처음 보는 데이터’에서도 성과가 유지되는지 봅니다. 날짜 변경과 평가는 모두 기록됩니다. "
@@ -1025,17 +1159,18 @@ def glossary_page() -> None:
 
 def sidebar_status() -> None:
     n, _ = rlog.trial_stats()
+    n_eff = rlog.effective_trials()[0]
     hold = rlog.load_holdout()
     with st.sidebar:
         st.caption(BR.join([
-            f"🧪 지금까지 시험한 전략: **{n}개**",
-            "<small>같은 설정의 재실행은 세지 않음 · DSR에 반영</small>",
+            f"🧪 지금까지 시험한 전략: **{n:,}개** (유효 ≈ {n_eff:,.0f})",
+            "<small>같은 설정의 재실행은 세지 않음 · 서로 비슷한 시험은 유효 개수로 보정해 DSR에 반영</small>",
             f"🔒 보류 구간: **{hold['start'] + ' 이후' if hold['enabled'] else '꺼짐'}** · 평가 {len(hold['evaluations'])}회",
         ]), unsafe_allow_html=True)
 
 
 PERSIST_PREFIXES = ("entry_", "exit_", "max_positions", "cost_bps", "min_price", "min_dv", "liq_days", "cash_yield",
-                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_")
+                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_", "sizing")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES):
         st.session_state[_k] = st.session_state[_k]  # keeps settings when visiting another page

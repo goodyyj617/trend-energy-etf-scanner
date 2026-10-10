@@ -102,3 +102,24 @@ def save_family(fc, name: str, data_source: str, universe: list[str]) -> Path:
 
 def load_family_summary(path: Path) -> pd.DataFrame:
     return pd.read_csv(path / "summary.csv")
+
+
+def save_refinement(ref, name: str, data_source: str, universe: list[str]) -> Path:
+    """Confirmation-condition test: meta.json, table.csv, cells.csv (every cell, with an addon column)."""
+    path = _folder("refine", name)
+    _write_meta(path, {
+        "kind": "refine", "name": name, "saved_at": datetime.now().isoformat(timespec="seconds"),
+        "data_source": data_source, "universe": universe, "period": [ref.base.start, ref.base.end],
+        "base_config": ref.base.to_dict(), "entry_key": ref.entry_key, "exit_key": ref.exit_key,
+        "description": f"확인 조건 시험 ({ref.entry_key} × {ref.exit_key})",
+        "gates": ref.gates.to_dict(), "ma200_calmar": ref.ma200_calmar, "seconds": ref.seconds,
+    })
+    ref.table().to_csv(path / "table.csv", index=False)
+    ref.all_cells().to_csv(path / "cells.csv", index=False)
+    return path
+
+
+def load_refine_table(path: Path) -> pd.DataFrame:
+    table = pd.read_csv(path / "table.csv")
+    table["addon"] = table["addon"].fillna("")  # the base family is stored as an empty add-on name
+    return table

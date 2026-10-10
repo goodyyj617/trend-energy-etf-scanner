@@ -202,8 +202,6 @@ def test_deflated_sharpe_falls_with_more_trials():
 
 def test_trial_log_dedupes_and_holdout_records(tmp_path, monkeypatch):
     monkeypatch.setattr(research_log, "RESULTS_DIR", tmp_path)
-    monkeypatch.setattr(research_log, "TRIALS_PATH", tmp_path / "trials.csv")
-    monkeypatch.setattr(research_log, "HOLDOUT_PATH", tmp_path / "holdout.json")
     eq = pd.Series(np.linspace(1, 1.5, 300), index=pd.bdate_range("2020-01-01", periods=300))
     research_log.log_trials([("backtest", cfg(), ["AAA"], eq), ("backtest", cfg(), ["AAA"], eq),
                              ("grid", cfg(max_positions=2), ["AAA"], eq)])
@@ -276,3 +274,95 @@ def test_family_comparison_summary_and_save(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "RESULTS_DIR", tmp_path)
     path = store.save_family(fc, "t", "test", ["AAA"])
     assert len(store.load_family_summary(path)) == 4 and len(store.load_cells(path)) == 16
+
+
+# --------------------------------------------------------------------------- confirmation-condition test
+
+from lab import refine  # noqa: E402
+
+
+def test_verdict_is_pareto_on_ordering_metrics():
+    base = {"pass_share": 0.2, "largest_region": 5, "beat_ma200": 0.1, "median_calmar": 0.15}
+    assert refine.verdict(base, {**base, "median_calmar": 0.2}) == "improve"
+    assert refine.verdict(base, {**base, "pass_share": 0.1}) == "worse"
+    assert refine.verdict(base, {**base, "pass_share": 0.3, "median_calmar": 0.1}) == "mixed"
+    assert refine.verdict(base, dict(base)) == "same"
+
+
+def test_market_trend_block_follows_spy_only():
+    n = 260
+    spy = list(np.linspace(100, 200, n))  # steadily rising -> SPY above its MA once the MA exists
+    panel, _ = make_panel({"AAA": list(np.linspace(200, 100, n)), "SPY": spy})
+    f = ENTRY_BLOCKS["market_trend"].compute(panel, 200).fillna(False)
+    assert not f.iloc[150].any() and f.iloc[-1].all()  # same value for every symbol, set by SPY alone
+
+
+def test_refinement_runs_every_addon_on_the_family_grid(monkeypatch):
+    monkeypatch.setattr(refine, "ENTRY_MENU", {"breakout": [10, 20]})
+    monkeypatch.setattr(refine, "EXIT_MENU", {"low_break": [5, 10]})
+    monkeypatch.setattr(refine, "addon_candidates", lambda e: ["up_candle", "rsi_min"])
+    panel = _random_panel()
+    seen = []
+    ref = refine.run_refinement(panel, cfg(max_positions=2), "breakout", "low_break", Gates(),
+                                on_result=lambda c, r: seen.append(c))
+    assert len(seen) == 12
+    assert {c.entries.get("rsi_min") for c in seen if "rsi_min" in c.entries} == {55}  # default value only
+    t = ref.table()
+    assert t.iloc[0]["verdict"] == "base" and set(t["addon"]) == {"", "up_candle", "rsi_min"}
+
+
+def test_config_converts_numpy_numbers():
+    c = cfg(entries={"breakout": np.int64(20), "momentum": np.float64(126.0)}, exits={"low_break": np.int64(10)})
+    assert type(c.entries["breakout"]) is int and type(c.exits["low_break"]) is int
+    assert c.fingerprint() == cfg(entries={"breakout": 20, "momentum": 126.0}, exits={"low_break": 10}).fingerprint()
+
+
+# --------------------------------------------------------------------------- effective trials, sizing
+
+def test_effective_trials_shrinks_for_correlated_trials(tmp_path, monkeypatch):
+    monkeypatch.setattr(research_log, "RESULTS_DIR", tmp_path)
+    research_log._EFF_CACHE.clear()
+    rng = np.random.default_rng(5)
+    idx = pd.bdate_range("2015-01-01", periods=1500)
+    common = rng.normal(0.0004, 0.01, len(idx))
+    rows = []
+    for k in range(4):  # four near-copies of one strategy
+        eq = pd.Series(np.cumprod(1 + common + rng.normal(0, 0.001, len(idx))), index=idx)
+        rows.append(("grid", cfg(max_positions=k + 1), ["AAA"], eq))
+    research_log.log_trials(rows)
+    n_eff, rho, covered = research_log.effective_trials()
+    assert covered == 4 and rho > 0.9 and 1.0 <= n_eff < 1.5
+
+
+def test_inverse_vol_sizing_allocates_by_volatility():
+    n = 100
+    dates = pd.bdate_range("2020-01-01", periods=n)
+    rows = []
+    for sym, a, vol in (("CALM", 0.002, 3e6), ("MID", 0.01, 2e6), ("WILD", 0.03, 1e6), ("SPY", 0.01, 1e6)):
+        r = np.array([a if i % 2 else -a for i in range(n)]) + 0.002  # std of daily returns ~= a, steady uptrend
+        close = 100 * np.cumprod(1 + r)
+        for d, c in zip(dates, close):
+            rows.append({"date": d, "symbol": sym, "open": c, "high": c, "low": c, "close": c, "volume": vol})
+    panel = panel_from_long(pd.DataFrame(rows)).subset(["CALM", "MID", "WILD"])
+    c = cfg(entries={"momentum": 21}, exits={"stop_loss_pct": 99}, max_positions=3, start=str(dates[70].date()),
+            sizing="inverse_vol")
+    res = run_backtest(panel, c)
+    pos = res.open_positions.set_index("symbol")
+    assert (pos["entry_date"] == res.equity.index[1]).all()  # all signalled on the first day of the window
+    equal = run_backtest(panel, replace_cfg(c, sizing="equal")).open_positions
+    assert set(equal["symbol"]) == {"CALM", "MID", "WILD"}  # equal sizing: three 1/3 slots
+    # inverse vol: CALM is capped at 2 slots (2/3), MID is the median volatility (1/3) -> no cash left for WILD
+    assert set(pos.index) == {"CALM", "MID"}
+    assert "sizing" not in cfg().to_dict()  # default omitted -> earlier trial keys unchanged
+
+
+def replace_cfg(c, **kw):
+    from dataclasses import replace
+    return replace(c, **kw)
+
+
+def test_strategy_fingerprint_ignores_dates():
+    a = cfg(start="2000-01-01", end="2023-12-31")
+    b = cfg(start="2024-01-01", end="2026-10-08")
+    assert a.fingerprint() != b.fingerprint() and a.strategy_fingerprint() == b.strategy_fingerprint()
+    assert a.strategy_fingerprint() != cfg(max_positions=3).strategy_fingerprint()
