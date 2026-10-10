@@ -96,6 +96,27 @@ All decisions in this section have status `Accepted`.
     records the PR #18 baseline blob of the workflow as history; the OOS collector was never
     activated, so no cohort is affected. Daily ETF Scan is unchanged.
 
+### Wider family menu and common add-on test (2026-10-10, registered before running)
+
+The research goal is breadth: test many filters, entries and exits and judge which kinds work.
+Components are judged by whole-grid behaviour and consistency across universes; the DSR stays
+the bar for a final single strategy only.
+
+45. Pre-registered menu `family-menu-v2`, fixed before any v2 result was seen. v1 values unchanged, plus
+    entries ma_cross N {40, 60, 100, 150, 200, 250}, bollinger k {1.0, 1.25, 1.5, 2.0, 2.5, 3.0},
+    rsi_min X {50, 55, 60, 65, 70, 75}, williams X {-50, -40, -30, -20, -10, -5}; exit trailing_pct
+    X {5, 8, 10, 15, 20, 30}. 7 entries x 4 exits = 28 families, 36 cells each. Ordering as in 34;
+    families are ranked across universes by the sum of their ranks.
+46. New block ma_cross: SMA(round(N/4)) > SMA(N). The short window is fixed at a quarter of the long
+    one (50/200 is the classic golden cross) to keep one parameter per block.
+47. Common add-on test: one block at its default value is added to every family (a family built
+    on that same block is skipped) and each family's grid is compared with the plain family by the
+    Pareto verdict of 35. A component is "generally helpful" when it improves a majority of the
+    tested families in every universe, "generally harmful" when it worsens a majority in every
+    universe, otherwise inconclusive. First component tested: initial stop (stop_loss_pct 10%),
+    the open "initial-stop families" question. Universes and settings: those of 43 (inverse-vol
+    sizing, ETF snapshot 2017-2023 and long-history multi-asset 2000-2023).
+
 ## Open decisions
 
 - final trend-filter definition;

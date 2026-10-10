@@ -2,6 +2,7 @@
 
 Single backtest: meta.json, equity.csv (strategy, SPY, exposure), trades.csv
 Grid          : meta.json, cells.csv
+Family / refine / common add-on tests: meta.json, a summary table, cells.csv
 """
 from __future__ import annotations
 
@@ -94,10 +95,34 @@ def save_family(fc, name: str, data_source: str, universe: list[str]) -> Path:
         "base_config": fc.base.to_dict(), "description": f"계열 비교 ({MENU_VERSION})",
         "menu_version": MENU_VERSION, "entry_menu": ENTRY_MENU, "exit_menu": EXIT_MENU,
         "gates": fc.gates.to_dict(), "ma200_calmar": fc.ma200_calmar, "seconds": fc.seconds,
+        "extra_entries": fc.extra_entries, "extra_exits": fc.extra_exits,
     })
     fc.summary().to_csv(path / "summary.csv", index=False)
     fc.all_cells().to_csv(path / "cells.csv", index=False)
     return path
+
+
+def save_addon(at, name: str, data_source: str, universe: list[str]) -> Path:
+    """Common add-on test: meta.json, table.csv (one row per family), cells.csv (plain and added grids)."""
+    from .families import MENU_VERSION
+
+    base = at.plain.base
+    path = _folder("addon", name)
+    _write_meta(path, {
+        "kind": "addon", "name": name, "saved_at": datetime.now().isoformat(timespec="seconds"),
+        "data_source": data_source, "universe": universe, "period": [base.start, base.end],
+        "base_config": base.to_dict(), "description": f"공통 조건 시험 · {at.label} ({MENU_VERSION})",
+        "menu_version": MENU_VERSION, "addon_kind": at.kind, "addon_key": at.key, "addon_value": at.value,
+        "label": at.label, "counts": at.counts(), "gates": at.plain.gates.to_dict(),
+        "ma200_calmar": at.plain.ma200_calmar, "seconds": at.plain.seconds + at.added.seconds,
+    })
+    at.table().to_csv(path / "table.csv", index=False)
+    at.all_cells().to_csv(path / "cells.csv", index=False)
+    return path
+
+
+def load_addon_table(path: Path) -> pd.DataFrame:
+    return pd.read_csv(path / "table.csv")
 
 
 def load_family_summary(path: Path) -> pd.DataFrame:
