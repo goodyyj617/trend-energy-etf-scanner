@@ -17,6 +17,9 @@ FIXP,FolioBeyond Enhanced Fixed Income Premium ETF,income premium,covered_call_o
 GPIQ,Goldman Sachs Nasdaq-100 Premium Income ETF,premium income,covered_call_option_income,unknown
 GPIX,Goldman Sachs S&P 500 Premium Income ETF,premium income,covered_call_option_income,unknown
 HEMI,Hartford Equity Premium Income ETF,premium income,covered_call_option_income,unknown
+HYGW,iShares HYG Premium Income+ ETF,premium income,covered_call_option_income,unknown
+IVVW,iShares IVV Premium Income+ ETF,premium income,covered_call_option_income,unknown
+IWMW,iShares IWM Premium Income+ ETF,premium income,covered_call_option_income,unknown
 JANH,Innovator Premium Income 20 Barrier ETF - January,premium income,covered_call_option_income,unknown
 JANJ,Innovator Premium Income 30 Barrier ETF - January,premium income,covered_call_option_income,unknown
 JEPI,JPMorgan Equity Premium Income ETF,premium income,covered_call_option_income,unknown
@@ -24,6 +27,7 @@ JEPQ,JPMorgan Nasdaq Equity Premium Income ETF,premium income,covered_call_optio
 JULH,Innovator Premium Income 20 Barrier ETF - July,premium income,covered_call_option_income,unknown
 JULJ,Innovator Premium Income 30 Barrier ETF - July,premium income,covered_call_option_income,unknown
 KHPI,Kensington Hedged Premium Income ETF,premium income,covered_call_option_income,unknown
+LQDW,iShares LQD Premium Income+ ETF,premium income,covered_call_option_income,unknown
 MSST,YieldMax MSTR Performance & Distribution Target 25 ETF,yieldmax,covered_call_option_income,unknown
 NVIT,YieldMax NVDA Performance & Distribution Target 25 ETF,yieldmax,covered_call_option_income,unknown
 OCTH,Innovator Premium Income 20 Barrier ETF - October,premium income,covered_call_option_income,unknown
@@ -42,6 +46,7 @@ TCAL,T. Rowe Price Capital Appreciation Premium Income ETF,premium income,covere
 TEST,YieldMax TSLA Performance & Distribution Target 25 ETF,yieldmax,covered_call_option_income,unknown
 THOR,Thornburg Premium Income Builder ETF,premium income,covered_call_option_income,unknown
 TLTP,Amplify TLT U.S. Treasury 12% Option Income ETF,option income,covered_call_option_income,unknown
+TLTW,iShares TLT Premium Income+ ETF,premium income,covered_call_option_income,unknown
 WEEL,Peerless Option Income Wheel ETF,option income,covered_call_option_income,unknown
 WTPI,WisdomTree Equity Premium Income Fund,premium income,covered_call_option_income,unknown
 XLBI,State Street Materials Select Sector SPDR Premium Income ETF,premium income,covered_call_option_income,unknown
