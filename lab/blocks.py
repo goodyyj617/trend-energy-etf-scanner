@@ -88,6 +88,11 @@ def _above_ma(p: Panel, n: float) -> pd.DataFrame:
     return p.close > sma(p.close, int(n))
 
 
+def _ma_cross(p: Panel, n: float) -> pd.DataFrame:
+    n = int(n)
+    return sma(p.close, max(2, int(round(n / 4)))) > sma(p.close, n)
+
+
 def _momentum(p: Panel, n: float) -> pd.DataFrame:
     return p.close / p.close.shift(int(n)) - 1.0 > 0
 
@@ -156,6 +161,10 @@ ENTRY_BLOCKS: dict[str, Block] = {
         Block("above_ma", "이동평균 위", "오늘 종가 > 최근 N거래일 종가 단순이동평균(SMA)",
               "가격이 중장기 평균보다 위에 있는 동안만 진입을 허용하는 추세 필터.",
               Param("N (거래일)", 200, 10, 300, 10, "거래일", "이동평균 기간"), _above_ma, "가격"),
+        Block("ma_cross", "이동평균 교차 (골든크로스)", "SMA(N÷4, 반올림) > SMA(N)   (예: N=200 → SMA50 > SMA200)",
+              "단기 이동평균이 장기 이동평균 위에 있는 동안 진입을 허용합니다. 단기 기간은 장기의 4분의 1로 고정해 "
+              "파라미터를 하나로 줄였습니다(50/200일 골든크로스가 대표적).",
+              Param("N (장기, 거래일)", 200, 20, 300, 10, "거래일", "장기 이동평균 기간. 단기 = N÷4"), _ma_cross, "가격"),
         Block("momentum", "N일 수익률 플러스", "오늘 종가 / N거래일 전 종가 − 1 > 0",
               "N일 전보다 가격이 높을 때만 진입(시계열 모멘텀).",
               Param("N (거래일)", 126, 21, 252, 21, "거래일", "수익률을 재는 기간 (21거래일 ≈ 1개월)"), _momentum, "가격"),

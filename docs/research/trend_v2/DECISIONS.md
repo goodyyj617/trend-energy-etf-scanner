@@ -87,6 +87,41 @@ All decisions in this section have status `Accepted`.
     universes: 7 and 6) and is the app's default sizing; equal sizing remains selectable.
     Record: docs/research/lab/2026-10-10_holdout_criteria_sizing.md.
 
+### Legacy operations (2026-10-10)
+
+44. The v1 Backtest Only workflow no longer runs on a schedule; it is manual-only
+    (workflow_dispatch). v1 is frozen and no longer on the research path, each run took 3-5 hours,
+    and runs that overlapped a merge to main correctly refused to publish (failed 2026-10-09 and
+    2026-10-10). The published v1 outputs in docs/data stay as they are. The OOS manifest
+    records the PR #18 baseline blob of the workflow as history; the OOS collector was never
+    activated, so no cohort is affected. Daily ETF Scan is unchanged.
+
+### Wider family menu and common add-on test (2026-10-10, registered before running)
+
+The research goal is breadth: test many filters, entries and exits and judge which kinds work.
+Components are judged by whole-grid behaviour and consistency across universes; the DSR stays
+the bar for a final single strategy only.
+
+45. Pre-registered menu `family-menu-v2`, fixed before any v2 result was seen. v1 values unchanged, plus
+    entries ma_cross N {40, 60, 100, 150, 200, 250}, bollinger k {1.0, 1.25, 1.5, 2.0, 2.5, 3.0},
+    rsi_min X {50, 55, 60, 65, 70, 75}, williams X {-50, -40, -30, -20, -10, -5}; exit trailing_pct
+    X {5, 8, 10, 15, 20, 30}. 7 entries x 4 exits = 28 families, 36 cells each. Ordering as in 34;
+    families are ranked across universes by the sum of their ranks.
+46. New block ma_cross: SMA(round(N/4)) > SMA(N). The short window is fixed at a quarter of the long
+    one (50/200 is the classic golden cross) to keep one parameter per block.
+47. Common add-on test: one block at its default value is added to every family (a family built
+    on that same block is skipped) and each family's grid is compared with the plain family by the
+    Pareto verdict of 35. A component is "generally helpful" when it improves a majority of the
+    tested families in every universe, "generally harmful" when it worsens a majority in every
+    universe, otherwise inconclusive. First component tested: initial stop (stop_loss_pct 10%),
+    the open "initial-stop families" question. Universes and settings: those of 43 (inverse-vol
+    sizing, ETF snapshot 2017-2023 and long-history multi-asset 2000-2023).
+48. Results of 45 and 47: momentum x trailing_pct has the lowest rank sum (1 + 2); the
+    trailing_pct exit family ranks first on average in both universes and below_ma last. The 10%
+    initial stop is inconclusive (improves 18/28 families on the long history, worsens 19/28 on the
+    snapshot) and is not added by default. Trials 6,393, N_eff ~1,402.
+    Record: docs/research/lab/2026-10-10_family_menu_v2.md.
+
 ## Open decisions
 
 - final trend-filter definition;

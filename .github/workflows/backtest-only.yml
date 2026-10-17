@@ -1,10 +1,9 @@
 name: Backtest Only
 
+# Frozen v1 legacy: the weekday schedule was removed (DECISIONS 44).
+# Run manually from the Actions tab when fresh v1 outputs are needed.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "30 20 * * 1-5"
-      timezone: "America/New_York"
 
 permissions:
   contents: write

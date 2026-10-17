@@ -245,7 +245,38 @@ def test_menu_values_are_inside_block_bounds():
             p = blocks[key].param
             assert len(vals) == 6 and vals == sorted(vals)
             assert all(p.minimum <= v <= p.maximum for v in vals)
-    assert families.cell_count() == 9 * 36
+    assert families.cell_count() == 28 * 36
+    # a family whose own block is the common add-on is skipped
+    assert families.cell_count({"breakout": 20}) == 24 * 36
+    assert families.cell_count(extra_exits={"stop_loss_pct": 10}) == 28 * 36
+
+
+def test_ma_cross_uses_quarter_length_short_average():
+    n = 300
+    panel, _ = make_panel({"AAA": list(np.linspace(100, 200, n)), "SPY": list(np.linspace(200, 100, n))})
+    f = ENTRY_BLOCKS["ma_cross"].compute(panel, 200)
+    assert not f["AAA"].iloc[198]  # SMA200 not yet defined
+    assert f["AAA"].iloc[-1] and not f["SPY"].iloc[-1]  # rising: SMA50 > SMA200; falling: below
+
+
+def test_addon_test_adds_one_block_to_every_family(tmp_path, monkeypatch):
+    monkeypatch.setattr(families, "ENTRY_MENU", {"breakout": [10, 20], "momentum": [21, 42]})
+    monkeypatch.setattr(families, "EXIT_MENU", {"low_break": [5, 10], "atr_trail": [2.0, 3.0]})
+    panel = _random_panel()
+    seen = []
+    at = families.run_addon_test(panel, cfg(max_positions=2), Gates(), "exit", "stop_loss_pct",
+                                 on_result=lambda c, r: seen.append(c))
+    assert len(seen) == 32  # 16 plain + 16 with the stop
+    assert {c.exits.get("stop_loss_pct") for c in seen} == {None, 10}  # default value only
+    t = at.table()
+    assert len(t) == 4 and set(t["verdict"]) <= {"improve", "mixed", "same", "worse"}
+    assert sum(at.counts().values()) == 4
+    # an entry add-on skips the family built on that same block
+    at2 = families.run_addon_test(panel, cfg(max_positions=2), Gates(), "entry", "momentum", plain=at.plain)
+    assert set(at2.table()["entry"]) == {"breakout"}
+    monkeypatch.setattr(store, "RESULTS_DIR", tmp_path)
+    path = store.save_addon(at, "t", "test", ["AAA"])
+    assert len(store.load_addon_table(path)) == 4 and len(store.load_cells(path)) == 32
 
 
 def test_shared_cache_gives_identical_grid():
