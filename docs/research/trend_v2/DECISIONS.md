@@ -149,6 +149,17 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     is descriptive. A descriptive table of SPY next-day returns and 63-day forward returns in
     each regime state is shown for context and decides nothing. Thresholds and windows are not
     tuned in this round; any later tuning is a new registration. Every cell is logged as a trial.
+52. Results of 51 (improve / mixed / worse of 28 families, snapshot | long): no macro indicator adds
+    timing value. Yield curve and VIX are generally harmful in both forms (curve filter 6/1/21 |
+    0/5/23, VIX filter 0/0/28 | 6/4/18). Credit spread is inconclusive with opposite directions
+    (filter 6/0/22 | 17/11/0), the same pattern as the price-only market_trend filter (3/1/24 |
+    19/7/2). The market_trend switch is the most consistent but still inconclusive (17/5/6 |
+    8/20/0, no family worse on the long history). Nothing is added by default. Trials 22,521,
+    N_eff ~7,049. Record: docs/research/lab/2026-10-19_macro_regime_filters.md.
+53. Daily alert (operations, not research): lab/daily_alert.py, run by the Daily Alert workflow
+    after each US close, reports the four regimes and the orders queued by the model portfolio
+    of config/alert.yml for the next open, as a comment on a GitHub issue (Telegram optional). It
+    reports signals only, no performance, so the holdout period stays unseen for research.
 
 ## Open decisions
 

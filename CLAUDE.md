@@ -35,11 +35,12 @@ python -m src.run_backtest_only
 CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x 두 버전으로 `-W error::FutureWarning` 전체 스위트를 돈다. 로컬 venv는 3.13이므로 3.12+ 전용 문법과 pandas FutureWarning을 피할 것.
 린터/포매터 설정은 없다.
 
-## 저장소 구조: 네 개의 하위 시스템
+## 저장소 구조: 다섯 개의 하위 시스템
 
 | 시스템 | 위치 | 상태 |
 |---|---|---|
 | **연구실 (lab)** | `lab/`, `tests/test_lab.py` | **현재 주력 제품.** 새 기능은 여기에 |
+| Daily Alert | `lab/daily_alert.py`, `config/alert.yml`, `.github/workflows/daily_alert.yml` | 평일 장 마감 후 자동 실행. 이슈 "📊 일일 알림"에 댓글 |
 | Daily ETF Scan | `src/run_daily_scan.py` → `universe`, `features`, `signal_history`, `update_aum`; 결과 `docs/data/`; 화면 `docs/index.html` (GitHub Pages) | 매일 자동 실행. 유지 |
 | v1 Backtest Only | `src/run_backtest_only.py` → `src/backtest.py`, `src/portfolio.py`; 결과 `docs/data/backtest_*`; `docs/backtest_dashboard.js` | score-breakout 기반 레거시. 동결. 자동 실행 꺼짐(수동 실행만, DECISIONS 44) |
 | v2 Foundation | `src/trend_v2_foundation/`, `src/trend_v2*.py`, `scripts/run_trend_v2_*.py`, `config/trend_v2/` | 보존만. Codex용 규칙은 `AGENTS.md` |
@@ -63,16 +64,21 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`families.py`**: 사전 등록된 고정 메뉴(v2: 진입 7 × 청산 4 = 28개 계열, 각 6×6)로 `run_grid`를 계열마다 돌려 격자 전체 성적으로 비교한다(DECISIONS 33–34, 45).
   메뉴 값은 결과를 본 뒤 고치지 않는다. 바꾸려면 `MENU_VERSION`을 올려 새 메뉴로 등록한다.
   공통 조건 시험(`run_addon_test`): 블록 하나를 기본값으로 모든 계열에 더해 계열별 파레토 판정을 센다(DECISIONS 47). `verdict`도 여기 있다.
+  국면 전환(`kind="switch"`): 국면 진입 필터와 그 정반대 청산(`blocks.REGIME_PAIRS`)을 함께 더한다(DECISIONS 50–51).
+- **`macro.py`**: 매크로 국면 블록(블록 분류 "매크로")이 읽는 FRED 일간 시리즈(T10Y3M, BAA10Y, VIXCLS). 연구는 커밋된 `lab/macro_snapshot.csv.gz`만 읽는다(갱신: Actions "Refresh macro snapshot" 수동 실행 또는 `python -m lab.macro`).
+  t일 결정에는 t−1일 이전 값만 쓴다(공표 시차). 사후 수정되는 지표는 넣지 않는다(DECISIONS 49).
+- **`batch.py`**: 앱 기본 유니버스·설정으로 공통 조건 시험을 명령줄에서 돌린다(`python -m lab.batch addon <kind> <key>`). 앱과 똑같이 시험 횟수에 기록하고 결과를 저장한다.
+- **`daily_alert.py`**: 일일 알림(DECISIONS 53). `config/alert.yml` 전략의 모델 포트폴리오를 오늘까지 시뮬레이션해 다음 시가 주문(`BacktestResult.pending_orders`)과 국면 상태를 이슈 댓글로 보낸다. 성과는 보여주지 않는다.
 - **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
 - 연구 기록: `docs/research/lab/` (날짜별 메모). 연구를 대신 수행했다면 결과·규칙·한계를 여기에 남긴다.
 - **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N), `trial_returns.npz`(시험별 월간 수익률 → 평균 상관 ρ → 유효 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).
-  앱에서 실행한 백테스트·격자 칸·점검 변형은 모두 여기에 기록된다. 스크립트로 돌린 실험은 기록되지 않는다.
+  앱에서 실행한 백테스트·격자 칸·점검 변형은 모두 여기에 기록된다. `lab.batch`로 돌린 시험도 기록된다. 그 밖의 스크립트로 돌린 실험은 기록되지 않는다.
   사용자의 연구 기록이므로 테스트하면서 생긴 항목은 지울 것. 파일 경로는 호출 시점에 `RESULTS_DIR`에서 만들어지므로, 테스트는 `research_log.RESULTS_DIR`만 임시 폴더로 바꾸면 된다(테스트가 `lab_results/`에 쓰면 안 된다).
 
 - **`data.py`**: `Panel` = 날짜 × 종목의 wide DataFrame(open/high/low/close/volume) + `tradable` 목록 + `cash`(현금 일간 수익률: BIL, 2007년 이전은 ^IRX/252) + `kind`(저장 결과 재구성용). 벤치마크 SPY는 항상 데이터에 포함되지만, 선택한 유니버스에 없으면 매매 대상이 아니다(`Panel.subset`). 출처는 두 가지:
   - ETF 스냅샷: `docs/research/trend_v2/phase_a2/prices/*.csv.gz`(466개 ETF, 2016-08-01 ~ 2026-07-30, 읽기 전용). 첫 로드 때 `lab_data/snapshot_panel.pkl`로 캐시.
   - yfinance: 종목별 전체 이력을 `lab_data/yf/`에 캐시. 장기 멀티에셋 프리셋은 `LONG_HISTORY_ETFS`(2004년 이전 상장 38개).
-- **`blocks.py`**: 진입 블록(AND)과 청산 블록(OR). 블록당 숫자 파라미터 1개, 가격·거래량만 사용.
+- **`blocks.py`**: 진입 블록(AND)과 청산 블록(OR). 블록당 숫자 파라미터 1개, 가격·거래량(과 `macro.py`의 매크로 국면)만 사용.
   - `compute(panel, value) -> bool DataFrame`을 가진 블록은 엔진과 화면에 자동으로 연결된다.
   - `compute=None`인 청산 블록(트레일링·손절)은 포지션 상태가 필요해서 `engine.py` 루프에서 키로 처리한다. 이런 블록을 추가하면 엔진도 함께 고쳐야 한다.
 - **`engine.py`**: 신호는 t일 종가로 계산하고 t+1일 시가에 체결. 동일 금액 슬롯(`max_positions`), 리밸런싱 없음, 편도 비용 bp, 신호 초과 시 20일 평균 거래대금 순으로 선택.
