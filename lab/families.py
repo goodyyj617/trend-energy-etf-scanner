@@ -22,6 +22,10 @@ Common add-on test: one extra condition (an entry filter or an extra exit, at it
 default value) is added to EVERY family and each family's grid is compared with the plain
 family on the four ordering metrics. It answers "does this component help in general?"
 rather than "does it help this one family?".
+
+Regime switch ("switch"): a regime entry filter together with its complement exit
+(REGIME_PAIRS), e.g. "buy only while SPY > 200-day SMA, and sell everything when it falls
+below". The entry-only form blocks new buys; the switch also moves the book to cash.
 """
 from __future__ import annotations
 
@@ -31,7 +35,7 @@ from dataclasses import dataclass, field, replace
 import numpy as np
 import pandas as pd
 
-from .blocks import ENTRY_BLOCKS, EXIT_BLOCKS
+from .blocks import ENTRY_BLOCKS, EXIT_BLOCKS, REGIME_PAIRS
 from .data import BENCHMARK, Panel
 from .engine import SignalCache, StrategyConfig, run_backtest
 from .grid import Gates, GridResult, run_grid
@@ -179,24 +183,40 @@ def run_family_comparison(panel: Panel, base: StrategyConfig, gates: Gates, prog
 # --------------------------------------------------------------------------- common add-on test
 
 def addon_choices() -> list[tuple[str, str]]:
-    """(kind, key) of every block that can be added to all families at its default value."""
-    return [("entry", k) for k in ENTRY_BLOCKS] + [("exit", k) for k in EXIT_BLOCKS]
+    """(kind, key) of every block that can be added to all families at its default value.
+    kind "switch" adds a regime entry filter and its complement exit together (key = the entry)."""
+    return ([("entry", k) for k in ENTRY_BLOCKS] + [("exit", k) for k in EXIT_BLOCKS]
+            + [("switch", k) for k in REGIME_PAIRS])
 
 
 def addon_default(kind: str, key: str) -> float | None:
-    p = (ENTRY_BLOCKS if kind == "entry" else EXIT_BLOCKS)[key].param
+    p = (EXIT_BLOCKS if kind == "exit" else ENTRY_BLOCKS)[key].param
     return None if p is None else p.default
 
 
+def addon_extras(kind: str, key: str) -> tuple[dict, dict]:
+    """(extra entries, extra exits) that the add-on puts into every family."""
+    value = addon_default(kind, key)
+    if kind == "entry":
+        return {key: value}, {}
+    if kind == "exit":
+        return {}, {key: value}
+    out = REGIME_PAIRS[key]
+    return {key: value}, {out: addon_default("exit", out)}
+
+
 def addon_label(kind: str, key: str) -> str:
-    b = (ENTRY_BLOCKS if kind == "entry" else EXIT_BLOCKS)[key]
     v = addon_default(kind, key)
-    return f"{'진입 조건' if kind == 'entry' else '청산 조건'} · {b.label}" + ("" if v is None else f" ({v:g})")
+    num = "" if v is None else f" ({v:g})"
+    if kind == "switch":
+        return f"국면 전환 · {ENTRY_BLOCKS[key].label}일 때만 매수 + {EXIT_BLOCKS[REGIME_PAIRS[key]].label} 시 전량 매도{num}"
+    b = (ENTRY_BLOCKS if kind == "entry" else EXIT_BLOCKS)[key]
+    return f"{'진입 조건' if kind == 'entry' else '청산 조건'} · {b.label}{num}"
 
 
 @dataclass
 class AddonTest:
-    kind: str  # "entry" | "exit"
+    kind: str  # "entry" | "exit" | "switch"
     key: str
     value: float | None
     plain: FamilyComparison  # every family without the add-on
@@ -238,7 +258,7 @@ def run_addon_test(panel: Panel, base: StrategyConfig, gates: Gates, kind: str, 
     A finished plain comparison on the same panel and settings can be passed in to skip rerunning it.
     """
     value = addon_default(kind, key)
-    ee, xx = ({key: value}, {}) if kind == "entry" else ({}, {key: value})
+    ee, xx = addon_extras(kind, key)
     cache = SignalCache(panel)
     n_plain = 0 if plain is not None else cell_count()
     n_added = cell_count(ee, xx)

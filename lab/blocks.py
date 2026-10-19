@@ -8,6 +8,9 @@ Each block has at most one numeric parameter; some blocks are fixed rules with n
 To add a block: append a Block to ENTRY_BLOCKS or EXIT_BLOCKS and give it a compute
 function. Exits that depend on the open position (compute=None) are handled by key in
 engine.py.
+
+Macro blocks (family "매크로") are market-wide regime conditions read from lab/macro.py
+(FRED series, one-day publication lag); the same value applies to every symbol.
 """
 from __future__ import annotations
 
@@ -43,7 +46,7 @@ class Block:
     help: str
     param: Param | None
     compute: Callable[[Panel, float | None], pd.DataFrame] | None = None  # None => position-dependent
-    family: str = "가격"  # 가격 / 거래량 / 보조지표: grouping in the UI
+    family: str = "가격"  # 가격 / 거래량 / 보조지표 / 매크로: grouping in the UI
 
 
 # --------------------------------------------------------------------------- indicators
@@ -105,6 +108,34 @@ def _market_trend(p: Panel, n: float) -> pd.DataFrame:
     return pd.DataFrame(np.repeat(up[:, None], p.close.shape[1], axis=1), index=p.close.index, columns=p.close.columns)
 
 
+def _broadcast(p: Panel, cond: pd.Series) -> pd.DataFrame:
+    """One market-wide condition repeated for every symbol. Missing data (NaN) counts as False."""
+    v = cond.fillna(0.0).to_numpy(dtype=float) > 0.5
+    return pd.DataFrame(np.repeat(v[:, None], p.close.shape[1], axis=1), index=p.close.index,
+                        columns=p.close.columns)
+
+
+def _macro_cond(p: Panel, sid: str, test, sma: int | None = None) -> pd.DataFrame:
+    from . import macro
+
+    val, avg = macro.series(sid, p.close.index, sma)
+    ok = val.notna() & (avg.notna() if avg is not None else True)
+    cond = test(val, avg).astype(float).where(ok)
+    return _broadcast(p, cond)
+
+
+def _curve_ok(p: Panel, x: float) -> pd.DataFrame:
+    return _macro_cond(p, "T10Y3M", lambda v, _: v > x)
+
+
+def _credit_calm(p: Panel, n: float) -> pd.DataFrame:
+    return _macro_cond(p, "BAA10Y", lambda v, a: v <= a, int(n))
+
+
+def _vix_calm(p: Panel, x: float) -> pd.DataFrame:
+    return _macro_cond(p, "VIXCLS", lambda v, _: v < x)
+
+
 def _ma_stack(p: Panel, _: float | None) -> pd.DataFrame:
     m20, m60, m120, m200 = (sma(p.close, n) for n in (20, 60, 120, 200))
     return (m20 > m60) & (m60 > m120) & (m120 > m200)
@@ -152,6 +183,27 @@ def _below_ma(p: Panel, n: float) -> pd.DataFrame:
     return p.close < sma(p.close, int(n))
 
 
+# Regime-off exits: the exact complement of the matching regime entry filter (REGIME_PAIRS).
+def _market_off(p: Panel, n: float) -> pd.DataFrame:
+    from .data import BENCHMARK
+
+    spy = p.close[BENCHMARK]
+    ma = spy.rolling(int(n), min_periods=int(n)).mean()
+    return _broadcast(p, (spy < ma).astype(float).where(ma.notna()))
+
+
+def _curve_inverted(p: Panel, x: float) -> pd.DataFrame:
+    return _macro_cond(p, "T10Y3M", lambda v, _: v <= x)
+
+
+def _credit_stress(p: Panel, n: float) -> pd.DataFrame:
+    return _macro_cond(p, "BAA10Y", lambda v, a: v > a, int(n))
+
+
+def _vix_high(p: Panel, x: float) -> pd.DataFrame:
+    return _macro_cond(p, "VIXCLS", lambda v, _: v >= x)
+
+
 ENTRY_BLOCKS: dict[str, Block] = {
     b.key: b
     for b in [
@@ -172,6 +224,17 @@ ENTRY_BLOCKS: dict[str, Block] = {
               "시장 전체(SPY)가 상승 추세일 때만 새로 매수합니다. 개별 종목 신호와 상관없이 하락장에서 신규 진입을 막는 국면 필터. "
               "이미 보유한 종목은 청산 조건으로만 팝니다.",
               Param("N (거래일)", 200, 50, 300, 10, "거래일", "SPY 이동평균 기간"), _market_trend, "가격"),
+        Block("curve_ok", "장단기 금리차 플러스 (매크로)", "전일 미국 10년 − 3개월 국채금리차 > X %p   (FRED T10Y3M)",
+              "금리차가 음수(장단기 역전)면 경기 침체 신호로 보고 새 매수를 막는 국면 필터. 모든 종목에 똑같이 적용됩니다. "
+              "FRED 공표 시점을 고려해 하루 전 값을 씁니다. 이미 보유한 종목은 청산 조건으로만 팝니다.",
+              Param("X (%p)", 0.0, -1.0, 2.0, 0.25, "%p", "금리차 하한 (0 = 역전만 아니면 됨)"), _curve_ok, "매크로"),
+        Block("credit_calm", "신용 스프레드 안정 (매크로)", "전일 Baa 회사채 − 10년 국채 스프레드 ≤ 그 스프레드의 N일 SMA   (FRED BAA10Y)",
+              "회사채 가산금리가 평소(N일 평균)보다 넓어지는 동안은 신용 위험이 커지는 국면으로 보고 새 매수를 막습니다. "
+              "하루 전 값을 씁니다.",
+              Param("N (관측일)", 200, 50, 300, 10, "관측일", "스프레드 이동평균 기간"), _credit_calm, "매크로"),
+        Block("vix_calm", "VIX 낮음 (매크로)", "전일 VIX 종가 < X   (FRED VIXCLS)",
+              "시장의 기대 변동성(공포 지수)이 X 이상이면 새 매수를 막습니다. 하루 전 값을 씁니다.",
+              Param("X", 25.0, 12.0, 50.0, 1.0, "점", "VIX 상한"), _vix_calm, "매크로"),
         Block("ma_stack", "이동평균 정배열", "SMA20 > SMA60 > SMA120 > SMA200",
               "단기부터 장기까지 이동평균이 위에서 아래로 차례대로 놓인 상태. 고정 규칙이라 조정할 파라미터가 없습니다.",
               None, _ma_stack, "가격"),
@@ -216,7 +279,23 @@ EXIT_BLOCKS: dict[str, Block] = {
         Block("stop_loss_pct", "진입가 대비 손절", "오늘 종가 < 진입가 × (1 − X%)",
               "진입 직후 신호가 틀렸을 때 손실을 X%로 제한합니다.",
               Param("X (%)", 10, 2, 30, 1, "%", "진입가 대비 허용 손실폭"), None, "가격"),
+        Block("market_off", "시장 추세 이탈 (SPY 이동평균 아래)", "SPY 종가 < SPY의 최근 N거래일 SMA",
+              "시장 전체가 하락 추세로 바뀌면 보유 종목을 모두 팝니다. ‘시장 추세’ 진입 필터의 정반대 조건.",
+              Param("N (거래일)", 200, 50, 300, 10, "거래일", "SPY 이동평균 기간"), _market_off, "매크로"),
+        Block("curve_inverted", "장단기 금리 역전 (매크로)", "전일 미국 10년 − 3개월 국채금리차 ≤ X %p",
+              "금리차가 X 이하로 내려가면 보유 종목을 모두 팝니다. ‘금리차 플러스’ 진입 필터의 정반대 조건.",
+              Param("X (%p)", 0.0, -1.0, 2.0, 0.25, "%p", "금리차 기준"), _curve_inverted, "매크로"),
+        Block("credit_stress", "신용 스프레드 확대 (매크로)", "전일 Baa − 10년 국채 스프레드 > 그 스프레드의 N일 SMA",
+              "회사채 가산금리가 평소보다 넓어지면 보유 종목을 모두 팝니다. ‘신용 스프레드 안정’의 정반대 조건.",
+              Param("N (관측일)", 200, 50, 300, 10, "관측일", "스프레드 이동평균 기간"), _credit_stress, "매크로"),
+        Block("vix_high", "VIX 높음 (매크로)", "전일 VIX 종가 ≥ X",
+              "기대 변동성이 X 이상으로 올라가면 보유 종목을 모두 팝니다. ‘VIX 낮음’의 정반대 조건.",
+              Param("X", 25.0, 12.0, 50.0, 1.0, "점", "VIX 기준"), _vix_high, "매크로"),
     ]
+}
+
+REGIME_PAIRS: dict[str, str] = {  # regime entry filter -> its complement exit (regime switch)
+    "market_trend": "market_off", "curve_ok": "curve_inverted", "credit_calm": "credit_stress", "vix_calm": "vix_high",
 }
 
 ALL_BLOCKS: dict[str, Block] = {**ENTRY_BLOCKS, **EXIT_BLOCKS}

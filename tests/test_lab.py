@@ -397,3 +397,66 @@ def test_strategy_fingerprint_ignores_dates():
     b = cfg(start="2024-01-01", end="2026-10-08")
     assert a.fingerprint() != b.fingerprint() and a.strategy_fingerprint() == b.strategy_fingerprint()
     assert a.strategy_fingerprint() != cfg(max_positions=3).strategy_fingerprint()
+
+
+# --------------------------------------------------------------------------- macro regime blocks
+
+def _fake_macro(dates, **cols):
+    from lab import macro
+
+    macro.use(pd.DataFrame(cols, index=dates))
+    return macro
+
+
+def test_macro_value_uses_previous_day_only():
+    from lab import macro
+
+    days = pd.bdate_range("2020-01-01", periods=6)
+    raw = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], index=days)
+    got = macro.on_dates(raw, days)
+    assert np.isnan(got.iloc[0]) and got.iloc[1:].tolist() == [1.0, 2.0, 3.0, 4.0, 5.0]
+    # a FRED holiday gap is filled with the last value; a long gap becomes missing
+    sparse = raw.iloc[[0]]
+    late = macro.on_dates(sparse, pd.bdate_range("2020-01-01", periods=15))
+    assert late.iloc[1] == 1.0 and np.isnan(late.iloc[-1])
+
+
+def test_macro_entry_and_exit_blocks_are_complements():
+    from lab.blocks import REGIME_PAIRS
+
+    panel = _random_panel(n=300)
+    idx = panel.close.index
+    rng = np.random.default_rng(1)
+    _fake_macro(idx, T10Y3M=rng.normal(0.2, 1.0, len(idx)), BAA10Y=2 + np.cumsum(rng.normal(0, 0.05, len(idx))),
+                VIXCLS=rng.uniform(10, 40, len(idx)))
+    try:
+        for ent, ext in REGIME_PAIRS.items():
+            v = ENTRY_BLOCKS[ent].param.default
+            if ent == "credit_calm":
+                v = 50  # enough history in a short test panel
+            a = ENTRY_BLOCKS[ent].compute(panel, v)
+            b = EXIT_BLOCKS[ext].compute(panel, v)
+            known = a | b
+            assert known.iloc[-1].all()  # every day with data is either on or off
+            assert not (a & b).any().any()
+            assert (a.nunique(axis=1) == 1).all()  # market-wide: same for every symbol
+        f = ENTRY_BLOCKS["vix_calm"].compute(panel, 25)
+        from lab import macro
+        prev = macro.data()["VIXCLS"].shift(1)
+        assert (f["AAA"].iloc[1:] == (prev.iloc[1:] < 25)).all()
+    finally:
+        from lab import macro
+        macro.use(None)
+
+
+def test_regime_switch_addon_adds_filter_and_complement_exit(monkeypatch):
+    monkeypatch.setattr(families, "ENTRY_MENU", {"breakout": [10, 20]})
+    monkeypatch.setattr(families, "EXIT_MENU", {"low_break": [5, 10]})
+    panel = _random_panel()
+    seen = []
+    at = families.run_addon_test(panel, cfg(max_positions=2), Gates(), "switch", "market_trend",
+                                 on_result=lambda c, r: seen.append(c))
+    added = [c for c in seen if "market_trend" in c.entries]
+    assert len(added) == 4 and all(c.exits.get("market_off") == 200 for c in added)
+    assert families.addon_extras("switch", "vix_calm") == ({"vix_calm": 25.0}, {"vix_high": 25.0})
+    assert "국면 전환" in at.label and len(at.table()) == 1

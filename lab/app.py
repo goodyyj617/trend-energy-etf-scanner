@@ -21,7 +21,7 @@ from lab import store  # noqa: E402
 from lab.blocks import ALL_BLOCKS, ENTRY_BLOCKS, EXIT_BLOCKS  # noqa: E402
 from lab.data import BENCHMARK, LONG_HISTORY_ETFS, Panel, download_panel, load_snapshot, snapshot_available  # noqa: E402
 from lab.families import (  # noqa: E402
-    ENTRY_MENU, EXIT_MENU, MENU_VERSION, ORDER, SUMMARY_TEXT, addon_choices, addon_label, cell_count, family_pairs,
+    ENTRY_MENU, EXIT_MENU, MENU_VERSION, ORDER, SUMMARY_TEXT, addon_choices, addon_extras, addon_label, cell_count, family_pairs,
     run_addon_test, run_family_comparison,
 )
 from lab.refine import VERDICT_TEXT, addon_candidates, addon_value, family_label, run_refinement  # noqa: E402
@@ -49,7 +49,7 @@ SOURCES = {
     "long": f"장기 멀티에셋 ETF · {LONG_COUNT}개 · 1993 – 현재 (2000년·2008년 하락장 포함) · yfinance",
     "custom": "직접 입력 · ETF·개별 종목 · yfinance",
 }
-FAMILY_ORDER = ["가격", "거래량", "보조지표"]
+FAMILY_ORDER = ["가격", "거래량", "보조지표", "매크로"]
 SCORECARD = ["total_return", "cagr", "mdd", "sharpe", "sortino", "calmar", "worst_12m", "volatility", "month_win",
              "underwater_days"]
 
@@ -969,12 +969,12 @@ def addon_tab(panel: Panel, cfg: StrategyConfig) -> None:
     default = choices.index(("exit", "stop_loss_pct"))
     i = st.selectbox("모든 계열에 더할 조건", range(len(choices)), index=default, key="addon_choice",
                      format_func=lambda k: addon_label(*choices[k]),
-                     help="진입 조건은 AND(필터), 청산 조건은 OR(추가 청산 규칙)로 더해집니다. 값은 블록 기본값으로 고정합니다.")
+                     help="진입 조건은 AND(필터), 청산 조건은 OR(추가 청산 규칙)로 더해집니다. 국면 전환은 국면 진입 필터와 그 정반대 청산 조건을 함께 더합니다. 값은 블록 기본값으로 고정합니다.")
     kind, key = choices[i]
-    b = (ENTRY_BLOCKS if kind == "entry" else EXIT_BLOCKS)[key]
-    st.caption(f"`{b.rule}` · {b.help}")
-    extra = {key: None}
-    ee, xx = (extra, {}) if kind == "entry" else ({}, extra)
+    ee, xx = addon_extras(kind, key)
+    for k in [*ee, *xx]:
+        b = ALL_BLOCKS[k]
+        st.caption(f"`{b.rule}` · {b.help}")
     plain = reusable_family_result(panel, cfg)
     n = cell_count(ee, xx) + (0 if plain is not None else cell_count())
     st.caption(f"계열 {len(family_pairs(ee, xx))}개 · 백테스트 {n}회"
