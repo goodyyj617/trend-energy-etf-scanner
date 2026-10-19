@@ -5,6 +5,9 @@ name: Daily Alert
 # Settings: config/alert.yml. Read-only for the repository: it commits nothing.
 on:
   workflow_dispatch:
+  push:  # TEMP: dry run on the PR branch (no delivery); removed before merge
+    branches: ["claude/macro-regime-alert"]
+    paths: [".github/workflows/daily_alert.yml", "lab/daily_alert.py"]
   schedule:
     - cron: "15 22 * * 1-5"   # 22:15 UTC = after the 16:00 New York close (EST and EDT)
 
@@ -34,4 +37,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python -m lab.daily_alert --deliver
+        run: python -m lab.daily_alert ${{ github.event_name != 'push' && '--deliver' || '' }}
