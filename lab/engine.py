@@ -130,6 +130,8 @@ class BacktestResult:
     open_positions: pd.DataFrame
     universe_size: int
     warnings: list[str] = field(default_factory=list)
+    # orders decided on the last close, for the next open: {"buy": [symbols], "sell": {symbol: exit block key}}
+    pending_orders: dict = field(default_factory=dict)
 
     @property
     def period(self) -> tuple[pd.Timestamp, pd.Timestamp]:
@@ -299,8 +301,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         equity[i] = cash + invested
         exposure[i] = invested / equity[i] if equity[i] > 0 else 0.0
 
-        if i == n - 1:
-            break
+        # steps 3-4 also run on the last day: they only queue orders for the next open, which
+        # the backtest never reaches, and those orders are reported as pending_orders
 
         # 3) exit checks on today's close
         for j, p in pos.items():
@@ -356,6 +358,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         open_positions=open_df,
         universe_size=int(tradable.sum()),
         warnings=warnings,
+        pending_orders={"buy": [symbols[j] for j in pending_entry],
+                        "sell": {symbols[j]: k for j, k in pending_exit.items()}},
     )
 
 

@@ -4,9 +4,6 @@ name: Refresh macro snapshot
 # lab/macro_snapshot.csv.gz to the branch it runs on. Research runs read that frozen file.
 on:
   workflow_dispatch:
-  push:
-    branches: ["claude/macro-regime-alert"]
-    paths: [".github/workflows/macro-data.yml"]
 
 permissions:
   contents: write
