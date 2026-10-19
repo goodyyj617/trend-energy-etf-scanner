@@ -5,6 +5,7 @@ Run:  .venv\\Scripts\\python.exe -m streamlit run lab/app.py
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -20,7 +21,8 @@ from lab import store  # noqa: E402
 from lab.blocks import ALL_BLOCKS, ENTRY_BLOCKS, EXIT_BLOCKS  # noqa: E402
 from lab.data import BENCHMARK, LONG_HISTORY_ETFS, Panel, download_panel, load_snapshot, snapshot_available  # noqa: E402
 from lab.families import (  # noqa: E402
-    ENTRY_MENU, EXIT_MENU, MENU_VERSION, SUMMARY_TEXT, cell_count, run_family_comparison,
+    ENTRY_MENU, EXIT_MENU, MENU_VERSION, ORDER, SUMMARY_TEXT, addon_choices, addon_label, cell_count, family_pairs,
+    run_addon_test, run_family_comparison,
 )
 from lab.refine import VERDICT_TEXT, addon_candidates, addon_value, family_label, run_refinement  # noqa: E402
 from lab.engine import (  # noqa: E402
@@ -714,7 +716,8 @@ def family_matrix(summary: pd.DataFrame, metric: str) -> go.Figure:
         texttemplate="%{text}", colorscale=SEQ_BLUE, xgap=3, ygap=3, colorbar=dict(title=""),
         hovertemplate="진입: %{y}<br>청산: %{x}<br>" + SUMMARY_TEXT[metric][0] + ": %{text}<extra></extra>",
     ))
-    fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10), xaxis_title="청산 계열", yaxis_title="진입 계열",
+    fig.update_layout(height=80 + 45 * len(entries), margin=dict(l=10, r=10, t=10, b=10), xaxis_title="청산 계열",
+                      yaxis_title="진입 계열",
                       yaxis_autorange="reversed")
     return fig
 
@@ -765,7 +768,9 @@ def apply_family(entry_key: str, entry_value: float, exit_key: str, exit_value: 
 
 
 def family_tab(panel: Panel, cfg: StrategyConfig) -> None:
-    st.caption("미리 정해 둔 메뉴(진입 3종 × 청산 3종 = 9개 계열)를 각각 6×6 격자로 돌려, **최고점이 아니라 격자 전체가 얼마나 넓게 통하는지**로 "
+    n_fam = len(family_pairs())
+    st.caption(f"미리 정해 둔 메뉴(진입 {len(ENTRY_MENU)}종 × 청산 {len(EXIT_MENU)}종 = {n_fam}개 계열)를 각각 6×6 격자로 돌려, "
+               "**최고점이 아니라 격자 전체가 얼마나 넓게 통하는지**로 "
                "계열을 비교합니다. 위 ①(유니버스·기간)과 ④(포트폴리오·비용·현금) 설정을 쓰고, ②·③에서 고른 조건은 쓰지 않습니다. "
                f"Gate 기준은 ‘🧭 강건성 격자’ 탭의 값을 씁니다. 모든 칸({cell_count()}개)이 시험 횟수에 기록됩니다.")
     with st.expander(f"고정 메뉴 보기 ({MENU_VERSION})"):
@@ -779,7 +784,7 @@ def family_tab(panel: Panel, cfg: StrategyConfig) -> None:
             hide_index=True, width="stretch")
     est = estimate_seconds(panel, cfg, cell_count())
     st.caption(f"예상 소요 약 {max(1, round(est / 60))}분 (컴퓨터 상태에 따라 더 걸릴 수 있음) · 실행 중에는 다른 조작을 하지 마세요.")
-    if st.button("▶ 9개 계열 비교 실행", type="primary"):
+    if st.button(f"▶ {n_fam}개 계열 비교 실행", type="primary"):
         bar = st.progress(0.0, text="계열 비교 중…")
         collected = []
         try:
@@ -904,6 +909,106 @@ def refine_tab(panel: Panel, cfg: StrategyConfig) -> None:
             st.success(f"저장했습니다: lab_results/{path.name}")
 
 
+# =========================================================================== common add-on test view
+
+def show_addon_result(table: pd.DataFrame, cells: pd.DataFrame, label: str, gates: dict, ma200: float, key: str) -> None:
+    st.caption(f"추가한 조건: **{label}** · Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · "
+               f"|MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · 완료 거래 ≥ {gates['min_trades']} · "
+               f"SPY 200일선 칼마 = {ma200:.2f}")
+    n = len(table)
+    counts = {k: int((table["verdict"] == k).sum()) for k in ("improve", "mixed", "same", "worse")}
+    cols = st.columns(4)
+    for c, k in zip(cols, counts):
+        c.metric(VERDICT_SHORT[k], f"{counts[k]} / {n}", help=VERDICT_TEXT[k])
+    if counts["improve"] * 2 > n:
+        st.success(f"시험한 계열의 과반({counts['improve']}/{n})이 개선됐습니다. 이 유니버스·기간에서는 **대체로 도움이 되는 조건**입니다. "
+                   "다른 유니버스·기간에서도 과반이 개선돼야 일반적으로 도움이 된다고 판단합니다.")
+    elif counts["worse"] * 2 > n:
+        st.error(f"시험한 계열의 과반({counts['worse']}/{n})이 악화됐습니다. 이 유니버스·기간에서는 **대체로 해로운 조건**입니다.")
+    else:
+        st.info("개선도 악화도 과반이 아닙니다. 이 데이터만으로는 **판단 보류**입니다.")
+    num = st.column_config.NumberColumn
+    shown = table.drop(columns=["entry", "exit"]).assign(verdict=table["verdict"].map(VERDICT_SHORT))
+    config = {"family": st.column_config.TextColumn("계열 (진입 × 청산)", width="large"),
+              "verdict": st.column_config.TextColumn("판정", help="\n\n".join(f"{VERDICT_SHORT[k]}: {v}" for k, v in VERDICT_TEXT.items()))}
+    for k in ORDER:
+        config[f"{k}_plain"] = num(f"{SUMMARY_TEXT[k][0]} · 원래", format=FAMILY_FMT[k], help=SUMMARY_TEXT[k][1])
+        config[f"{k}_added"] = num(f"{SUMMARY_TEXT[k][0]} · 추가 후", format=FAMILY_FMT[k], help=SUMMARY_TEXT[k][1])
+    st.dataframe(shown, hide_index=True, width="stretch", column_config=config)
+
+    st.markdown("#### 격자 자세히 보기")
+    labels = {f"{r['entry']}|{r['exit']}": f"{VERDICT_SHORT[r['verdict']]} · {r['family']}" for _, r in table.iterrows()}
+    c1, c2 = st.columns([3, 1])
+    pick = c1.selectbox("계열 선택", list(labels), format_func=labels.get, key=f"addon_pick_{key}")
+    variant = c2.radio("격자", ["added", "plain"], key=f"addon_variant_{key}", horizontal=True,
+                       format_func={"added": "추가 후", "plain": "원래"}.get)
+    e, x = pick.split("|")
+    sub = cells[(cells["entry"] == e) & (cells["exit"] == x) & (cells["variant"] == variant)].reset_index(drop=True)
+    passed = sub[sub["pass"]]
+    show_grid_result(sub, e, x, {"total": len(sub), "passed": len(passed), "regions": passed["region"].nunique(),
+                                 "largest_region": int(sub["region_size"].max())}, gates, f"addon_{key}_{variant}")
+
+
+def reusable_family_result(panel: Panel, cfg: StrategyConfig):
+    """The stored plain family comparison when it was run on the current universe, settings and menu."""
+    stored = st.session_state.get("family_result")
+    if stored is None:
+        return None
+    fc, _, universe = stored
+    same = (replace(fc.base, entries={}, exits={}) == replace(cfg, entries={}, exits={})
+            and universe == panel.tradable_symbols and fc.gates == gates_now()
+            and not fc.extra_entries and not fc.extra_exits and list(fc.grids) == family_pairs())
+    return fc if same else None
+
+
+def addon_tab(panel: Panel, cfg: StrategyConfig) -> None:
+    st.caption("조건 **하나**를 기본값으로 **모든 계열**에 똑같이 더하고, 계열마다 원래 격자와 네 기준으로 비교합니다. "
+               "‘이 조건이 대체로 도움이 되는가?’를 보는 시험입니다(한 계열에 여러 조건을 시험하는 ‘확인 조건 시험’의 반대 방향). "
+               "그 조건 자체로 만든 계열은 같은 블록을 두 번 넣을 수 없어 빠집니다. 위 ①·④ 설정을 쓰고 ②·③은 쓰지 않습니다.")
+    choices = addon_choices()
+    default = choices.index(("exit", "stop_loss_pct"))
+    i = st.selectbox("모든 계열에 더할 조건", range(len(choices)), index=default, key="addon_choice",
+                     format_func=lambda k: addon_label(*choices[k]),
+                     help="진입 조건은 AND(필터), 청산 조건은 OR(추가 청산 규칙)로 더해집니다. 값은 블록 기본값으로 고정합니다.")
+    kind, key = choices[i]
+    b = (ENTRY_BLOCKS if kind == "entry" else EXIT_BLOCKS)[key]
+    st.caption(f"`{b.rule}` · {b.help}")
+    extra = {key: None}
+    ee, xx = (extra, {}) if kind == "entry" else ({}, extra)
+    plain = reusable_family_result(panel, cfg)
+    n = cell_count(ee, xx) + (0 if plain is not None else cell_count())
+    st.caption(f"계열 {len(family_pairs(ee, xx))}개 · 백테스트 {n}회"
+               + (" (‘전략 계열 비교’ 결과를 재사용)" if plain is not None else " (원래 계열 포함)")
+               + f" · 예상 약 {max(1, round(estimate_seconds(panel, cfg, n) / 60))}분 · 모두 시험 횟수에 기록됩니다.")
+    if st.button("▶ 공통 조건 시험 실행", type="primary"):
+        bar = st.progress(0.0, text="시험 중…")
+        collected = []
+        try:
+            at = run_addon_test(panel, cfg, gates_now(), kind, key, plain=plain,
+                                progress=lambda f: bar.progress(min(f, 1.0), text=f"시험 중… {f:.0%}"),
+                                on_result=lambda c, r: collected.append(("addon", c, panel.tradable_symbols, r.equity)))
+            st.session_state["addon_result"] = (at, panel.source, panel.tradable_symbols)
+            rlog.log_trials(collected)
+        except ValueError as exc:
+            st.error(str(exc))
+        bar.empty()
+    stored = st.session_state.get("addon_result")
+    if stored is None:
+        return
+    at, source, universe = stored
+    base = at.plain.base
+    if base.start != cfg.start or base.end != cfg.end or universe != panel.tradable_symbols:
+        st.warning("아래 결과는 현재 유니버스·기간과 다른 설정으로 실행한 것입니다.")
+    st.caption(f"기간 {base.start} → {base.end} · 거래 대상 {len(universe)}종목")
+    show_addon_result(at.table(), at.all_cells(), at.label, at.plain.gates.to_dict(), at.plain.ma200_calmar, "live")
+    with st.form("save_addon", border=False):
+        c1, c2 = st.columns([3, 1])
+        name = c1.text_input("결과 이름", value="", placeholder="예: 공통 손절 10% · 장기 ETF")
+        if c2.form_submit_button("💾 공통 조건 시험 저장", width="stretch"):
+            path = store.save_addon(at, name or f"공통 조건 · {at.label}", source, universe)
+            st.success(f"저장했습니다: lab_results/{path.name}")
+
+
 # =========================================================================== pages
 
 def research_page() -> None:
@@ -920,7 +1025,8 @@ def research_page() -> None:
         st.markdown(RULES_KO)
     st.divider()
 
-    tab_bt, tab_grid, tab_fam, tab_ref = st.tabs(["📈 백테스트", "🧭 강건성 격자", "🧩 전략 계열 비교", "🧪 확인 조건 시험"])
+    tab_bt, tab_grid, tab_fam, tab_ref, tab_add = st.tabs(["📈 백테스트", "🧭 강건성 격자", "🧩 전략 계열 비교", "🧪 확인 조건 시험",
+                                                          "🧷 공통 조건 시험"])
     with tab_bt:
         if st.button("▶ 백테스트 실행", type="primary") or st.session_state.pop("auto_run", False):
             try:
@@ -939,6 +1045,8 @@ def research_page() -> None:
         family_tab(panel, cfg)
     with tab_ref:
         refine_tab(panel, cfg)
+    with tab_add:
+        addon_tab(panel, cfg)
 
 
 def holdout_page() -> None:
@@ -1037,8 +1145,9 @@ def saved_page() -> None:
     grids = [i for i in items if i["kind"] == "grid"]
     fams = [i for i in items if i["kind"] == "family"]
     refs = [i for i in items if i["kind"] == "refine"]
-    t1, t2, t3, t4 = st.tabs([f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})", f"계열 비교 ({len(fams)})",
-                              f"확인 조건 시험 ({len(refs)})"])
+    adds = [i for i in items if i["kind"] == "addon"]
+    t1, t2, t3, t4, t5 = st.tabs([f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})", f"계열 비교 ({len(fams)})",
+                                  f"확인 조건 시험 ({len(refs)})", f"공통 조건 시험 ({len(adds)})"])
     with t1:
         if not bts:
             st.info("저장된 백테스트가 없습니다.")
@@ -1094,6 +1203,17 @@ def saved_page() -> None:
             st.caption(f"기간 {' – '.join(rm['period'])} · 데이터: {rm['data_source']} · 거래 대상 {len(rm['universe'])}종목")
             show_refinement(store.load_refine_table(rm["path"]), store.load_cells(rm["path"]), rm["entry_key"],
                             rm["exit_key"], rm["gates"], rm["ma200_calmar"], "saved")
+    with t5:
+        if not adds:
+            st.info("저장된 공통 조건 시험이 없습니다.")
+        else:
+            idx = st.selectbox("공통 조건 시험 선택", range(len(adds)), key="saved_addon",
+                               format_func=lambda i: f"{adds[i]['saved_at']} · {adds[i]['name']}")
+            am = adds[idx]
+            st.caption(f"기간 {' – '.join(am['period'])} · 데이터: {am['data_source']} · 거래 대상 {len(am['universe'])}종목 · "
+                       f"메뉴 {am['menu_version']}")
+            show_addon_result(store.load_addon_table(am["path"]), store.load_cells(am["path"]), am["label"], am["gates"],
+                              am["ma200_calmar"], "saved")
 
 
 def glossary_page() -> None:
@@ -1125,7 +1245,7 @@ def glossary_page() -> None:
     for label, rule in CHECK_TEXT.values():
         st.markdown(BR.join([f"· **{label}**", rule]))
     st.subheader("전략 계열 비교")
-    st.markdown("미리 정한 메뉴(진입 3종 × 청산 3종)의 각 계열을 6×6 격자로 돌려, 격자 전체의 성적으로 비교합니다. "
+    st.markdown(f"미리 정한 메뉴(진입 {len(ENTRY_MENU)}종 × 청산 {len(EXIT_MENU)}종)의 각 계열을 6×6 격자로 돌려, 격자 전체의 성적으로 비교합니다. "
                 f"메뉴: {MENU_VERSION}. 순위는 Gate 통과 비율 → 가장 큰 연결 영역 → SPY 200일선 이긴 비율 → 중간 칼마 순의 사전식 정렬입니다.")
     for label, rule in SUMMARY_TEXT.values():
         st.markdown(BR.join([f"· **{label}**", rule]))
@@ -1134,6 +1254,11 @@ def glossary_page() -> None:
     for k, v in VERDICT_TEXT.items():
         st.markdown(f"· {v}")
     st.markdown("채택 원칙: 여러 유니버스·기간에서 모두 ‘개선’일 때만 조건을 더합니다. 복잡성은 성과로 증명될 때만 남깁니다.")
+    st.subheader("공통 조건 시험")
+    st.markdown("조건 하나를 기본값으로 모든 계열에 똑같이 더하고, 계열마다 원래 격자와 같은 네 기준으로 비교합니다(판정은 위와 같음). "
+                "‘이 필터·청산 규칙이 대체로 도움이 되는가?’를 봅니다. 그 조건 자체로 만든 계열은 빠집니다.")
+    st.markdown("판단 원칙: 모든 유니버스·기간에서 시험한 계열의 **과반이 개선**되면 ‘대체로 도움’, 과반이 악화되면 ‘대체로 해로움’, "
+                "그 밖에는 ‘판단 보류’입니다.")
     st.subheader("보류 구간 (최종 검증)")
     st.markdown("정해 둔 날짜 이후의 데이터는 연구(백테스트·격자·강건성 점검)에 쓰지 않고 남겨 둡니다. 연구가 끝난 전략을 그 기간에 "
                 "한 번 적용해 ‘처음 보는 데이터’에서도 성과가 유지되는지 봅니다. 날짜 변경과 평가는 모두 기록됩니다. "
