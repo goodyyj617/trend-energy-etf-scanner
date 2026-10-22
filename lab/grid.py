@@ -32,16 +32,20 @@ class Gates:
     max_mdd_ratio: float = 0.75
     min_trades: int = 30
     min_calmar_ratio: float | None = None  # None = no Calmar gate (DECISIONS 58)
+    max_mdd_abs: float | None = None  # absolute drawdown limit, e.g. 0.15 = |MDD| <= 15% (DECISIONS 62)
 
     def to_dict(self) -> dict:
         d = asdict(self)
-        if d["min_calmar_ratio"] is None:  # keep the saved form of the final gate unchanged
-            del d["min_calmar_ratio"]
+        for k in ("min_calmar_ratio", "max_mdd_abs"):  # keep the saved form of older gates unchanged
+            if d[k] is None:
+                del d[k]
         return d
 
 
-# DECISIONS 58: exploration gate (Calmar instead of the return gate). The final gate is Gates().
-EXPLORE_GATES = Gates(min_cagr_ratio=None, max_mdd_ratio=0.75, min_trades=30, min_calmar_ratio=1.0)
+# DECISIONS 58: exploration gate (Calmar instead of the return gate). DECISIONS 62 adds the user's
+# absolute drawdown limit (15%) to both gates; the app's adjustable gate stays Gates().
+EXPLORE_GATES = Gates(min_cagr_ratio=None, max_mdd_ratio=0.75, min_trades=30, min_calmar_ratio=1.0, max_mdd_abs=0.15)
+FINAL_GATES = Gates(max_mdd_abs=0.15)
 
 
 def gate_caption(g: dict) -> str:
@@ -52,6 +56,8 @@ def gate_caption(g: dict) -> str:
     if g.get("min_calmar_ratio") is not None:
         parts.append(f"칼마 ≥ {g['min_calmar_ratio']:.2f}×SPY 칼마")
     parts.append(f"|MDD| ≤ {g['max_mdd_ratio']:.2f}×|SPY MDD|")
+    if g.get("max_mdd_abs") is not None:
+        parts.append(f"|MDD| ≤ {g['max_mdd_abs']:.0%}")
     parts.append(f"완료 거래 ≥ {g['min_trades']}")
     return "Gate: " + " · ".join(parts)
 
@@ -64,6 +70,8 @@ GATE_TEXT = {
     "min_calmar_ratio": ("위험 대비 수익 (탐색용)", "전략 칼마(CAGR ÷ |MDD|) ≥ 기준 × SPY 칼마",
                          "탐색용 Gate에서만 씁니다(결정 58). 수익 유지 대신 '덜 벌어도 훨씬 덜 잃는' 전략을 남깁니다. "
                          "보류 구간 후보는 최종 Gate(수익 유지 0.80)로 고릅니다."),
+    "max_mdd_abs": ("낙폭 한도", "|전략 MDD| ≤ 기준 (예: 15%)",
+                    "사용자 목표(결정 62): SPY와 상관없이 최대 낙폭이 15%를 넘지 않을 것."),
     "min_trades": ("최소 거래 수", "완료 거래 수 ≥ 기준",
                    "기본 30: 평균의 분포가 정규에 가까워진다고 보는 관례적 최소 표본."),
 }
@@ -115,6 +123,8 @@ def check_gates(m: dict, g: Gates) -> list[str]:
         failed.append(GATE_TEXT["min_calmar_ratio"][0])
     if abs(m["mdd"]) > g.max_mdd_ratio * abs(m["spy_mdd"]):
         failed.append(GATE_TEXT["max_mdd_ratio"][0])
+    if g.max_mdd_abs is not None and not abs(m["mdd"]) <= g.max_mdd_abs:
+        failed.append(GATE_TEXT["max_mdd_abs"][0])
     if m["n_trades"] < g.min_trades:
         failed.append(GATE_TEXT["min_trades"][0])
     return failed
@@ -132,7 +142,8 @@ def loyo(equity: pd.Series, bench: pd.Series, g: Gates) -> tuple[float, list[int
         s_cagr, s_mdd = _cagr_mdd(np.cumprod(1 + r_s.to_numpy()[keep]))
         b_cagr, b_mdd = _cagr_mdd(np.cumprod(1 + r_b.to_numpy()[keep]))
         ok = (_return_gate(s_cagr, b_cagr, g) and _calmar_gate(s_cagr, s_mdd, b_cagr, b_mdd, g)
-              and abs(s_mdd) <= g.max_mdd_ratio * abs(b_mdd))
+              and abs(s_mdd) <= g.max_mdd_ratio * abs(b_mdd)
+              and (g.max_mdd_abs is None or abs(s_mdd) <= g.max_mdd_abs))
         if not ok:
             failed.append(int(y))
     return 1 - len(failed) / len(years), failed

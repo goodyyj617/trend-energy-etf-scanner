@@ -230,6 +230,16 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     0.50). No holdout candidate. Trials 32,139, N_eff ~9,572.
     Record: docs/research/lab/2026-10-22_menu_v3_exploration_gate.md.
 
+### Absolute drawdown limit (2026-10-22, user decision, registered before running)
+
+62. By user decision, both gates add an absolute limit |MDD| <= 15% on the research period
+    (grid.EXPLORE_GATES and grid.FINAL_GATES; LOYO re-checks it with each year removed). The
+    relative limit 0.75 x |SPY MDD| and the other conditions of 58 are unchanged. This makes both
+    gates stricter, not looser, and is the user's stated goal rather than a reaction to which
+    families passed. The test of 60 is rerun unchanged on menu v3 under the new gates.
+    The fixed-rule blocks ma_stack and up_candle were never part of the family runs (their base
+    configuration has no entries); ma_stack was only tested as a common add-on in 54.
+
 ## Open decisions
 
 - final trend-filter definition;

@@ -506,11 +506,15 @@ def test_exploration_gate_uses_calmar_instead_of_return():
     m = {"cagr": 0.05, "mdd": -0.10, "spy_cagr": 0.10, "spy_mdd": -0.30, "n_trades": 40}
     assert check_gates(m, Gates()) == ["수익 유지"]
     assert check_gates(m, EXPLORE_GATES) == []
-    worse = {**m, "mdd": -0.20}  # Calmar 0.25 < SPY 0.33
+    worse = {**m, "cagr": 0.03, "mdd": -0.14}  # Calmar 0.21 < SPY 0.33
     assert check_gates(worse, EXPLORE_GATES) == ["위험 대비 수익 (탐색용)"]
     assert "min_calmar_ratio" not in Gates().to_dict()  # saved form of the final gate is unchanged
     assert "칼마 ≥ 1.00×SPY 칼마" in gate_caption(EXPLORE_GATES.to_dict())
     assert "CAGR" not in gate_caption(EXPLORE_GATES.to_dict())
+    deep = {**m, "cagr": 0.09, "mdd": -0.18, "spy_mdd": -0.50}  # passes everything but the 15% limit
+    assert check_gates(deep, EXPLORE_GATES) == ["낙폭 한도"]
+    assert check_gates(deep, Gates()) == []
+    assert "|MDD| ≤ 15%" in gate_caption(EXPLORE_GATES.to_dict())
 
 
 def test_cmf_and_adx_directions():
