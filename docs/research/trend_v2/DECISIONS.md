@@ -197,6 +197,30 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     holdout candidate; C2 (6/7) remains the strongest. Trials 28,581, N_eff ~8,665.
     Record: docs/research/lab/2026-10-22_market_switch_checklist.md.
 
+### Exploration gate and family menu v3 (2026-10-22, registered before running)
+
+58. Two gates, both fixed now. Exploration gate (for comparing families and components):
+    strategy Calmar >= 1.0 x SPY Calmar on the same dates, |MDD| <= 0.75 x |SPY MDD|, completed
+    trades >= 30; no return gate, so strategies that earn less than SPY but lose much less
+    survive. LOYO under this gate re-checks the Calmar and drawdown conditions. Final gate
+    (unchanged, 39): CAGR >= 0.80 x SPY, |MDD| <= 0.75 x |SPY MDD|, trades >= 30. A holdout
+    candidate must pass the final gate and the 7-item checklist of 31 evaluated under the final
+    gate; the final gate is not changed after these results are seen. Results show both gates.
+59. Pre-registered menu `family-menu-v3`: v2 unchanged plus new price/volume blocks, one parameter
+    each, other windows fixed. Entries: near_high (close >= (1 - X%) x 252-day highest close)
+    X {2, 5, 8, 12, 16, 20}; adx_trend (Wilder ADX(14) >= X and +DI > -DI) X {15, 20, 25, 30, 35, 40};
+    keltner (close > EMA20 + k x ATR14) k {0.5, 1.0, 1.5, 2.0, 2.5, 3.0}; cmf_min (Chaikin Money
+    Flow 20 >= X) X {-0.05, 0, 0.05, 0.10, 0.15, 0.20}. Exits: momentum_neg (N-day return < 0)
+    N {21, 42, 63, 126, 189, 252}; rsi_below (RSI14 < X) X {30, 35, 40, 45, 50, 55}; cmf_below
+    (CMF20 < X) X {-0.25, -0.20, -0.15, -0.10, -0.05, 0}. 11 entries x 7 exits = 77 families.
+60. Test: the 77-family comparison under the exploration gate, on the universes and settings of
+    43. Families are ordered as in 34 and ranked across universes by rank sum. Descriptive:
+    average family rank of each entry and each exit block per universe (as in 48), and each
+    family's final-gate pass share. For the three families with the lowest rank sum, the top cell
+    of each universe's grid (ordering of 34 under the exploration gate) is run through the
+    checklist under both gates. A cell passing all 7 items under the final gate is reported as a
+    holdout candidate for the user to decide on; nothing is adopted by this test.
+
 ## Open decisions
 
 - final trend-filter definition;
