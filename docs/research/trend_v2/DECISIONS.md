@@ -189,6 +189,13 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     each universe's chosen cell run on the other universe. The holdout is not used. A cell that
     passes all 7 items is reported as a holdout candidate for the user to decide on; nothing is
     adopted by this test.
+57. Results of 56: snapshot 2017-2023 has no Gate-passing cell (all 36 fail the return gate,
+    median CAGR 0.42 x SPY), so no candidate. Long 2000-2023: 7 of 36 pass; the top cell
+    momentum 189 / trailing 10% passes 3 of 7 checklist items (gate, halves, beats SPY 200-day)
+    and fails neighbors (3/8), 2x cost, LOYO (0.67) and DSR (0.26). The switch cuts the drawdown
+    (-34% to -24%) but also the return, leaving the cell on the edge of the return gate. Not a
+    holdout candidate; C2 (6/7) remains the strongest. Trials 28,581, N_eff ~8,665.
+    Record: docs/research/lab/2026-10-22_market_switch_checklist.md.
 
 ## Open decisions
 
