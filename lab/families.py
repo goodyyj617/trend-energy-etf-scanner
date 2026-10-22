@@ -42,7 +42,8 @@ from .grid import Gates, GridResult, run_grid
 from .metrics import curve_metrics
 
 # v1 (2026-10-09) was the first three entries x first three exits below, with the same values.
-MENU_VERSION = "family-menu-v2 (2026-10-10)"
+# v2 (2026-10-10) was the first seven entries x first four exits below, with the same values.
+MENU_VERSION = "family-menu-v3 (2026-10-22)"
 ENTRY_MENU: dict[str, list[float]] = {
     "breakout": [20, 30, 50, 80, 120, 200],
     "above_ma": [50, 80, 100, 150, 200, 250],
@@ -51,12 +52,19 @@ ENTRY_MENU: dict[str, list[float]] = {
     "bollinger": [1.0, 1.25, 1.5, 2.0, 2.5, 3.0],
     "rsi_min": [50, 55, 60, 65, 70, 75],
     "williams": [-50, -40, -30, -20, -10, -5],
+    "near_high": [2, 5, 8, 12, 16, 20],
+    "adx_trend": [15, 20, 25, 30, 35, 40],
+    "keltner": [0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
+    "cmf_min": [-0.05, 0.0, 0.05, 0.1, 0.15, 0.2],
 }
 EXIT_MENU: dict[str, list[float]] = {
     "low_break": [10, 15, 20, 30, 50, 80],
     "below_ma": [20, 30, 50, 100, 150, 200],
     "atr_trail": [1.5, 2.0, 2.5, 3.0, 4.0, 5.0],
     "trailing_pct": [5, 8, 10, 15, 20, 30],
+    "momentum_neg": [21, 42, 63, 126, 189, 252],
+    "rsi_below": [30, 35, 40, 45, 50, 55],
+    "cmf_below": [-0.25, -0.2, -0.15, -0.1, -0.05, 0.0],
 }
 
 SUMMARY_TEXT = {

@@ -245,10 +245,10 @@ def test_menu_values_are_inside_block_bounds():
             p = blocks[key].param
             assert len(vals) == 6 and vals == sorted(vals)
             assert all(p.minimum <= v <= p.maximum for v in vals)
-    assert families.cell_count() == 28 * 36
+    assert families.cell_count() == 77 * 36
     # a family whose own block is the common add-on is skipped
-    assert families.cell_count({"breakout": 20}) == 24 * 36
-    assert families.cell_count(extra_exits={"stop_loss_pct": 10}) == 28 * 36
+    assert families.cell_count({"breakout": 20}) == 70 * 36
+    assert families.cell_count(extra_exits={"stop_loss_pct": 10}) == 77 * 36
 
 
 def test_ma_cross_uses_quarter_length_short_average():
@@ -493,3 +493,37 @@ def test_pending_orders_are_the_last_close_decisions():
     panel, _ = make_panel({"AAA": down, "SPY": up})
     r = run_backtest(panel, cfg(entries={"breakout": 5}, exits={"low_break": 5}))
     assert r.pending_orders["sell"] == {"AAA": "low_break"}
+
+
+# --------------------------------------------------------------------------- menu v3 blocks and the exploration gate
+
+from lab import blocks as lab_blocks  # noqa: E402
+from lab.grid import EXPLORE_GATES, gate_caption  # noqa: E402
+
+
+def test_exploration_gate_uses_calmar_instead_of_return():
+    # half of SPY's return with a third of its drawdown: fails the final gate, passes the exploration gate
+    m = {"cagr": 0.05, "mdd": -0.10, "spy_cagr": 0.10, "spy_mdd": -0.30, "n_trades": 40}
+    assert check_gates(m, Gates()) == ["수익 유지"]
+    assert check_gates(m, EXPLORE_GATES) == []
+    worse = {**m, "mdd": -0.20}  # Calmar 0.25 < SPY 0.33
+    assert check_gates(worse, EXPLORE_GATES) == ["위험 대비 수익 (탐색용)"]
+    assert "min_calmar_ratio" not in Gates().to_dict()  # saved form of the final gate is unchanged
+    assert "칼마 ≥ 1.00×SPY 칼마" in gate_caption(EXPLORE_GATES.to_dict())
+    assert "CAGR" not in gate_caption(EXPLORE_GATES.to_dict())
+
+
+def test_cmf_and_adx_directions():
+    n = 80
+    up = list(np.linspace(100, 160, n))
+    down = list(np.linspace(160, 100, n))
+    # closes at the top of the day's range on the way up, at the bottom on the way down
+    panel, _ = make_panel({"UP": up, "DN": down, "SPY": up}, opens={"UP": [c - 1 for c in up], "DN": [c + 1 for c in down],
+                                                                     "SPY": [c - 1 for c in up]})
+    c = lab_blocks.cmf(panel, 20).iloc[-1]
+    assert c["UP"] == pytest.approx(1.0) and c["DN"] == pytest.approx(-1.0)
+    adx, plus_di, minus_di = lab_blocks.adx_di(panel, 14)
+    assert adx.iloc[-1]["UP"] > 25 and plus_di.iloc[-1]["UP"] > minus_di.iloc[-1]["UP"]
+    assert ENTRY_BLOCKS["adx_trend"].compute(panel, 25).iloc[-1].to_dict() == {"UP": True, "DN": False, "SPY": True}
+    assert EXIT_BLOCKS["momentum_neg"].compute(panel, 21).iloc[-1].to_dict() == {"UP": False, "DN": True, "SPY": False}
+    assert ENTRY_BLOCKS["near_high"].compute(panel, 5).iloc[-1].isna().sum() == 0  # < 252 days -> False, not NaN

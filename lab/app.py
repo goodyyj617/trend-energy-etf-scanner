@@ -29,7 +29,8 @@ from lab.engine import (  # noqa: E402
     BASELINE_HELP, BASELINE_LABELS, RULES_KO, SIZING_LABELS, StrategyConfig, baselines, run_backtest,
 )
 from lab.grid import (  # noqa: E402
-    CHECK_TEXT, GATE_TEXT, MAX_AXIS_VALUES, ROBUST_TEXT, Gates, axis_values, check_gates, run_grid, strategy_checklist,
+    CHECK_TEXT, GATE_TEXT, MAX_AXIS_VALUES, ROBUST_TEXT, Gates, axis_values, check_gates, gate_caption, run_grid,
+    strategy_checklist,
 )
 from lab.metrics import DEFINITIONS, all_metrics, annual_table, curve_metrics, deflated_sharpe, drawdown, fmt_value  # noqa: E402
 from lab.universe import (  # noqa: E402
@@ -598,7 +599,7 @@ def show_grid_result(cells: pd.DataFrame, x_key: str, y_key: str | None, summary
     c[1].metric("Gate 통과", summary["passed"], help="수익 유지 · 낙폭 축소 · 최소 거래 수를 모두 만족한 조합 수")
     c[2].metric("연결 영역 수", summary["regions"], help=ROBUST_TEXT["region_size"][1])
     c[3].metric("가장 큰 영역 (셀 수)", summary["largest_region"], help=ROBUST_TEXT["region_size"][1])
-    st.caption(f"Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · |MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · 완료 거래 ≥ {gates['min_trades']}")
+    st.caption(gate_caption(gates))
 
     metric = st.selectbox("히트맵에 표시할 지표", GRID_METRICS, key=f"hm_metric_{key}",
                           format_func=lambda k: DEFINITIONS[k].label, help="✓ 표시는 Gate를 통과한 조합입니다.")
@@ -723,8 +724,7 @@ def family_matrix(summary: pd.DataFrame, metric: str) -> go.Figure:
 
 
 def show_family_result(summary: pd.DataFrame, cells: pd.DataFrame, gates: dict, ma200: float, key: str) -> None:
-    st.caption(f"Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · |MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · "
-               f"완료 거래 ≥ {gates['min_trades']} · 같은 조건의 SPY 200일선 칼마 = {ma200:.2f}")
+    st.caption(f"{gate_caption(gates)} · 같은 조건의 SPY 200일선 칼마 = {ma200:.2f}")
     st.markdown("#### 계열 순위")
     st.caption("정렬(사전식): ① Gate 통과 비율 → ② 가장 큰 연결 영역 → ③ SPY 200일선 이긴 비율 → ④ 중간 칼마. "
                "앞 기준이 같을 때만 다음 기준을 봅니다. 가중 점수는 없습니다. 각 열 이름에 마우스를 올리면 정의가 보입니다.")
@@ -819,8 +819,7 @@ VERDICT_SHORT = {"base": "기준", "improve": "✅ 개선", "mixed": "↔ 엇갈
 
 def show_refinement(table: pd.DataFrame, cells: pd.DataFrame, entry_key: str, exit_key: str, gates: dict,
                     ma200: float, key: str) -> None:
-    st.caption(f"계열: **{family_label(entry_key, exit_key)}** · Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · "
-               f"|MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · 완료 거래 ≥ {gates['min_trades']} · "
+    st.caption(f"계열: **{family_label(entry_key, exit_key)}** · {gate_caption(gates)} · "
                f"SPY 200일선 칼마 = {ma200:.2f}")
     improved = table.loc[table["verdict"] == "improve", "condition"].tolist()
     if improved:
@@ -912,8 +911,7 @@ def refine_tab(panel: Panel, cfg: StrategyConfig) -> None:
 # =========================================================================== common add-on test view
 
 def show_addon_result(table: pd.DataFrame, cells: pd.DataFrame, label: str, gates: dict, ma200: float, key: str) -> None:
-    st.caption(f"추가한 조건: **{label}** · Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · "
-               f"|MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · 완료 거래 ≥ {gates['min_trades']} · "
+    st.caption(f"추가한 조건: **{label}** · {gate_caption(gates)} · "
                f"SPY 200일선 칼마 = {ma200:.2f}")
     n = len(table)
     counts = {k: int((table["verdict"] == k).sum()) for k in ("improve", "mixed", "same", "worse")}
