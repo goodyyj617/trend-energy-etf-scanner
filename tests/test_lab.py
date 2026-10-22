@@ -594,3 +594,34 @@ def test_mean_pairwise_corr_matches_pandas():
     corr = pd.DataFrame(x).corr(min_periods=research_log.MIN_OVERLAP_MONTHS).to_numpy()
     off = corr[~np.eye(len(corr), dtype=bool)]
     assert research_log.mean_pairwise_corr(x) == pytest.approx(np.nanmean(off), rel=1e-12)
+
+
+# --------------------------------------------------------------------------- drawdown-budget target (DECISIONS 64-65)
+
+from lab import target  # noqa: E402
+from lab.metrics import DEFINITIONS  # noqa: E402
+
+
+def test_fit_weight_scales_down_only():
+    # one 40% crash: w x 40% must stay within 15% -> w = 0.37 (0.37 x 0.4 = 14.8%)
+    rets = np.array([0.01] * 50 + [-0.40] + [0.01] * 50)
+    cash = np.zeros_like(rets)
+    w = target.fit_weight(rets, cash)
+    assert w == pytest.approx(0.37)
+    assert target._mdd(target.blend(rets, cash, w)) >= -0.15
+    calm = np.full(100, 0.001)  # never falls: stays at 100%, no leverage
+    assert target.fit_weight(calm, np.zeros(100)) == 1.0
+
+
+def test_target_report_and_windows():
+    idx = pd.bdate_range("2010-01-01", "2016-12-31")
+    rng = np.random.default_rng(5)
+    spy = pd.Series(np.cumprod(1 + rng.normal(0.0004, 0.012, len(idx))), idx)
+    strat = pd.Series(np.cumprod(1 + rng.normal(0.0004, 0.004, len(idx))), idx)
+    cash = pd.Series(0.0, idx)
+    assert target.windows(idx) == [(2010, 2012), (2011, 2013), (2012, 2014), (2013, 2015), (2014, 2016)]
+    rep = target.target_report(strat, spy, cash, n_trades=40)
+    assert rep["windows"] == 5 and 0 <= rep["window_share"] <= 1
+    assert rep["dd_mdd"] >= -0.15 - 1e-9 and 0 < rep["dd_weight"] <= 1
+    assert rep["dd_pass"] == (rep["dd_cagr"] >= rep["mix_cagr"])
+    assert {"dd_weight", "dd_cagr", "mix_cagr", "dd_excess", "window_share"} <= set(DEFINITIONS)

@@ -250,6 +250,29 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     split, CPCV/PBO, block bootstrap) and multi-variable search (Sobol sampling with PBO) are in
     docs/research/lab/2026-10-22_drawdown_limit_and_next_methods.md; none is adopted yet.
 
+### Goal-based criterion, rolling windows, universe/period split (2026-10-22, registered before running)
+
+The user's goal is the highest return with the smallest drawdown, without relying on leverage.
+
+64. Goal criterion (lab/target.py). Each strategy is blended daily with T-bills at the largest
+    weight w in [0, 1] (0.01 steps) that keeps its research-period |MDD| <= 15%; w = 1 when the
+    drawdown is already within 15% (no leverage). The same scaling of SPY gives the reference
+    "SPY + T-bill mix". A cell passes when its scaled CAGR >= the mix's scaled CAGR and it has
+    >= 30 completed trades. This replaces the gates of 58 and 62 for exploration; those gates
+    stay defined and are still reported.
+65. Time robustness: rolling windows of three full calendar years stepping one year inside each
+    research period; in each window the strategy and the mix keep their full-period weights,
+    and the window counts as won when the strategy's CAGR >= the mix's. window_share = share of
+    windows won. Universe/period split: a third sample, the long-history universe on the
+    snapshot dates (2017-08-01 - 2023-12-31), so that "same ETFs, different period" and "same
+    period, different ETFs" can be told apart.
+    Test: menu v3 (77 families) in the three samples. Family order (lexicographic): share of
+    passing cells, largest connected passing region, median window_share, median excess CAGR
+    over the mix; families ranked across samples by rank sum. The top cell of a family is the
+    passing cell ordered by region size, neighbor survival, window_share, excess CAGR. Reported
+    for the three families with the lowest rank sum, with DSR. Holdout-candidate rules are
+    registered after the multi-variable search (Sobol + PBO), not here; nothing is adopted.
+
 ## Open decisions
 
 - final trend-filter definition;
