@@ -609,6 +609,11 @@ def test_fit_weight_scales_down_only():
     w = target.fit_weight(rets, cash)
     assert w == pytest.approx(0.37)
     assert target._mdd(target.blend(rets, cash, w)) >= -0.15
+    rng = np.random.default_rng(8)
+    for _ in range(30):  # bisection agrees with checking every weight
+        r = rng.normal(0.0005, rng.uniform(0.005, 0.03), 800)
+        c = np.full(800, 0.0001)
+        assert target.fit_weight(r, c) == target.fit_weight_grid(r, c)
     calm = np.full(100, 0.001)  # never falls: stays at 100%, no leverage
     assert target.fit_weight(calm, np.zeros(100)) == 1.0
 
@@ -661,3 +666,32 @@ def test_pbo_detects_noise_and_skill():
     skill = noise.copy()
     skill[0] = rng.normal(0.03, 0.02, 240)  # one column truly better
     assert explore.pbo(skill, blocks=10)["pbo"] < 0.05
+
+
+# --------------------------------------------------------------------------- strategy-only test (DECISIONS 67)
+
+from dataclasses import replace  # noqa: E402
+
+from lab import single  # noqa: E402
+
+
+def test_single_mode_matches_trading_each_symbol_alone():
+    rng = np.random.default_rng(21)
+    n = 900
+    prices = {s: list(40 * np.cumprod(1 + rng.normal(0.0007, 0.02, n))) for s in ("AAA", "BBB", "CCC", "DDD", "EEE", "SPY")}
+    panel = make_panel(prices)[0]
+    base = cfg(entries={"breakout": 20}, exits={"trailing_pct": 8.0, "low_break": 30}, cost_bps=10.0)
+    scfg = single.single_config(base, panel)
+    res = run_backtest(panel, scfg)
+    rets = single.symbol_returns(panel, scfg, res)
+    for s in panel.tradable_symbols:
+        alone = run_backtest(panel.subset([s]), replace(base, max_positions=1))
+        mine = res.trades[res.trades.symbol == s].reset_index(drop=True)
+        pd.testing.assert_frame_equal(mine[["entry_date", "exit_date", "exit_reason"]],
+                                      alone.trades[["entry_date", "exit_date", "exit_reason"]].reset_index(drop=True))
+        # rebuilt stand-alone account vs the engine's one-symbol account (cash here earns 0)
+        eq = (1 + rets[s].fillna(0.0)).cumprod()
+        assert eq.iloc[-1] == pytest.approx(alone.equity.iloc[-1] / alone.equity.iloc[0], rel=1e-9)
+    out = single.evaluate(panel, base)
+    assert out["symbols"] == len(panel.tradable_symbols)  # 900 days >= 3 years each
+    assert out["n_trades"] == len(res.trades)

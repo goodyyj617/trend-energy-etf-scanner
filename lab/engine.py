@@ -59,6 +59,9 @@ class StrategyConfig:
     liquidity_days: int = 20
     cash_yield: bool = True
     sizing: str = "equal"  # "equal" | "inverse_vol"
+    # strategy-only test (lab/single.py, DECISIONS 67): every entry signal is taken whatever the
+    # cash, so each symbol's trades match trading it alone; the engine's equity is then not used
+    single: bool = False
 
     def __post_init__(self):
         # numpy numbers (e.g. values read back from a grid table) become plain Python numbers,
@@ -96,12 +99,15 @@ class StrategyConfig:
             return " + ".join(blocks[k].label + ("" if v is None else f"({_num(v)})") for k, v in chosen.items()) or "없음"
 
         size = "" if self.sizing == "equal" else f" | {SIZING_LABELS[self.sizing]}"
-        return f"진입: {fmt(ENTRY_BLOCKS, self.entries)} | 청산: {fmt(EXIT_BLOCKS, self.exits)} | 최대 {self.max_positions}종목{size}"
+        slots = "종목별 단독 매매" if self.single else f"최대 {self.max_positions}종목{size}"
+        return f"진입: {fmt(ENTRY_BLOCKS, self.entries)} | 청산: {fmt(EXIT_BLOCKS, self.exits)} | {slots}"
 
     def to_dict(self) -> dict:
         d = asdict(self)
         if d["sizing"] == "equal":  # fields added later are omitted at their default: earlier keys stay valid
             del d["sizing"]
+        if not d["single"]:
+            del d["single"]
         return d
 
     @staticmethod
@@ -239,6 +245,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     ordered = cache.memo(("ordered", w, tuple(cfg.entries.items()), cfg.min_price, cfg.min_dollar_volume, liq),
                          lambda: [sorted(cs, key=lambda j, ri=ri: -ri[j]) for cs, ri in zip(candidates, rank)])
     inv_vol = cfg.sizing == "inverse_vol"
+    single = cfg.single
     if inv_vol:
         V, VREF = cache.memo(("vol", w), lambda: cache.vol_rows(dates))
     cash_r = (panel.cash.reindex(dates).fillna(0.0).to_numpy().tolist() if (cfg.cash_yield and panel.cash is not None)
@@ -337,7 +344,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
             held_value = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
             slot = (cash + held_value) / K
             for j in pending_entry:
-                if len(pos) >= K or cash <= 1e-9:
+                if len(pos) >= K or (cash <= 1e-9 and not single):
                     break
                 px = Oi[j]
                 if px != px or px <= 0:
@@ -347,7 +354,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                     v, ref = V[i - 1][j] if i else nan_, VREF[i - 1] if i else nan_
                     if v == v and v > 0 and ref == ref:
                         target = slot * min(ref / v, SIZE_CAP)
-                alloc = min(target, cash)
+                alloc = target if single else min(target, cash)
                 pos[j] = {"shares": alloc / (px * (1 + c)), "entry_price": px, "entry_i": i}
                 cash -= alloc
                 x = exit_at.get((j, i), exit_at)

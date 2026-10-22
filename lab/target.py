@@ -33,8 +33,33 @@ def blend(rets: np.ndarray, cash: np.ndarray, w: float) -> np.ndarray:
     return np.concatenate([[1.0], np.cumprod(1.0 + w * rets + (1.0 - w) * cash)])
 
 
+def _blend_mdd(rets: np.ndarray, cash: np.ndarray, w: float) -> float:
+    eq = np.cumprod(1.0 + w * rets + (1.0 - w) * cash)
+    peak = np.maximum(np.maximum.accumulate(eq), 1.0)
+    return float(min((eq / peak - 1.0).min(), 0.0)) if len(eq) else 0.0
+
+
 def fit_weight(rets: np.ndarray, cash: np.ndarray, budget: float = DD_BUDGET) -> float:
-    """Largest w in WEIGHTS whose blended drawdown is within the budget (0 if none)."""
+    """Largest w in WEIGHTS whose blended drawdown is within the budget (0 if none).
+
+    The drawdown of the blend grows with w, so the grid is bisected (7 evaluations instead of 101).
+    """
+    def ok(k):
+        return _blend_mdd(rets, cash, WEIGHTS[k]) >= -budget - 1e-12
+
+    lo, hi = 0, len(WEIGHTS) - 1
+    if ok(hi):
+        return float(WEIGHTS[hi])
+    if not ok(lo):
+        return 0.0
+    while hi - lo > 1:  # invariant: ok(lo), not ok(hi)
+        mid = (lo + hi) // 2
+        lo, hi = (mid, hi) if ok(mid) else (lo, mid)
+    return float(WEIGHTS[lo])
+
+
+def fit_weight_grid(rets: np.ndarray, cash: np.ndarray, budget: float = DD_BUDGET) -> float:
+    """Reference implementation: every weight of the grid (used by the tests)."""
     eq = np.cumprod(1.0 + WEIGHTS[:, None] * rets[None, :] + (1.0 - WEIGHTS[:, None]) * cash[None, :], axis=1)
     eq = np.concatenate([np.ones((len(WEIGHTS), 1)), eq], axis=1)
     mdd = (eq / np.maximum.accumulate(eq, axis=1) - 1.0).min(axis=1)

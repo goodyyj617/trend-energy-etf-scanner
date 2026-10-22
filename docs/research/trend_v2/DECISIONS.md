@@ -288,6 +288,26 @@ The user's goal is the highest return with the smallest drawdown, without relyin
     and PBO < 0.5 in every sample; the user decides whether to evaluate it, and the holdout
     verdict would use the criterion of 64.
 
+### Strategy-only test (2026-10-22, user decision, registered before running)
+
+67. By user decision the primary test is now the rule itself, without portfolio construction
+    (replacing "portfolio metrics are primary" for exploration). lab/single.py: every ETF is
+    traded alone, 100% in while a position is open and in T-bills otherwise (one engine run with
+    one slot per symbol and entries not limited by cash; each symbol's trades equal a stand-alone
+    run, checked by a test). Costs, price and liquidity filters as in 43; max positions and
+    sizing play no role. A symbol is judged if it has >= 3 years of data in the period. Symbol
+    excess = 15%-budget CAGR of the strategy (64) - 15%-budget CAGR of that symbol's buy-and-hold.
+    The sleeve portfolio, built from the trade records, is the daily equal-weight average of the
+    stand-alone accounts; it is evaluated with 64 (against the SPY + T-bill mix) and 65. A cell
+    passes when >= 50% of judged symbols have excess >= 0 and the sleeve passes 64. Family order:
+    share of passing cells, largest connected passing region, median symbol pass share, median
+    sleeve excess; ranked across the three samples of 65 by rank sum, menu v3. The portfolio-level
+    run of 65 is kept as a comparison. Every cell is logged as a trial (sleeve curve).
+68. The Sobol search of 66 is run in the strategy-only mode: the same 2,048 points, variables 1-6
+    (max positions and sizing are dropped as portfolio settings). Pass, PBO (on sleeve monthly
+    returns), robust point and holdout-candidate rule as in 66, with the pass of 67 and the
+    sleeve's window_share.
+
 ## Open decisions
 
 - final trend-filter definition;
