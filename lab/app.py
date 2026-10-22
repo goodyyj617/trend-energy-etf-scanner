@@ -22,7 +22,7 @@ from lab.blocks import ALL_BLOCKS, ENTRY_BLOCKS, EXIT_BLOCKS  # noqa: E402
 from lab.data import BENCHMARK, LONG_HISTORY_ETFS, Panel, download_panel, load_snapshot, snapshot_available  # noqa: E402
 from lab.families import (  # noqa: E402
     ENTRY_MENU, EXIT_MENU, MENU_VERSION, ORDER, SUMMARY_TEXT, addon_choices, addon_extras, addon_label, cell_count, family_pairs,
-    run_addon_test, run_family_comparison,
+    PARALLEL_MIN_CELLS, default_workers, run_addon_test, run_family_comparison,
 )
 from lab.refine import VERDICT_TEXT, addon_candidates, addon_value, family_label, run_refinement  # noqa: E402
 from lab.engine import (  # noqa: E402
@@ -74,10 +74,14 @@ def init(key: str, value) -> str:
     return key
 
 
-def estimate_seconds(panel: Panel, cfg: StrategyConfig, n_backtests: int) -> float:
-    """Rough run time; calibrated on a 24-year, 33-ETF family comparison (~0.3 s per backtest)."""
+def estimate_seconds(panel: Panel, cfg: StrategyConfig, n_backtests: int, parallel: bool = False) -> float:
+    """Rough run time; calibrated on a 24-year, 33-ETF family comparison (~0.3 s per backtest).
+    parallel: family runs, which use several processes when large (families.default_workers)."""
     days = int(((panel.close.index >= pd.Timestamp(cfg.start)) & (panel.close.index <= pd.Timestamp(cfg.end))).sum())
-    return n_backtests * (0.05 + days * len(panel.tradable_symbols) * 1.5e-6)
+    est = n_backtests * (0.05 + days * len(panel.tradable_symbols) * 1.5e-6)
+    if parallel and n_backtests >= PARALLEL_MIN_CELLS:
+        est = est / default_workers() + 5  # + starting the worker processes
+    return est
 
 
 def gates_now() -> Gates:
@@ -782,7 +786,7 @@ def family_tab(panel: Panel, cfg: StrategyConfig) -> None:
             + [{"구분": "청산", "계열": EXIT_BLOCKS[k].label, "조건": EXIT_BLOCKS[k].rule,
                 "격자 값": ", ".join(f"{v:g}" for v in vals)} for k, vals in EXIT_MENU.items()]),
             hide_index=True, width="stretch")
-    est = estimate_seconds(panel, cfg, cell_count())
+    est = estimate_seconds(panel, cfg, cell_count(), parallel=True)
     st.caption(f"예상 소요 약 {max(1, round(est / 60))}분 (컴퓨터 상태에 따라 더 걸릴 수 있음) · 실행 중에는 다른 조작을 하지 마세요.")
     if st.button(f"▶ {n_fam}개 계열 비교 실행", type="primary"):
         bar = st.progress(0.0, text="계열 비교 중…")
@@ -977,7 +981,7 @@ def addon_tab(panel: Panel, cfg: StrategyConfig) -> None:
     n = cell_count(ee, xx) + (0 if plain is not None else cell_count())
     st.caption(f"계열 {len(family_pairs(ee, xx))}개 · 백테스트 {n}회"
                + (" (‘전략 계열 비교’ 결과를 재사용)" if plain is not None else " (원래 계열 포함)")
-               + f" · 예상 약 {max(1, round(estimate_seconds(panel, cfg, n) / 60))}분 · 모두 시험 횟수에 기록됩니다.")
+               + f" · 예상 약 {max(1, round(estimate_seconds(panel, cfg, n, parallel=True) / 60))}분 · 모두 시험 횟수에 기록됩니다.")
     if st.button("▶ 공통 조건 시험 실행", type="primary"):
         bar = st.progress(0.0, text="시험 중…")
         collected = []

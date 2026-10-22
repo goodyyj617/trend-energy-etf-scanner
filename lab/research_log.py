@@ -105,7 +105,9 @@ def mean_pairwise_corr(x: np.ndarray, min_overlap: int = MIN_OVERLAP_MONTHS) -> 
     (same result as DataFrame.corr(min_periods=...) averaged off the diagonal).
 
     Trials share a few date ranges, so columns are grouped by their non-missing pattern and
-    each pair of groups is handled as one matrix product on the rows both groups have.
+    each pair of groups is handled on the rows both groups have. Only the SUM of a block of
+    correlations is needed, and sum_a sum_b z_a.z_b = (sum_a z_a).(sum_b z_b), so a block costs
+    one pass over its columns instead of a full correlation matrix (same value up to rounding).
     """
     valid = ~np.isnan(x)
     groups: dict[bytes, list[int]] = {}
@@ -128,15 +130,17 @@ def mean_pairwise_corr(x: np.ndarray, min_overlap: int = MIN_OVERLAP_MONTHS) -> 
                     return (block - block.mean(axis=0)) / sd, sd > 0
 
             za, oka = z(ca)
-            zb, okb = (za, oka) if a == b else z(cb)
-            corr = (za[:, oka].T @ zb[:, okb]) / m
-            if a == b:  # same group: every unordered pair once, no diagonal
-                iu = np.triu_indices(corr.shape[0], k=1)
-                total += corr[iu].sum() * 2
-                count += len(iu[0]) * 2
+            za = za[:, oka]
+            sa = za.sum(axis=1)
+            if a == b:  # same group: every ordered pair (j, k), j != k, i.e. the diagonal removed
+                k = za.shape[1]
+                total += (sa @ sa - np.einsum("ij,ij->", za, za)) / m
+                count += k * (k - 1)
             else:
-                total += corr.sum() * 2
-                count += corr.size * 2
+                zb, okb = z(cb)
+                zb = zb[:, okb]
+                total += (sa @ zb.sum(axis=1)) / m * 2
+                count += za.shape[1] * zb.shape[1] * 2
     return total / count if count else 0.0
 
 
@@ -147,11 +151,13 @@ def effective_trials() -> tuple[float, float, int]:
     at least MIN_OVERLAP_MONTHS). Without returns, N_eff falls back to N (rho = 0).
     """
     n = len(load_trials())
-    r = load_trial_returns()
-    if r.empty:
-        return float(n), 0.0, 0
-    stamp = (str(_returns_path()), _returns_path().stat().st_mtime, n)
-    if _EFF_CACHE.get("stamp") != stamp:
+    path = _returns_path()
+    stamp = (str(path), path.stat().st_mtime_ns, n) if path.exists() else None
+    if stamp is None or _EFF_CACHE.get("stamp") != stamp:  # the app asks on every rerun: load only on change
+        r = load_trial_returns()
+        if r.empty:
+            return float(n), 0.0, 0
+        stamp = (str(path), path.stat().st_mtime_ns, n)
         _EFF_CACHE.update(stamp=stamp, value=(mean_pairwise_corr(r.to_numpy(dtype=float)), r.shape[1]))
     rho, covered = _EFF_CACHE["value"]
     rho = min(max(rho, 0.0), 1.0)
