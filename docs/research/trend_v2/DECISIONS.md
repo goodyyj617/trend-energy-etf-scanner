@@ -307,6 +307,14 @@ The user's goal is the highest return with the smallest drawdown, without relyin
     (max positions and sizing are dropped as portfolio settings). Pass, PBO (on sleeve monthly
     returns), robust point and holdout-candidate rule as in 66, with the pass of 67 and the
     sleeve's window_share.
+69. Results of 65, 67 and 68. Portfolio level (65): passing cells 48 / 888 / 105 (snapshot / long /
+    long 2017-2023); best families beat the 15%-budget SPY+T-bill mix by 0.2-1.9 points a year,
+    DSR 0.16-0.54. Strategy-only (67): passing cells 0 / 220 / 28; no family beats buy-and-hold
+    (same budget) on a majority of snapshot ETFs; trailing_pct families lead on the long history,
+    and the same ETFs on 2017-2023 mostly fail, so the split points to the period, not the
+    universe. Sobol (68): pass 0% / 10.7% / 0.2%, no point passes all three samples; PBO 0.68 /
+    0.25 / 0.53. No holdout candidate. Trials 41,049, N_eff ~11,956.
+    Record: docs/research/lab/2026-10-22_strategy_only_and_sobol.md.
 
 ## Open decisions
 
