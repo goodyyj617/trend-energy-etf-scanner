@@ -177,6 +177,19 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     Calmar change is near zero. Nothing is added by default. Trials 28,569, N_eff ~8,662.
     Record: docs/research/lab/2026-10-22_confirmation_filters.md.
 
+### Market-trend switch on the top family (2026-10-22, registered before running)
+
+56. Candidate: the top v2 family momentum x trailing_pct with the market_trend switch of 51
+    (entry filter market_trend 200 + exit market_off 200, both at their defaults), settings and
+    universes of 43. In each universe the family's 6x6 grid is run with the switch and the cell
+    ranked first by the grid ordering (largest region, neighbor survival, LOYO, Calmar among
+    Gate-passing cells) is chosen; if no cell passes, that is the result for that universe. The
+    chosen cell is run through the 7-item checklist of 31 (halves v2 of 40, DSR with N_eff of 41)
+    in its own universe. Descriptive only, deciding nothing: the same cell without the switch, and
+    each universe's chosen cell run on the other universe. The holdout is not used. A cell that
+    passes all 7 items is reported as a holdout candidate for the user to decide on; nothing is
+    adopted by this test.
+
 ## Open decisions
 
 - final trend-filter definition;
