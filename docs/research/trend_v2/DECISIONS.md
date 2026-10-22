@@ -170,6 +170,12 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     The fourth filter proposed with them, market_trend (SPY > 200-day SMA), was already tested in
     51-52 and is not rerun. Verdicts follow 47. A filter that is generally helpful is still not
     added by default without a separate decision. Every cell is logged as a trial.
+55. Results of 54 (improve / mixed / worse of 28 families, snapshot | long): no filter is generally
+    helpful; all three are inconclusive. volume_surge 7/2/19 | 15/9/4 and ma_stack 4/5/19 | 21/7/0
+    point in opposite directions, the same pattern as the market_trend filter in 52; obv_up is the
+    least harmful (16/8/4 | 12/10/6) but misses a majority on the long history and its median
+    Calmar change is near zero. Nothing is added by default. Trials 28,569, N_eff ~8,662.
+    Record: docs/research/lab/2026-10-22_confirmation_filters.md.
 
 ## Open decisions
 
