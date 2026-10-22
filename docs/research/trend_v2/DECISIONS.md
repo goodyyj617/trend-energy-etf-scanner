@@ -239,6 +239,16 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     families passed. The test of 60 is rerun unchanged on menu v3 under the new gates.
     The fixed-rule blocks ma_stack and up_candle were never part of the family runs (their base
     configuration has no entries); ma_stack was only tested as a common add-on in 54.
+63. Results of 62 (menu v3 under the 15% drawdown limit): exploration-gate passing cells fall to
+    45 (snapshot) and 62 (long) of 2,772; final-gate passing cells to 0 and 3. bollinger entries
+    take the seven lowest rank sums, and every top cell is bollinger k = 3.0, the largest menu
+    value (rarely invested). Their checklists pass at most 6/7 under the exploration gate (all
+    fail DSR, 0.41-0.58) and at most 2/7 under the final gate. Descriptive: a daily-rebalanced
+    SPY/T-bill mix scaled to a 15% drawdown returns 6.6% (snapshot, 41% SPY) and 3.3% (long, 25%
+    SPY); the top cells beat it on Calmar but not on snapshot CAGR. No holdout candidate.
+    Trials 32,161, N_eff ~9,586. Proposals for period bias (rolling windows, universe/period
+    split, CPCV/PBO, block bootstrap) and multi-variable search (Sobol sampling with PBO) are in
+    docs/research/lab/2026-10-22_drawdown_limit_and_next_methods.md; none is adopted yet.
 
 ## Open decisions
 
