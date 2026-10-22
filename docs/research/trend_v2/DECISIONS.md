@@ -161,6 +161,22 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     of config/alert.yml for the next open, as a comment on a GitHub issue (Telegram optional). It
     reports signals only, no performance, so the holdout period stays unseen for research.
 
+### Confirmation filters as common add-ons (2026-10-22, registered before running)
+
+54. Question: do the volume and trend-confirmation filters generally help the 28 families? Three
+    entry blocks are tested, each at its existing default and not tuned, as the common add-on test
+    of 47 on the universes and settings of 43: volume_surge (volume > 1.5 x prior 20-day average),
+    obv_up (OBV > its 10-day SMA), ma_stack (SMA20 > SMA60 > SMA120 > SMA200, no parameter).
+    The fourth filter proposed with them, market_trend (SPY > 200-day SMA), was already tested in
+    51-52 and is not rerun. Verdicts follow 47. A filter that is generally helpful is still not
+    added by default without a separate decision. Every cell is logged as a trial.
+55. Results of 54 (improve / mixed / worse of 28 families, snapshot | long): no filter is generally
+    helpful; all three are inconclusive. volume_surge 7/2/19 | 15/9/4 and ma_stack 4/5/19 | 21/7/0
+    point in opposite directions, the same pattern as the market_trend filter in 52; obv_up is the
+    least harmful (16/8/4 | 12/10/6) but misses a majority on the long history and its median
+    Calmar change is near zero. Nothing is added by default. Trials 28,569, N_eff ~8,662.
+    Record: docs/research/lab/2026-10-22_confirmation_filters.md.
+
 ## Open decisions
 
 - final trend-filter definition;
