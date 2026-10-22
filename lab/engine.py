@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass, field, replace
+from operator import mul
 
 import numpy as np
 import pandas as pd
@@ -39,6 +40,7 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 """
 
 
+TRADE_COLUMNS = ["symbol", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days", "exit_reason"]
 VOL_DAYS = 60  # volatility window for inverse-volatility sizing
 SIZE_CAP = 2.0  # a position is at most twice the equal slot
 SIZING_LABELS = {"equal": "동일 금액", "inverse_vol": "변동성 역가중"}
@@ -199,6 +201,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     w = (dates[0], dates[-1])
     liq = int(cfg.liquidity_days)
     dv = cache.dollar_volume(liq)
+    tradable = cache.memo(("tradable",), lambda: panel.close.columns.isin(panel.tradable_symbols))
 
     def make_candidates():
         entry = None
@@ -206,7 +209,6 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
             f = cache.frame(key, value)
             entry = f if entry is None else (entry & f)
         eligible = (panel.close >= cfg.min_price) & (dv >= cfg.min_dollar_volume)
-        tradable = panel.close.columns.isin(panel.tradable_symbols)
         mask = (entry & eligible).loc[dates].to_numpy() & tradable
         rows, cols = np.nonzero(mask)
         bounds = np.searchsorted(rows, np.arange(len(dates) + 1)).tolist()
@@ -215,25 +217,30 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
 
     candidates = cache.memo(("entry", w, tuple(cfg.entries.items()), cfg.min_price, cfg.min_dollar_volume, liq),
                             make_candidates)
-    signal_exits = [k for k in cfg.exits if EXIT_BLOCKS[k].compute is not None]
-    # Plain Python lists: the daily loop touches single values, and Python floats are far
-    # faster than numpy scalars for that. Results are bit-for-bit identical (both are doubles).
-    exit_rows = {k: cache.memo(("exit", w, k, cfg.exits[k]),
-                               lambda k=k: cache.frame(k, cfg.exits[k]).loc[dates].to_numpy().tolist())
-                 for k in signal_exits}
+    # Exit checks run once per position, at entry, on whole columns (symbol x day arrays): an
+    # exit depends only on that position's entry price and the closes after it, so the first
+    # exit day can be found with array operations instead of checking every holding every day.
+    signal_exits = {k: cache.memo(("exit", w, k, cfg.exits[k]),
+                                  lambda k=k: np.ascontiguousarray(cache.frame(k, cfg.exits[k]).loc[dates].to_numpy(dtype=bool).T))
+                    for k in cfg.exits if EXIT_BLOCKS[k].compute is not None}
     trail = cfg.exits.get("trailing_pct")
     stop = cfg.exits.get("stop_loss_pct")
     atr_k = cfg.exits.get("atr_trail")
-    A = cache.memo(("atr", w), lambda: cache.atr14.loc[dates].to_numpy(dtype=float).tolist()) if atr_k is not None else None
+    AT = cache.memo(("atr", w), lambda: np.ascontiguousarray(cache.atr14.loc[dates].to_numpy(dtype=float).T)) if atr_k is not None else None
+    CT = cache.memo(("close", w), lambda: np.ascontiguousarray(panel.close.loc[dates].to_numpy(dtype=float).T))
+    # Plain Python lists: the daily loop touches single values, and Python floats are far
+    # faster than numpy scalars for that. Results are bit-for-bit identical (both are doubles).
     O = cache.memo(("open", w), lambda: panel.open.loc[dates].to_numpy(dtype=float).tolist())
     LC = cache.memo(("last_close", w),  # last known close of each symbol, within the window
                     lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float).tolist())
-    C = cache.memo(("close", w), lambda: panel.close.loc[dates].to_numpy(dtype=float).tolist())
     rank = cache.memo(("rank", w, liq), lambda: np.nan_to_num(dv.loc[dates].to_numpy(dtype=float), nan=-1.0).tolist())
+    # each day's candidates already in buying order (larger dollar volume first). The sort is
+    # stable, so dropping held symbols afterwards leaves the same order as sorting after the drop.
+    ordered = cache.memo(("ordered", w, tuple(cfg.entries.items()), cfg.min_price, cfg.min_dollar_volume, liq),
+                         lambda: [sorted(cs, key=lambda j, ri=ri: -ri[j]) for cs, ri in zip(candidates, rank)])
     inv_vol = cfg.sizing == "inverse_vol"
     if inv_vol:
         V, VREF = cache.memo(("vol", w), lambda: cache.vol_rows(dates))
-    tradable = panel.close.columns.isin(panel.tradable_symbols)
     cash_r = (panel.cash.reindex(dates).fillna(0.0).to_numpy().tolist() if (cfg.cash_yield and panel.cash is not None)
               else [0.0] * len(dates))
     symbols = panel.symbols
@@ -242,21 +249,75 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     trail_mult = None if trail is None else 1 - trail / 100.0
     stop_mult = None if stop is None else 1 - stop / 100.0
     exit_keys = list(cfg.exits)
+    n = len(dates)
+    path_exits = [k for k in exit_keys if k not in signal_exits]  # depend on the entry price
+
+    def make_next_signal():
+        """next_sig[j, d]: first day >= d on which a signal exit of symbol j fires (n = never)."""
+        hit = CT == CT
+        hit &= np.logical_or.reduce([signal_exits[k] for k in signal_exits])
+        days = np.where(hit, np.arange(n), n)
+        return np.ascontiguousarray(np.minimum.accumulate(days[:, ::-1], axis=1)[:, ::-1])
+
+    next_sig = (cache.memo(("next_signal", w, tuple((k, cfg.exits[k]) for k in signal_exits)), make_next_signal)
+                if signal_exits else None)
+
+    def first_exit(j: int, e: int, entry_price: float) -> tuple[int, str] | None:
+        """(day, exit key) of the first close from day e on that triggers an exit of a position
+        in symbol j bought at the day-e open, or None. Same rule as checking day by day: days
+        without a close are skipped; the peak includes the entry price and every close so far
+        (today's included); the first selected exit in cfg.exits order gives the reason.
+        Scans in growing chunks so a short holding does not read the whole period."""
+        stop_at = n if next_sig is None else int(next_sig[j, e])  # signal exits need no scan
+        if not path_exits:
+            return None if stop_at >= n else (stop_at, next(k for k in exit_keys if signal_exits[k][j, stop_at]))
+        stop_at = min(n, stop_at + 1)  # the signal day itself is scanned for the reason order
+        peak, start, size = entry_price, e, 16
+        while start < stop_at:
+            end = min(stop_at, start + size)
+            cj = CT[j, start:end]
+            valid = cj == cj
+            pk = np.maximum.accumulate(np.where(valid, cj, -np.inf))
+            np.maximum(pk, peak, out=pk)
+            hits = []
+            for k in exit_keys:
+                if k in signal_exits:
+                    hits.append(signal_exits[k][j, start:end])
+                elif k == "trailing_pct":
+                    hits.append(cj < pk * trail_mult)
+                elif k == "atr_trail":
+                    a = AT[j, start:end]
+                    hits.append((a == a) & (cj < pk - atr_k * a))
+                else:  # stop_loss_pct
+                    hits.append(cj < entry_price * stop_mult)
+            hit = valid & np.logical_or.reduce(hits)
+            if hit.any():
+                d = int(hit.argmax())
+                return start + d, next(k for k, h in zip(exit_keys, hits) if h[d])
+            peak = float(pk[-1])
+            start, size = end, size * 2
+        return None
+
+    # an exit depends only on (symbol, entry day) once the exit rules are fixed, so the answers
+    # are shared by every backtest with these exits on this window (all entry rules of a grid)
+    exit_at = cache.memo(("exit_at", w, tuple(cfg.exits.items())), dict)
 
     nan_ = float("nan")
-    n = len(dates)
-    day = list(dates)  # plain list: indexing a DatetimeIndex one item at a time is slow
+    day = cache.memo(("days", w), lambda: list(dates))  # indexing a DatetimeIndex one item at a time is slow
     cash = 1.0
     last_close = [float("nan")] * len(symbols)  # yesterday's LC row (all NaN before the first day)
     pos: dict[int, dict] = {}
+    held_j: list[int] = []  # pos keys and shares in pos order, rebuilt only when pos changes
+    held_sh: list[float] = []
     pending_entry: list[int] = []
     pending_exit: dict[int, str] = {}
+    exits_on: dict[int, list[tuple[int, str]]] = {}  # day -> [(symbol, exit key)] in holding order
     equity = [0.0] * n
     exposure = [0.0] * n
-    trades: list[dict] = []
+    trades: list[tuple] = []
 
     for i in range(n):
-        Oi, Ci = O[i], C[i]
+        Oi = O[i]
         # 1) execute yesterday's orders at today's open
         for j in list(pending_exit):
             px = Oi[j]
@@ -264,17 +325,14 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                 continue  # no bar today; try again tomorrow
             p = pos.pop(j)
             cash += p["shares"] * px * (1 - c)
-            trades.append({
-                "symbol": symbols[j],
-                "entry_date": day[p["entry_i"]],
-                "exit_date": day[i],
-                "entry_price": p["entry_price"],
-                "exit_price": px,
-                "return": (px * (1 - c)) / (p["entry_price"] * (1 + c)) - 1.0,
-                "holding_days": i - p["entry_i"],
-                "exit_reason": EXIT_BLOCKS[pending_exit[j]].label,
-            })
+            trades.append((  # columns of TRADE_COLUMNS (tuples build the frame faster than dicts)
+                symbols[j], day[p["entry_i"]], day[i], p["entry_price"], px,
+                (px * (1 - c)) / (p["entry_price"] * (1 + c)) - 1.0, i - p["entry_i"],
+                EXIT_BLOCKS[pending_exit[j]].label,
+            ))
             del pending_exit[j]
+            held_j = list(pos)
+            held_sh = [q["shares"] for q in pos.values()]
         if pending_entry:
             held_value = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
             slot = (cash + held_value) / K
@@ -290,54 +348,39 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                     if v == v and v > 0 and ref == ref:
                         target = slot * min(ref / v, SIZE_CAP)
                 alloc = min(target, cash)
-                pos[j] = {"shares": alloc / (px * (1 + c)), "entry_price": px, "entry_i": i, "peak": px}
+                pos[j] = {"shares": alloc / (px * (1 + c)), "entry_price": px, "entry_i": i}
                 cash -= alloc
+                x = exit_at.get((j, i), exit_at)
+                if x is exit_at:
+                    x = exit_at[(j, i)] = first_exit(j, i, px)
+                if x is not None:
+                    exits_on.setdefault(x[0], []).append((j, x[1]))
             pending_entry = []
+            held_j = list(pos)
+            held_sh = [q["shares"] for q in pos.values()]
 
         # 2) cash earns today's T-bill return, then mark to market at today's close
         cash *= 1.0 + cash_r[i]
         last_close = LC[i]
-        invested = sum(p["shares"] * last_close[j] for j, p in pos.items())
+        invested = sum(map(mul, held_sh, map(last_close.__getitem__, held_j)))  # same terms, same order
         equity[i] = cash + invested
         exposure[i] = invested / equity[i] if equity[i] > 0 else 0.0
 
         # steps 3-4 also run on the last day: they only queue orders for the next open, which
         # the backtest never reaches, and those orders are reported as pending_orders
 
-        # 3) exit checks on today's close
-        for j, p in pos.items():
-            cj = Ci[j]
-            if j in pending_exit or cj != cj:
-                continue
-            p["peak"] = max(p["peak"], cj)
-            reason = None
-            for k in exit_keys:
-                if k in exit_rows:
-                    hit = exit_rows[k][i][j]
-                elif k == "trailing_pct":
-                    hit = cj < p["peak"] * trail_mult
-                elif k == "atr_trail":
-                    a = A[i][j]
-                    hit = a == a and cj < p["peak"] - atr_k * a
-                else:  # stop_loss_pct
-                    hit = cj < p["entry_price"] * stop_mult
-                if hit:
-                    reason = k
-                    break
-            if reason:
-                pending_exit[j] = reason
+        # 3) exit checks on today's close (found at entry by first_exit). Holdings are listed in
+        # entry order, which is also the order of pos, so sells queue in the same order.
+        for j, k in exits_on.pop(i, ()):
+            pending_exit[j] = k
 
         # 4) entry candidates on today's close
         free = K - (len(pos) - len(pending_exit))
         if free > 0:
-            ri = rank[i]
-            cand = [j for j in candidates[i] if j not in pos]
-            cand.sort(key=lambda j: -ri[j])
+            cand = [j for j in ordered[i] if j not in pos]
             pending_entry = cand[:free]
 
-    trades_df = pd.DataFrame(trades, columns=[
-        "symbol", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days", "exit_reason",
-    ])
+    trades_df = pd.DataFrame(trades, columns=TRADE_COLUMNS)
     open_df = pd.DataFrame([
         {"symbol": symbols[j], "entry_date": day[p["entry_i"]], "entry_price": p["entry_price"],
          "last_close": last_close[j], "unrealized_return": last_close[j] * (1 - c) / (p["entry_price"] * (1 + c)) - 1.0}

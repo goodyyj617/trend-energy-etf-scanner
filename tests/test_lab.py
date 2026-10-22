@@ -228,7 +228,7 @@ def test_checklist_and_baselines_run():
 # --------------------------------------------------------------------------- strategy-family comparison
 
 from lab import families, store  # noqa: E402
-from lab.blocks import ENTRY_BLOCKS, EXIT_BLOCKS  # noqa: E402
+from lab.blocks import ALL_BLOCKS, ENTRY_BLOCKS, EXIT_BLOCKS  # noqa: E402
 from lab.engine import SignalCache  # noqa: E402
 from lab.grid import run_grid  # noqa: E402
 
@@ -493,3 +493,68 @@ def test_pending_orders_are_the_last_close_decisions():
     panel, _ = make_panel({"AAA": down, "SPY": up})
     r = run_backtest(panel, cfg(entries={"breakout": 5}, exits={"low_break": 5}))
     assert r.pending_orders["sell"] == {"AAA": "low_break"}
+
+
+# --------------------------------------------------------------------------- performance paths (results unchanged)
+
+def test_exit_found_at_entry_matches_day_by_day_rule():
+    """Every closed trade exits on the first close after entry where a selected exit fires
+    (checked here day by day, in cfg.exits order), with gaps in the price data."""
+    rng = np.random.default_rng(11)
+    n = 700
+    prices = {s: list(50 * np.cumprod(1 + rng.normal(0.0006, 0.018, n))) for s in ("AAA", "BBB", "CCC", "DDD", "SPY")}
+    prices["CCC"][300:310] = [np.nan] * 10  # days without a bar
+    panel = make_panel(prices)[0]
+    c = cfg(entries={"breakout": 10}, exits={"trailing_pct": 8.0, "low_break": 15, "stop_loss_pct": 5.0, "atr_trail": 2.5},
+            max_positions=3)
+    res = run_backtest(panel, c)
+    assert len(res.trades) > 20
+    close, low_hit = panel.close, ALL_BLOCKS["low_break"].compute(panel, 15).fillna(False)
+    atr14 = SignalCache(panel).atr14
+    dates = list(close.index)
+    for t in res.trades.itertuples():
+        e, x = dates.index(t.entry_date), dates.index(t.exit_date)
+        peak, signal_day, reason = t.entry_price, None, None
+        for d in range(e, x):
+            cj = close[t.symbol].iloc[d]
+            if cj != cj:
+                continue
+            peak = max(peak, cj)
+            a = atr14[t.symbol].iloc[d]
+            hits = {"trailing_pct": cj < peak * 0.92, "low_break": bool(low_hit[t.symbol].iloc[d]),
+                    "stop_loss_pct": cj < t.entry_price * 0.95, "atr_trail": a == a and cj < peak - 2.5 * a}
+            fired = [k for k in c.exits if hits[k]]
+            if fired:
+                signal_day, reason = d, fired[0]
+                break
+        assert signal_day is not None
+        assert all(close[t.symbol].iloc[signal_day + 1:x].isna())  # sold at the next available open
+        assert t.exit_reason == EXIT_BLOCKS[reason].label
+
+
+def test_parallel_family_comparison_is_identical(monkeypatch):
+    monkeypatch.setattr(families, "ENTRY_MENU", {"breakout": [10, 20], "momentum": [21, 42]})
+    monkeypatch.setattr(families, "EXIT_MENU", {"low_break": [5, 10], "trailing_pct": [5, 10]})
+    panel = _random_panel()
+    runs = {}
+    for w in (1, 2):
+        seen = []
+        fc = families.run_family_comparison(panel, cfg(max_positions=2), Gates(), workers=w,
+                                            on_result=lambda c, r: seen.append((c, r.equity)))
+        runs[w] = (fc, seen)
+    (one, seen1), (two, seen2) = runs[1], runs[2]
+    pd.testing.assert_frame_equal(one.all_cells(), two.all_cells())
+    pd.testing.assert_frame_equal(one.summary(), two.summary())
+    assert [c for c, _ in seen1] == [c for c, _ in seen2]  # same trial order for the log
+    for (_, a), (_, b) in zip(seen1, seen2):
+        pd.testing.assert_series_equal(a, b)
+
+
+def test_mean_pairwise_corr_matches_pandas():
+    rng = np.random.default_rng(3)
+    x = rng.normal(0, 0.03, (120, 9)) + rng.normal(0, 0.03, (120, 1))
+    x[:40, 5:] = np.nan  # a second date range
+    x[:, 2] = 0.0  # constant (never traded): no correlation defined
+    corr = pd.DataFrame(x).corr(min_periods=research_log.MIN_OVERLAP_MONTHS).to_numpy()
+    off = corr[~np.eye(len(corr), dtype=bool)]
+    assert research_log.mean_pairwise_corr(x) == pytest.approx(np.nanmean(off), rel=1e-12)

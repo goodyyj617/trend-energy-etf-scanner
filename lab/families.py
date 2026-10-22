@@ -29,7 +29,13 @@ below". The entry-only form blocks new buys; the switch also moves the book to c
 """
 from __future__ import annotations
 
+import multiprocessing as mp
+import os
+import sys
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
+from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 
 import numpy as np
@@ -151,31 +157,116 @@ def ma200_calmar(panel: Panel, cfg: StrategyConfig) -> float:
     return curve_metrics(eq.dropna())["calmar"]
 
 
+def default_workers() -> int:
+    """Worker processes for family grids: LAB_WORKERS if set (1 = no extra processes), else one
+    per core, at most 8 (the calling process only waits while they run)."""
+    env = os.environ.get("LAB_WORKERS", "").strip()
+    if env.isdigit():
+        return max(1, int(env))
+    return max(1, min(8, os.cpu_count() or 1))
+
+
+PARALLEL_MIN_CELLS = 200
+_WORKER: dict = {}
+
+
+def _init_worker(panel: Panel) -> None:
+    _WORKER["panel"] = panel
+    _WORKER["cache"] = SignalCache(panel)  # reused by every family this process runs
+
+
+def _grid_job(cfg, e, e_vals, x, x_vals, gates, keep):
+    """One family grid in a worker process. Returns the grid and, if keep, every (cfg, result)."""
+    done = []
+    g = run_grid(_WORKER["panel"], cfg, e, e_vals, x, x_vals, gates,
+                 on_result=(lambda c, r: done.append((c, r))) if keep else None, cache=_WORKER["cache"])
+    return g, done
+
+
+@contextmanager
+def _main_script_hidden():
+    """Spawned workers first re-run the parent's __main__ script, unless it was started with -m.
+    Under Streamlit that script is the app itself (and a script without a __main__ guard would
+    start workers again). Workers need only lab modules, so the script's path is hidden from
+    them while they start."""
+    main = sys.modules.get("__main__")
+    if main is None or getattr(main, "__spec__", None) is not None or "__file__" not in vars(main):
+        yield
+        return
+    path = main.__file__
+    del main.__file__
+    try:
+        yield
+    finally:
+        main.__file__ = path
+
+
+def _run_parallel(panel, jobs, gates, progress, total, keep, workers):
+    """Family grids on worker processes. Returns [(grid, [(cfg, result)])] in job order, or None
+    if worker processes cannot be started here (the caller then runs the grids in this process)."""
+    try:
+        pool = ProcessPoolExecutor(max_workers=min(workers, len(jobs)), mp_context=mp.get_context("spawn"),
+                                   initializer=_init_worker, initargs=(panel,))
+    except (OSError, NotImplementedError, ValueError):
+        return None
+    with pool:
+        try:
+            with _main_script_hidden():  # every worker starts during the submits
+                futures = [pool.submit(_grid_job, cfg, e, ev, x, xv, gates, keep) for e, x, cfg, ev, xv in jobs]
+        except (BrokenProcessPool, OSError):
+            return None
+        sizes = {f: len(ev) * len(xv) for f, (_, _, _, ev, xv) in zip(futures, jobs)}
+        done = 0
+        try:
+            for f in as_completed(futures):
+                f.result()  # an error inside a worker (e.g. a ValueError for bad settings) is raised here
+                done += sizes[f]
+                if progress:
+                    progress(done / total)
+        except (BrokenProcessPool, OSError):  # a worker process died: fall back to one process
+            return None
+        return [f.result() for f in futures]
+
+
 def run_family_comparison(panel: Panel, base: StrategyConfig, gates: Gates, progress=None,
                           on_result=None, extra_entries: dict | None = None, extra_exits: dict | None = None,
-                          cache: SignalCache | None = None) -> FamilyComparison:
+                          cache: SignalCache | None = None, workers: int | None = None) -> FamilyComparison:
     """Run every (entry family x exit family) grid of the fixed menu on one panel.
 
     extra_entries / extra_exits are added unchanged to every family (common add-on test).
+    workers > 1 runs families on that many processes (default: default_workers() when the run has
+    at least PARALLEL_MIN_CELLS cells; starting processes takes a few seconds). The results
+    are the same either way: every grid is computed from the same panel and settings, and
+    on_result is called afterwards in the menu order, cell by cell, exactly as in one process.
     """
     t0 = time.time()
     extra_entries, extra_exits = dict(extra_entries or {}), dict(extra_exits or {})
-    cache = cache or SignalCache(panel)  # shared: indicator frames are reused across families
     total = cell_count(extra_entries, extra_exits)
-    done = 0
-    grids: dict[tuple[str, str], GridResult] = {}
+    jobs = []
     for e, x in family_pairs(extra_entries, extra_exits):
         e_vals, x_vals = ENTRY_MENU[e], EXIT_MENU[x]
         cfg = replace(base, entries={e: e_vals[0], **extra_entries}, exits={x: x_vals[0], **extra_exits})
-        offset = done
+        jobs.append((e, x, cfg, e_vals, x_vals))
+    if workers is None:
+        workers = default_workers() if total >= PARALLEL_MIN_CELLS else 1
+    out = _run_parallel(panel, jobs, gates, progress, total, on_result is not None, workers) if workers > 1 and len(jobs) > 1 else None
+    grids: dict[tuple[str, str], GridResult] = {}
+    if out is not None:
+        for (e, x, *_), (g, results) in zip(jobs, out):
+            grids[(e, x)] = g
+            for c, r in results:
+                on_result(c, r)
+    else:
+        cache = cache or SignalCache(panel)  # shared: indicator frames are reused across families
+        done = 0
+        for e, x, cfg, e_vals, x_vals in jobs:
+            def step(f, offset=done, n=len(e_vals) * len(x_vals)):
+                if progress:
+                    progress((offset + f * n) / total)
 
-        def step(f, offset=offset, n=len(e_vals) * len(x_vals)):
-            if progress:
-                progress((offset + f * n) / total)
-
-        grids[(e, x)] = run_grid(panel, cfg, e, e_vals, x, x_vals, gates, progress=step,
-                                 on_result=on_result, cache=cache)
-        done += len(e_vals) * len(x_vals)
+            grids[(e, x)] = run_grid(panel, cfg, e, e_vals, x, x_vals, gates, progress=step,
+                                     on_result=on_result, cache=cache)
+            done += len(e_vals) * len(x_vals)
     return FamilyComparison(base, gates, grids, ma200_calmar(panel, base), time.time() - t0,
                             extra_entries, extra_exits)
 
@@ -252,7 +343,8 @@ class AddonTest:
 
 
 def run_addon_test(panel: Panel, base: StrategyConfig, gates: Gates, kind: str, key: str,
-                   plain: FamilyComparison | None = None, progress=None, on_result=None) -> AddonTest:
+                   plain: FamilyComparison | None = None, progress=None, on_result=None,
+                   workers: int | None = None) -> AddonTest:
     """Add one block (at its default value) to every family and compare with the plain families.
 
     A finished plain comparison on the same panel and settings can be passed in to skip rerunning it.
@@ -268,6 +360,7 @@ def run_addon_test(panel: Panel, base: StrategyConfig, gates: Gates, kind: str, 
         return (lambda f: progress((offset + f * n) / total)) if progress else None
 
     if plain is None:
-        plain = run_family_comparison(panel, base, gates, part(0, n_plain), on_result, cache=cache)
-    added = run_family_comparison(panel, base, gates, part(n_plain, n_added), on_result, ee, xx, cache=cache)
+        plain = run_family_comparison(panel, base, gates, part(0, n_plain), on_result, cache=cache, workers=workers)
+    added = run_family_comparison(panel, base, gates, part(n_plain, n_added), on_result, ee, xx, cache=cache,
+                                  workers=workers)
     return AddonTest(kind, key, value, plain, added)

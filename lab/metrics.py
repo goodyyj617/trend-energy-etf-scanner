@@ -107,11 +107,34 @@ def drawdown(equity: pd.Series) -> pd.Series:
 
 def _longest_underwater(equity: pd.Series) -> int:
     under = (equity < equity.cummax()).to_numpy()
-    best = run = 0
-    for u in under:
-        run = run + 1 if u else 0
-        best = max(best, run)
-    return best
+    if not under.any():
+        return 0
+    edges = np.diff(np.concatenate(([0], under.astype(np.int8), [0])))
+    return int((np.flatnonzero(edges == -1) - np.flatnonzero(edges == 1)).max())
+
+
+_MONTH_ENDS: dict[bytes, pd.Series] = {}
+
+
+def _month_end_rows(index: pd.DatetimeIndex) -> pd.Series:
+    """Position of each calendar month's last row (NaN for a month without rows), indexed like
+    Series.resample("ME").last(). Every grid cell shares the same dates, so this is cached."""
+    key = index.asi8.tobytes()
+    if key not in _MONTH_ENDS:
+        if len(_MONTH_ENDS) > 64:
+            _MONTH_ENDS.clear()
+        _MONTH_ENDS[key] = pd.Series(np.arange(len(index), dtype=float), index=index).resample("ME").last()
+    return _MONTH_ENDS[key]
+
+
+def _month_end_values(equity: pd.Series) -> pd.Series:
+    """equity.resample("ME").last() for a series without missing values (same values)."""
+    rows = _month_end_rows(equity.index)
+    pos = rows.to_numpy()
+    have = ~np.isnan(pos)
+    vals = np.full(len(pos), np.nan)
+    vals[have] = equity.to_numpy(dtype=float)[pos[have].astype(np.int64)]
+    return pd.Series(vals, index=rows.index)
 
 
 def curve_metrics(equity: pd.Series) -> dict[str, float]:
@@ -125,7 +148,7 @@ def curve_metrics(equity: pd.Series) -> dict[str, float]:
     downside = np.sqrt((rets.clip(upper=0) ** 2).mean())
     mdd = drawdown(equity).min()
     roll = equity / equity.shift(TRADING_DAYS) - 1.0
-    monthly = equity.resample("ME").last().pct_change(fill_method=None).dropna()
+    monthly = _month_end_values(equity).pct_change(fill_method=None).dropna()
     return {
         "total_return": total,
         "cagr": cagr,
@@ -199,9 +222,22 @@ def trade_metrics(trades: pd.DataFrame, n_days: int) -> dict[str, float]:
     }
 
 
+_BENCH: dict[tuple[bytes, bytes], dict] = {}
+
+
+def _bench_metrics(bench: pd.Series) -> dict[str, float]:
+    """curve_metrics of the benchmark; every cell of a grid has the same one, so it is cached."""
+    key = (bench.index.asi8.tobytes(), bench.to_numpy(dtype=float).tobytes())
+    if key not in _BENCH:
+        if len(_BENCH) > 64:
+            _BENCH.clear()
+        _BENCH[key] = curve_metrics(bench)
+    return dict(_BENCH[key])
+
+
 def all_metrics(result) -> dict[str, float]:
     strat = curve_metrics(result.equity)
-    bench = curve_metrics(result.benchmark)
+    bench = _bench_metrics(result.benchmark)
     out = {**strat, **relative_metrics(strat, bench), "exposure": float(result.exposure.mean())}
     out.update(trade_metrics(result.trades, len(result.equity)))
     out.update({f"spy_{k}": v for k, v in bench.items()})
