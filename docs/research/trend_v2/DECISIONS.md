@@ -220,6 +220,15 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     of each universe's grid (ordering of 34 under the exploration gate) is run through the
     checklist under both gates. A cell passing all 7 items under the final gate is reported as a
     holdout candidate for the user to decide on; nothing is adopted by this test.
+61. Results of 60 (exploration gate): breakout x atr_trail has the lowest rank sum (1 + 6), then
+    breakout x below_ma (9 + 1) and breakout x rsi_below (8 + 3). breakout is the best entry in
+    both universes and trailing_pct the best exit, as in 48. Among new blocks keltner is the best
+    entry (mid-upper in both), near_high and adx_trend are mid, cmf_min is near the bottom; the
+    three new exits are all in the lower half. No checklist cell passes 7/7 under the final
+    gate; the best is breakout 80 / below_ma 200 on the long history (5/7), below C2 (6/7). Under
+    the exploration gate breakout 20 / rsi_below 50 on the snapshot passes 6/7 (fails only DSR,
+    0.50). No holdout candidate. Trials 32,139, N_eff ~9,572.
+    Record: docs/research/lab/2026-10-22_menu_v3_exploration_gate.md.
 
 ## Open decisions
 
