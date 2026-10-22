@@ -272,6 +272,21 @@ The user's goal is the highest return with the smallest drawdown, without relyin
     passing cell ordered by region size, neighbor survival, window_share, excess CAGR. Reported
     for the three families with the lowest rank sum, with DSR. Holdout-candidate rules are
     registered after the multi-variable search (Sobol + PBO), not here; nothing is adopted.
+66. Multi-variable search (lab/explore.py), by user decision replacing "no exhaustive search
+    beyond two parameters" with a fixed-budget sample: 2,048 points of an unscrambled Sobol
+    sequence over 8 variables, the same points in the three samples of 65, settings otherwise of
+    43. Variables: entry block (the 11 menu-v3 entries) and its value inside its menu range,
+    snapped to the parameter step; exit block (the 7 menu-v3 exits) and its value likewise;
+    filter (none, market_trend, ma_stack, obv_up, volume_surge, adx_trend, near_high at their
+    defaults); initial stop (none for half the points, otherwise 5-20%); max positions 5-20;
+    sizing equal or inverse-vol. Every point is evaluated with 64 and 65 and logged as a trial.
+    Reported: share of passing points; per-variable summaries (descriptive); PBO by CSCV with 12
+    contiguous blocks of monthly returns, ranking by min(CAGR, 0.15 x Calmar) in each half; and
+    the robust point = passing in all three samples with window_share >= 0.5 in each, maximizing
+    the smallest excess over the mix across samples, with its DSR. A point is proposed as a
+    holdout candidate only if it passes in all three samples, has window_share >= 2/3 in each,
+    and PBO < 0.5 in every sample; the user decides whether to evaluate it, and the holdout
+    verdict would use the criterion of 64.
 
 ## Open decisions
 

@@ -625,3 +625,39 @@ def test_target_report_and_windows():
     assert rep["dd_mdd"] >= -0.15 - 1e-9 and 0 < rep["dd_weight"] <= 1
     assert rep["dd_pass"] == (rep["dd_cagr"] >= rep["mix_cagr"])
     assert {"dd_weight", "dd_cagr", "mix_cagr", "dd_excess", "window_share"} <= set(DEFINITIONS)
+
+
+# --------------------------------------------------------------------------- Sobol search and PBO (DECISIONS 66)
+
+from lab import explore  # noqa: E402
+
+
+def test_sobol_known_points_and_balance():
+    pts = explore.sobol(8, 2)
+    assert pts[:, 0].tolist() == [0, 0.5, 0.75, 0.25, 0.375, 0.875, 0.625, 0.125]
+    assert pts[:, 1].tolist() == [0, 0.5, 0.25, 0.75, 0.375, 0.875, 0.125, 0.625]
+    big = explore.sobol(1024, 10)
+    for d in range(10):  # each coordinate hits each of the 1024 equal cells exactly once
+        assert len(set((big[:, d] * 1024).astype(int))) == 1024
+    pairs = (big[:256, :2] * 16).astype(int)  # 2-D stratification of the first 256 points
+    assert len({(a, b) for a, b in pairs}) == 256
+
+
+def test_point_config_stays_in_menu_ranges():
+    base = cfg()
+    for u in explore.sobol(512, 8):
+        c = explore.point_config(u, base)
+        e = next(k for k in c.entries if k in explore.ENTRIES)
+        x = next(k for k in c.exits if k in explore.EXITS)
+        assert min(families.ENTRY_MENU[e]) <= c.entries[e] <= max(families.ENTRY_MENU[e])
+        assert min(families.EXIT_MENU[x]) <= c.exits[x] <= max(families.EXIT_MENU[x])
+        assert 5 <= c.max_positions <= 20 and c.sizing in ("equal", "inverse_vol")
+
+
+def test_pbo_detects_noise_and_skill():
+    rng = np.random.default_rng(9)
+    noise = pd.DataFrame(rng.normal(0.005, 0.04, (240, 60)))
+    assert explore.pbo(noise, blocks=10)["pbo"] > 0.4  # pure luck: at least a coin flip
+    skill = noise.copy()
+    skill[0] = rng.normal(0.03, 0.02, 240)  # one column truly better
+    assert explore.pbo(skill, blocks=10)["pbo"] < 0.05
