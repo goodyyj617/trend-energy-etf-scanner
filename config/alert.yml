@@ -1,0 +1,27 @@
+# Daily alert settings (lab/daily_alert.py, workflow .github/workflows/daily_alert.yml).
+#
+# The alert reports two things after each US close:
+#   1. market regimes: the four regime filters of DECISIONS 50 (on/off and whether they flipped)
+#   2. a model portfolio: what the strategy below would hold and which orders it queues for the
+#      next open, simulated from `start` to the latest close.
+#
+# The strategy here is a starting point taken from the top family of the v2 comparison
+# (N-day return x % trailing stop) at the blocks' default values. It is an in-sample research
+# candidate, not a validated or approved strategy. Change it freely; it does not affect research.
+
+universe: snapshot        # snapshot = the lab's default ETF snapshot funnel (current symbols, prices downloaded fresh)
+                          # long     = the 33 long-history multi-asset ETFs
+start: "2017-08-01"       # model portfolio simulation start
+strategy:
+  entries: {momentum: 126}
+  exits: {trailing_pct: 15}
+  max_positions: 10
+  cost_bps: 10
+  sizing: inverse_vol
+
+# Delivery. The GitHub issue needs no setup (the workflow's own token); you get GitHub's
+# notification (email / mobile app). Telegram is used only when both repository secrets
+# TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID exist.
+issue_title: "📊 일일 알림"
+mention: goodyyj617       # GitHub user mentioned in each comment so a notification is sent
+only_on_change: false     # true = post only when a regime flips or the model portfolio has orders

@@ -1,0 +1,29 @@
+name: Refresh macro snapshot
+
+# Downloads the FRED series used by the lab's macro regime blocks and commits
+# lab/macro_snapshot.csv.gz to the branch it runs on. Research runs read that frozen file.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "pandas>=2.2" requests
+      - run: python -m lab.macro
+      - name: Commit snapshot
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add lab/macro_snapshot.csv.gz
+          if git diff --cached --quiet; then echo "No change."; exit 0; fi
+          git commit -m "Update macro snapshot (FRED)"
+          git push origin HEAD:${GITHUB_REF_NAME}

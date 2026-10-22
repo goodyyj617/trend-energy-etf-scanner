@@ -122,6 +122,45 @@ the bar for a final single strategy only.
     snapshot) and is not added by default. Trials 6,393, N_eff ~1,402.
     Record: docs/research/lab/2026-10-10_family_menu_v2.md.
 
+### Macro regime filters (2026-10-19, registered before running)
+
+Question: do market-regime and macro indicators improve trade timing beyond the price-only
+rules? Each indicator is tested as a component across every family, as in 47, not tuned.
+
+49. Macro data are FRED daily series that are market observations and are not revised later:
+    T10Y3M (10-year minus 3-month Treasury), BAA10Y (Moody's Baa corporate minus 10-year
+    Treasury), VIXCLS (VIX close). A decision on day t uses only values dated on or before the
+    previous trading day (publication lag); a value older than 10 calendar days counts as missing,
+    and a missing value means "condition false" (no buy for a filter, no sale for an exit).
+    Research runs read the frozen file lab/macro_snapshot.csv.gz. Revised or monthly series
+    (NFCI, unemployment, PMI, GDP) are excluded: FRED serves only the latest vintage, so a
+    backtest would see revisions that were not known at the time.
+50. New regime blocks, one parameter each, defaults fixed now: curve_ok T10Y3M > 0 (curve not
+    inverted); credit_calm BAA10Y <= its 200-observation SMA (spread not above trend);
+    vix_calm VIX < 25. Together with the existing market_trend (SPY > 200-day SMA) these are
+    the four regimes. Each has an exact complement exit (market_off, curve_inverted,
+    credit_stress, vix_high) that sells every holding when the regime turns off.
+51. Test: for each of the four regimes, two forms, each as the common add-on test of 47 on the
+    universes and settings of 43 (8 tests x 2 universes): (a) entry filter only (blocks new
+    buys); (b) regime switch = the filter plus its complement exit (moves to cash). Verdicts per
+    form follow 47: generally helpful / generally harmful / inconclusive. A macro indicator is
+    said to add timing value only if one of its forms is generally helpful; whether it beats the
+    price-only market_trend in the same form is reported by comparing their improve counts and
+    is descriptive. A descriptive table of SPY next-day returns and 63-day forward returns in
+    each regime state is shown for context and decides nothing. Thresholds and windows are not
+    tuned in this round; any later tuning is a new registration. Every cell is logged as a trial.
+52. Results of 51 (improve / mixed / worse of 28 families, snapshot | long): no macro indicator adds
+    timing value. Yield curve and VIX are generally harmful in both forms (curve filter 6/1/21 |
+    0/5/23, VIX filter 0/0/28 | 6/4/18). Credit spread is inconclusive with opposite directions
+    (filter 6/0/22 | 17/11/0), the same pattern as the price-only market_trend filter (3/1/24 |
+    19/7/2). The market_trend switch is the most consistent but still inconclusive (17/5/6 |
+    8/20/0, no family worse on the long history). Nothing is added by default. Trials 22,521,
+    N_eff ~7,049. Record: docs/research/lab/2026-10-19_macro_regime_filters.md.
+53. Daily alert (operations, not research): lab/daily_alert.py, run by the Daily Alert workflow
+    after each US close, reports the four regimes and the orders queued by the model portfolio
+    of config/alert.yml for the next open, as a comment on a GitHub issue (Telegram optional). It
+    reports signals only, no performance, so the holdout period stays unseen for research.
+
 ## Open decisions
 
 - final trend-filter definition;

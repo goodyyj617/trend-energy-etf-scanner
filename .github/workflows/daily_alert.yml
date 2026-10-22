@@ -1,0 +1,37 @@
+name: Daily Alert
+
+# After each US close: market regimes (DECISIONS 50) and the model portfolio's orders for the
+# next open, posted as a comment on the "📊 일일 알림" issue (and Telegram when its secrets exist).
+# Settings: config/alert.yml. Read-only for the repository: it commits nothing.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 22 * * 1-5"   # 22:15 UTC = after the 16:00 New York close (EST and EDT)
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: daily-alert
+  cancel-in-progress: false
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Build and send the alert
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m lab.daily_alert --deliver
