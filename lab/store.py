@@ -60,18 +60,32 @@ def save_grid(grid, name: str, data_source: str, period: tuple) -> Path:
 
 
 def save_study(name: str, description: str, tables: list[dict], notes: list[str] | None = None,
-               decisions: str = "", record: str = "") -> Path:
-    """tables: [{"title", "frame", "caption" (optional), "pct" (columns shown as %, optional)}]."""
+               decisions: str = "", record: str = "", curves: list[dict] | None = None) -> Path:
+    """tables: [{"title", "frame", "caption" (optional), "pct" (columns shown as %, optional)}].
+    curves: [{"group", "raw", "scaled" (optional), "baselines"}]: equity curves (dates x series) per
+    group (e.g. one per sample); "scaled" holds the same series at the 15% drawdown budget."""
     path = _folder("study", name)
     entries = []
     for n, t in enumerate(tables):
         file = f"table_{n}.csv"
         t["frame"].to_csv(path / file, index=False, encoding="utf-8")
         entries.append({"title": t["title"], "file": file, "caption": t.get("caption", ""), "pct": list(t.get("pct", []))})
+    groups = []
+    for n, c in enumerate(curves or []):
+        g = {"group": c["group"], "baselines": list(c.get("baselines", []))}
+        for part in ("raw", "scaled"):
+            if c.get(part) is not None:
+                g[part] = f"curves_{n}_{part}.csv"
+                c[part].to_csv(path / g[part], encoding="utf-8")
+        groups.append(g)
     _write_meta(path, {"kind": "study", "name": name, "saved_at": datetime.now().isoformat(timespec="seconds"),
-                       "description": description, "notes": notes or [], "tables": entries,
+                       "description": description, "notes": notes or [], "tables": entries, "curves": groups,
                        "decisions": decisions, "record": record})
     return path
+
+
+def load_study_curves(path: Path, file: str) -> pd.DataFrame:
+    return pd.read_csv(Path(path) / file, index_col=0, parse_dates=True, encoding="utf-8")
 
 
 def load_study_table(path: Path, file: str) -> pd.DataFrame:

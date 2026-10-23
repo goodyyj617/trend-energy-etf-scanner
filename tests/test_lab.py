@@ -700,7 +700,13 @@ def test_single_mode_matches_trading_each_symbol_alone():
 def test_save_study_round_trip(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "RESULTS_DIR", tmp_path)
     df = pd.DataFrame({"계열": ["a", "b"], "통과 비율": [0.5, 0.25]})
-    store.save_study("연구", "설명", [{"title": "표", "frame": df, "pct": ["통과 비율"]}], ["메모"], "64", "docs/x.md")
+    idx = pd.bdate_range("2020-01-01", periods=5)
+    raw = pd.DataFrame({"전략 A": np.linspace(1, 1.2, 5), "SPY": np.linspace(1, 1.1, 5)}, index=idx)
+    store.save_study("연구", "설명", [{"title": "표", "frame": df, "pct": ["통과 비율"]}], ["메모"], "64", "docs/x.md",
+                     curves=[{"group": "표본", "raw": raw, "baselines": ["SPY"]}])
     (meta,) = store.list_results()
     assert meta["kind"] == "study" and meta["tables"][0]["pct"] == ["통과 비율"]
     pd.testing.assert_frame_equal(store.load_study_table(meta["path"], meta["tables"][0]["file"]), df)
+    (g,) = meta["curves"]
+    assert "scaled" not in g
+    pd.testing.assert_frame_equal(store.load_study_curves(meta["path"], g["raw"]), raw, check_freq=False)

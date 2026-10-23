@@ -1226,6 +1226,31 @@ def saved_page() -> None:
                               am["ma200_calmar"], "saved")
 
 
+def show_study_curves(sm: dict) -> None:
+    st.markdown("#### 자산 곡선")
+    groups = sm["curves"]
+    c1, c2 = st.columns([2, 1])
+    gi = c1.selectbox("표본", range(len(groups)), format_func=lambda i: groups[i]["group"], key=f"study_grp_{sm['name']}")
+    g = groups[gi]
+    scaled = c2.toggle("낙폭 15% 맞춤으로 보기", key=f"study_scaled_{sm['name']}", disabled="scaled" not in g,
+                       help=DEFINITIONS["dd_cagr"].short + " 기준선은 같은 낙폭에 맞춘 SPY+국채 혼합입니다.")
+    df = store.load_study_curves(sm["path"], g["scaled" if scaled and "scaled" in g else "raw"])
+    names = [c for c in df.columns if c not in g["baselines"]]
+    pick = pd.DataFrame({"선택": [i < 3 for i in range(len(names))], "전략": names})
+    edited = st.data_editor(pick, hide_index=True, width="stretch", disabled=["전략"], key=f"study_pick_{sm['name']}_{gi}")
+    chosen = [n for n, on in zip(names, edited["선택"]) if on][:8]
+    fig = go.Figure()
+    palette = [BLUE, ORANGE, AQUA, "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
+    for i, n in enumerate(chosen):
+        fig.add_scatter(x=df.index, y=df[n], name=n, line=dict(color=palette[i], width=2))
+    for j, b in enumerate(c for c in g["baselines"] if c in df.columns):
+        fig.add_scatter(x=df.index, y=df[b], name=b, line=dict(color=GRAY, width=1.5, dash="dot" if j == 0 else "dash"))
+    fig.update_layout(height=420, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10),
+                      title="자산 곡선 비교 (최대 8개, 시작 = 1)", legend=dict(orientation="h", y=-0.15))
+    st.plotly_chart(fig, width="stretch")
+    st.caption("표에서 체크한 전략이 그래프에 나옵니다. 점선·파선은 기준선입니다.")
+
+
 def show_study(sm: dict) -> None:
     st.markdown(sm["description"])
     for note in sm.get("notes", []):
@@ -1234,6 +1259,8 @@ def show_study(sm: dict) -> None:
                                   f"기록: `{sm['record']}`" if sm.get("record") else "") if x)
     if refs:
         st.caption(refs)
+    if sm.get("curves"):
+        show_study_curves(sm)
     for t in sm["tables"]:
         st.markdown(f"#### {t['title']}")
         df = store.load_study_table(sm["path"], t["file"])
