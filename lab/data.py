@@ -58,7 +58,10 @@ class Panel:
 
     @property
     def tradable_symbols(self) -> list[str]:
-        return self.symbols if self.tradable is None else [s for s in self.symbols if s in set(self.tradable)]
+        if self.tradable is None:
+            return self.symbols
+        wanted = set(self.tradable)  # built once: with thousands of symbols a per-item set was quadratic
+        return [s for s in self.symbols if s in wanted]
 
     @property
     def symbols(self) -> list[str]:

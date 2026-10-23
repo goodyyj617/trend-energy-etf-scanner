@@ -69,11 +69,13 @@ def _mdd_columns(rets: np.ndarray, cash: np.ndarray, w: np.ndarray) -> np.ndarra
 def fit_weights(rets: np.ndarray, cash: np.ndarray, budget: float = DD_BUDGET) -> np.ndarray:
     """fit_weight for every column of (days x series) matrices at once, same answer.
     A series that starts later has zero returns and zero cash before its start (its equity stays 1).
-    The drawdown of the blend is close to w x the full drawdown, so w = budget / |MDD at w = 1| is
-    tried first; only columns where that guess is not the boundary are bisected."""
+    |MDD| of the blend grows almost in proportion to w, so w is predicted from the drawdown at the
+    previous try (secant steps on the 0.01 grid) and the final bracket is bisected; each pass only
+    touches the columns still undecided. Typically 4-6 passes instead of 7 for every column."""
     m = rets.shape[1]
     out = np.zeros(m)
     tol = -budget - 1e-12
+    top = len(WEIGHTS) - 1
     mdd1 = _mdd_columns(rets, cash, np.ones(m))
     full = mdd1 >= tol
     out[full] = WEIGHTS[-1]
@@ -81,23 +83,34 @@ def fit_weights(rets: np.ndarray, cash: np.ndarray, budget: float = DD_BUDGET) -
     if not len(cols):
         return out
     R, C = rets[:, cols], cash[:, cols]
-    top = len(WEIGHTS) - 1
-    guess = np.clip(np.floor(budget / np.abs(mdd1[cols]) * top).astype(int), 0, top - 1)
-    g_ok = _mdd_columns(R, C, WEIGHTS[guess]) >= tol
-    g1_ok = _mdd_columns(R, C, WEIGHTS[guess + 1]) >= tol
-    # bracket [lo, hi] with ok(lo) and not ok(hi), as in fit_weight
-    lo = np.where(g_ok, np.where(g1_ok, guess + 1, guess), 0)
-    hi = np.where(g_ok, np.where(g1_ok, top, guess + 1), guess)
-    zero_bad = ~g_ok & ~(_mdd_columns(R, C, np.zeros(len(cols))) >= tol)
-    todo = (hi - lo > 1) & ~zero_bad
-    while todo.any():
+    k = len(cols)
+    lo, hi = np.zeros(k, dtype=int), np.full(k, top)  # invariant: ok(lo) (w = 0 always ok), not ok(hi)
+    guess = np.clip(np.floor(budget / np.abs(mdd1[cols]) * top).astype(int), 1, top - 1)
+    done = np.zeros(k, dtype=bool)
+    for _ in range(3):  # secant steps
+        todo = ~done
+        g = guess[todo]
+        md = _mdd_columns(R[:, todo], C[:, todo], WEIGHTS[g])
+        good = md >= tol
+        idx = np.flatnonzero(todo)
+        lo[idx[good]] = np.maximum(lo[idx[good]], g[good])
+        hi[idx[~good]] = np.minimum(hi[idx[~good]], g[~good])
+        done = hi - lo <= 1
+        # next guess: scale the tried weight by budget / |MDD at that weight|, kept inside the bracket
+        nxt = np.floor(g * budget / np.maximum(np.abs(md), 1e-12)).astype(int)
+        nxt = np.where(good, np.maximum(nxt, g + 1), np.minimum(nxt, g - 1))
+        guess[idx] = np.clip(nxt, lo[idx] + 1, hi[idx] - 1)
+        if done.all():
+            break
+    todo = hi - lo > 1
+    while todo.any():  # bisection of what the secant left
         mid = (lo + hi) // 2
-        good = np.zeros(len(cols), dtype=bool)
+        good = np.zeros(k, dtype=bool)
         good[todo] = _mdd_columns(R[:, todo], C[:, todo], WEIGHTS[mid[todo]]) >= tol
         lo = np.where(todo & good, mid, lo)
         hi = np.where(todo & ~good, mid, hi)
-        todo = (hi - lo > 1) & ~zero_bad
-    out[cols] = np.where(zero_bad, 0.0, WEIGHTS[lo])
+        todo = hi - lo > 1
+    out[cols] = WEIGHTS[lo]
     return out
 
 
