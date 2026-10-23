@@ -35,6 +35,9 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 - **열(heat) 상한**: 보유 중인 포지션의 초기 위험(주식 수 × 손절폭) 합이 총자산의 H%를 넘게 되는 매수는 하지 않습니다.
 - **손익분기 이동**: 종가가 진입가 + X × 손절폭 이상에 한 번 닿은 뒤에는, 종가가 진입가 아래로 내려오면 청산합니다.
 - **ATR 손절**: 오늘 종가 < 진입가 − k × ATR(14). ATR은 신호일(매수 전날) 값으로 고정합니다.
+- **시간 손절**: 진입 후 N거래일이 지났는데 종가 ≤ 진입가이면 청산합니다.
+- **부분 익절**: 종가가 처음으로 진입가 × (1 + X%) 이상이 되면 다음 날 시가에 보유의 50%를 팝니다(한 번만).
+  같은 날 전량 청산 신호가 나면 전량 청산이 우선합니다. 거래 목록에는 포지션당 한 줄로, 수익률은 두 번의 매도를 합친 값입니다.
     변동성이 낮은 종목은 더 많이(최대 2배), 높은 종목은 적게 사서 종목마다 위험을 비슷하게 맞춥니다.
 - 빈 슬롯보다 신호가 많으면 **평균 거래대금이 큰 종목**부터 매수합니다 (성과와 무관한 유동성 기준).
 - 남는 현금은 **단기국채 ETF(BIL) 수익률**을 받습니다 (BIL 상장 전 2007년 이전은 13주 국채금리 ÷ 252). 끄면 0%.
@@ -46,10 +49,14 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 
 
 TRADE_COLUMNS = ["symbol", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days", "exit_reason"]
+PARTIAL_COLUMNS = ["symbol", "entry_date", "date", "price", "fraction"]
 VOL_DAYS = 60  # volatility window for inverse-volatility sizing
 SIZE_CAP = 2.0  # a position is at most twice the equal slot
 SIZING_LABELS = {"equal": "동일 금액", "inverse_vol": "변동성 역가중", "risk": "위험 기준 (손절폭)"}
 BREAKEVEN_KEY = "breakeven"  # pseudo exit: the stop moved to the entry price (StrategyConfig.breakeven_r)
+PARTIAL_KEY = "take_profit_pct"  # not a full exit: sells PARTIAL_FRACTION of the position once
+PARTIAL_FRACTION = 0.5
+PARTIAL_SUFFIX = " (부분 익절 50% 후)"
 BREAKEVEN_LABEL = "손익분기 이동"
 DELIST_KEY = "delist"  # forced exit when a symbol's price series ends inside the period (lab/crsp.py)
 DELIST_LABEL = "상장폐지 (데이터 종료)"
@@ -174,6 +181,8 @@ class BacktestResult:
     warnings: list[str] = field(default_factory=list)
     # orders decided on the last close, for the next open: {"buy": [symbols], "sell": {symbol: exit block key}}
     pending_orders: dict = field(default_factory=dict)
+    # partial sales (take_profit_pct): symbol, entry_date, date, price, fraction of the original position
+    partial_exits: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=PARTIAL_COLUMNS))
 
     @property
     def period(self) -> tuple[pd.Timestamp, pd.Timestamp]:
@@ -195,6 +204,19 @@ class SignalCache:
         if key not in self._memo:
             self._memo[key] = make()
         return self._memo[key]
+
+    # memo entries that depend only on the panel and the window, not on the rules
+    WINDOW_KEYS = ("tradable", "close", "open", "open_np", "last_close", "last_close_np", "days", "rank", "atr", "vol",
+                   "last_bar")
+
+    def drop_rule_data(self, keep_window: tuple | None = None) -> None:
+        """Free what depends on the rules (block outputs, entry masks, exit arrays) and every
+        window-level array except those of `keep_window`. Long runs over many rule sets on a large
+        panel (lab/crsp_study.py) call this between rule sets so memory does not grow."""
+        self._frames.clear()
+        for k in list(self._memo):
+            if k[0] not in self.WINDOW_KEYS or (len(k) > 1 and k[1] != keep_window):
+                del self._memo[k]
 
     def frame(self, key: str, value: float | None) -> pd.DataFrame:
         k = (key, None if value is None else float(value))
@@ -305,7 +327,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     trail_mult = None if trail is None else 1 - trail / 100.0
     stop_mult = None if stop is None else 1 - stop / 100.0
     be_r = cfg.breakeven_r
-    exit_keys = list(cfg.exits) + ([BREAKEVEN_KEY] if be_r is not None else [])
+    tp = cfg.exits.get(PARTIAL_KEY)
+    time_n = cfg.exits.get("time_stop")
+    exit_keys = [k for k in cfg.exits if k != PARTIAL_KEY] + ([BREAKEVEN_KEY] if be_r is not None else [])
     n = len(dates)
     path_exits = [k for k in exit_keys if k not in signal_exits]  # depend on the entry price
     risk_sizing = cfg.sizing == "risk"
@@ -326,7 +350,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         """next_sig[j, d]: first day >= d on which a signal exit of symbol j fires (n = never)."""
         hit = CT == CT
         hit &= np.logical_or.reduce([signal_exits[k] for k in signal_exits])
-        days = np.where(hit, np.arange(n), n)
+        days = np.where(hit, np.arange(n, dtype=np.int32), np.int32(n))  # int32: half the memory of int64
         return np.ascontiguousarray(np.minimum.accumulate(days[:, ::-1], axis=1)[:, ::-1])
 
     next_sig = (cache.memo(("next_signal", w, tuple((k, cfg.exits[k]) for k in signal_exits)), make_next_signal)
@@ -362,6 +386,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                     hits.append(cj < entry_price * stop_mult)
                 elif k == "atr_stop":
                     hits.append(cj < entry_price - r_unit if r_unit is not None else np.zeros(len(cj), dtype=bool))
+                elif k == "time_stop":
+                    hits.append((np.arange(start, end) - e >= time_n) & (cj <= entry_price))
                 else:  # breakeven: once the peak reached entry + X R, a close below the entry exits
                     armed = pk >= entry_price + be_r * r_unit if r_unit is not None else np.zeros(len(cj), dtype=bool)
                     hits.append(armed & (cj < entry_price))
@@ -376,6 +402,17 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     # an exit depends only on (symbol, entry day) once the exit rules are fixed, so the answers
     # are shared by every backtest with these exits on this window (all entry rules of a grid)
     exit_at = cache.memo(("exit_at", w, tuple(cfg.exits.items()), be_r), dict)
+    partial_at = cache.memo(("partial_at", w, tuple(cfg.exits.items()), be_r), dict) if tp is not None else None
+    tp_mult = None if tp is None else 1 + tp / 100.0
+
+    def first_partial(j: int, e: int, entry_price: float, full: tuple[int, str] | None) -> int | None:
+        """Day of the first close >= entry x (1 + X%) strictly before the full-exit signal day."""
+        stop_at = n if full is None else full[0]
+        if stop_at <= e:
+            return None
+        cj = CT[j, e:stop_at]
+        hit = (cj == cj) & (cj >= entry_price * tp_mult)
+        return e + int(hit.argmax()) if hit.any() else None
     if panel.delist_exit:  # a series that ends inside the window: sell on its last bar (lab/crsp.py)
         last_bar = cache.memo(("last_bar", w), lambda: np.where(
             (CT == CT).any(axis=1), n - 1 - np.argmax((CT == CT)[:, ::-1], axis=1), -1).tolist())
@@ -398,6 +435,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     held_sh: list[float] = []
     pending_entry: list[int] = []
     pending_exit: dict[int, str] = {}
+    pending_partial: list[int] = []
+    partials_on: dict[int, list[int]] = {}  # day -> symbols whose partial sale is signalled that day
+    partials: list[tuple] = []
     exits_on: dict[int, list[tuple[int, str]]] = {}  # day -> [(symbol, exit key)] in holding order
     equity = [0.0] * n
     exposure = [0.0] * n
@@ -413,12 +453,38 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
             p = pos.pop(j)
             cash += p["shares"] * px * (1 - c)
             open_risk -= p["risk"]
+            ret = (px * (1 - c)) / (p["entry_price"] * (1 + c)) - 1.0
+            label = exit_label(pending_exit[j])
+            if "partial_px" in p:  # one row per position: both sales together
+                f = PARTIAL_FRACTION
+                ret = (f * p["partial_px"] + (1 - f) * px) * (1 - c) / (p["entry_price"] * (1 + c)) - 1.0
+                label += PARTIAL_SUFFIX
             trades.append((  # columns of TRADE_COLUMNS (tuples build the frame faster than dicts)
-                symbols[j], day[p["entry_i"]], day[i], p["entry_price"], px,
-                (px * (1 - c)) / (p["entry_price"] * (1 + c)) - 1.0, i - p["entry_i"],
-                exit_label(pending_exit[j]),
+                symbols[j], day[p["entry_i"]], day[i], p["entry_price"], px, ret, i - p["entry_i"], label,
             ))
             del pending_exit[j]
+            if not single:
+                held_j = list(pos)
+                held_sh = [q["shares"] for q in pos.values()]
+        if pending_partial:
+            keep = []
+            for j in pending_partial:
+                p = pos.get(j)
+                if p is None or j in pending_exit:
+                    continue
+                px = Oi[j]
+                if px != px:
+                    keep.append(j)  # no bar today; try again tomorrow
+                    continue
+                px = float(px)
+                sold = p["shares"] * PARTIAL_FRACTION
+                cash += sold * px * (1 - c)
+                p["shares"] -= sold
+                open_risk -= p["risk"] * PARTIAL_FRACTION
+                p["risk"] *= 1 - PARTIAL_FRACTION
+                p["partial_px"] = px
+                partials.append((symbols[j], day[p["entry_i"]], day[i], px, PARTIAL_FRACTION))
+            pending_partial = keep
             if not single:
                 held_j = list(pos)
                 held_sh = [q["shares"] for q in pos.values()]
@@ -461,6 +527,12 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                     x = exit_at[(j, i)] = exit_for(j, i, px, r_unit)
                 if x is not None:
                     exits_on.setdefault(x[0], []).append((j, x[1]))
+                if tp is not None:
+                    d = partial_at.get((j, i), partial_at)
+                    if d is partial_at:
+                        d = partial_at[(j, i)] = first_partial(j, i, px, x)
+                    if d is not None:
+                        partials_on.setdefault(d, []).append(j)
             pending_entry = []
             if not single:
                 held_j = list(pos)
@@ -483,6 +555,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         # entry order, which is also the order of pos, so sells queue in the same order.
         for j, k in exits_on.pop(i, ()):
             pending_exit[j] = k
+        for j in partials_on.pop(i, ()):
+            if j in pos and j not in pending_exit:
+                pending_partial.append(j)
 
         # 4) entry candidates on today's close
         if single:
@@ -515,7 +590,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         universe_size=int(tradable.sum()),
         warnings=warnings,
         pending_orders={"buy": [symbols[j] for j in pending_entry],
-                        "sell": {symbols[j]: k for j, k in pending_exit.items()}},
+                        "sell": {symbols[j]: k for j, k in pending_exit.items()},
+                        **({"partial": [symbols[j] for j in pending_partial]} if pending_partial else {})},
+        partial_exits=pd.DataFrame(partials, columns=PARTIAL_COLUMNS),
     )
 
 

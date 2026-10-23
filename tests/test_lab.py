@@ -862,3 +862,60 @@ def test_risk_sizing_heat_and_breakeven():
     pd.testing.assert_frame_equal(run_backtest(panel, base).trades, run_backtest(panel, replace(base, heat=None)).trades)
     # risk sizing needs an initial stop: without one nothing is bought
     assert run_backtest(panel, replace(risk, exits={"low_break": 10})).trades.empty
+
+
+def test_fit_weights_matches_one_column_at_a_time():
+    rng = np.random.default_rng(12)
+    T, m = 900, 40
+    R = rng.normal(0.0004, rng.uniform(0.003, 0.04, m), (T, m))
+    C = np.full((T, m), 0.0001)
+    starts = rng.integers(0, 400, m)
+    for k, f in enumerate(starts):  # later starts: zero return and zero cash before the first day
+        R[:f, k], C[:f, k] = 0.0, 0.0
+    R[:, 0] = 0.0005  # never falls: 100%
+    got = target.fit_weights(R, C)
+    want = [target.fit_weight(R[f:, k], C[f:, k]) for k, f in enumerate(starts)]
+    assert got.tolist() == want and got[0] == 1.0
+
+
+# --------------------------------------------------------------------------- time stop and partial take-profit (DECISIONS 73)
+
+from lab.engine import PARTIAL_SUFFIX  # noqa: E402
+
+
+def test_time_stop_only_cuts_positions_not_in_profit():
+    n = 80
+    flat = [10.0] * 30
+    up = flat + [11.0] + [11.0] * 5 + list(np.linspace(11.0, 14.0, n - 36))  # breakout, then a slow rise
+    dull = flat + [11.0] + [10.8] * (n - 31)  # breakout, then stuck below the entry
+    panel, dates = make_panel({"AAA": up, "BBB": dull, "SPY": [100.0] * n})
+    res = run_backtest(panel, cfg(entries={"breakout": 5}, exits={"time_stop": 10}, max_positions=2))
+    t = res.trades
+    assert list(t.symbol) == ["BBB"] and t.exit_reason.iloc[0] == EXIT_BLOCKS["time_stop"].label
+    entry = dates.get_loc(t.entry_date.iloc[0])
+    assert dates.get_loc(t.exit_date.iloc[0]) == entry + 10 + 1  # signal on day entry+10, sold next open
+    assert list(res.open_positions.symbol) == ["AAA"]
+
+
+def test_partial_take_profit_one_row_and_stand_alone_account():
+    n = 120
+    rng = np.random.default_rng(3)
+    base_path = [10.0] * 30 + list(10.0 * np.cumprod(1 + rng.normal(0.004, 0.012, n - 30)))
+    panel, dates = make_panel({"AAA": base_path, "SPY": [100.0] * n})
+    c = cfg(entries={"breakout": 5}, exits={"trailing_pct": 12.0, "take_profit_pct": 15.0}, cost_bps=10.0)
+    res = run_backtest(panel, c)
+    assert len(res.partial_exits) >= 1
+    pe = res.partial_exits.iloc[0]
+    trade = res.trades[res.trades.entry_date == pe.entry_date]
+    if len(trade):  # closed: one row, both sales in its return
+        t = trade.iloc[0]
+        cc = 10 / 10_000
+        want = (0.5 * pe.price + 0.5 * t.exit_price) * (1 - cc) / (t.entry_price * (1 + cc)) - 1
+        assert t["return"] == pytest.approx(want) and t.exit_reason.endswith(PARTIAL_SUFFIX)
+    # the stand-alone account rebuilt from the records equals the engine's one-slot account
+    scfg = single.single_config(c, panel)
+    sres = run_backtest(panel, scfg)
+    pd.testing.assert_frame_equal(sres.partial_exits, res.partial_exits)
+    rets = single.symbol_returns(panel, scfg, sres)
+    eq = (1 + rets["AAA"].fillna(0.0)).cumprod()
+    assert eq.iloc[-1] == pytest.approx(res.equity.iloc[-1] / res.equity.iloc[0], rel=1e-9)

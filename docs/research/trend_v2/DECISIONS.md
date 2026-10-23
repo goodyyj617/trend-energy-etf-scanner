@@ -371,6 +371,22 @@ allocation. Review: docs/research/lab/2026-10-23_quant_models_small_account.md.
     within its menu range; verdict as in 71 (CAGR >= SPY, |MDD| <= |SPY MDD|, both samples,
     window_share, PBO), plus after-cost and after-tax CAGR (round trip 0.5% unless the user
     gives the broker's terms; Korean capital-gains tax 22% above 2.5M won a year).
+73. CHARTER amendment by user decision (2026-10-23): two risk-management exits are allowed.
+    time_stop N (exit when a position has been held N trading days and its close is at or below
+    the entry price; profitable positions are not touched; default 20, range 5-120) and
+    take_profit_pct X (on the first close at or above entry x (1 + X%), sell 50% at the next open,
+    once; the rest follows the other exits; default 20, range 5-100). An unconditional holding
+    period and a target that closes the whole position stay prohibited. A position with a partial
+    sale is one row in the trade list, its return combining both sales (exit reason suffixed
+    "(부분 익절 50% 후)"); the sales are in BacktestResult.partial_exits and lab/single.py rebuilds
+    the part-stock, part-cash stand-alone account from them (tested against the one-slot engine).
+    Both join the variables of the risk-management test of 72.
+74. Long runs on the CRSP panel: the first Colab run stopped after 4 families when a worker ran
+    out of memory (block outputs and exit arrays of every family stayed in the cache). The study
+    now frees rule-specific arrays when the family changes (SignalCache.drop_rule_data), stores
+    the next-exit array as int32, and computes the per-symbol metrics as matrices
+    (target.fit_weights; identical weights, per-symbol buy-and-hold now from float64 prices,
+    differences < 1e-6). Results of the four finished families stand; the run resumes from them.
 
 ## Open decisions
 

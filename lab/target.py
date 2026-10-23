@@ -58,6 +58,55 @@ def fit_weight(rets: np.ndarray, cash: np.ndarray, budget: float = DD_BUDGET) ->
     return float(WEIGHTS[lo])
 
 
+def _mdd_columns(rets: np.ndarray, cash: np.ndarray, w: np.ndarray) -> np.ndarray:
+    eq = np.cumprod(1.0 + w * rets + (1.0 - w) * cash, axis=0)
+    if not len(eq):
+        return np.zeros(rets.shape[1])
+    peak = np.maximum(np.maximum.accumulate(eq, axis=0), 1.0)
+    return np.minimum((eq / peak - 1.0).min(axis=0), 0.0)
+
+
+def fit_weights(rets: np.ndarray, cash: np.ndarray, budget: float = DD_BUDGET) -> np.ndarray:
+    """fit_weight for every column of (days x series) matrices at once, same answer.
+    A series that starts later has zero returns and zero cash before its start (its equity stays 1).
+    The drawdown of the blend is close to w x the full drawdown, so w = budget / |MDD at w = 1| is
+    tried first; only columns where that guess is not the boundary are bisected."""
+    m = rets.shape[1]
+    out = np.zeros(m)
+    tol = -budget - 1e-12
+    mdd1 = _mdd_columns(rets, cash, np.ones(m))
+    full = mdd1 >= tol
+    out[full] = WEIGHTS[-1]
+    cols = np.flatnonzero(~full)
+    if not len(cols):
+        return out
+    R, C = rets[:, cols], cash[:, cols]
+    top = len(WEIGHTS) - 1
+    guess = np.clip(np.floor(budget / np.abs(mdd1[cols]) * top).astype(int), 0, top - 1)
+    g_ok = _mdd_columns(R, C, WEIGHTS[guess]) >= tol
+    g1_ok = _mdd_columns(R, C, WEIGHTS[guess + 1]) >= tol
+    # bracket [lo, hi] with ok(lo) and not ok(hi), as in fit_weight
+    lo = np.where(g_ok, np.where(g1_ok, guess + 1, guess), 0)
+    hi = np.where(g_ok, np.where(g1_ok, top, guess + 1), guess)
+    zero_bad = ~g_ok & ~(_mdd_columns(R, C, np.zeros(len(cols))) >= tol)
+    todo = (hi - lo > 1) & ~zero_bad
+    while todo.any():
+        mid = (lo + hi) // 2
+        good = np.zeros(len(cols), dtype=bool)
+        good[todo] = _mdd_columns(R[:, todo], C[:, todo], WEIGHTS[mid[todo]]) >= tol
+        lo = np.where(todo & good, mid, lo)
+        hi = np.where(todo & ~good, mid, hi)
+        todo = (hi - lo > 1) & ~zero_bad
+    out[cols] = np.where(zero_bad, 0.0, WEIGHTS[lo])
+    return out
+
+
+def blend_columns(rets: np.ndarray, cash: np.ndarray, w) -> np.ndarray:
+    """Equity paths (days + 1, series) of w x asset + (1 - w) x cash per column, starting at 1."""
+    eq = np.cumprod(1.0 + w * rets + (1.0 - w) * cash, axis=0)
+    return np.vstack([np.ones((1, rets.shape[1])), eq])
+
+
 def fit_weight_grid(rets: np.ndarray, cash: np.ndarray, budget: float = DD_BUDGET) -> float:
     """Reference implementation: every weight of the grid (used by the tests)."""
     eq = np.cumprod(1.0 + WEIGHTS[:, None] * rets[None, :] + (1.0 - WEIGHTS[:, None]) * cash[None, :], axis=1)

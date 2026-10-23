@@ -93,6 +93,8 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
   - `RULES_KO`는 화면에 그대로 보여주는 규칙 설명이다. 엔진 동작을 바꾸면 함께 고칠 것.
   - 포지션 크기 `sizing`: `equal` | `inverse_vol`(기본, 60일 변동성·2배 상한) | `risk`(위험 기준: 초기 손절폭으로 주식 수 결정, `risk_pct`·`max_weight`). `to_dict()`는 기본값 `equal`일 때 키를 생략해 예전 시험 키를 유지한다. 새 설정 필드를 더할 때도 같은 방식으로.
   - 리스크 관리층(DECISIONS 72): `atr_stop` 청산 블록(신호일 ATR 기준 초기 손절), `heat`(열 상한), `breakeven_r`(손익분기 이동, 의사 청산 키 `BREAKEVEN_KEY`). 모두 기본값에서 꺼져 있다. 초기 손절 거리 R은 `risk_per_share`가 `atr_stop` 또는 `stop_loss_pct`에서 계산한다. 피라미딩은 아직 없다.
+  - `time_stop`은 `first_exit`의 경로 청산이다. `take_profit_pct`(PARTIAL_KEY)는 전량 청산이 아니라 `first_partial`이 정한 날 다음 시가에 50%를 판다. 거래 목록은 포지션당 한 줄(두 매도를 합친 수익률), 부분 매도 기록은 `BacktestResult.partial_exits`.
+  - 큰 패널에서 여러 규칙을 차례로 돌릴 때는 규칙이 바뀔 때 `SignalCache.drop_rule_data(keep_window)`로 규칙별 배열을 비운다(안 그러면 CRSP 3,700종목에서 수십 GB가 쌓임).
   - 일간 루프는 numpy 스칼라 대신 파이썬 리스트를 쓴다(수 배 빠름, 결과는 비트 단위로 동일). 기간(window)별 리스트는 `SignalCache.memo`로 격자 칸끼리 재사용한다.
   - 청산은 매일 보유 종목을 검사하지 않고, 매수하는 순간 `first_exit`가 그 종목의 이후 종가 배열에서 첫 청산일과 사유를 찾는다(규칙은 같음: 종가 없는 날 건너뜀, 고점은 매수가와 그날 종가까지 포함, 사유는 `cfg.exits` 순서).
     청산일은 (종목, 매수일)에만 달려 있어 같은 청산 설정의 모든 칸이 `exit_at` 메모를 공유한다. 포지션 상태가 필요한 청산 블록을 추가하면 `first_exit`에 넣을 것.
@@ -131,7 +133,7 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - 남는 현금은 단기국채 수익률을 받는다(기본). 0%로 두면 추세추종이 부당하게 불리해진다.
 - 2차원 격자(신호 파라미터 × 청산 파라미터)는 허용, 그 이상의 전수 탐색은 금지. 여러 변수를 함께 볼 때는 고정 예산 Sobol 표본 탐색(`lab/explore.py`)과 PBO로 한다(DECISIONS 66).
 - 사용자 목표는 "레버리지 없이 수익 최대·낙폭 최소"다. 탐색 기준은 낙폭 15% 맞춤 수익이 SPY+국채 혼합보다 높은지(`lab/target.py`, DECISIONS 64)와 3년 롤링 구간 승률(65)이다.
-- 고정 보유기간 청산과 고정 목표가 청산은 쓰지 않는다(CHARTER).
+- 고정 보유기간 청산과 전량 고정 목표가 청산은 쓰지 않는다(CHARTER). 단, 사용자 결정으로 조건부 시간 손절(`time_stop`: N일 뒤 진입가 이하일 때만)과 1회 부분 익절(`take_profit_pct`: +X%에 50% 매도)은 허용한다(DECISIONS 73).
 - 블록은 가격·거래량과 최소한의 파생 지표로 시작한다. ETF 우선, 개별 종목은 yfinance 경로로(생존 편향 경고 유지).
 - 기존 trend-energy score(0.65·TE63 + 0.35·TE126)와 score breakout은 연구 경로에서 폐기됐다. 되살리지 않는다.
 - 결과는 표본 내(in-sample) 연구다. 스냅샷 유니버스가 현재 AUM 기준이라 생존 편향이 있다. 결과를 "승인"이나 "실거래 가능"으로 표현하지 않는다.

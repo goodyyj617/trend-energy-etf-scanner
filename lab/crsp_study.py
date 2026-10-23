@@ -70,11 +70,20 @@ def _init(panel_dir: str, entry_menu: dict | None = None, exit_menu: dict | None
     _W["panel"] = load_panel_with_cash(Path(panel_dir))
     _W["cache"] = SignalCache(_W["panel"])
     _W["spy"] = {k: spy_stats(_W["panel"], s, e) for k, (s, e, _) in SAMPLES.items()}
+    idx = _W["panel"].close.index
+    _W["window"] = {k: tuple(idx[(idx >= pd.Timestamp(s)) & (idx <= pd.Timestamp(e))][[0, -1]]) for k, (s, e, _) in SAMPLES.items()}
+    _W["rules"] = None
 
 
 def _run(job):
     tag, sample, entries, exits = job
     s, e, _ = SAMPLES[sample]
+    # a family's 36 cells share block outputs; a new rule set frees the previous one's arrays
+    # (kept, they add up to tens of GB over 154 families on 3,700 symbols)
+    rules = (sample, tuple(entries), tuple(exits)) if isinstance(tag, tuple) else (sample, tag)
+    if rules != _W["rules"]:
+        _W["cache"].drop_rule_data(keep_window=_W["window"][sample])
+        _W["rules"] = rules
     cfg = replace(base_config(s, e), entries=entries, exits=exits)
     o = single.evaluate(_W["panel"], cfg, _W["cache"])
     row = {k: o[k] for k in KEEP}
@@ -87,7 +96,16 @@ def _run(job):
 
 
 def run_jobs(ex, jobs):
-    return list(ex.map(_run, jobs, chunksize=4))
+    return list(ex.map(_run, jobs, chunksize=1))
+
+
+def memory_note() -> str:
+    try:
+        import psutil
+    except ImportError:
+        return ""
+    vm = psutil.virtual_memory()
+    return f" · 메모리 여유 {vm.available / 1e9:.1f}/{vm.total / 1e9:.0f} GB"
 
 
 # --------------------------------------------------------------------------- families
@@ -125,7 +143,8 @@ def run_families(ex, out: Path, panel, log):
         per_cell = (time.time() - t0) / done_cells
         remaining = (len(todo) - n - 1) * 36 * per_cell
         log(f"  [{n + 1}/{len(todo)}] {sample} {ENTRY_BLOCKS[e].label} × {EXIT_BLOCKS[x].label}: "
-            f"{time.time() - t:.0f}s, 통과 {int(cells['pass'].sum())}/36 · 칸당 {per_cell:.1f}s · 남은 예상 {remaining / 3600:.1f}h")
+            f"{time.time() - t:.0f}s, 통과 {int(cells['pass'].sum())}/36 · 칸당 {per_cell:.1f}s · 남은 예상 {remaining / 3600:.1f}h"
+            + memory_note())
 
 
 def family_summary(out: Path, sample: str) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -297,7 +316,7 @@ def main(argv: list[str]) -> None:
     ap.add_argument("--panel", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--results", default=None, help="시험 기록과 앱용 연구 요약을 쓸 폴더 (기본 out/lab_results)")
-    ap.add_argument("--workers", type=int, default=min(3, max(1, (os.cpu_count() or 2) - 1)))
+    ap.add_argument("--workers", type=int, default=1)
     ap.add_argument("--sobol", type=int, default=1024)
     ap.add_argument("--skip-sobol", action="store_true")
     ap.add_argument("--dry", action="store_true", help="2x2 menu, 16 Sobol points: checks the pipeline end to end")
