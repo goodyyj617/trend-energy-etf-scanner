@@ -695,3 +695,12 @@ def test_single_mode_matches_trading_each_symbol_alone():
     out = single.evaluate(panel, base)
     assert out["symbols"] == len(panel.tradable_symbols)  # 900 days >= 3 years each
     assert out["n_trades"] == len(res.trades)
+
+
+def test_save_study_round_trip(tmp_path, monkeypatch):
+    monkeypatch.setattr(store, "RESULTS_DIR", tmp_path)
+    df = pd.DataFrame({"계열": ["a", "b"], "통과 비율": [0.5, 0.25]})
+    store.save_study("연구", "설명", [{"title": "표", "frame": df, "pct": ["통과 비율"]}], ["메모"], "64", "docs/x.md")
+    (meta,) = store.list_results()
+    assert meta["kind"] == "study" and meta["tables"][0]["pct"] == ["통과 비율"]
+    pd.testing.assert_frame_equal(store.load_study_table(meta["path"], meta["tables"][0]["file"]), df)

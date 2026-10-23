@@ -1148,8 +1148,16 @@ def saved_page() -> None:
     fams = [i for i in items if i["kind"] == "family"]
     refs = [i for i in items if i["kind"] == "refine"]
     adds = [i for i in items if i["kind"] == "addon"]
-    t1, t2, t3, t4, t5 = st.tabs([f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})", f"계열 비교 ({len(fams)})",
-                                  f"확인 조건 시험 ({len(refs)})", f"공통 조건 시험 ({len(adds)})"])
+    studies = [i for i in items if i["kind"] == "study"]
+    t0, t1, t2, t3, t4, t5 = st.tabs([f"연구 요약 ({len(studies)})", f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})",
+                                      f"계열 비교 ({len(fams)})", f"확인 조건 시험 ({len(refs)})", f"공통 조건 시험 ({len(adds)})"])
+    with t0:
+        if not studies:
+            st.info("저장된 연구 요약이 없습니다.")
+        else:
+            idx = st.selectbox("연구 선택", range(len(studies)), key="saved_study",
+                               format_func=lambda i: f"{studies[i]['saved_at'][:16].replace('T', ' ')} · {studies[i]['name']}")
+            show_study(studies[idx])
     with t1:
         if not bts:
             st.info("저장된 백테스트가 없습니다.")
@@ -1216,6 +1224,23 @@ def saved_page() -> None:
                        f"메뉴 {am['menu_version']}")
             show_addon_result(store.load_addon_table(am["path"]), store.load_cells(am["path"]), am["label"], am["gates"],
                               am["ma200_calmar"], "saved")
+
+
+def show_study(sm: dict) -> None:
+    st.markdown(sm["description"])
+    for note in sm.get("notes", []):
+        st.markdown(f"- {note}")
+    refs = " · ".join(x for x in (f"결정 {sm['decisions']}" if sm.get("decisions") else "",
+                                  f"기록: `{sm['record']}`" if sm.get("record") else "") if x)
+    if refs:
+        st.caption(refs)
+    for t in sm["tables"]:
+        st.markdown(f"#### {t['title']}")
+        df = store.load_study_table(sm["path"], t["file"])
+        cfg = {c: st.column_config.NumberColumn(format="percent") for c in t.get("pct", []) if c in df.columns}
+        st.dataframe(df, hide_index=True, width="stretch", column_config=cfg)
+        if t.get("caption"):
+            st.caption(t["caption"])
 
 
 def glossary_page() -> None:

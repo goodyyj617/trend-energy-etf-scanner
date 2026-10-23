@@ -3,6 +3,7 @@
 Single backtest: meta.json, equity.csv (strategy, SPY, exposure), trades.csv
 Grid          : meta.json, cells.csv
 Family / refine / common add-on tests: meta.json, a summary table, cells.csv
+Study (a research run made of several tables, e.g. DECISIONS 64-68): meta.json, table_<n>.csv
 """
 from __future__ import annotations
 
@@ -56,6 +57,25 @@ def save_grid(grid, name: str, data_source: str, period: tuple) -> Path:
     })
     grid.cells.to_csv(path / "cells.csv", index=False)
     return path
+
+
+def save_study(name: str, description: str, tables: list[dict], notes: list[str] | None = None,
+               decisions: str = "", record: str = "") -> Path:
+    """tables: [{"title", "frame", "caption" (optional), "pct" (columns shown as %, optional)}]."""
+    path = _folder("study", name)
+    entries = []
+    for n, t in enumerate(tables):
+        file = f"table_{n}.csv"
+        t["frame"].to_csv(path / file, index=False, encoding="utf-8")
+        entries.append({"title": t["title"], "file": file, "caption": t.get("caption", ""), "pct": list(t.get("pct", []))})
+    _write_meta(path, {"kind": "study", "name": name, "saved_at": datetime.now().isoformat(timespec="seconds"),
+                       "description": description, "notes": notes or [], "tables": entries,
+                       "decisions": decisions, "record": record})
+    return path
+
+
+def load_study_table(path: Path, file: str) -> pd.DataFrame:
+    return pd.read_csv(Path(path) / file, encoding="utf-8")
 
 
 def list_results() -> list[dict]:
