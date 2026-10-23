@@ -387,6 +387,10 @@ allocation. Review: docs/research/lab/2026-10-23_quant_models_small_account.md.
     the next-exit array as int32, and computes the per-symbol metrics as matrices
     (target.fit_weights; identical weights, per-symbol buy-and-hold now from float64 prices,
     differences < 1e-6). Results of the four finished families stand; the run resumes from them.
+    A second stop (8 workers on 51 GB, after 15 more families) came from memory peaks of
+    workers coinciding: the notebook now allows about 8 GB per worker, and the runner restarts
+    the pool with one worker fewer and resumes when a worker is killed. Finished families are
+    unaffected (each is written only when complete).
 
 ## Open decisions
 

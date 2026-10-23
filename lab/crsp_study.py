@@ -20,6 +20,7 @@ import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import replace
 from pathlib import Path
 
@@ -334,11 +335,20 @@ def main(argv: list[str]) -> None:
     panel = load_panel_with_cash(panel_dir)
     meta = json.loads((panel_dir / "meta.json").read_text(encoding="utf-8"))
     log(f"패널: 종목 {meta['symbols']}, {meta['first']} – {meta['last']} · 작업 {a.workers}개")
-    with ProcessPoolExecutor(max_workers=a.workers, initializer=_init,
-                             initargs=(str(panel_dir), dict(ENTRY_MENU), dict(EXIT_MENU))) as ex:
-        run_families(ex, out, panel, log)
-        if not a.skip_sobol:
-            run_sobol(ex, out, panel, a.sobol, log)
+    workers = a.workers
+    while True:  # a worker killed for memory breaks the pool: restart with one fewer and resume
+        try:
+            with ProcessPoolExecutor(max_workers=workers, initializer=_init,
+                                     initargs=(str(panel_dir), dict(ENTRY_MENU), dict(EXIT_MENU))) as ex:
+                run_families(ex, out, panel, log)
+                if not a.skip_sobol:
+                    run_sobol(ex, out, panel, a.sobol, log)
+            break
+        except BrokenProcessPool:
+            if workers <= 1:
+                raise
+            workers -= 1
+            log(f"작업 프로세스가 메모리 부족으로 종료됐습니다. 작업 {workers}개로 줄여 이어서 실행합니다.")
     summ = sobol_summary(out) if not a.skip_sobol else {"pbo": {}, "pass_share": {}, "all_pass": 0, "robust_candidates": 0, "top": []}
     n_eff, rho, _ = rlog.effective_trials()
     _, sr_var = rlog.trial_stats()
