@@ -710,3 +710,92 @@ def test_save_study_round_trip(tmp_path, monkeypatch):
     (g,) = meta["curves"]
     assert "scaled" not in g
     pd.testing.assert_frame_equal(store.load_study_curves(meta["path"], g["raw"]), raw, check_freq=False)
+
+
+# --------------------------------------------------------------------------- CRSP panel and point-in-time universe (DECISIONS 70)
+
+from lab import crsp  # noqa: E402
+from lab.engine import DELIST_LABEL  # noqa: E402
+
+
+def _crsp_rows(permno, dates, p0, r, shrout, cfacpr_before_split=None, split_day=None, delist_code=None, dlret=np.nan,
+               shrcd="11", exchcd="1", ticker="X"):
+    rows = []
+    for t, d in enumerate(dates):
+        adj = p0 * (1 + r) ** t
+        if split_day is not None and t < split_day:
+            prc, cf = adj * cfacpr_before_split, cfacpr_before_split
+        else:
+            prc, cf = adj, 1.0
+        last = t == len(dates) - 1
+        rows.append({"PERMNO": permno, "date": d, "SHRCD": shrcd, "EXCHCD": exchcd, "TICKER": ticker, "PRC": prc,
+                     "VOL": 1000.0, "RET": r, "SHROUT": shrout, "CFACPR": cf, "OPENPRC": prc * 0.99, "BIDLO": prc * 0.98,
+                     "ASKHI": prc * 1.02, "DLSTCD": delist_code if (last and delist_code) else np.nan,
+                     "DLRET": dlret if (last and delist_code) else np.nan})
+    return rows
+
+
+def test_crsp_adjust_removes_splits_and_adds_delisting_bar():
+    dates = pd.bdate_range("2001-01-02", periods=40)
+    rows = _crsp_rows("1", dates, 50.0, 0.01, 1000.0, cfacpr_before_split=2.0, split_day=20)
+    rows += _crsp_rows("2", dates[:30], 20.0, 0.0, 500.0, delist_code=500, dlret=np.nan)
+    adj = crsp.adjust(pd.DataFrame(rows))
+    a = adj[adj.symbol == "1"].sort_values("date")
+    assert np.allclose(a["close"].pct_change().dropna(), 0.01)  # no jump on the split day
+    assert a["close"].iloc[-1] == pytest.approx(50.0 * 1.01 ** 39)  # anchored at the last split-adjusted price
+    assert np.allclose(a["open"] / a["close"], 0.99)
+    b = adj[adj.symbol == "2"]
+    bar = b[b["date"].isna()]
+    assert len(bar) == 1 and bar["close"].iloc[0] == pytest.approx(20.0 * 0.7)  # missing DLRET on code 500 -> -30%
+
+
+def test_crsp_build_panel_point_in_time(tmp_path):
+    y1 = pd.bdate_range("2001-01-02", "2001-12-31")
+    y2 = pd.bdate_range("2002-01-02", "2002-12-31")
+    dates = y1.append(y2)
+    rows = _crsp_rows("1", dates, 100.0, 0.0005, 10_000.0, ticker="AAA")  # largest both years
+    rows += _crsp_rows("2", dates[:len(y1) + 100], 50.0, 0.0, 5_000.0, delist_code=584, dlret=-0.5, ticker="BBB")
+    rows += _crsp_rows("3", dates, 10.0, 0.004, 1_000.0, ticker="CCC")  # small in 2001, grows
+    rows += _crsp_rows(crsp.SPY_PERMNO, dates, 100.0, 0.0003, 1.0, shrcd="73", exchcd="1", ticker="SPY")
+    rows += _crsp_rows("9", dates, 5.0, 0.0, 90_000.0, shrcd="31", ticker="ADR")  # not a common stock: excluded
+    pd.DataFrame(rows).to_parquet(tmp_path / "CRSP_20010101_20051231.parquet")
+    panel, info, meta = crsp.build_panel(tmp_path, top_n=2, years=(2001, 2002), log=lambda m: None)
+    assert set(panel.symbols) == {"1", "2", "3", "SPY"} and panel.tradable_symbols == ["1", "2", "3"]
+    el = panel.eligible
+    assert not el.loc["2001"].any().any()  # no year-end before 2001 in the data
+    assert el.loc["2002", "1"].all() and not el.loc["2002", "3"].any() and not el["SPY"].any()
+    # BBB: delisted 100 trading days into 2002 at -50%, one bar later, never bought on its last two bars
+    b = panel.close["2"].dropna()
+    assert len(b) == len(y1) + 101 and b.iloc[-1] == pytest.approx(b.iloc[-2] * 0.5, rel=1e-6)
+    assert b.index[-1] == y2[100] and panel.open["2"].loc[y2[100]] == pytest.approx(b.iloc[-1], rel=1e-6)
+    assert el.loc[b.index[-3], "2"] and not el.loc[b.index[-2:], "2"].any()
+    assert panel.delist_exit and info.set_index("symbol").loc["1", "name"] == "AAA"
+    crsp.save_panel(panel, info, meta, tmp_path / "out")
+    back = crsp.load_panel(tmp_path / "out")
+    pd.testing.assert_frame_equal(back.close, panel.close)
+    pd.testing.assert_frame_equal(back.eligible, panel.eligible)
+    assert back.subset(["1"]).eligible.columns.tolist() == ["1", "SPY"]
+
+
+def test_engine_delist_exit_and_eligible_mask():
+    n = 120
+    up = list(np.linspace(100, 200, n))
+    aaa = up[:80] + [np.nan] * (n - 80)  # series ends on day 79
+    panel, dates = make_panel({"AAA": aaa, "BBB": up, "SPY": [100.0] * n})
+    panel.delist_exit = True
+    res = run_backtest(panel, cfg(entries={"above_ma": 5}, exits={"low_break": 5}, max_positions=2))
+    t = res.trades[res.trades.symbol == "AAA"]
+    assert len(t) == 1 and t.exit_reason.iloc[0] == DELIST_LABEL
+    assert t.exit_date.iloc[0] == dates[79] and t.exit_price.iloc[0] == pytest.approx(panel.open["AAA"].iloc[79])
+    assert (res.trades[res.trades.symbol == "BBB"].exit_reason != DELIST_LABEL).all()
+    # the same rules on an unchanged panel: no forced exit
+    plain, _ = make_panel({"AAA": aaa, "BBB": up, "SPY": [100.0] * n})
+    assert (run_backtest(plain, cfg(entries={"above_ma": 5}, exits={"low_break": 5}, max_positions=2)).trades.symbol != "AAA").all()
+    # eligibility: BBB may not be bought before day 60
+    el = pd.DataFrame(True, index=dates, columns=["AAA", "BBB", "SPY"])
+    el.iloc[:60, 1] = False
+    plain.eligible = el
+    res2 = run_backtest(plain, cfg(entries={"above_ma": 5}, exits={"low_break": 5}, max_positions=2))
+    entries = pd.concat([res2.trades, res2.open_positions])
+    bbb = entries[entries.symbol == "BBB"].entry_date
+    assert len(bbb) and bbb.min() > dates[60]

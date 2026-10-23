@@ -69,6 +69,10 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
   국면 전환(`kind="switch"`): 국면 진입 필터와 그 정반대 청산(`blocks.REGIME_PAIRS`)을 함께 더한다(DECISIONS 50–51).
 - **`macro.py`**: 매크로 국면 블록(블록 분류 "매크로")이 읽는 FRED 일간 시리즈(T10Y3M, BAA10Y, VIXCLS). 연구는 커밋된 `lab/macro_snapshot.csv.gz`만 읽는다(갱신: Actions "Refresh macro snapshot" 수동 실행 또는 `python -m lab.macro`).
   t일 결정에는 t−1일 이전 값만 쓴다(공표 시차). 사후 수정되는 지표는 넣지 않는다(DECISIONS 49).
+- **`single.py`**: 종목별 단독 시험(DECISIONS 67). 엔진을 `single=True`(슬롯 = 종목 수, 현금 제한 없음, numpy 경로)로 한 번 돌려 종목별 단독 계좌와 매매 기록 포트폴리오(sleeve)를 만든다. 한 종목 백테스트와 매매가 같다는 테스트가 있다.
+- **`target.py`**: 사용자 목표 지표. 레버리지 없이 낙폭 15%에 맞춘 비중·수익, 같은 낙폭의 SPY+국채 혼합, 3년 롤링 구간 승률(DECISIONS 64–65). `explore.py`: Sobol 표본 탐색과 PBO(66).
+- **`crsp.py` / `crsp_study.py`**: CRSP 일별 파일(사용자 드라이브 `H:\내 드라이브\CRSP`, 커밋 금지) → 시점별 시총 상위 N 패널(`Panel.eligible`, `delist_exit`) → 종목별 단독 시험·Sobol을 중간 저장하며 실행(DECISIONS 70–71). 실행은 노트북 RAM을 아끼려고 **Colab**(`colab/crsp_study.ipynb`, 드라이브 연결)에서 하고, 결과는 드라이브 `CRSP/lab_crsp/`로 돌아온다. `--dry`로 파이프라인만 점검할 수 있다.
+  엔진의 `Panel.eligible`은 진입만 막는다(보유 종목은 청산 규칙대로). `delist_exit=True`면 가격 시계열이 기간 중 끝나는 종목을 마지막 봉에서 강제 청산한다(`DELIST_KEY`). 두 기능 모두 기존 패널(`None`/`False`)에서는 결과를 바꾸지 않는다(2026-10-23 비트 단위 확인).
 - **`batch.py`**: 앱 기본 유니버스·설정으로 공통 조건 시험을 명령줄에서 돌린다(`python -m lab.batch addon <kind> <key>`). 앱과 똑같이 시험 횟수에 기록하고 결과를 저장한다.
 - **`daily_alert.py`**: 일일 알림(DECISIONS 53). `config/alert.yml` 전략의 모델 포트폴리오를 오늘까지 시뮬레이션해 다음 시가 주문(`BacktestResult.pending_orders`)과 국면 상태를 이슈 댓글로 보낸다. 성과는 보여주지 않는다.
 - **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
@@ -115,7 +119,8 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 
 ## 확정된 연구 방법론 (상세: `docs/research/trend_v2/DECISIONS.md` 19번 이후, 목표: `CHARTER.md`)
 
-- **포트폴리오 단위 지표(같은 날짜의 SPY 대비)가 주 기준**이다. 거래 단위 지표(t-통계량, 손익비 등)는 거래당 통계적 우위를 보는 **보조**.
+- 2026-10-22부터 탐색의 주 기준은 **종목별 단독 시험**(`lab/single.py`, DECISIONS 67)이다: 종목마다 전략 vs 그 종목 보유, 그리고 매매 기록 포트폴리오 vs SPY(+국채 혼합). 포트폴리오 단위 결과는 비교용으로 함께 본다. 거래 단위 지표는 보조.
+- 개별 종목 유니버스는 CRSP 시점별 시총 상위 1,000(DECISIONS 70)이다. 현재 지수 구성 종목만 쓰면 생존 편향이 커지므로 쓰지 않는다.
 - 강건성 판정에 **가중 합산 점수를 쓰지 않는다.** 판정은 Gate(통과/탈락)와 구조적 기준(영역, 이웃, LOYO), 사전식 정렬로만 한다.
 - Gate 기본값은 CHARTER에서 왔다: CAGR ≥ 0.80×SPY, |MDD| ≤ 0.75×|SPY MDD|, 완료 거래 ≥ 30. 통과 후보가 없어도 기준을 자동으로 낮추지 않는다.
   탐색 단계(계열·구성 요소 비교)는 탐색용 Gate `grid.EXPLORE_GATES`(칼마 ≥ SPY 칼마, 수익 조건 없음)를 쓰고, 보류 구간 후보는 위 최종 Gate로 고른다(DECISIONS 58). 최종 Gate는 결과를 본 뒤 바꾸지 않는다.

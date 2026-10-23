@@ -316,6 +316,38 @@ The user's goal is the highest return with the smallest drawdown, without relyin
     0.25 / 0.53. No holdout candidate. Trials 41,049, N_eff ~11,956.
     Record: docs/research/lab/2026-10-22_strategy_only_and_sobol.md.
 
+### Individual stocks from CRSP, point-in-time universe (2026-10-23, registered before running)
+
+The user wants the test on individual stocks, with a universe wide enough not to be a
+large-cap proxy of SPY, and the goal stated as "CAGR above SPY with MDD below SPY" without
+leverage. The user's CRSP daily stock file (1991-2024, delisted stocks included) is used
+locally or from the user's Google Drive in Colab; the data is never committed.
+
+70. Data and universe (lab/crsp.py). Common stocks (SHRCD 10, 11) on NYSE, AMEX and Nasdaq.
+    Prices are total-return adjusted (chain of 1 + RET anchored at the last split-adjusted
+    price, like yfinance Adj Close); volume x CFACPR keeps close x volume the day's dollar
+    volume. Point-in-time universe: at each year-end the TOP_N = 1,000 stocks by market value
+    (|PRC| x SHROUT) are the entry candidates of the following year (Panel.eligible); a
+    holding that drops out is kept until its exit rule fires. Delisting: one bar on the next
+    trading day at last close x (1 + DLRET), DLRET missing -> -30% for codes 500 and 520-584
+    (Shumway 1997), else 0; the engine's forced "delist" exit sells at that bar
+    (Panel.delist_exit). A stock's last two bars are never entry candidates. Price >= $5 and
+    20-day dollar volume >= $5M filters of 43 still apply; 10 bp per side. Research samples:
+    1993-02-01 - 2023-12-31 (SPY's history) and 2017-08-01 - 2023-12-31; 2024 stays unseen.
+    Top 3,000 is a later registration if the top 1,000 shows anything.
+71. Test (lab/crsp_study.py, strategy-only mode of 67). Menu v3 families and 1,024 Sobol
+    points over variables 1-6 of 66, in both samples. A cell passes when its sleeve portfolio
+    (equal weight over that day's eligible and held stand-alone accounts, 100% invested, no
+    leverage) has CAGR >= SPY CAGR, |MDD| <= |SPY MDD| and >= 30 completed trades. Family
+    order: pass share, largest connected passing region, median CAGR excess over SPY, median
+    share of stocks beating their own buy-and-hold at the 15% budget (67); ranked across the
+    two samples by rank sum. PBO by CSCV (12 blocks) on the Sobol sleeves per sample. The
+    15%-budget metrics of 64-65 are reported alongside. A point or cell is proposed as a
+    holdout candidate only if it passes in both samples with window_share >= 2/3 in each and
+    PBO < 0.5 in both; the user decides on the holdout look (verdict: the goal of this item).
+    Every cell is logged as a trial. Results and the record go into a dated note under
+    docs/research/lab/ when the run finishes.
+
 ## Open decisions
 
 - final trend-filter definition;

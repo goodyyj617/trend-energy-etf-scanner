@@ -51,7 +51,10 @@ class Panel:
     source: str = ""
     tradable: list[str] | None = None  # None = every symbol; the benchmark may be data-only
     cash: pd.Series | None = None  # daily return of uninvested cash, indexed like close
-    kind: str = ""  # "snapshot" | "yfinance": how to rebuild this panel later
+    kind: str = ""  # "snapshot" | "yfinance" | "crsp": how to rebuild this panel later
+    # point-in-time universe (lab/crsp.py): True where a symbol may be bought that day; None = always
+    eligible: pd.DataFrame | None = None
+    delist_exit: bool = False  # sell a holding on its last bar (its series ends before the period does)
 
     @property
     def tradable_symbols(self) -> list[str]:
@@ -77,6 +80,7 @@ class Panel:
         return Panel(
             *(getattr(self, f)[keep] for f in FIELDS), info=info.reset_index(drop=True), source=self.source,
             tradable=[s for s in keep if s in wanted], cash=self.cash, kind=self.kind,
+            eligible=None if self.eligible is None else self.eligible[keep], delist_exit=self.delist_exit,
         )
 
 

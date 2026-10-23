@@ -83,8 +83,8 @@ def _value(block, lo: float, hi: float, u: float) -> float:
 
 def point_config(u: np.ndarray, base: StrategyConfig) -> StrategyConfig:
     """Map one point of [0, 1)^8 to a strategy. Ranges are the menu-v3 ranges of each block."""
-    e = _pick(u[0], ENTRIES)
-    x = _pick(u[2], EXITS)
+    e = _pick(u[0], list(ENTRY_MENU))  # read at call time: a reduced menu (dry runs) is honoured
+    x = _pick(u[2], list(EXIT_MENU))
     entries = {e: _value(ENTRY_BLOCKS[e], min(ENTRY_MENU[e]), max(ENTRY_MENU[e]), u[1])}
     exits = {x: _value(EXIT_BLOCKS[x], min(EXIT_MENU[x]), max(EXIT_MENU[x]), u[3])}
     f = _pick(u[4], FILTERS)

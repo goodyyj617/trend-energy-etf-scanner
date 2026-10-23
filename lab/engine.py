@@ -44,6 +44,12 @@ TRADE_COLUMNS = ["symbol", "entry_date", "exit_date", "entry_price", "exit_price
 VOL_DAYS = 60  # volatility window for inverse-volatility sizing
 SIZE_CAP = 2.0  # a position is at most twice the equal slot
 SIZING_LABELS = {"equal": "동일 금액", "inverse_vol": "변동성 역가중"}
+DELIST_KEY = "delist"  # forced exit when a symbol's price series ends inside the period (lab/crsp.py)
+DELIST_LABEL = "상장폐지 (데이터 종료)"
+
+
+def exit_label(key: str) -> str:
+    return DELIST_LABEL if key == DELIST_KEY else EXIT_BLOCKS[key].label
 
 
 @dataclass(frozen=True)
@@ -209,20 +215,30 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     dv = cache.dollar_volume(liq)
     tradable = cache.memo(("tradable",), lambda: panel.close.columns.isin(panel.tradable_symbols))
 
-    def make_candidates():
+    entry_key = ("entry", w, tuple(cfg.entries.items()), cfg.min_price, cfg.min_dollar_volume, liq)
+    single = cfg.single
+
+    def make_mask():
         entry = None
         for key, value in cfg.entries.items():
             f = cache.frame(key, value)
             entry = f if entry is None else (entry & f)
         eligible = (panel.close >= cfg.min_price) & (dv >= cfg.min_dollar_volume)
-        mask = (entry & eligible).loc[dates].to_numpy() & tradable
+        if panel.eligible is not None:  # point-in-time universe: only that day's members may be bought
+            eligible &= panel.eligible
+        return (entry & eligible).loc[dates].to_numpy() & tradable
+
+    def make_candidates():
+        mask = make_mask()
         rows, cols = np.nonzero(mask)
         bounds = np.searchsorted(rows, np.arange(len(dates) + 1)).tolist()
         cols = cols.tolist()
         return [cols[bounds[i]:bounds[i + 1]] for i in range(len(dates))]
 
-    candidates = cache.memo(("entry", w, tuple(cfg.entries.items()), cfg.min_price, cfg.min_dollar_volume, liq),
-                            make_candidates)
+    if single:  # stand-alone accounts (lab/single.py): every signal is bought, so no ordering
+        entry_mask = cache.memo(("entry_mask",) + entry_key, make_mask)
+    else:
+        candidates = cache.memo(entry_key, make_candidates)
     # Exit checks run once per position, at entry, on whole columns (symbol x day arrays): an
     # exit depends only on that position's entry price and the closes after it, so the first
     # exit day can be found with array operations instead of checking every holding every day.
@@ -236,16 +252,19 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     CT = cache.memo(("close", w), lambda: np.ascontiguousarray(panel.close.loc[dates].to_numpy(dtype=float).T))
     # Plain Python lists: the daily loop touches single values, and Python floats are far
     # faster than numpy scalars for that. Results are bit-for-bit identical (both are doubles).
-    O = cache.memo(("open", w), lambda: panel.open.loc[dates].to_numpy(dtype=float).tolist())
-    LC = cache.memo(("last_close", w),  # last known close of each symbol, within the window
-                    lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float).tolist())
-    rank = cache.memo(("rank", w, liq), lambda: np.nan_to_num(dv.loc[dates].to_numpy(dtype=float), nan=-1.0).tolist())
-    # each day's candidates already in buying order (larger dollar volume first). The sort is
-    # stable, so dropping held symbols afterwards leaves the same order as sorting after the drop.
-    ordered = cache.memo(("ordered", w, tuple(cfg.entries.items()), cfg.min_price, cfg.min_dollar_volume, liq),
-                         lambda: [sorted(cs, key=lambda j, ri=ri: -ri[j]) for cs, ri in zip(candidates, rank)])
+    if single:  # arrays, not lists: a large universe (thousands of symbols) would not fit as lists
+        O = cache.memo(("open_np", w), lambda: panel.open.loc[dates].to_numpy(dtype=float))
+        LC = cache.memo(("last_close_np", w), lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float))
+    else:
+        O = cache.memo(("open", w), lambda: panel.open.loc[dates].to_numpy(dtype=float).tolist())
+        LC = cache.memo(("last_close", w),  # last known close of each symbol, within the window
+                        lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float).tolist())
+        rank = cache.memo(("rank", w, liq), lambda: np.nan_to_num(dv.loc[dates].to_numpy(dtype=float), nan=-1.0).tolist())
+        # each day's candidates already in buying order (larger dollar volume first). The sort is
+        # stable, so dropping held symbols afterwards leaves the same order as sorting after the drop.
+        ordered = cache.memo(("ordered",) + entry_key,
+                             lambda: [sorted(cs, key=lambda j, ri=ri: -ri[j]) for cs, ri in zip(candidates, rank)])
     inv_vol = cfg.sizing == "inverse_vol"
-    single = cfg.single
     if inv_vol:
         V, VREF = cache.memo(("vol", w), lambda: cache.vol_rows(dates))
     cash_r = (panel.cash.reindex(dates).fillna(0.0).to_numpy().tolist() if (cfg.cash_yield and panel.cash is not None)
@@ -308,6 +327,17 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     # an exit depends only on (symbol, entry day) once the exit rules are fixed, so the answers
     # are shared by every backtest with these exits on this window (all entry rules of a grid)
     exit_at = cache.memo(("exit_at", w, tuple(cfg.exits.items())), dict)
+    if panel.delist_exit:  # a series that ends inside the window: sell on its last bar (lab/crsp.py)
+        last_bar = cache.memo(("last_bar", w), lambda: np.where(
+            (CT == CT).any(axis=1), n - 1 - np.argmax((CT == CT)[:, ::-1], axis=1), -1).tolist())
+
+    def exit_for(j: int, e: int, entry_price: float) -> tuple[int, str] | None:
+        x = first_exit(j, e, entry_price)
+        if panel.delist_exit and last_bar[j] < n - 1:
+            forced = max(e, last_bar[j] - 1)  # signal the day before the last bar, sold at its open
+            if x is None or x[0] > forced:
+                x = (forced, DELIST_KEY)
+        return x
 
     nan_ = float("nan")
     day = cache.memo(("days", w), lambda: list(dates))  # indexing a DatetimeIndex one item at a time is slow
@@ -335,20 +365,25 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
             trades.append((  # columns of TRADE_COLUMNS (tuples build the frame faster than dicts)
                 symbols[j], day[p["entry_i"]], day[i], p["entry_price"], px,
                 (px * (1 - c)) / (p["entry_price"] * (1 + c)) - 1.0, i - p["entry_i"],
-                EXIT_BLOCKS[pending_exit[j]].label,
+                exit_label(pending_exit[j]),
             ))
             del pending_exit[j]
-            held_j = list(pos)
-            held_sh = [q["shares"] for q in pos.values()]
+            if not single:
+                held_j = list(pos)
+                held_sh = [q["shares"] for q in pos.values()]
         if pending_entry:
-            held_value = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
-            slot = (cash + held_value) / K
+            if single:
+                slot = 1.0  # stand-alone accounts: the size plays no role
+            else:
+                held_value = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
+                slot = (cash + held_value) / K
             for j in pending_entry:
                 if len(pos) >= K or (cash <= 1e-9 and not single):
                     break
                 px = Oi[j]
                 if px != px or px <= 0:
                     continue
+                px = float(px)
                 target = slot
                 if inv_vol:  # signal day = previous session
                     v, ref = V[i - 1][j] if i else nan_, VREF[i - 1] if i else nan_
@@ -359,19 +394,23 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                 cash -= alloc
                 x = exit_at.get((j, i), exit_at)
                 if x is exit_at:
-                    x = exit_at[(j, i)] = first_exit(j, i, px)
+                    x = exit_at[(j, i)] = exit_for(j, i, px)
                 if x is not None:
                     exits_on.setdefault(x[0], []).append((j, x[1]))
             pending_entry = []
-            held_j = list(pos)
-            held_sh = [q["shares"] for q in pos.values()]
+            if not single:
+                held_j = list(pos)
+                held_sh = [q["shares"] for q in pos.values()]
 
         # 2) cash earns today's T-bill return, then mark to market at today's close
         cash *= 1.0 + cash_r[i]
         last_close = LC[i]
-        invested = sum(map(mul, held_sh, map(last_close.__getitem__, held_j)))  # same terms, same order
-        equity[i] = cash + invested
-        exposure[i] = invested / equity[i] if equity[i] > 0 else 0.0
+        if single:  # the account value is not used; lab/single.py rebuilds each symbol's account
+            equity[i] = cash
+        else:
+            invested = sum(map(mul, held_sh, map(last_close.__getitem__, held_j)))  # same terms, same order
+            equity[i] = cash + invested
+            exposure[i] = invested / equity[i] if equity[i] > 0 else 0.0
 
         # steps 3-4 also run on the last day: they only queue orders for the next open, which
         # the backtest never reaches, and those orders are reported as pending_orders
@@ -382,15 +421,18 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
             pending_exit[j] = k
 
         # 4) entry candidates on today's close
-        free = K - (len(pos) - len(pending_exit))
-        if free > 0:
-            cand = [j for j in ordered[i] if j not in pos]
-            pending_entry = cand[:free]
+        if single:
+            pending_entry = [j for j in np.flatnonzero(entry_mask[i]).tolist() if j not in pos]
+        else:
+            free = K - (len(pos) - len(pending_exit))
+            if free > 0:
+                cand = [j for j in ordered[i] if j not in pos]
+                pending_entry = cand[:free]
 
     trades_df = pd.DataFrame(trades, columns=TRADE_COLUMNS)
     open_df = pd.DataFrame([
         {"symbol": symbols[j], "entry_date": day[p["entry_i"]], "entry_price": p["entry_price"],
-         "last_close": last_close[j], "unrealized_return": last_close[j] * (1 - c) / (p["entry_price"] * (1 + c)) - 1.0}
+         "last_close": float(last_close[j]), "unrealized_return": float(last_close[j]) * (1 - c) / (p["entry_price"] * (1 + c)) - 1.0}
         for j, p in pos.items()
     ], columns=["symbol", "entry_date", "entry_price", "last_close", "unrealized_return"])
 

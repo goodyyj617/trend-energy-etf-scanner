@@ -24,7 +24,7 @@ import yaml
 from . import macro
 from .blocks import ENTRY_BLOCKS, EXIT_BLOCKS, REGIME_PAIRS, sma
 from .data import BENCHMARK, Panel, download_panel
-from .engine import StrategyConfig, run_backtest
+from .engine import StrategyConfig, exit_label, run_backtest
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "config" / "alert.yml"
@@ -99,7 +99,7 @@ def model_portfolio(panel: Panel, cfg: StrategyConfig) -> dict:
         peak = float(closes.max())
         holdings.append({"symbol": p["symbol"], "entry_date": p["entry_date"].date().isoformat(),
                          "from_peak": float(closes.iloc[-1] / peak - 1), "trail": trail})
-    sells = {s: EXIT_BLOCKS[k].label for s, k in res.pending_orders.get("sell", {}).items()}
+    sells = {s: exit_label(k) for s, k in res.pending_orders.get("sell", {}).items()}
     return {"as_of": res.equity.index[-1].date().isoformat(), "holdings": holdings,
             "buy": list(res.pending_orders.get("buy", [])), "sell": sells, "describe": cfg.describe(),
             "max_positions": cfg.max_positions}

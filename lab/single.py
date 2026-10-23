@@ -33,8 +33,9 @@ def single_config(cfg: StrategyConfig, panel: Panel) -> StrategyConfig:
     return replace(cfg, max_positions=max(1, len(panel.tradable_symbols)), sizing="equal", single=True)
 
 
-def symbol_returns(panel: Panel, cfg: StrategyConfig, result) -> pd.DataFrame:
-    """Daily returns (dates x symbols) of each symbol traded alone, over the backtest dates."""
+def symbol_returns(panel: Panel, cfg: StrategyConfig, result, with_held: bool = False):
+    """Daily returns (dates x symbols) of each symbol traded alone, over the backtest dates.
+    with_held=True also returns the bool frame of days on which the symbol was held."""
     dates = result.equity.index
     syms = panel.tradable_symbols
     close = panel.close[syms].reindex(dates)
@@ -49,12 +50,14 @@ def symbol_returns(panel: Panel, cfg: StrategyConfig, result) -> pd.DataFrame:
     last_cl = close.ffill().to_numpy(dtype=float)  # latest close on or before each day
     prev_cl = np.vstack([np.full((1, len(syms)), np.nan), last_cl[:-1]])
     cc = np.where(np.isnan(cl) | np.isnan(prev_cl), 0.0, cl / prev_cl - 1.0)  # close-to-close, 0 on gaps
+    held = np.zeros(out.shape, dtype=bool)
 
     def fill(j, a, b_exit):
         """Entry at the open of day a; exit at the open of day b_exit (None = still open)."""
         last = len(dates) - 1 if b_exit is None else b_exit - 1
         out[a, j] = cl[a, j] / (op[a, j] * (1 + c)) - 1.0 if cl[a, j] == cl[a, j] else 0.0
         out[a + 1:last + 1, j] = cc[a + 1:last + 1, j]
+        held[a:last + 1, j] = True
         if b_exit is not None:
             prev = last_cl[b_exit - 1, j]
             out[b_exit, j] = op[b_exit, j] * (1 - c) / prev - 1.0 if prev == prev and op[b_exit, j] == op[b_exit, j] else 0.0
@@ -65,7 +68,8 @@ def symbol_returns(panel: Panel, cfg: StrategyConfig, result) -> pd.DataFrame:
         fill(pos[t.symbol], day[t.entry_date], None)
     frame = pd.DataFrame(out, index=dates, columns=syms)
     has_data = close.notna().cumsum() > 0  # from the symbol's first close in the period
-    return frame.where(has_data)
+    frame = frame.where(has_data)
+    return (frame, pd.DataFrame(held, index=dates, columns=syms)) if with_held else frame
 
 
 _BH: dict = {}  # buy-and-hold weight per (panel, symbol, first date, last date): same for every rule
@@ -75,7 +79,7 @@ def evaluate(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None
     """Per-symbol and sleeve-portfolio results of one rule (DECISIONS 67)."""
     scfg = single_config(cfg, panel)
     res = run_backtest(panel, scfg, cache)
-    rets = symbol_returns(panel, scfg, res)
+    rets, held = symbol_returns(panel, scfg, res, with_held=True)
     dates = rets.index
     cash = (panel.cash.reindex(dates).fillna(0.0) if panel.cash is not None else pd.Series(0.0, index=dates)).to_numpy()
     close = panel.close[rets.columns].reindex(dates)
@@ -87,7 +91,8 @@ def evaluate(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None
         if ok.sum() < MIN_YEARS * 252:
             continue
         rs, cs = r.to_numpy()[ok], cash[ok]
-        bh = close[s].pct_change(fill_method=None).fillna(0.0).to_numpy()[ok]
+        bh = close[s].pct_change(fill_method=None).to_numpy()[ok]
+        bh = np.where(np.isnan(bh), cs, bh)  # after a delisting (or on a gap) the holder sits in cash
         bh[0] = 0.0
         key = (id(panel), s, dates[ok][0], dates[ok][-1])
         if key not in _BH:
@@ -99,7 +104,13 @@ def evaluate(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None
                      "bh_mdd": _mdd(blend(bh, cs, 1.0)), "dd_weight": w_s, "dd_cagr": _cagr(eq_s),
                      "bh_dd_cagr": _cagr(eq_b), "excess": _cagr(eq_s) - _cagr(eq_b)})
     per = pd.DataFrame(rows)
-    sleeve_ret = rets.mean(axis=1, skipna=True).fillna(0.0)
+    # sleeve = equal weight over the accounts "in play" that day: symbols that may be bought (the
+    # point-in-time universe, or every symbol with data) plus symbols still held after dropping out
+    in_play = (panel.eligible[rets.columns].reindex(dates).fillna(False).astype(bool) if panel.eligible is not None
+               else rets.notna()) | held
+    weights = in_play.astype(float)
+    sleeve_ret = (rets.fillna(0.0) * weights).sum(axis=1) / weights.sum(axis=1).replace(0.0, np.nan)
+    sleeve_ret = sleeve_ret.fillna(pd.Series(cash, index=dates))
     sleeve = (1.0 + sleeve_ret).cumprod()
     sleeve.iloc[0] = 1.0
     port = target_report(sleeve, panel.close[BENCHMARK], panel.cash if panel.cash is not None else pd.Series(0.0, index=dates),
