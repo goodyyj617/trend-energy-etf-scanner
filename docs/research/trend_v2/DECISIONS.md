@@ -348,6 +348,30 @@ locally or from the user's Google Drive in Colab; the data is never committed.
     Every cell is logged as a trial. Results and the record go into a dated note under
     docs/research/lab/ when the run finishes.
 
+### Per-position risk management layer (2026-10-23, components registered before any run)
+
+The user wants strategies built on the risk management of individual positions, not on asset
+allocation. Review: docs/research/lab/2026-10-23_quant_models_small_account.md.
+
+72. Engine components, all off by default (existing configs keep their keys and results, checked
+    by tests): exit block atr_stop (close < entry - k x ATR14 of the signal day; k default 2,
+    range 0.5-5); sizing "risk" (shares = risk_pct% of equity / initial stop distance, risk_pct
+    default 1, with an optional cap max_weight on one position; a symbol without an initial
+    stop is not bought); heat (no buy that lifts the sum of open initial risks above this
+    fraction of equity); breakeven_r (after a gain of X R the stop moves to the entry price,
+    exit reason "손익분기 이동"). Pyramiding (adding units as a position gains) is not built yet.
+    Time stops and fixed or partial profit targets stay excluded by the CHARTER unless the user
+    changes it. Trade-level R-multiple statistics (expectancy, win rate, SQN) are the secondary
+    readout of this layer.
+    Test (to run after 71): base rules = the families that pass 71 in both samples or, if none,
+    breakout x trailing_pct and momentum x trailing_pct (the two-sample leaders of 48 and 61).
+    On the CRSP universe of 70, account level, no leverage, max_positions 20: a Sobol sample of
+    1,024 points over atr_stop k {0.5-5}, risk_pct {0.25-2}, max_weight {5-25%}, heat {2-20%
+    or off}, breakeven_r {off, 0.5-2}, trailing exit value within its menu range, entry value
+    within its menu range; verdict as in 71 (CAGR >= SPY, |MDD| <= |SPY MDD|, both samples,
+    window_share, PBO), plus after-cost and after-tax CAGR (round trip 0.5% unless the user
+    gives the broker's terms; Korean capital-gains tax 22% above 2.5M won a year).
+
 ## Open decisions
 
 - final trend-filter definition;

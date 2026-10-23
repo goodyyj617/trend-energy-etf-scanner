@@ -91,7 +91,8 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`engine.py`**: 신호는 t일 종가로 계산하고 t+1일 시가에 체결. 동일 금액 슬롯(`max_positions`), 리밸런싱 없음, 편도 비용 bp, 신호 초과 시 20일 평균 거래대금 순으로 선택.
   - `SignalCache`가 블록 출력을 `(key, value)`로 재사용한다. 격자 속도의 핵심이다.
   - `RULES_KO`는 화면에 그대로 보여주는 규칙 설명이다. 엔진 동작을 바꾸면 함께 고칠 것.
-  - 포지션 크기 `sizing`: `equal` | `inverse_vol`(기본, 60일 변동성·2배 상한). `to_dict()`는 기본값 `equal`일 때 키를 생략해 예전 시험 키를 유지한다. 새 설정 필드를 더할 때도 같은 방식으로.
+  - 포지션 크기 `sizing`: `equal` | `inverse_vol`(기본, 60일 변동성·2배 상한) | `risk`(위험 기준: 초기 손절폭으로 주식 수 결정, `risk_pct`·`max_weight`). `to_dict()`는 기본값 `equal`일 때 키를 생략해 예전 시험 키를 유지한다. 새 설정 필드를 더할 때도 같은 방식으로.
+  - 리스크 관리층(DECISIONS 72): `atr_stop` 청산 블록(신호일 ATR 기준 초기 손절), `heat`(열 상한), `breakeven_r`(손익분기 이동, 의사 청산 키 `BREAKEVEN_KEY`). 모두 기본값에서 꺼져 있다. 초기 손절 거리 R은 `risk_per_share`가 `atr_stop` 또는 `stop_loss_pct`에서 계산한다. 피라미딩은 아직 없다.
   - 일간 루프는 numpy 스칼라 대신 파이썬 리스트를 쓴다(수 배 빠름, 결과는 비트 단위로 동일). 기간(window)별 리스트는 `SignalCache.memo`로 격자 칸끼리 재사용한다.
   - 청산은 매일 보유 종목을 검사하지 않고, 매수하는 순간 `first_exit`가 그 종목의 이후 종가 배열에서 첫 청산일과 사유를 찾는다(규칙은 같음: 종가 없는 날 건너뜀, 고점은 매수가와 그날 종가까지 포함, 사유는 `cfg.exits` 순서).
     청산일은 (종목, 매수일)에만 달려 있어 같은 청산 설정의 모든 칸이 `exit_at` 메모를 공유한다. 포지션 상태가 필요한 청산 블록을 추가하면 `first_exit`에 넣을 것.

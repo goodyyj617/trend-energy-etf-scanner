@@ -799,3 +799,66 @@ def test_engine_delist_exit_and_eligible_mask():
     entries = pd.concat([res2.trades, res2.open_positions])
     bbb = entries[entries.symbol == "BBB"].entry_date
     assert len(bbb) and bbb.min() > dates[60]
+
+
+# --------------------------------------------------------------------------- per-position risk management (DECISIONS 72)
+
+from lab.engine import BREAKEVEN_LABEL  # noqa: E402
+
+
+def _risk_panel():
+    rng = np.random.default_rng(31)
+    n = 400
+    prices = {s: list(60 * np.cumprod(1 + rng.normal(0.0008, 0.015, n))) for s in ("AAA", "BBB", "CCC", "DDD", "SPY")}
+    return make_panel(prices)
+
+
+def test_atr_stop_exits_at_entry_minus_k_atr_of_signal_day():
+    panel, dates = _risk_panel()
+    c = cfg(entries={"breakout": 10}, exits={"atr_stop": 2.0}, max_positions=4, cost_bps=0.0)
+    res = run_backtest(panel, c)
+    from lab.blocks import atr as atr_fn
+    a14 = atr_fn(panel, 14)
+    stops = res.trades[res.trades.exit_reason == EXIT_BLOCKS["atr_stop"].label]
+    assert len(stops) > 3
+    idx = {d: i for i, d in enumerate(dates)}
+    for t in stops.itertuples():
+        e = idx[t.entry_date]
+        level = t.entry_price - 2.0 * a14[t.symbol].iloc[e - 1]  # ATR of the signal day
+        closes = panel.close[t.symbol].iloc[e:idx[t.exit_date]]  # closes from the entry day to the signal day
+        assert closes.iloc[-1] < level and (closes.iloc[:-1] >= level).all()
+
+
+def test_risk_sizing_heat_and_breakeven():
+    panel, dates = _risk_panel()
+    base = cfg(entries={"breakout": 10}, exits={"stop_loss_pct": 8.0}, max_positions=4, cost_bps=0.0)
+    risk = replace(base, sizing="risk", risk_pct=2.0)
+    res = run_backtest(panel, risk)
+    # first position: shares x stop distance = 2% of equity (equity = 1 before the first buy)
+    first = res.trades.sort_values("entry_date").iloc[0]
+    shares = 0.02 * 1.0 / (first.entry_price * 0.08)
+    assert "위험 2%/거래" in risk.describe()
+    assert first.entry_price * shares == pytest.approx(0.25, rel=1e-9)  # 2% / 8% = 25% of equity
+    capped = run_backtest(panel, replace(risk, max_weight=0.10))
+    f2 = capped.trades.sort_values("entry_date").iloc[0]
+    assert f2.entry_date == first.entry_date and f2.symbol == first.symbol
+    day = f2.entry_date  # every buy on the first day is capped at 10% of equity (equity = 1, no cost)
+    same_day = capped.trades[capped.trades.entry_date == day]
+    invested = capped.exposure.loc[day] * capped.equity.loc[day]
+    expected = sum(0.10 * panel.close[t.symbol].loc[day] / t.entry_price for t in same_day.itertuples())
+    assert invested == pytest.approx(expected, rel=1e-9)
+    # heat: with 2% risk per position, a 3% heat limit leaves room for one position at a time
+    hot = run_backtest(panel, replace(risk, heat=0.03))
+    held = pd.Series(0, index=dates)
+    for t in hot.trades.itertuples():
+        held.loc[t.entry_date:t.exit_date] += 1
+    assert held.max() <= 2 and len(hot.trades) < len(res.trades)  # 2 only on the day one exits and another enters
+    # breakeven: after +1R the stop sits at the entry price; such exits are labelled and lose nothing
+    be = run_backtest(panel, replace(base, breakeven_r=1.0))
+    b = be.trades[be.trades.exit_reason == BREAKEVEN_LABEL]
+    assert len(b) > 0 and (b.exit_price > b.entry_price * 0.92).all()
+    # defaults off: the config keys and results of earlier runs are unchanged
+    assert "risk_pct" not in base.to_dict() and "heat" not in base.to_dict() and "breakeven_r" not in base.to_dict()
+    pd.testing.assert_frame_equal(run_backtest(panel, base).trades, run_backtest(panel, replace(base, heat=None)).trades)
+    # risk sizing needs an initial stop: without one nothing is bought
+    assert run_backtest(panel, replace(risk, exits={"low_break": 10})).trades.empty

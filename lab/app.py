@@ -313,19 +313,39 @@ def strategy_section() -> StrategyConfig | None:
     sizing = c1.selectbox(
         "포지션 크기", list(SIZING_LABELS), format_func=SIZING_LABELS.get, key=init("sizing", "inverse_vol"),
         help="동일 금액: 새 종목마다 총자산 ÷ 최대 보유 수.\n\n"
+             "위험 기준 (손절폭): 초기 손절까지의 손실이 총자산의 r%가 되도록 주식 수를 정합니다(아래 입력).\n\n"
              "변동성 역가중: 새 종목마다 (총자산 ÷ 최대 보유 수) × min(유니버스 중앙 변동성 ÷ 그 종목 변동성, 2). "
              "변동성 = 신호일까지 60거래일 일간 수익률의 표준편차. 잔잔한 종목은 더 많이(최대 2배), 출렁이는 종목은 적게 사서 "
              "종목마다 위험을 비슷하게 맞춥니다. 진입 후 비중은 다시 맞추지 않습니다.")
     cash = c2.checkbox("남는 현금에 단기국채 수익률 적용 (BIL, 2007년 이전은 13주 국채금리)", key=init("cash_yield", True),
                        help="추세추종은 하락장에서 현금으로 피하는 것이 핵심이라, 현금 수익률 0%는 전략을 부당하게 불리하게 만듭니다. "
                             "실제로는 SGOV·BIL 같은 단기국채 ETF나 증권사 달러 예수금 이자로 비슷한 수익을 얻을 수 있습니다.")
+    risk_pct, max_weight = 1.0, None
+    if sizing == "risk":
+        r1, r2 = st.columns(2)
+        risk_pct = r1.number_input("거래당 위험 (총자산의 %)", 0.1, 5.0, step=0.1, key=init("risk_pct", 1.0),
+                                   help="초기 손절(ATR 손절 또는 진입가 대비 손절)에 걸렸을 때 잃는 금액이 총자산의 이 비율이 되도록 "
+                                        "주식 수를 정합니다. 초기 손절 조건이 없으면 매수하지 않습니다.")
+        cap = r2.number_input("종목당 비중 상한 (%, 0 = 없음)", 0.0, 100.0, step=5.0, key=init("risk_cap", 25.0),
+                              help="손절폭이 좁은 종목은 위험 기준으로 계산한 금액이 커지므로 상한을 둡니다.")
+        max_weight = None if cap <= 0 else float(cap) / 100.0
+    st.markdown("**리스크 관리 (선택)**")
+    r1, r2 = st.columns(2)
+    heat = r1.number_input("열(heat) 상한 (총자산의 %, 0 = 없음)", 0.0, 100.0, step=1.0, key=init("risk_heat", 0.0),
+                           help="보유 중인 포지션의 초기 위험(주식 수 × 손절폭) 합이 이 비율을 넘게 되는 매수는 하지 않습니다. "
+                                "초기 손절 조건(ATR 손절 또는 진입가 대비 손절)이 있을 때만 의미가 있습니다.")
+    be = r2.number_input("손익분기 이동 (R 배수, 0 = 없음)", 0.0, 5.0, step=0.5, key=init("risk_be", 0.0),
+                         help="종가가 진입가 + 이 배수 × 손절폭 이상에 닿은 뒤에는 종가가 진입가 아래로 내려오면 청산합니다. "
+                              "R = 초기 손절까지의 거리.")
     if not entries or not exits:
         st.warning("진입 조건과 청산 조건을 각각 하나 이상 선택하세요.")
         return None
     return StrategyConfig(entries=entries, exits=exits, start=str(st.session_state["start"]),
                           end=str(st.session_state["end"]), max_positions=int(k), cost_bps=float(cost),
                           min_price=float(min_price), min_dollar_volume=float(min_dv) * 1e6,
-                          liquidity_days=int(liq), cash_yield=bool(cash), sizing=str(sizing))
+                          liquidity_days=int(liq), cash_yield=bool(cash), sizing=str(sizing),
+                          risk_pct=float(risk_pct), max_weight=max_weight,
+                          heat=None if heat <= 0 else float(heat) / 100.0, breakeven_r=None if be <= 0 else float(be))
 
 
 # =========================================================================== backtest view
@@ -1349,7 +1369,7 @@ def sidebar_status() -> None:
 
 
 PERSIST_PREFIXES = ("entry_", "exit_", "max_positions", "cost_bps", "min_price", "min_dv", "liq_days", "cash_yield",
-                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_", "sizing")
+                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_", "sizing", "risk_")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES):
         st.session_state[_k] = st.session_state[_k]  # keeps settings when visiting another page

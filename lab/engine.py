@@ -30,6 +30,11 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 - 최대 보유 종목 수만큼 슬롯이 있고, 새 종목에는 min(목표 금액, 남은 현금)을 배정합니다. 이후 리밸런싱은 하지 않습니다.
   - **동일 금액**: 목표 금액 = 총자산 ÷ 최대 보유 수.
   - **변동성 역가중**: 목표 금액 = (총자산 ÷ 최대 보유 수) × min(유니버스 중앙 변동성 ÷ 그 종목 변동성, 2). 변동성 = 신호일까지 60거래일 일간 수익률의 표준편차.
+  - **위험 기준 (손절폭)**: 초기 손절(ATR 손절 또는 진입가 대비 손절)까지의 손실이 총자산의 r%가 되도록 주식 수를 정합니다
+    (주식 수 = r% × 총자산 ÷ 손절폭). 종목당 비중 상한을 둘 수 있고, 초기 손절 조건이 없는 종목은 사지 않습니다.
+- **열(heat) 상한**: 보유 중인 포지션의 초기 위험(주식 수 × 손절폭) 합이 총자산의 H%를 넘게 되는 매수는 하지 않습니다.
+- **손익분기 이동**: 종가가 진입가 + X × 손절폭 이상에 한 번 닿은 뒤에는, 종가가 진입가 아래로 내려오면 청산합니다.
+- **ATR 손절**: 오늘 종가 < 진입가 − k × ATR(14). ATR은 신호일(매수 전날) 값으로 고정합니다.
     변동성이 낮은 종목은 더 많이(최대 2배), 높은 종목은 적게 사서 종목마다 위험을 비슷하게 맞춥니다.
 - 빈 슬롯보다 신호가 많으면 **평균 거래대금이 큰 종목**부터 매수합니다 (성과와 무관한 유동성 기준).
 - 남는 현금은 **단기국채 ETF(BIL) 수익률**을 받습니다 (BIL 상장 전 2007년 이전은 13주 국채금리 ÷ 252). 끄면 0%.
@@ -43,13 +48,19 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 TRADE_COLUMNS = ["symbol", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days", "exit_reason"]
 VOL_DAYS = 60  # volatility window for inverse-volatility sizing
 SIZE_CAP = 2.0  # a position is at most twice the equal slot
-SIZING_LABELS = {"equal": "동일 금액", "inverse_vol": "변동성 역가중"}
+SIZING_LABELS = {"equal": "동일 금액", "inverse_vol": "변동성 역가중", "risk": "위험 기준 (손절폭)"}
+BREAKEVEN_KEY = "breakeven"  # pseudo exit: the stop moved to the entry price (StrategyConfig.breakeven_r)
+BREAKEVEN_LABEL = "손익분기 이동"
 DELIST_KEY = "delist"  # forced exit when a symbol's price series ends inside the period (lab/crsp.py)
 DELIST_LABEL = "상장폐지 (데이터 종료)"
 
 
 def exit_label(key: str) -> str:
-    return DELIST_LABEL if key == DELIST_KEY else EXIT_BLOCKS[key].label
+    if key == DELIST_KEY:
+        return DELIST_LABEL
+    if key == BREAKEVEN_KEY:
+        return BREAKEVEN_LABEL
+    return EXIT_BLOCKS[key].label
 
 
 @dataclass(frozen=True)
@@ -64,10 +75,16 @@ class StrategyConfig:
     min_dollar_volume: float = 5_000_000.0
     liquidity_days: int = 20
     cash_yield: bool = True
-    sizing: str = "equal"  # "equal" | "inverse_vol"
+    sizing: str = "equal"  # "equal" | "inverse_vol" | "risk"
     # strategy-only test (lab/single.py, DECISIONS 67): every entry signal is taken whatever the
     # cash, so each symbol's trades match trading it alone; the engine's equity is then not used
     single: bool = False
+    # per-position risk management (DECISIONS 72); every field is off at its default, so earlier
+    # configs keep their keys and results
+    risk_pct: float = 1.0  # sizing "risk": the loss at the initial stop is this % of equity
+    max_weight: float | None = None  # sizing "risk": one position is at most this fraction of equity
+    heat: float | None = None  # no buy that lifts the sum of open initial risks above this fraction of equity
+    breakeven_r: float | None = None  # after a gain of this many R (initial risk) the stop moves to the entry price
 
     def __post_init__(self):
         # numpy numbers (e.g. values read back from a grid table) become plain Python numbers,
@@ -87,6 +104,8 @@ class StrategyConfig:
             return replace(self, max_positions=int(value))
         if key == "cost_bps":
             return replace(self, cost_bps=float(value))
+        if key in ("risk_pct", "max_weight", "heat", "breakeven_r"):
+            return replace(self, **{key: float(value)})
         raise KeyError(key)
 
     def param_value(self, key: str) -> float:
@@ -105,8 +124,12 @@ class StrategyConfig:
             return " + ".join(blocks[k].label + ("" if v is None else f"({_num(v)})") for k, v in chosen.items()) or "없음"
 
         size = "" if self.sizing == "equal" else f" | {SIZING_LABELS[self.sizing]}"
+        if self.sizing == "risk":
+            size += f" 위험 {_num(self.risk_pct)}%/거래" + ("" if self.max_weight is None else f", 종목 상한 {self.max_weight:.0%}")
+        extra = "" if self.heat is None else f" | 열 상한 {self.heat:.0%}"
+        extra += "" if self.breakeven_r is None else f" | 손익분기 이동 +{_num(self.breakeven_r)}R"
         slots = "종목별 단독 매매" if self.single else f"최대 {self.max_positions}종목{size}"
-        return f"진입: {fmt(ENTRY_BLOCKS, self.entries)} | 청산: {fmt(EXIT_BLOCKS, self.exits)} | {slots}"
+        return f"진입: {fmt(ENTRY_BLOCKS, self.entries)} | 청산: {fmt(EXIT_BLOCKS, self.exits)} | {slots}{extra}"
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -114,6 +137,11 @@ class StrategyConfig:
             del d["sizing"]
         if not d["single"]:
             del d["single"]
+        if self.sizing != "risk":
+            del d["risk_pct"]
+        for k in ("max_weight", "heat", "breakeven_r"):
+            if d[k] is None:
+                del d[k]
         return d
 
     @staticmethod
@@ -248,7 +276,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     trail = cfg.exits.get("trailing_pct")
     stop = cfg.exits.get("stop_loss_pct")
     atr_k = cfg.exits.get("atr_trail")
-    AT = cache.memo(("atr", w), lambda: np.ascontiguousarray(cache.atr14.loc[dates].to_numpy(dtype=float).T)) if atr_k is not None else None
+    atr_stop_k = cfg.exits.get("atr_stop")
+    AT = (cache.memo(("atr", w), lambda: np.ascontiguousarray(cache.atr14.loc[dates].to_numpy(dtype=float).T))
+          if (atr_k is not None or atr_stop_k is not None) else None)
     CT = cache.memo(("close", w), lambda: np.ascontiguousarray(panel.close.loc[dates].to_numpy(dtype=float).T))
     # Plain Python lists: the daily loop touches single values, and Python floats are far
     # faster than numpy scalars for that. Results are bit-for-bit identical (both are doubles).
@@ -274,9 +304,23 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     K = int(cfg.max_positions)
     trail_mult = None if trail is None else 1 - trail / 100.0
     stop_mult = None if stop is None else 1 - stop / 100.0
-    exit_keys = list(cfg.exits)
+    be_r = cfg.breakeven_r
+    exit_keys = list(cfg.exits) + ([BREAKEVEN_KEY] if be_r is not None else [])
     n = len(dates)
     path_exits = [k for k in exit_keys if k not in signal_exits]  # depend on the entry price
+    risk_sizing = cfg.sizing == "risk"
+    heat = cfg.heat
+    max_weight = cfg.max_weight
+
+    def risk_per_share(j: int, e: int, entry_price: float) -> float | None:
+        """Initial stop distance per share of a position bought at the day-e open: the ATR stop
+        (ATR of the signal day) or the percent stop; None when the rules give no initial stop."""
+        if atr_stop_k is not None:
+            a = AT[j, e - 1] if e > 0 else float("nan")
+            return float(atr_stop_k * a) if a == a and a > 0 else None
+        if stop is not None:
+            return entry_price * stop / 100.0
+        return None
 
     def make_next_signal():
         """next_sig[j, d]: first day >= d on which a signal exit of symbol j fires (n = never)."""
@@ -288,7 +332,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     next_sig = (cache.memo(("next_signal", w, tuple((k, cfg.exits[k]) for k in signal_exits)), make_next_signal)
                 if signal_exits else None)
 
-    def first_exit(j: int, e: int, entry_price: float) -> tuple[int, str] | None:
+    def first_exit(j: int, e: int, entry_price: float, r_unit: float | None) -> tuple[int, str] | None:
         """(day, exit key) of the first close from day e on that triggers an exit of a position
         in symbol j bought at the day-e open, or None. Same rule as checking day by day: days
         without a close are skipped; the peak includes the entry price and every close so far
@@ -314,8 +358,13 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                 elif k == "atr_trail":
                     a = AT[j, start:end]
                     hits.append((a == a) & (cj < pk - atr_k * a))
-                else:  # stop_loss_pct
+                elif k == "stop_loss_pct":
                     hits.append(cj < entry_price * stop_mult)
+                elif k == "atr_stop":
+                    hits.append(cj < entry_price - r_unit if r_unit is not None else np.zeros(len(cj), dtype=bool))
+                else:  # breakeven: once the peak reached entry + X R, a close below the entry exits
+                    armed = pk >= entry_price + be_r * r_unit if r_unit is not None else np.zeros(len(cj), dtype=bool)
+                    hits.append(armed & (cj < entry_price))
             hit = valid & np.logical_or.reduce(hits)
             if hit.any():
                 d = int(hit.argmax())
@@ -326,13 +375,13 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
 
     # an exit depends only on (symbol, entry day) once the exit rules are fixed, so the answers
     # are shared by every backtest with these exits on this window (all entry rules of a grid)
-    exit_at = cache.memo(("exit_at", w, tuple(cfg.exits.items())), dict)
+    exit_at = cache.memo(("exit_at", w, tuple(cfg.exits.items()), be_r), dict)
     if panel.delist_exit:  # a series that ends inside the window: sell on its last bar (lab/crsp.py)
         last_bar = cache.memo(("last_bar", w), lambda: np.where(
             (CT == CT).any(axis=1), n - 1 - np.argmax((CT == CT)[:, ::-1], axis=1), -1).tolist())
 
-    def exit_for(j: int, e: int, entry_price: float) -> tuple[int, str] | None:
-        x = first_exit(j, e, entry_price)
+    def exit_for(j: int, e: int, entry_price: float, r_unit: float | None) -> tuple[int, str] | None:
+        x = first_exit(j, e, entry_price, r_unit)
         if panel.delist_exit and last_bar[j] < n - 1:
             forced = max(e, last_bar[j] - 1)  # signal the day before the last bar, sold at its open
             if x is None or x[0] > forced:
@@ -342,6 +391,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     nan_ = float("nan")
     day = cache.memo(("days", w), lambda: list(dates))  # indexing a DatetimeIndex one item at a time is slow
     cash = 1.0
+    open_risk = 0.0  # sum of the initial risks (shares x stop distance) of open positions
     last_close = [float("nan")] * len(symbols)  # yesterday's LC row (all NaN before the first day)
     pos: dict[int, dict] = {}
     held_j: list[int] = []  # pos keys and shares in pos order, rebuilt only when pos changes
@@ -362,6 +412,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                 continue  # no bar today; try again tomorrow
             p = pos.pop(j)
             cash += p["shares"] * px * (1 - c)
+            open_risk -= p["risk"]
             trades.append((  # columns of TRADE_COLUMNS (tuples build the frame faster than dicts)
                 symbols[j], day[p["entry_i"]], day[i], p["entry_price"], px,
                 (px * (1 - c)) / (p["entry_price"] * (1 + c)) - 1.0, i - p["entry_i"],
@@ -376,7 +427,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                 slot = 1.0  # stand-alone accounts: the size plays no role
             else:
                 held_value = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
-                slot = (cash + held_value) / K
+                eq_now = cash + held_value  # equity at today's open, the same for every buy today
+                slot = eq_now / K
             for j in pending_entry:
                 if len(pos) >= K or (cash <= 1e-9 and not single):
                     break
@@ -384,17 +436,29 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                 if px != px or px <= 0:
                     continue
                 px = float(px)
+                r_unit = risk_per_share(j, i, px) if (risk_sizing or atr_stop_k is not None or be_r is not None) else None
                 target = slot
                 if inv_vol:  # signal day = previous session
                     v, ref = V[i - 1][j] if i else nan_, VREF[i - 1] if i else nan_
                     if v == v and v > 0 and ref == ref:
                         target = slot * min(ref / v, SIZE_CAP)
+                elif risk_sizing and not single:
+                    if r_unit is None or r_unit <= 0:
+                        continue  # no initial stop for this symbol: no risk-based size, no buy
+                    target = cfg.risk_pct / 100.0 * eq_now / r_unit * px * (1 + c)
+                    if max_weight is not None:
+                        target = min(target, max_weight * eq_now)
                 alloc = target if single else min(target, cash)
-                pos[j] = {"shares": alloc / (px * (1 + c)), "entry_price": px, "entry_i": i}
+                shares = alloc / (px * (1 + c))
+                risk = shares * r_unit if r_unit is not None else 0.0
+                if heat is not None and not single and open_risk + risk > heat * eq_now + 1e-12:
+                    continue  # would lift the open risk above the heat limit
+                pos[j] = {"shares": shares, "entry_price": px, "entry_i": i, "risk": risk}
                 cash -= alloc
+                open_risk += risk
                 x = exit_at.get((j, i), exit_at)
                 if x is exit_at:
-                    x = exit_at[(j, i)] = exit_for(j, i, px)
+                    x = exit_at[(j, i)] = exit_for(j, i, px, r_unit)
                 if x is not None:
                     exits_on.setdefault(x[0], []).append((j, x[1]))
             pending_entry = []
