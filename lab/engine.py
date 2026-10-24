@@ -28,6 +28,7 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 - 진입: 선택한 진입 조건이 **모두** 참이고, 최소 주가·최소 거래대금 조건을 통과한 종목.
 - 청산: 선택한 청산 조건 중 **하나라도** 참이면 다음 날 시가에 전량 매도.
 - 최대 보유 종목 수만큼 슬롯이 있고, 새 종목에는 min(목표 금액, 남은 현금)을 배정합니다. 이후 리밸런싱은 하지 않습니다.
+- 신호가 슬롯보다 많으면 20일 평균 거래대금이 큰 종목부터 삽니다. 선별 순위(`lab/screens.py`)가 있는 데이터에서는 순위가 좋은 종목부터 삽니다.
   - **동일 금액**: 목표 금액 = 총자산 ÷ 최대 보유 수.
   - **변동성 역가중**: 목표 금액 = (총자산 ÷ 최대 보유 수) × min(유니버스 중앙 변동성 ÷ 그 종목 변동성, 2). 변동성 = 신호일까지 60거래일 일간 수익률의 표준편차.
   - **위험 기준 (손절폭)**: 초기 손절(ATR 손절 또는 진입가 대비 손절)까지의 손실이 총자산의 r%가 되도록 주식 수를 정합니다
@@ -51,6 +52,7 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 TRADE_COLUMNS = ["symbol", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days", "exit_reason"]
 PARTIAL_COLUMNS = ["symbol", "entry_date", "date", "price", "fraction"]
 VOL_DAYS = 60  # volatility window for inverse-volatility sizing
+LIST_MAX = 1500  # above this many symbols the daily loop reads numpy rows instead of Python lists (same results)
 SIZE_CAP = 2.0  # a position is at most twice the equal slot
 SIZING_LABELS = {"equal": "동일 금액", "inverse_vol": "변동성 역가중", "risk": "위험 기준 (손절폭)"}
 BREAKEVEN_KEY = "breakeven"  # pseudo exit: the stop moved to the entry price (StrategyConfig.breakeven_r)
@@ -199,6 +201,15 @@ class SignalCache:
         self._atr: pd.DataFrame | None = None
         self._memo: dict[tuple, object] = {}
 
+    def share_from(self, other: "SignalCache") -> "SignalCache":
+        """Reuse another cache's block outputs, dollar volume and ATR: for a panel with the same
+        prices but a different eligible mask or rank (lab/screens.py). Window memos are not shared
+        because candidates depend on the mask."""
+        self._frames = other._frames
+        self._dv = other._dv
+        self._atr = other._atr
+        return self
+
     def memo(self, key: tuple, make):
         """Per-window derived data (plain lists for the daily loop). Grids reuse one window."""
         if key not in self._memo:
@@ -304,17 +315,21 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     CT = cache.memo(("close", w), lambda: np.ascontiguousarray(panel.close.loc[dates].to_numpy(dtype=float).T))
     # Plain Python lists: the daily loop touches single values, and Python floats are far
     # faster than numpy scalars for that. Results are bit-for-bit identical (both are doubles).
-    if single:  # arrays, not lists: a large universe (thousands of symbols) would not fit as lists
+    big = len(panel.symbols) > LIST_MAX
+    if single or big:  # arrays, not lists: a large universe (thousands of symbols) would not fit as lists
         O = cache.memo(("open_np", w), lambda: panel.open.loc[dates].to_numpy(dtype=float))
         LC = cache.memo(("last_close_np", w), lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float))
-    else:
+    if not single:
         O = cache.memo(("open", w), lambda: panel.open.loc[dates].to_numpy(dtype=float).tolist())
         LC = cache.memo(("last_close", w),  # last known close of each symbol, within the window
                         lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float).tolist())
-        rank = cache.memo(("rank", w, liq), lambda: np.nan_to_num(dv.loc[dates].to_numpy(dtype=float), nan=-1.0).tolist())
+        if panel.rank is not None:  # screened universe: best selection rank first (lab/screens.py)
+            rank = cache.memo(("rank_sel", w), lambda: np.nan_to_num(-panel.rank.loc[dates].to_numpy(dtype=float), nan=-1e18).tolist())
+        else:
+            rank = cache.memo(("rank", w, liq), lambda: np.nan_to_num(dv.loc[dates].to_numpy(dtype=float), nan=-1.0).tolist())
         # each day's candidates already in buying order (larger dollar volume first). The sort is
         # stable, so dropping held symbols afterwards leaves the same order as sorting after the drop.
-        ordered = cache.memo(("ordered",) + entry_key,
+        ordered = cache.memo(("ordered", panel.rank is not None) + entry_key,
                              lambda: [sorted(cs, key=lambda j, ri=ri: -ri[j]) for cs, ri in zip(candidates, rank)])
     inv_vol = cfg.sizing == "inverse_vol"
     if inv_vol:
@@ -492,7 +507,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
             if single:
                 slot = 1.0  # stand-alone accounts: the size plays no role
             else:
-                held_value = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
+                held_value = sum(p["shares"] * float(Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
                 eq_now = cash + held_value  # equity at today's open, the same for every buy today
                 slot = eq_now / K
             for j in pending_entry:
@@ -544,7 +559,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         if single:  # the account value is not used; lab/single.py rebuilds each symbol's account
             equity[i] = cash
         else:
-            invested = sum(map(mul, held_sh, map(last_close.__getitem__, held_j)))  # same terms, same order
+            invested = sum(map(mul, held_sh, map(float, map(last_close.__getitem__, held_j))))  # same terms, same order
             equity[i] = cash + invested
             exposure[i] = invested / equity[i] if equity[i] > 0 else 0.0
 

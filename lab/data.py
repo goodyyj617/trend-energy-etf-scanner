@@ -13,7 +13,7 @@ Treasury bill rate (^IRX) / 252.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import MISSING, dataclass, field, fields
 from pathlib import Path
 
 import pandas as pd
@@ -55,6 +55,9 @@ class Panel:
     # point-in-time universe (lab/crsp.py): True where a symbol may be bought that day; None = always
     eligible: pd.DataFrame | None = None
     delist_exit: bool = False  # sell a holding on its last bar (its series ends before the period does)
+    # CRSP-only series (dates x symbols): "cap" market value in $M, "dividend" daily dividend yield
+    extra: dict = field(default_factory=dict)
+    rank: pd.DataFrame | None = None  # buying order among candidates (lower = first); None = dollar volume
 
     @property
     def tradable_symbols(self) -> list[str]:
@@ -84,7 +87,16 @@ class Panel:
             *(getattr(self, f)[keep] for f in FIELDS), info=info.reset_index(drop=True), source=self.source,
             tradable=[s for s in keep if s in wanted], cash=self.cash, kind=self.kind,
             eligible=None if self.eligible is None else self.eligible[keep], delist_exit=self.delist_exit,
+            extra={k: v[keep] for k, v in self.extra.items()}, rank=None if self.rank is None else self.rank[keep],
         )
+
+
+def upgrade_panel(panel: "Panel") -> "Panel":
+    """A panel pickled before a field was added gets that field's default (keeps old caches usable)."""
+    for f in fields(Panel):
+        if not hasattr(panel, f.name):
+            setattr(panel, f.name, f.default_factory() if f.default_factory is not MISSING else f.default)
+    return panel
 
 
 def panel_from_long(df: pd.DataFrame, info: pd.DataFrame | None = None, source: str = "") -> Panel:
@@ -120,7 +132,7 @@ def load_snapshot() -> Panel:
     """Load the frozen ETF snapshot. A pickle cache in lab_data/ makes later loads fast."""
     cache = CACHE_DIR / "snapshot_panel_v2.pkl"
     if cache.exists():
-        return pd.read_pickle(cache)
+        return upgrade_panel(pd.read_pickle(cache))
     shards = sorted((SNAPSHOT_DIR / "prices").glob("*.csv.gz"))
     long = pd.concat([pd.read_csv(p) for p in shards], ignore_index=True)
     universe = pd.read_csv(SNAPSHOT_DIR / "universe_snapshot.csv", usecols=["symbol", "name", "asset_group", "aum"])

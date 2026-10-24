@@ -34,8 +34,9 @@ from .data import BENCHMARK, FIELDS, Panel
 SPY_PERMNO = "84398"
 COMMON_SHRCD = {"10", "11"}
 EXCHANGES = {"1", "2", "3"}
-COLUMNS = ["PERMNO", "date", "SHRCD", "EXCHCD", "TICKER", "PRC", "VOL", "RET", "SHROUT", "CFACPR",
+COLUMNS = ["PERMNO", "date", "SHRCD", "EXCHCD", "TICKER", "PRC", "VOL", "RET", "RETX", "SHROUT", "CFACPR",
            "OPENPRC", "BIDLO", "ASKHI", "DLSTCD", "DLRET"]
+EXTRA = ("cap", "dividend")  # per-symbol series beyond OHLCV: market value ($M) and daily dividend yield
 TOP_N = 1000
 
 
@@ -53,7 +54,8 @@ def read_block(path: Path, permnos: set[str] | None = None, columns: list[str] =
     if path.suffix == ".parquet":
         import pyarrow.parquet as pq
 
-        df = pq.read_table(path, columns=columns).to_pandas()
+        have = set(pq.ParquetFile(path).schema_arrow.names)
+        df = pq.read_table(path, columns=[c for c in columns if c in have]).to_pandas()
     else:
         df = pd.read_csv(path, usecols=columns, dtype={"PERMNO": str, "SHRCD": str, "EXCHCD": str, "TICKER": str},
                          na_values=["", "A", "B", "C", "P", "S", "T"], low_memory=False)
@@ -64,7 +66,7 @@ def read_block(path: Path, permnos: set[str] | None = None, columns: list[str] =
         keep &= df["PERMNO"].isin(permnos)
     df = df.loc[keep, columns].copy()
     df["date"] = pd.to_datetime(df["date"])
-    for c in ("PRC", "VOL", "RET", "SHROUT", "CFACPR", "OPENPRC", "BIDLO", "ASKHI", "DLSTCD", "DLRET"):
+    for c in ("PRC", "VOL", "RET", "RETX", "SHROUT", "CFACPR", "OPENPRC", "BIDLO", "ASKHI", "DLSTCD", "DLRET"):
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64")
     return df
@@ -111,6 +113,9 @@ def adjust(df: pd.DataFrame) -> pd.DataFrame:
         "high": (df["ASKHI"] / df["CFACPR"] * factor).where(traded, adj_close),
         "low": (df["BIDLO"] / df["CFACPR"] * factor).where(traded, adj_close),
         "volume": (df["VOL"] * df["CFACPR"]).fillna(0.0),
+        "cap": price * df["SHROUT"] / 1000.0,  # SHROUT is in thousands -> $M
+        # RET includes distributions, RETX does not: the difference is the day's dividend yield
+        "dividend": (df["RET"] - df["RETX"]).fillna(0.0).clip(lower=0.0) if "RETX" in df else 0.0,
     })
     out["open"] = out["open"].fillna(out["close"].where(~traded))  # untraded day: open = midpoint
     # delisting bar
@@ -122,7 +127,8 @@ def adjust(df: pd.DataFrame) -> pd.DataFrame:
         dlret = delisted["DLRET"].where(delisted["DLRET"].notna(), np.where(perf, -0.30, 0.0))
         px = out.loc[delisted.index, "close"].to_numpy() * (1.0 + dlret.to_numpy())
         bars = pd.DataFrame({"symbol": delisted["PERMNO"].to_numpy(), "date": pd.NaT, "close": px, "open": px,
-                             "high": px, "low": px, "volume": 0.0, "_after": delisted["date"].to_numpy()})
+                             "high": px, "low": px, "volume": 0.0, "cap": np.nan, "dividend": 0.0,
+                             "_after": delisted["date"].to_numpy()})
         out = pd.concat([out, bars], ignore_index=True)
     return out
 
@@ -155,6 +161,7 @@ def build_panel(src: Path, top_n: int = TOP_N, years: tuple[int, int] | None = N
     adj = adj.drop(columns="_after", errors="ignore")
     log("[3/3] 표 만들기")
     tables = {f: adj.pivot(index="date", columns="symbol", values=f).sort_index().astype("float32") for f in FIELDS}
+    extra = {f: adj.pivot(index="date", columns="symbol", values=f).sort_index().astype("float32") for f in EXTRA}
     symbols = list(tables["close"].columns)
     close = tables["close"]
     eligible = pd.DataFrame(False, index=close.index, columns=symbols)
@@ -175,7 +182,7 @@ def build_panel(src: Path, top_n: int = TOP_N, years: tuple[int, int] | None = N
     meta = {"top_n": top_n, "years": sorted(members), "files": [f.name for f in files], "symbols": len(symbols) - 1,
             "first": str(close.index[0].date()), "last": str(close.index[-1].date())}
     panel = Panel(**tables, info=info, source=f"CRSP 시점별 시가총액 상위 {top_n} (보통주)", tradable=[s for s in symbols if s != SPY_PERMNO],
-                  kind="crsp", eligible=eligible, delist_exit=True)
+                  kind="crsp", eligible=eligible, delist_exit=True, extra=extra)
     panel = rename_benchmark(panel)
     return panel, info, meta
 
@@ -186,6 +193,8 @@ def rename_benchmark(panel: Panel) -> Panel:
         getattr(panel, f).rename(columns={SPY_PERMNO: BENCHMARK}, inplace=True)
     if panel.eligible is not None:
         panel.eligible.rename(columns={SPY_PERMNO: BENCHMARK}, inplace=True)
+    for v in panel.extra.values():
+        v.rename(columns={SPY_PERMNO: BENCHMARK}, inplace=True)
     panel.info.loc[panel.info["symbol"] == SPY_PERMNO, "symbol"] = BENCHMARK
     return panel
 
@@ -195,6 +204,8 @@ def save_panel(panel: Panel, info: pd.DataFrame, meta: dict, out: Path) -> None:
     for f in FIELDS:
         getattr(panel, f).to_parquet(out / f"{f}.parquet")
     panel.eligible.to_parquet(out / "eligible.parquet")
+    for k, v in panel.extra.items():
+        v.to_parquet(out / f"extra_{k}.parquet")
     info.to_csv(out / "info.csv", index=False, encoding="utf-8")
     (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -205,8 +216,10 @@ def load_panel(out: Path) -> Panel:
     info = pd.read_csv(out / "info.csv", dtype={"symbol": str, "name": str})
     meta = json.loads((out / "meta.json").read_text(encoding="utf-8"))
     symbols = list(tables["close"].columns)
+    extra = {k: pd.read_parquet(out / f"extra_{k}.parquet") for k in EXTRA if (out / f"extra_{k}.parquet").exists()}
     return Panel(**tables, info=info, source=f"CRSP 시점별 시가총액 상위 {meta['top_n']} (보통주)",
-                 tradable=[s for s in symbols if s != BENCHMARK], kind="crsp", eligible=eligible, delist_exit=True)
+                 tradable=[s for s in symbols if s != BENCHMARK], kind="crsp", eligible=eligible, delist_exit=True,
+                 extra=extra)
 
 
 def main(argv: list[str]) -> None:

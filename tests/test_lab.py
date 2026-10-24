@@ -763,7 +763,8 @@ def _crsp_rows(permno, dates, p0, r, shrout, cfacpr_before_split=None, split_day
             prc, cf = adj, 1.0
         last = t == len(dates) - 1
         rows.append({"PERMNO": permno, "date": d, "SHRCD": shrcd, "EXCHCD": exchcd, "TICKER": ticker, "PRC": prc,
-                     "VOL": 1000.0, "RET": r, "SHROUT": shrout, "CFACPR": cf, "OPENPRC": prc * 0.99, "BIDLO": prc * 0.98,
+                     "VOL": 1000.0, "RET": r, "RETX": r - (0.001 if (t % 63 == 62) else 0.0),  # a quarterly dividend
+                     "SHROUT": shrout, "CFACPR": cf, "OPENPRC": prc * 0.99, "BIDLO": prc * 0.98,
                      "ASKHI": prc * 1.02, "DLSTCD": delist_code if (last and delist_code) else np.nan,
                      "DLRET": dlret if (last and delist_code) else np.nan})
     return rows
@@ -804,9 +805,12 @@ def test_crsp_build_panel_point_in_time(tmp_path):
     assert b.index[-1] == y2[100] and panel.open["2"].loc[y2[100]] == pytest.approx(b.iloc[-1], rel=1e-6)
     assert el.loc[b.index[-3], "2"] and not el.loc[b.index[-2:], "2"].any()
     assert panel.delist_exit and info.set_index("symbol").loc["1", "name"] == "AAA"
+    assert panel.extra["cap"].loc[y1[-1], "1"] == pytest.approx(100.0 * 1.0005 ** (len(y1) - 1) * 10_000 / 1000)  # $M
+    assert panel.extra["dividend"]["1"].gt(0).sum() == len(dates) // 63 and panel.extra["dividend"]["1"].max() == pytest.approx(0.001)
     crsp.save_panel(panel, info, meta, tmp_path / "out")
     back = crsp.load_panel(tmp_path / "out")
     pd.testing.assert_frame_equal(back.close, panel.close)
+    pd.testing.assert_frame_equal(back.extra["cap"], panel.extra["cap"])
     pd.testing.assert_frame_equal(back.eligible, panel.eligible)
     assert back.subset(["1"]).eligible.columns.tolist() == ["1", "SPY"]
 
@@ -952,3 +956,85 @@ def test_partial_take_profit_one_row_and_stand_alone_account():
     rets = single.symbol_returns(panel, scfg, sres)
     eq = (1 + rets["AAA"].fillna(0.0)).cumprod()
     assert eq.iloc[-1] == pytest.approx(res.equity.iloc[-1] / res.equity.iloc[0], rel=1e-9)
+
+
+# --------------------------------------------------------------------------- stock screens (DECISIONS 77)
+
+from lab import screens  # noqa: E402
+
+
+def _screen_panel():
+    rng = np.random.default_rng(17)
+    n = 700
+    dates = pd.bdate_range("2018-01-01", periods=n)
+    drift = {"UP1": 0.0012, "UP2": 0.0009, "FLAT": 0.0, "DOWN": -0.0008, "WILD": 0.0005, "SPY": 0.0004}
+    vol = {"UP1": 0.012, "UP2": 0.012, "FLAT": 0.012, "DOWN": 0.012, "WILD": 0.05, "SPY": 0.01}
+    prices = {s: list(50 * np.cumprod(1 + rng.normal(drift[s], vol[s], n))) for s in drift}
+    panel, dates = make_panel(prices, start="2018-01-01")
+    cap = pd.DataFrame({s: 1000.0 for s in panel.symbols}, index=dates)
+    cap["FLAT"] = 100.0
+    panel.extra = {"cap": cap, "dividend": pd.DataFrame(0.0, index=dates, columns=panel.symbols)}
+    panel.eligible = pd.DataFrame(True, index=dates, columns=panel.symbols)
+    return panel, dates
+
+
+def test_monthly_mask_is_point_in_time_and_keeps_top_k():
+    panel, dates = _screen_panel()
+    cfg = screens.ScreenConfig(exclude={"x_volatility": 10, "x_small": 300}, select={"s_momentum": 12}, top_k=2)
+    eligible, rank = screens.monthly_mask(panel, cfg)
+    me = screens.month_ends(dates)
+    assert not eligible["SPY"].any() and not eligible["FLAT"].any()  # benchmark never; FLAT fails the cap floor
+    assert not eligible["WILD"].any()  # the most volatile 10% of six symbols = WILD only
+    last = eligible.loc[me[-1]]
+    assert last.sum() == 2 and last["UP1"] and last["UP2"]  # top 2 by 12-1 momentum
+    mom = screens.SELECT_SCORES["s_momentum"].compute(panel, 12).loc[me[-1]]
+    better, worse = ("UP1", "UP2") if mom["UP1"] > mom["UP2"] else ("UP2", "UP1")
+    assert rank.loc[me[-1], better] == 1.0 and rank.loc[me[-1], worse] == 2.0
+    # held through the following month: every day after a month end repeats that month end's decision
+    for a, b in zip(me[-3:-1], me[-2:]):
+        span = eligible.loc[a:b].iloc[:-1]
+        assert (span.eq(eligible.loc[a]).all(axis=1)).all()
+    assert not eligible.loc[: me[10]].any().any()  # 12-1 momentum needs 252 days: nothing before December
+    assert "제외: 변동성 상위(10) + 시가총액 하한(300) | 선별: 모멘텀 (M-1개월 수익률)(12) 상위 2" == cfg.describe()
+
+
+def test_engine_buys_best_rank_first_and_defaults_unchanged():
+    panel, dates = _screen_panel()
+    rng = np.random.default_rng(5)
+    c = cfg(entries={"above_ma": 5}, exits={"low_break": 5}, max_positions=1, start="2019-06-01")
+    plain = run_backtest(panel, c)
+    screened = screens.apply_screens(panel, screens.ScreenConfig(exclude={}, select={"s_momentum": 6}, top_k=3))
+    res = run_backtest(screened, c)
+    assert res.trades.symbol.iloc[0] != "SPY" and len(res.trades) > 0
+    # on its first entry day the engine took the symbol with the best rank among the eligible candidates
+    first = pd.concat([res.trades, res.open_positions]).sort_values("entry_date").iloc[0]
+    signal_day = dates[dates.get_loc(first.entry_date) - 1]
+    ranks = screened.rank.loc[signal_day][screened.eligible.loc[signal_day]]
+    from lab.blocks import ENTRY_BLOCKS
+    sig = ENTRY_BLOCKS["above_ma"].compute(panel, 5).loc[signal_day]
+    cands = ranks[sig.reindex(ranks.index).fillna(False).astype(bool)]
+    assert first.symbol == cands.idxmin()
+    # a panel without rank/screens behaves as before (dollar-volume order): same trades as the plain run
+    pd.testing.assert_frame_equal(run_backtest(panel, c).trades, plain.trades)
+
+
+def test_big_panel_path_matches_list_path(monkeypatch):
+    from lab import engine as eng
+    panel = _random_panel(n=500, seed=8)
+    c = cfg(entries={"breakout": 10}, exits={"trailing_pct": 8.0, "low_break": 15}, max_positions=2, cost_bps=10.0,
+            sizing="inverse_vol")
+    a = run_backtest(panel, c)
+    monkeypatch.setattr(eng, "LIST_MAX", 0)  # force the numpy-row path
+    b = run_backtest(panel, c)
+    pd.testing.assert_series_equal(a.equity, b.equity)
+    pd.testing.assert_frame_equal(a.trades, b.trades)
+    pd.testing.assert_series_equal(a.exposure, b.exposure)
+
+
+def test_signal_cache_share_from_reuses_frames():
+    panel = _random_panel(n=300, seed=9)
+    base = SignalCache(panel)
+    base.frame("breakout", 10)
+    other = SignalCache(panel).share_from(base)
+    assert other.frame("breakout", 10) is base.frame("breakout", 10)
+    assert len(base._frames) == 1
