@@ -1038,3 +1038,57 @@ def test_signal_cache_share_from_reuses_frames():
     other = SignalCache(panel).share_from(base)
     assert other.frame("breakout", 10) is base.frame("breakout", 10)
     assert len(base._frames) == 1
+
+
+# --------------------------------------------------------------------------- practitioner screens (2026-10-25 redesign)
+
+def _v2_panel():
+    rng = np.random.default_rng(23)
+    n = 600
+    dates = pd.bdate_range("2017-01-02", periods=n)
+    # LEAD: steady uptrend; CHOP: flat and noisy; FALL: downtrend; SPY: mild uptrend
+    paths = {
+        "LEAD": 50 * np.cumprod(1 + rng.normal(0.0012, 0.010, n)),
+        "LEAD2": 40 * np.cumprod(1 + rng.normal(0.0010, 0.011, n)),
+        "CHOP": 30 + 3 * np.sin(np.arange(n) / 9.0) + rng.normal(0, 0.3, n),
+        "FALL": 80 * np.cumprod(1 + rng.normal(-0.0010, 0.012, n)),
+        "SPY": 200 * np.cumprod(1 + rng.normal(0.0004, 0.008, n)),
+    }
+    panel, dates = make_panel({k: list(v) for k, v in paths.items()}, start="2017-01-02")
+    panel.info = pd.DataFrame({"symbol": panel.symbols, "name": panel.symbols, "asset_group": "",
+                               "sic": [3570, 3571, 5812, 5813, np.nan]})  # LEAD/LEAD2 one industry, CHOP/FALL another
+    panel.extra = {"cap": pd.DataFrame(2000.0, index=dates, columns=panel.symbols),
+                   "dividend": pd.DataFrame(0.0, index=dates, columns=panel.symbols)}
+    panel.eligible = pd.DataFrame(True, index=dates, columns=panel.symbols)
+    return panel, dates
+
+
+def test_trend_template_and_rs_rating():
+    panel, dates = _v2_panel()
+    last = dates[-1]
+    fail = screens.EXCLUDE_SCREENS["tt_fail"].compute(panel, 25)
+    assert not fail.loc[last, "LEAD"] and fail.loc[last, "FALL"]  # uptrend passes, downtrend fails
+    assert fail.iloc[100].all()  # not enough history: nothing passes (flag = excluded)
+    rs = screens.SELECT_SCORES["s_rs"].compute(panel, None).loc[last]
+    assert rs["LEAD"] > rs["FALL"] and 0 <= rs.min() and rs.max() <= 100
+    # industry: LEAD and LEAD2 share SIC 35, so their industry score is the same and above CHOP/FALL's
+    ind = screens.SELECT_SCORES["s_industry_rs"].compute(panel, 6).loc[last]
+    assert ind["LEAD"] == ind["LEAD2"] and ind["LEAD"] > ind["FALL"]
+    weak = screens.EXCLUDE_SCREENS["x_weak_industry"].compute(panel, 50).loc[last]
+    assert weak["FALL"] and not weak["LEAD"]
+    acc = screens.SELECT_SCORES["s_accum"].compute(panel, 3).loc[last]
+    assert acc["LEAD"] > 0 and np.isfinite(acc["LEAD"])
+
+
+def test_profiles_run_through_monthly_mask():
+    panel, dates = _v2_panel()
+    for key, (label, cfg) in screens.PROFILES.items():
+        eligible, rank = screens.monthly_mask(panel, cfg)
+        assert eligible.shape == panel.close.shape and not eligible["SPY"].any(), key
+        assert label and "제외:" in cfg.describe()
+    eligible, rank = screens.monthly_mask(panel, screens.PROFILES["minervini"][1])
+    last = screens.month_ends(dates)[-1]
+    assert eligible.loc[last, "LEAD"] and not eligible.loc[last, "FALL"]
+    assert rank.loc[last, "LEAD"] >= 1
+    assert set(screens.STYLE_TILTS) <= set(screens.SELECT_SCORES)
+    assert set(screens.HYGIENE_SCREENS) <= set(screens.ALL_SCREENS)

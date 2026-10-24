@@ -1,11 +1,17 @@
-"""Stock screens: what may be bought (DECISIONS 77).
+"""Stock screens: what may be bought (DECISIONS 77; practitioner templates added 2026-10-25).
 
-Three stages, all point-in-time and all swappable:
-  1. exclusion screens  - "never buy this now": each returns True where a symbol is excluded;
+Stages, all point-in-time and all swappable:
+  0. hygiene            - tradability: history, price, dollar volume, Amihud illiquidity, size
+                          (HYGIENE_SCREENS, True = excluded);
+  1. exclusion screens  - "never buy this now": trend-template failure, over-extension, weak
+                          industry, lottery, falling knife ... (EXCLUDE_SCREENS, True = excluded);
   2. selection scores   - "which of the rest are best": each returns a score, higher = better;
                           several scores are combined by their average percentile rank, and only
-                          the top K symbols stay buyable;
+                          the top K symbols stay buyable (SELECT_SCORES; STYLE_TILTS are the
+                          older single-factor tilts, kept for comparison);
   3. entry timing       - the existing entry blocks (lab/blocks.py), or none.
+PROFILES are ready-made combinations that mirror what traders publish (Minervini's trend template,
+IBD/CANSLIM price-volume rules, quality momentum, industry leaders ...). Each is one ScreenConfig.
 Stages 1-2 are evaluated on the last trading day of each month from data up to that day, and
 hold for the following month. `monthly_mask` turns them into the engine's Panel.eligible (who may
 be bought on each day) and Panel.rank (buying order, 1 = best), so no engine change is needed.
@@ -22,7 +28,7 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 
-from .blocks import Param
+from .blocks import Param, sma
 from .data import BENCHMARK, Panel
 
 MONTH = 21  # trading days
@@ -73,7 +79,108 @@ def _top_share(score: pd.DataFrame, share_pct: float) -> pd.DataFrame:
     return pct > 1.0 - share_pct / 100.0
 
 
+def _industry(p: Panel) -> pd.Series:
+    """2-digit SIC industry group per symbol (needs panel.info["sic"], CRSP panels)."""
+    if "sic" not in p.info.columns:
+        raise ValueError("이 데이터에는 업종 코드(SIC)가 없습니다 (CRSP 패널에서만 쓸 수 있습니다).")
+    sic = pd.to_numeric(p.info.set_index("symbol")["sic"], errors="coerce")
+    return (sic // 100).reindex(p.symbols)
+
+
+def _industry_mean(p: Panel, frame: pd.DataFrame) -> pd.DataFrame:
+    """Each symbol's column replaced by the mean of its industry group (same shape)."""
+    grp = _industry(p)
+    out = pd.DataFrame(np.nan, index=frame.index, columns=frame.columns)
+    for g, cols in grp.dropna().groupby(grp.dropna()).groups.items():
+        cols = [c for c in cols if c in frame.columns]
+        if cols:
+            out.loc[:, cols] = np.repeat(frame[cols].mean(axis=1).to_numpy()[:, None], len(cols), axis=1)
+    return out
+
+
+def _rs_rating(p: Panel) -> pd.DataFrame:
+    """IBD-style relative strength: 40% weight on the last 3 months, 20% each on the three
+    quarters before, then the percentile rank across the universe that day."""
+    c = p.close
+    q = [c / c.shift(63 * k) - 1.0 for k in (1, 2, 3, 4)]
+    score = 0.4 * q[0] + 0.2 * (q[1] - q[0]) + 0.2 * (q[2] - q[1]) + 0.2 * (q[3] - q[2])
+    return score.rank(axis=1, pct=True) * 100.0
+
+
+def _amihud(p: Panel, days: int = 63) -> pd.DataFrame:
+    """Amihud illiquidity: mean |return| / dollar volume (higher = more illiquid)."""
+    r = p.close.pct_change(fill_method=None).abs()
+    dv = (p.close * p.volume).replace(0, np.nan)
+    return (r / dv).rolling(days, min_periods=days // 2).mean()
+
+
+# --------------------------------------------------------------------------- 0. hygiene (True = not tradable)
+
+def _h_history(p: Panel, m: float) -> pd.DataFrame:
+    n = _months(m)
+    return p.close.notna().astype(float).rolling(n, min_periods=1).sum() < n * 0.9
+
+
+def _h_price(p: Panel, x: float) -> pd.DataFrame:
+    return p.close < x
+
+
+def _h_liquidity(p: Panel, x: float) -> pd.DataFrame:
+    return (p.close * p.volume).rolling(MONTH, min_periods=MONTH).mean() < x * 1e6
+
+
+def _h_illiquid(p: Panel, x: float) -> pd.DataFrame:
+    return _top_share(_amihud(p), x)
+
+
+HYGIENE_SCREENS: dict[str, Screen] = {
+    s.key: s for s in [
+        Screen("h_history", "상장 기간", "최근 M개월 중 가격이 있는 날이 90% 미만",
+               "신규 상장·거래 공백 종목을 뺍니다. 지표가 안정되려면 1년 이상의 가격이 필요합니다.",
+               Param("M (개월)", 12, 6, 36, 6, "개월", "필요한 가격 이력"), _h_history),
+        Screen("h_price", "최소 주가", "종가 < X 달러", "저가주는 호가 차이와 거래 비용이 큽니다. 실무에서는 5–15달러 하한을 둡니다.",
+               Param("X ($)", 10, 1, 30, 1, "$", "주가 하한"), _h_price),
+        Screen("h_liquidity", "최소 거래대금", "21거래일 평균 거래대금 < X 백만 달러",
+               "계좌 규모에 비해 거래가 적은 종목은 체결이 어렵습니다. 포지션의 50–100배 거래대금을 권합니다.",
+               Param("X ($M)", 2, 0.5, 50, 0.5, "$M", "일평균 거래대금 하한"), _h_liquidity, "거래량"),
+        Screen("h_illiquid", "유동성 하위 (Amihud)", "63일 Amihud 비유동성(|수익률| ÷ 거래대금)이 상위 X%",
+               "거래대금 대비 가격 충격이 큰 종목을 뺍니다(Amihud 2002). 거래대금 하한이 놓치는 종목을 잡습니다.",
+               Param("X (%)", 20, 5, 50, 5, "%", "제외할 상위 비율"), _h_illiquid, "거래량"),
+        Screen("h_cap", "시가총액 하한", "시가총액 < X 백만 달러", "너무 작은 회사는 뺍니다. 소형주를 넣을지는 이 값으로 조절합니다.",
+               Param("X ($M)", 300, 50, 5000, 50, "$M", "시가총액 하한"), lambda p, x: _cap(p) < x, "규모"),
+    ]
+}
+
+
 # --------------------------------------------------------------------------- 1. exclusion (True = do not buy)
+
+def _tt_fail(p: Panel, x: float) -> pd.DataFrame:
+    """Minervini's trend template, as a failure flag. All of: close > SMA50 > SMA150 > SMA200,
+    SMA200 higher than a month ago, close >= 1.3 x 52-week low, close >= (1 - X%) x 52-week high."""
+    c = p.close
+    m50, m150, m200 = sma(c, 50), sma(c, 150), sma(c, 200)
+    hi, lo = c.rolling(252, min_periods=200).max(), c.rolling(252, min_periods=200).min()
+    ok = (c > m50) & (m50 > m150) & (m150 > m200) & (m200 > m200.shift(MONTH)) & (c >= 1.3 * lo) & (c >= hi * (1 - x / 100.0))
+    return ~ok.where(c.notna() & m200.notna(), False)
+
+
+def _x_extended(p: Panel, x: float) -> pd.DataFrame:
+    return p.close > sma(p.close, 50) * (1 + x / 100.0)
+
+
+def _x_weak_industry(p: Panel, x: float) -> pd.DataFrame:
+    ind = _industry_mean(p, _ret(p.close, 6, 1))
+    return ind.rank(axis=1, pct=True) < x / 100.0
+
+
+def _x_ivol(p: Panel, x: float) -> pd.DataFrame:
+    """Idiosyncratic volatility: residual of daily returns on SPY over 63 days, top X% excluded."""
+    r = p.close.pct_change(fill_method=None)
+    m = r[BENCHMARK]
+    cov = r.rolling(63, min_periods=40).cov(m)
+    beta = cov.div(m.rolling(63, min_periods=40).var(), axis=0)
+    resid = r - beta * m.to_numpy()[:, None]
+    return _top_share(resid.rolling(63, min_periods=40).std(), x)
 
 def _x_downtrend(p: Panel, x: float) -> pd.DataFrame:
     return _ret(p.close, 12, 1) < x / 100.0
@@ -107,6 +214,19 @@ def _x_thin(p: Panel, x: float) -> pd.DataFrame:
 
 EXCLUDE_SCREENS: dict[str, Screen] = {
     s.key: s for s in [
+        Screen("tt_fail", "추세 템플릿 미충족 (Minervini)",
+               "종가 > SMA50 > SMA150 > SMA200, SMA200이 1개월 전보다 위, 종가 ≥ 52주 저가 × 1.3, 종가 ≥ 52주 고가 × (1 − X%) 중 하나라도 어긋남",
+               "Mark Minervini의 '2단계 상승 추세' 조건입니다(SEPA). 추세추종 실무에서 가장 널리 쓰는 종목 선별 틀로, 이 조건을 다 만족하는 종목만 삽니다.",
+               Param("X (%)", 25, 10, 40, 5, "%", "52주 고가에서 허용하는 거리"), _tt_fail),
+        Screen("x_extended", "단기 과열 (50일선 위로 과도)", "종가 > SMA50 × (1 + X%)",
+               "50일선에서 너무 멀리 떨어진 종목은 쫓아 사지 않습니다. 눌림 뒤 진입을 기다리는 실무 규칙입니다.",
+               Param("X (%)", 25, 10, 50, 5, "%", "50일선 대비 허용 괴리"), _x_extended),
+        Screen("x_weak_industry", "약한 업종", "업종(2자리 SIC) 평균 6-1개월 수익률이 하위 X%",
+               "IBD식 업종 순위. 주도 업종이 아닌 종목은 뺍니다(Moskowitz & Grinblatt 1999 업종 모멘텀).",
+               Param("X (%)", 30, 10, 60, 10, "%", "제외할 하위 업종 비율"), _x_weak_industry),
+        Screen("x_ivol", "고유 변동성 상위", "SPY 대비 잔차 변동성(63일)이 상위 X%",
+               "시장과 무관하게 크게 흔들리는 종목(Ang 등 2006의 고유 변동성 효과)을 뺍니다.",
+               Param("X (%)", 20, 5, 50, 5, "%", "제외할 상위 비율"), _x_ivol),
         Screen("x_downtrend", "12개월 하락 추세", "지난 12개월(최근 1개월 제외) 수익률 < X%",
                "중기 추세가 아래인 종목은 사지 않습니다. 횡단면 모멘텀(Jegadeesh & Titman 1993)의 반대쪽을 걸러냅니다.",
                Param("X (%)", 0, -30, 30, 5, "%", "12-1개월 수익률 하한"), _x_downtrend),
@@ -178,8 +298,44 @@ def _s_lowvol(p: Panel, _: float | None) -> pd.DataFrame:
     return -_vol(p.close, 60)
 
 
+def _s_rs(p: Panel, _: float | None) -> pd.DataFrame:
+    return _rs_rating(p)
+
+
+def _s_accum(p: Panel, m: float) -> pd.DataFrame:
+    """Accumulation/distribution: dollar volume on up days over dollar volume on down days."""
+    n = _months(m)
+    r = p.close.pct_change(fill_method=None)
+    dv = p.close * p.volume
+    up = dv.where(r > 0, 0.0).rolling(n, min_periods=n).sum()
+    down = dv.where(r < 0, 0.0).rolling(n, min_periods=n).sum()
+    return up / down.replace(0, np.nan)
+
+
+def _s_industry_rs(p: Panel, m: float) -> pd.DataFrame:
+    return _industry_mean(p, _ret(p.close, m, 1))
+
+
+def _s_high52_vol(p: Panel, _: float | None) -> pd.DataFrame:
+    """52-week-high proximity, with volume confirmation: proximity x (20d / 120d dollar volume)."""
+    dv = p.close * p.volume
+    conf = dv.rolling(MONTH, min_periods=MONTH).mean() / dv.rolling(120, min_periods=120).mean().replace(0, np.nan)
+    return _s_high52(p, None) * conf.clip(upper=3.0)
+
+
 SELECT_SCORES: dict[str, Screen] = {
     s.key: s for s in [
+        Screen("s_rs", "상대강도 등급 (IBD식)", "최근 3개월 수익률 40% + 그 전 세 분기 각 20% 가중 → 유니버스 백분위(0–100)",
+               "IBD RS Rating의 공개된 계산 방식입니다. 최근 분기에 무게를 두어 지금 강한 종목을 앞세웁니다. 파라미터 없음.",
+               None, _s_rs),
+        Screen("s_accum", "매집/분산 비율", "지난 M개월 오른 날 거래대금 합 ÷ 내린 날 거래대금 합",
+               "오를 때 거래가 많고 내릴 때 적으면 기관 매집으로 봅니다(IBD Accumulation/Distribution). ",
+               Param("M (개월)", 3, 1, 6, 1, "개월", "합산 기간"), _s_accum, "거래량"),
+        Screen("s_industry_rs", "업종 상대강도", "업종(2자리 SIC) 평균 M-1개월 수익률",
+               "주도 업종에 속한 종목을 앞세웁니다. 종목 모멘텀과 별개로 업종 모멘텀이 있습니다(Moskowitz & Grinblatt 1999).",
+               Param("M (개월)", 6, 3, 12, 3, "개월", "기간"), _s_industry_rs),
+        Screen("s_high52_vol", "52주 고가 근접 × 거래량 확인", "(종가 ÷ 52주 고가) × (20일 거래대금 ÷ 120일 거래대금, 최대 3)",
+               "고가 근처이면서 거래가 늘어난 종목. 돌파를 거래량이 받쳐 주는지 봅니다(O'Neil).", None, _s_high52_vol, "거래량"),
         Screen("s_momentum", "모멘텀 (M-1개월 수익률)", "지난 M개월 수익률, 최근 1개월 제외",
                "가장 많이 오른 종목이 계속 오르는 경향(횡단면 모멘텀). 최근 1개월은 단기 반전 때문에 뺍니다.",
                Param("M (개월)", 12, 3, 12, 3, "개월", "수익률을 재는 기간"), _s_momentum),
@@ -206,25 +362,47 @@ SELECT_SCORES: dict[str, Screen] = {
     ]
 }
 
-ALL_SCREENS: dict[str, Screen] = {**EXCLUDE_SCREENS, **SELECT_SCORES}
+STYLE_TILTS = ("s_small", "s_large", "s_dividend", "s_reversal", "s_lowvol")  # factor tilts, not trend screens
+ALL_SCREENS: dict[str, Screen] = {**HYGIENE_SCREENS, **EXCLUDE_SCREENS, **SELECT_SCORES}
 
 
 # --------------------------------------------------------------------------- monthly mask and rank
 
 @dataclass(frozen=True)
 class ScreenConfig:
-    exclude: dict[str, float | None]  # exclusion screens and their values (all applied)
+    exclude: dict[str, float | None]  # exclusion (and hygiene) screens and their values (all applied)
     select: dict[str, float | None]  # selection scores, combined by mean percentile rank
     top_k: int = 100  # how many of the best remain buyable each month (0 = all)
 
     def describe(self) -> str:
-        def fmt(screens, chosen):
-            return " + ".join(screens[k].label + ("" if v is None else f"({v:g})") for k, v in chosen.items()) or "없음"
-        return f"제외: {fmt(EXCLUDE_SCREENS, self.exclude)} | 선별: {fmt(SELECT_SCORES, self.select)}" + \
-            (f" 상위 {self.top_k}" if self.top_k else "")
+        def fmt(chosen):
+            return " + ".join(ALL_SCREENS[k].label + ("" if v is None else f"({v:g})") for k, v in chosen.items()) or "없음"
+        return f"제외: {fmt(self.exclude)} | 선별: {fmt(self.select)}" + (f" 상위 {self.top_k}" if self.top_k else "")
 
     def to_dict(self) -> dict:
         return {"exclude": dict(self.exclude), "select": dict(self.select), "top_k": int(self.top_k)}
+
+
+# Ready-made combinations in the shape traders publish them. Values are the published defaults,
+# fixed before any backtest; a profile is tested as a unit (its K and the trading layer vary).
+HYGIENE_DEFAULT: dict[str, float | None] = {"h_history": 12, "h_price": 10, "h_liquidity": 2, "h_illiquid": 20}
+PROFILES: dict[str, tuple[str, ScreenConfig]] = {
+    "minervini": ("Minervini 추세 템플릿", ScreenConfig(
+        exclude={**HYGIENE_DEFAULT, "tt_fail": 25, "x_extended": 25}, select={"s_rs": None}, top_k=50)),
+    "canslim_pv": ("IBD/CANSLIM 가격·거래량", ScreenConfig(
+        exclude={**HYGIENE_DEFAULT, "x_drawdown": 15, "x_weak_industry": 30},
+        select={"s_rs": None, "s_accum": 3, "s_high52_vol": None}, top_k=50)),
+    "quality_momentum": ("질 좋은 모멘텀", ScreenConfig(
+        exclude={**HYGIENE_DEFAULT, "x_lottery": 20, "x_ivol": 20},
+        select={"s_rs": None, "s_smooth": 12, "s_quality": 12}, top_k=50)),
+    "industry_leaders": ("주도 업종의 주도주", ScreenConfig(
+        exclude={**HYGIENE_DEFAULT, "x_weak_industry": 50, "tt_fail": 25},
+        select={"s_industry_rs": 6, "s_rs": None}, top_k=50)),
+    "lowvol_momentum": ("저변동성 모멘텀", ScreenConfig(
+        exclude={**HYGIENE_DEFAULT, "x_ivol": 30}, select={"s_rs": None, "s_lowvol": None}, top_k=50)),
+    "trend_only": ("추세 템플릿만 (순위 없음)", ScreenConfig(
+        exclude={**HYGIENE_DEFAULT, "tt_fail": 25}, select={}, top_k=0)),
+}
 
 
 def month_ends(index: pd.DatetimeIndex) -> pd.DatetimeIndex:

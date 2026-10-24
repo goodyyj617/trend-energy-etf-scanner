@@ -34,7 +34,7 @@ from .data import BENCHMARK, FIELDS, Panel
 SPY_PERMNO = "84398"
 COMMON_SHRCD = {"10", "11"}
 EXCHANGES = {"1", "2", "3"}
-COLUMNS = ["PERMNO", "date", "SHRCD", "EXCHCD", "TICKER", "PRC", "VOL", "RET", "RETX", "SHROUT", "CFACPR",
+COLUMNS = ["PERMNO", "date", "SHRCD", "EXCHCD", "TICKER", "SICCD", "PRC", "VOL", "RET", "RETX", "SHROUT", "CFACPR",
            "OPENPRC", "BIDLO", "ASKHI", "DLSTCD", "DLRET"]
 EXTRA = ("cap", "dividend")  # per-symbol series beyond OHLCV: market value ($M) and daily dividend yield
 TOP_N = 1000
@@ -64,7 +64,7 @@ def read_block(path: Path, permnos: set[str] | None = None, columns: list[str] =
     keep = (df["SHRCD"].isin(COMMON_SHRCD) & df["EXCHCD"].isin(EXCHANGES)) | (df["PERMNO"] == SPY_PERMNO)
     if permnos is not None:
         keep &= df["PERMNO"].isin(permnos)
-    df = df.loc[keep, columns].copy()
+    df = df.loc[keep, [c for c in columns if c in df.columns]].copy()
     df["date"] = pd.to_datetime(df["date"])
     for c in ("PRC", "VOL", "RET", "RETX", "SHROUT", "CFACPR", "OPENPRC", "BIDLO", "ASKHI", "DLSTCD", "DLRET"):
         if c in df.columns:
@@ -148,6 +148,8 @@ def build_panel(src: Path, top_n: int = TOP_N, years: tuple[int, int] | None = N
     if years:
         long = long[(long["date"].dt.year >= years[0]) & (long["date"].dt.year <= years[1])]
     tickers = long.sort_values("date").groupby("PERMNO")["TICKER"].last()
+    sic = (long.sort_values("date").groupby("PERMNO")["SICCD"].last() if "SICCD" in long
+           else pd.Series(dtype=object))
     dl = long.sort_values("date").groupby("PERMNO").tail(1).set_index("PERMNO")["DLSTCD"]
     dl = dl.where(dl >= 200)  # 100 = still listed
     adj = adjust(long)
@@ -178,7 +180,8 @@ def build_panel(src: Path, top_n: int = TOP_N, years: tuple[int, int] | None = N
     eligible &= (n_after > 2) | ~ends_early
     eligible[SPY_PERMNO] = False
     info = pd.DataFrame({"symbol": symbols, "name": [tickers.get(s, "") for s in symbols], "asset_group": "주식",
-                         "delist_code": [dl.get(s, np.nan) for s in symbols]})
+                         "delist_code": [dl.get(s, np.nan) for s in symbols],
+                         "sic": [pd.to_numeric(sic.get(s, np.nan), errors="coerce") for s in symbols]})
     meta = {"top_n": top_n, "years": sorted(members), "files": [f.name for f in files], "symbols": len(symbols) - 1,
             "first": str(close.index[0].date()), "last": str(close.index[-1].date())}
     panel = Panel(**tables, info=info, source=f"CRSP 시점별 시가총액 상위 {top_n} (보통주)", tradable=[s for s in symbols if s != SPY_PERMNO],
