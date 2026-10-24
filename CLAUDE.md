@@ -77,7 +77,7 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`crsp.py` / `crsp_study.py`**: CRSP 일별 파일(사용자 드라이브 `H:\내 드라이브\CRSP`, 커밋 금지) → 시점별 시총 상위 N 패널(`Panel.eligible`, `delist_exit`) → 종목별 단독 시험·Sobol을 중간 저장하며 실행(DECISIONS 70–71). 실행은 노트북 RAM을 아끼려고 **Colab**(`colab/crsp_study.ipynb`, 드라이브 연결)에서 하고, 결과는 드라이브 `CRSP/lab_crsp/`로 돌아온다. `--dry`로 파이프라인만 점검할 수 있다.
   엔진의 `Panel.eligible`은 진입만 막는다(보유 종목은 청산 규칙대로). `delist_exit=True`면 가격 시계열이 기간 중 끝나는 종목을 마지막 봉에서 강제 청산한다(`DELIST_KEY`). 두 기능 모두 기존 패널(`None`/`False`)에서는 결과를 바꾸지 않는다(2026-10-23 비트 단위 확인).
 - **`batch.py`**: 앱 기본 유니버스·설정으로 공통 조건 시험을 명령줄에서 돌린다(`python -m lab.batch addon <kind> <key>`). 앱과 똑같이 시험 횟수에 기록하고 결과를 저장한다.
-- **`daily_alert.py`**: 일일 알림(DECISIONS 53). `config/alert.yml` 전략의 모델 포트폴리오를 오늘까지 시뮬레이션해 다음 시가 주문(`BacktestResult.pending_orders`)과 국면 상태를 이슈 댓글로 보낸다. 성과는 보여주지 않는다.
+- **`daily_alert.py`**: 일일 알림(DECISIONS 53, 75). 네 시장 국면(SPY 200일선·금리차·신용 스프레드·VIX)의 상태, 지속 기간, 값의 뜻을 풀어 쓴 해설을 이슈 댓글로 보낸다. 모델 포트폴리오는 2026-10-24에 뺐다. 가격은 SPY만 받고, `trim_incomplete_tail`로 당일 미완성 봉을 잘라 낸다(yfinance 당일 봉은 시각이 섞여 `data.normalize_dates`로 날짜를 맞춘다).
 - **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
 - 연구 기록: `docs/research/lab/` (날짜별 메모). 연구를 대신 수행했다면 결과·규칙·한계를 여기에 남긴다.
 - **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N), `trial_returns.npz`(시험별 월간 수익률 → 평균 상관 ρ → 유효 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).

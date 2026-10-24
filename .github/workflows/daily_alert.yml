@@ -1,7 +1,8 @@
 name: Daily Alert
 
-# After each US close: market regimes (DECISIONS 50) and the model portfolio's orders for the
-# next open, posted as a comment on the "📊 일일 알림" issue (and Telegram when its secrets exist).
+# After each US close: the four market regimes (DECISIONS 50) with a plain-language reading of each
+# value, posted as a comment on the "📊 일일 알림" issue (and Telegram when its secrets exist).
+# No portfolio is simulated (DECISIONS 75); only SPY prices and the FRED snapshot are read.
 # Settings: config/alert.yml. Read-only for the repository: it commits nothing.
 on:
   workflow_dispatch:
