@@ -249,11 +249,11 @@ def main(argv: list[str]) -> None:
             with ProcessPoolExecutor(max_workers=workers, initializer=_init, initargs=(str(panel_dir),)) as ex:
                 run_families(ex, out, panel, log)
             break
-        except BrokenProcessPool:
+        except (BrokenProcessPool, MemoryError):  # a worker killed, or one that could not allocate
             if workers <= 1:
                 raise
-            workers -= 1
-            log(f"작업 프로세스가 메모리 부족으로 종료됐습니다. 작업 {workers}개로 줄여 이어서 실행합니다.")
+            workers = max(1, workers * 3 // 4)
+            log(f"메모리가 부족했습니다. 작업 {workers}개로 줄여 이어서 실행합니다(끝난 조합은 건너뜀).")
     n_eff, rho, _ = rlog.effective_trials()
     _, sr_var = rlog.trial_stats()
     save_study(out, panel, meta, n_eff, sr_var)
