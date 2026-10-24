@@ -161,7 +161,7 @@ def _band(key: str, x: float) -> str:
 
 
 def _percentile_text(hist: pd.Series, x: float, high_means: str) -> str:
-    """'1990년 이후 상위 12% (높은 편: ...)' — where the current value sits in its own history."""
+    """'1990년 이후 지금보다 낮았던 날이 88% (높은 편: ...)' — where the current value sits in its own history."""
     h = hist.dropna()
     h = h[h.index >= pd.Timestamp(HISTORY_START)]
     if not len(h):
@@ -173,7 +173,7 @@ def _percentile_text(hist: pd.Series, x: float, high_means: str) -> str:
         side = "낮은 편"
     else:
         side = "중간 수준"
-    return f"1990년 이후 상위 {1 - p:.0%} ({side})."
+    return f"1990년 이후 지금보다 낮았던 날이 {p:.0%} ({side})."
 
 
 def market_trend_row(panel: Panel) -> RegimeRow:
