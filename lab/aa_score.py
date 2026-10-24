@@ -4,7 +4,8 @@ rank within the compared set; the composite is shown as a reference only, verdic
 Axes (raw value -> higher score is better):
 - 단순   fewer free parameters (AllocConfig.parameter_count)
 - 일관   share of rolling 36-month windows that beat cash
-- 위기   mean return relative to SPY over the registered crisis windows that fall in the period
+- 위기   mean return relative to the benchmark (S&P 500; in KRW for the Korean-ETF panel) over the
+         registered crisis windows that fall in the period
 - 꼬리   CVaR 5% of monthly returns (average of the worst 5% months)
 - 비용   annual one-way turnover plus leverage financing drag (lower is better)
 - 샤프 전반 / 후반   excess-over-cash Sharpe in the first and second half of the period
@@ -38,7 +39,7 @@ AXES = ["단순", "일관", "위기", "꼬리", "비용", "샤프 전반", "샤�
 RAW_COLUMNS = {
     "단순": ("parameters", "자유 파라미터 수", "int"),
     "일관": ("rolling_beat_cash", "36개월 구간 중 현금을 이긴 비율", "pct"),
-    "위기": ("crisis_vs_spy", "위기 구간 평균 (전략 수익률 − SPY 수익률)", "pct"),
+    "위기": ("crisis_vs_spy", "위기 구간 평균 (전략 수익률 − S&P500 수익률)", "pct"),
     "꼬리": ("cvar_5", "월간 수익률 CVaR 5%", "pct"),
     "비용": ("cost_drag", "연간 회전율 + 레버리지 조달 비용", "pct"),
     "샤프 전반": ("sharpe_front", "전반부 현금 초과 샤프", "ratio"),
@@ -51,7 +52,7 @@ HIGHER_IS_BETTER = {"단순": False, "일관": True, "위기": True, "꼬리": T
 AXIS_TEXT = {
     "단순": "자유 파라미터가 적을수록 높음. 비중 벡터 1 + 리밸런싱 주기(분기 아니면) + 밴드 + overlay(종류·안전자산) + 레버리지 배수마다 1.",
     "일관": "기간 안의 모든 36개월 구간에서 전략 수익이 현금 수익보다 높았던 비율. 특정 시기에만 좋은 전략은 낮음.",
-    "위기": "등록된 위기 구간(닷컴·금융위기·2011·2018Q4·코로나·2022)에서 전략 수익률 − SPY 수익률의 평균. 기간에 포함된 구간만 셈.",
+    "위기": "등록된 위기 구간(닷컴·금융위기·2011·2018Q4·코로나·2022)에서 전략 수익률 − S&P500(원화, KODEX 미국S&P500) 수익률의 평균. 기간에 포함된 구간만 셈.",
     "꼬리": "월간 수익률 중 가장 나쁜 5%의 평균(CVaR 5%). 0에 가까울수록 높음.",
     "비용": "연간 한쪽 회전율 × 거래비용 + 레버리지 조달 스프레드·보수. 낮을수록 높음.",
     "샤프 전반": "기간 전반부(거래일 기준 절반)의 현금 초과 샤프 = mean(r − 현금) / std(r − 현금) × √252.",
@@ -97,7 +98,7 @@ def cvar(monthly: pd.Series, q: float = 0.05) -> float:
 
 
 def crisis_table(res: AllocResult) -> pd.DataFrame:
-    """Return of the strategy and SPY in each registered crisis window inside the period."""
+    """Return of the strategy and the benchmark in each registered crisis window inside the period."""
     rows = []
     eq, bm = res.equity, res.benchmark
     for name, (a, b) in CRISIS_WINDOWS.items():
@@ -109,8 +110,8 @@ def crisis_table(res: AllocResult) -> pd.DataFrame:
         if len(e) < 5:
             continue
         rows.append({"구간": name, "시작": a.date(), "끝": b.date(), "전략": e.iloc[-1] / e.iloc[0] - 1,
-                     "SPY": s.iloc[-1] / s.iloc[0] - 1})
-    return pd.DataFrame(rows, columns=["구간", "시작", "끝", "전략", "SPY"])
+                     "S&P500": s.iloc[-1] / s.iloc[0] - 1})
+    return pd.DataFrame(rows, columns=["구간", "시작", "끝", "전략", "S&P500"])
 
 
 def cost_drag(res: AllocResult) -> float:
@@ -139,7 +140,7 @@ def raw_metrics(res: AllocResult, parameters: int | None = None) -> dict[str, fl
         "sharpe_excess": excess_sharpe(eq, cash),
         "sharpe_front": excess_sharpe(eq.iloc[:half], cash), "sharpe_back": excess_sharpe(eq.iloc[half:], cash),
         "rolling_beat_cash": rolling_beat_cash(eq, cash),
-        "crisis_vs_spy": float((ct["전략"] - ct["SPY"]).mean()) if len(ct) else float("nan"),
+        "crisis_vs_spy": float((ct["전략"] - ct["S&P500"]).mean()) if len(ct) else float("nan"),
         "crisis_n": float(len(ct)),
         "cvar_5": cvar(monthly),
         "worst_month": float(monthly.min()) if len(monthly) else float("nan"),

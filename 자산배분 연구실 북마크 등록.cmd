@@ -8,5 +8,5 @@ if not exist ".venv\Scripts\pythonw.exe" (
 ".venv\Scripts\python.exe" scripts\aa_link.py register
 echo.
 echo Done. Add a Chrome bookmark with this URL:  aalab://scorecard
-echo (aalab://research opens the strategy page, aalab://notes the findings page.)
+echo (aalab://research strategy, aalab://compare all tested strategies, aalab://rebalance calculator.)
 pause

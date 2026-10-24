@@ -1,8 +1,9 @@
 """Save and reload allocation strategies under lab_results/ (kind "alloc", one folder each).
 
-meta.json holds the configuration (an AllocConfig, or a MixConfig under "mix"), the period and
-the headline metrics; equity.csv holds the strategy, SPY and exposure; weights.csv the daily
-weights. A saved strategy is re-run on the current data when it is compared, so the scorecard
+meta.json holds the configuration (an AllocConfig, or a MixConfig under "mix"), the period, the
+headline metrics and "currency" ("KRW" for the Korean-ETF panel; older USD saves have none);
+equity.csv holds the strategy, the benchmark and exposure; weights.csv the daily weights. A saved
+strategy is re-run on the current data when it is compared, so the scorecard
 always uses one common period.
 """
 from __future__ import annotations
@@ -32,14 +33,14 @@ def save_result(res: AllocResult, metrics: dict, name: str, data_source: str, mi
     start, end = res.period
     meta = {
         "kind": KIND, "name": name, "saved_at": datetime.now().isoformat(timespec="seconds"),
-        "data_source": data_source, "period": [str(start.date()), str(end.date())],
+        "data_source": data_source, "period": [str(start.date()), str(end.date())], "currency": "KRW",
         "config": res.config.to_dict(), "description": (mix.describe() if mix else res.config.describe()),
         "metrics": {k: (None if v is None or (isinstance(v, float) and v != v) else v) for k, v in metrics.items()},
     }
     if mix is not None:
         meta["mix"] = mix.to_dict()
     (path / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-    pd.DataFrame({"strategy": res.equity, "SPY": res.benchmark, "exposure": res.exposure}).to_csv(path / "equity.csv")
+    pd.DataFrame({"strategy": res.equity, "benchmark": res.benchmark, "exposure": res.exposure}).to_csv(path / "equity.csv")
     res.weights.to_csv(path / "weights.csv")
     return path
 

@@ -51,3 +51,50 @@ A11. Notes: `docs/research/allocation/NOTES.md` holds three sections (실무에 
 A12. Results of the 2026-10-24 review that motivated the lab (USD, 2005-01 – 2026-10): no static mix
     (8), dynamic overlay (7) or leverage variant (16) met CAGR > SPY and MDD < SPY at once. Record:
     docs/research/allocation/2026-10-24_all_weather_review.md and NOTES.md.
+
+### Korean-listed products in KRW (2026-10-24, user request: "ISA 계좌라 한국 상장 ETF만 살 수 있다")
+
+A13. The lab's building blocks are Korean-listed products (`lab/aa_assets.py` `PRODUCTS`, 20 items: the
+    user's six holdings, alternatives per asset class, cash/dollar products and six leveraged ETFs) and
+    every result is a KRW return. This supersedes A2. Before listing (most products listed after 2015)
+    each product is backed by a US proxy converted the way the product earns its return
+    (`lab/aa_korea.py`): unhedged = USD return × USD/KRW change; hedged (H) = USD excess return over USD
+    cash + KRW cash − extra hedge cost; KOSPI products = EWY converted to KRW; CD-rate ETF = KRW cash.
+    Leveraged products are a daily-reset multiple of the excess return over the funding currency's
+    cash rate. Every product carries its total fee (총보수) as a daily drag. The period choice
+    "실제 상장일 이후만" starts at the latest listing date among the chosen products, i.e. without
+    proxy data.
+A14. Presets are re-registered as Korean products with the same intent as A10 (A10's USD mapping is
+    retired, not edited): the user's AAA uses its actual six products; MSCI World is KODEX MSCI선진국
+    (251350, proxy 0.7 SPY + 0.3 EFA as in A10); GTAA 5's EAFE leg becomes 251350; golden butterfly's
+    small-cap leg is KODEX 미국러셀2000(H) (280930); short Treasuries / cash become KODEX CD금리액티브
+    (459580); Dalio's commodity 7.5 stays folded into gold. Registered before any KRW result was seen.
+A15. Benchmark = KODEX 미국S&P500 (379800, unhedged) in KRW; it replaces SPY in every gate, delta and
+    crisis table (gate formulas unchanged, A9). Uninvested cash earns the Bank of Korea base rate.
+    Consequence recorded in NOTES: the KRW benchmark's MDD (−29.6%, 2005–2026) is about half of USD
+    SPY's, so the MDD gate is stricter than in the USD version.
+A16. Data and model constants: USD/KRW = FRED DEXKOUS (noon buying rate in New York, same clock as
+    US closes) committed as `lab/aa_usdkrw.csv.gz`, newer days spliced from Yahoo KRW=X when online;
+    KRW cash = Bank of Korea base-rate step schedule `lab/aa_bok_rate.csv` (rows before 2018-11 marked
+    "memory" until checked against ECOS); hedge cost = rate gap + 20 bp/yr (sidebar slider). Known gaps
+    entered as product constants, not fitted: TIGER 미국S&P500레버리지 tracks the price index, so
+    −3 %/yr for missing dividends ×2; 452250 tracks Ultra T-bond futures but is proxied by 2×TLT
+    (duration understated); the KRX gold premium and tracking error are not modelled.
+A17. Every research run is logged with its full configuration (`aa_runs.csv` gains a `config` JSON
+    column; older files are migrated in place). The 전략 비교 page re-runs every logged and saved
+    configuration once (duplicates by configuration, ignoring name and dates), optionally with presets,
+    on one period (common-period toggle), and shows one table (CAGR, MDD, Sharpe, Calmar, volatility,
+    worst 12 months, both gates), a CAGR–MDD map with gate lines, and overlaid equity/drawdown curves.
+    Runs from the USD version are skipped because their assets are not in the KRW panel. Viewing the
+    page is not logged again.
+A18. Rebalancing calculator (`lab/aa_rebalance.py`): targets come from a preset, a saved strategy or
+    the current research strategy (overlays: the target at the last month end). Modes: buy_only (no
+    sells; new money to underweight products in proportion to their shortfall, any rest by target
+    weight) and full (trade to target; within ±band for every product it falls back to buy_only).
+    Share counts are truncated to whole shares at the entered price. Holdings are saved only to
+    `lab_results/aa_holdings.json` (local, not committed). It is a calculator, not advice; tax and
+    the account's cash buffer are the user's call.
+A19. Leverage in the UI: real exposure is built by checking leveraged products (A13) and weighting
+    them. The whole-mix virtual multiple (A5) stays in an expander labelled research-only, because no
+    Korean product offers it. Per-asset virtual multiples are removed from the UI (the engine keeps
+    the field so old saves still load).

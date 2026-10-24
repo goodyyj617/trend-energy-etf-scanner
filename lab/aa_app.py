@@ -1,10 +1,12 @@
-"""자산배분 연구실 — Streamlit app (asset allocation, overlays, leverage, strategy mixes, scorecard).
+"""자산배분 연구실 — Streamlit app for allocations of Korean-listed ETFs (ISA account), in KRW.
 
 Run:  .venv\\Scripts\\python.exe -m streamlit run lab/aa_app.py --server.port 8511
 """
 from __future__ import annotations
 
+import json
 import sys
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -16,27 +18,36 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lab import aa_notes as notes  # noqa: E402
+from lab import aa_rebalance as rebal  # noqa: E402
 from lab import aa_store as store  # noqa: E402
-from lab.aa_assets import ASSETS, CASH, CLASS_ORDER, DEFAULT_ASSETS, PRESETS, label  # noqa: E402
+from lab.aa_assets import (  # noqa: E402
+    CASH, CLASS_ORDER, DEFAULT_PRODUCTS, FX_LABELS, PRESETS, PRODUCTS, PROXY_SYMBOLS, label, short,
+)
 from lab.aa_engine import (  # noqa: E402
     OVERLAY_LABELS, OVERLAY_PARAM, REBALANCE_LABELS, RULES_KO, AllocConfig, AllocResult, Leverage, MixConfig, Overlay,
-    mix_parameter_count, run_allocation, run_mix,
+    current_targets, mix_parameter_count, run_allocation, run_mix,
 )
+from lab.aa_korea import BOK_PATH, KrwModel, fetch_usdkrw_tail, krw_panel, load_bok_rate, load_usdkrw, splice  # noqa: E402
 from lab.aa_score import (  # noqa: E402
     AXES, AXIS_TEXT, CRISIS_WINDOWS, RAW_COLUMNS, AllocGates, axis_raw_table, crisis_table, gate_results, raw_metrics,
     scorecard,
 )
 from lab.data import download_panel  # noqa: E402
-from lab.metrics import DEFINITIONS, drawdown, fmt_value  # noqa: E402
+from lab.metrics import DEFINITIONS, drawdown  # noqa: E402
 
 st.set_page_config(page_title="자산배분 연구실", page_icon="🧺", layout="wide")
 
 BLUE, ORANGE, GRAY, AQUA = "#2a78d6", "#eb6834", "#8a8984", "#1baf7a"
-PALETTE = [BLUE, AQUA, "#eda100", "#e87ba4", "#4a3aa7", "#008300", "#e34948", "#7a5c2e"]
+PALETTE = [BLUE, AQUA, "#eda100", "#e87ba4", "#4a3aa7", "#008300", "#e34948", "#7a5c2e", "#00a3c4", "#b25fd0"]
+CLASS_COLORS = {"주식": "#2a78d6", "채권": "#1baf7a", "금·실물": "#eda100", "현금·달러": "#8a8984", "레버리지": "#e34948"}
 RED_GREEN = [[0, "#e34948"], [0.5, "#f6f1e8"], [1, "#1baf7a"]]
 BR = "  " + chr(10)
 DEFAULT_START = "2005-01-03"
-ALL_SYMBOLS = list(ASSETS)
+EARLIEST = date(1993, 1, 29)
+BENCH = "S&P500(원화)"
+CUSTOM = "(직접 입력)"
+PERIODS = {"all": "가능한 전체 기간", "2010": "2010년 이후", "2015": "2015년 이후", "2020": "2020년 이후",
+           "listed": "실제 상장일 이후만 (대용 데이터 없이)", "custom": "직접 지정"}
 
 
 def init(key: str, value):
@@ -45,117 +56,233 @@ def init(key: str, value):
     return key
 
 
-def pct(v: float, digits: int = 1) -> str:
+def pct(v, digits: int = 1) -> str:
     return "–" if v is None or not np.isfinite(v) else f"{v * 100:.{digits}f}%"
 
 
-def num(v: float, digits: int = 2) -> str:
+def num(v, digits: int = 2) -> str:
     return "–" if v is None or not np.isfinite(v) else f"{v:.{digits}f}"
+
+
+def won(v) -> str:
+    return "–" if v is None or not np.isfinite(v) else f"{v:,.0f}원"
 
 
 # =========================================================================== data
 
-@st.cache_resource(show_spinner="가격 데이터를 불러오는 중… (처음 한 번은 1분 정도, 이후에는 저장된 파일 사용)")
-def load_panel(day: str):
+@st.cache_resource(show_spinner="가격·환율 데이터를 불러오는 중… (처음 한 번은 1분 정도, 이후에는 저장된 파일 사용)")
+def load_data(day: str, hedge_bps: float) -> dict:
     try:
-        panel, failed = download_panel(ALL_SYMBOLS, day)
+        usd, failed = download_panel(PROXY_SYMBOLS, day)
     except Exception as exc:  # offline: fall back to whatever is cached
         from lab.data import CACHE_DIR
-        cached = sorted((CACHE_DIR / "yf").glob("*.csv.gz"))
+        cached = [p for p in sorted((CACHE_DIR / "yf").glob("*.csv.gz")) if p.stem.split(".")[0] in PROXY_SYMBOLS]
         if not cached:
             raise
-        last = min(pd.read_csv(p, usecols=["date"])["date"].max() for p in cached)  # every file reaches this date
-        panel, failed = download_panel(ALL_SYMBOLS, str(last))
+        last = min(pd.read_csv(p, usecols=["date"])["date"].max() for p in cached)
+        usd, failed = download_panel([p.stem.split(".")[0] for p in cached], str(last))
         failed = list(failed) + [f"(오프라인: {exc})"]
-    return panel, failed
+    fx = splice(load_usdkrw(), fetch_usdkrw_tail())
+    panel, unavailable = krw_panel(usd, fx, load_bok_rate(), KrwModel(hedge_extra_bps=hedge_bps))
+    return {"panel": panel, "failed": failed, "unavailable": unavailable, "fx_last": fx.index[-1].date(),
+            "usd_last": usd.last_date.date(), "fx": fx}
 
 
-def panel_or_stop():
+def data_or_stop() -> dict:
     try:
-        panel, failed = load_panel(str(date.today()))
+        data = load_data(str(date.today()), float(st.session_state.get("m_hedge", 20.0)))
     except Exception as exc:
         st.error(f"가격 데이터를 불러오지 못했습니다: {exc}")
         st.stop()
-    if failed:
-        st.caption("받지 못한 티커: " + ", ".join(map(str, failed)))
-    return panel
+    return data
+
+
+def sidebar(data: dict) -> None:
+    with st.sidebar:
+        st.caption(f"데이터: 미국 대용 ETF ~ {data['usd_last']} · 원/달러 ~ {data['fx_last']} · 원화 금리: 한국은행 기준금리")
+        if data["failed"]:
+            st.caption("받지 못한 대용: " + ", ".join(map(str, data["failed"])))
+        st.slider("헤지 추가 비용 (bp/년)", 0, 100, step=5, key=init("m_hedge", 20),
+                  help="환헤지(H) 상품은 ‘원화 금리 − 달러 금리’를 받습니다. 그 밖에 선물환 매매 비용·베이시스로 매년 더 빠지는 몫입니다. "
+                       "바꾸면 모든 계산이 다시 됩니다.")
 
 
 # =========================================================================== strategy builder
 
-def apply_preset(prefix: str, key: str) -> None:
-    p = PRESETS[key]
-    st.session_state[f"{prefix}_assets"] = [s for s in p.weights if s != CASH]
-    for s in ALL_SYMBOLS + [CASH]:
-        st.session_state[f"{prefix}_w_{s}"] = float(p.weights.get(s, 0.0))
-    st.session_state[f"{prefix}_name"] = p.name
+def _set_weights(prefix: str, weights: dict[str, float]) -> None:
+    for code in PRODUCTS:
+        st.session_state[f"{prefix}_on_{code}"] = code in weights
+        st.session_state[f"{prefix}_w_{code}"] = int(round(weights.get(code, 0)))
 
 
-def weights_section(prefix: str) -> dict[str, float]:
-    c1, c2 = st.columns([1.2, 3])
-    preset = c1.selectbox("프리셋 불러오기", ["(직접 입력)"] + list(PRESETS), key=init(f"{prefix}_preset", "aaa_2026"),
-                          format_func=lambda k: k if k == "(직접 입력)" else PRESETS[k].name)
-    if preset != "(직접 입력)" and st.session_state.get(f"{prefix}_preset_applied") != preset:
-        apply_preset(prefix, preset)
-        st.session_state[f"{prefix}_preset_applied"] = preset
-    if preset != "(직접 입력)":
-        c2.caption(PRESETS[preset].note)
-    assets = st.multiselect("자산 (미국 상장 ETF 대용)", ALL_SYMBOLS, key=init(f"{prefix}_assets", list(DEFAULT_ASSETS)),
-                            format_func=label, help="\n\n".join(f"**{s}** {a.label} · 국내 상품: {a.korea}" for s, a in ASSETS.items()))
-    if not assets:
-        st.warning("자산을 하나 이상 고르세요.")
+def apply_preset(prefix: str) -> None:
+    key = st.session_state.get(f"{prefix}_preset", CUSTOM)
+    if key in PRESETS:
+        _set_weights(prefix, PRESETS[key].weights)
+        st.session_state[f"{prefix}_name"] = PRESETS[key].name
+
+
+def _int_split(raw: dict[str, float], total: int = 100) -> dict[str, int]:
+    """Integers summing to `total`, proportional to raw (largest remainder)."""
+    s = sum(raw.values())
+    if s <= 0:
+        raw = {k: 1.0 for k in raw}
+        s = float(len(raw))
+    exact = {k: v / s * total for k, v in raw.items()}
+    out = {k: int(np.floor(v)) for k, v in exact.items()}
+    for k in sorted(exact, key=lambda k: exact[k] - out[k], reverse=True)[: total - sum(out.values())]:
+        out[k] += 1
+    return out
+
+
+def selected_codes(prefix: str) -> list[str]:
+    return [c for c in PRODUCTS if st.session_state.get(f"{prefix}_on_{c}")]
+
+
+def normalise_cb(prefix: str) -> None:
+    codes = selected_codes(prefix)
+    for k, v in _int_split({c: float(st.session_state.get(f"{prefix}_w_{c}", 0)) for c in codes}).items():
+        st.session_state[f"{prefix}_w_{k}"] = v
+
+
+def equal_cb(prefix: str) -> None:
+    codes = selected_codes(prefix)
+    for k, v in _int_split({c: 1.0 for c in codes}).items():
+        st.session_state[f"{prefix}_w_{k}"] = v
+
+
+def product_help(code: str, unavailable: dict) -> str:
+    p = PRODUCTS[code]
+    lines = [f"종목코드 {code} · {FX_LABELS[p.fx]} · 총보수 {p.ter:g}% · 상장 {p.listed}",
+             f"상장 전 기간은 대용 데이터: {p.proxy_text}"]
+    if p.note:
+        lines.append(p.note)
+    if code in unavailable:
+        lines.append("⚠️ " + unavailable[code])
+    return "\n\n".join(lines)
+
+
+def product_picker(prefix: str, unavailable: dict) -> None:
+    fx_short = {"unhedged": "환노출", "hedged": "환헤지", "krw": "원화", "krw_native": "원화"}
+    for cls in CLASS_ORDER:
+        codes = [c for c, p in PRODUCTS.items() if p.asset_class == cls]
+        if cls == "레버리지":
+            box = st.expander("레버리지 상품 (ISA에서 매수 가능 · 증권사 레버리지 ETF 사전교육과 기본예탁금 필요)",
+                              expanded=any(st.session_state.get(f"{prefix}_on_{c}") for c in codes))
+        else:
+            box = st.container()
+        with box:
+            if cls != "레버리지":
+                st.markdown(f"<span style='color:{CLASS_COLORS[cls]};font-weight:600'>■ {cls}</span>", unsafe_allow_html=True)
+            cols = st.columns(3)
+            for i, c in enumerate(codes):
+                p = PRODUCTS[c]
+                tag = fx_short[p.fx] + (f" · {p.leverage:g}배" if p.leverage != 1 else "")
+                cols[i % 3].checkbox(f"{p.name} · {tag}", key=init(f"{prefix}_on_{c}", False), disabled=c in unavailable,
+                                     help=product_help(c, unavailable))
+
+
+def allocation_bar(weights: dict[str, float]) -> go.Figure:
+    fig = go.Figure()
+    total = sum(weights.values()) or 1.0
+    for code, w in weights.items():
+        cls = PRODUCTS[code].asset_class if code in PRODUCTS else "현금·달러"
+        fig.add_bar(y=[""], x=[w / total], orientation="h", name=short(code), marker_color=CLASS_COLORS[cls],
+                    marker_line=dict(color="white", width=2), text=f"{short(code)} {w / total * 100:.0f}%", textposition="inside",
+                    insidetextanchor="middle", hovertemplate=f"{label(code)}: {w / total * 100:.1f}%<extra></extra>")
+    fig.update_layout(barmode="stack", height=90, margin=dict(l=0, r=0, t=0, b=0), showlegend=False,
+                      xaxis=dict(visible=False, range=[0, 1]), yaxis=dict(visible=False))
+    return fig
+
+
+def weight_sliders(prefix: str) -> dict[str, float]:
+    codes = selected_codes(prefix)
+    if not codes:
+        st.info("위에서 상품을 하나 이상 체크하세요.")
         return {}
-    cols = st.columns(min(len(assets) + 1, 7))
-    weights: dict[str, float] = {}
-    for i, s in enumerate(assets + [CASH]):
-        key = init(f"{prefix}_w_{s}", 0.0)
-        weights[s] = cols[i % len(cols)].number_input(f"{s} (%)" if s != CASH else "현금 (%)", 0.0, 100.0, step=5.0, key=key,
-                                                      help=label(s))
+    cols = st.columns(2)
+    for i, c in enumerate(codes):
+        cols[i % 2].slider(label(c), 0, 100, step=1, key=init(f"{prefix}_w_{c}", 0), format="%d%%")
+    weights = {c: float(st.session_state[f"{prefix}_w_{c}"]) for c in codes}
     total = sum(weights.values())
-    if abs(total - 100) > 0.01:
-        st.caption(f"비중 합 {total:g}% → 실행 시 100%로 정규화합니다.")
-    return {s: v for s, v in weights.items() if v > 0}
+    b1, b2, b3 = st.columns([1.3, 1, 3])
+    b1.button("합계 100%로 맞추기", on_click=normalise_cb, args=(prefix,), key=f"btn_norm_{prefix}",
+              help="비율은 그대로 두고 합이 100이 되게 정수로 맞춥니다.")
+    b2.button("균등 분배", on_click=equal_cb, args=(prefix,), key=f"btn_eq_{prefix}")
+    positive = {c: w for c, w in weights.items() if w > 0}
+    fee = sum(PRODUCTS[c].ter * w for c, w in positive.items()) / total if total > 0 else 0.0
+    if abs(total - 100) < 1e-9:
+        b3.success(f"합계 100% · 가중 평균 총보수 {fee:.3f}%/년")
+    elif total == 0:
+        b3.error("비중이 모두 0입니다.")
+    else:
+        b3.warning(f"합계 {total:g}% ({100 - total:+g}%p) — 실행할 때는 비율대로 100%로 맞춥니다.")
+    if positive:
+        st.plotly_chart(allocation_bar(positive), width="stretch", config={"displayModeBar": False})
+    return positive
 
 
-def rules_section(prefix: str, last: date) -> tuple[dict, Overlay, Leverage, str, str]:
-    c1, c2, c3, c4, c5 = st.columns([1.3, 1, 1, 1.2, 1.2])
+def period_section(prefix: str, last: date, codes: list[str]) -> tuple[str, str]:
+    c1, c2, c3 = st.columns([1.6, 1, 1])
+    choice = c1.selectbox("기간", list(PERIODS), key=init(f"{prefix}_period", "all"), format_func=PERIODS.get,
+                          help="상장 전 기간은 미국 ETF + 환율 + 금리로 만든 대용 데이터입니다. ‘실제 상장일 이후만’은 고른 상품 중 가장 늦게 상장한 날부터 봅니다.")
+    start = {"all": EARLIEST, "2010": date(2010, 1, 1), "2015": date(2015, 1, 1), "2020": date(2020, 1, 1)}.get(choice)
+    if choice == "listed":
+        start = max((date.fromisoformat(PRODUCTS[c].listed) for c in codes if c in PRODUCTS), default=EARLIEST)
+        c2.caption(f"시작 {start} (가장 늦은 상장일)")
+    end = last
+    if choice == "custom":
+        start = c2.date_input("시작일", key=init(f"{prefix}_start", date.fromisoformat(DEFAULT_START)), min_value=EARLIEST, max_value=last)
+        end = c3.date_input("종료일", key=init(f"{prefix}_end", last), min_value=EARLIEST, max_value=last)
+    return str(start), str(end)
+
+
+def rules_section(prefix: str, codes: list[str]) -> tuple[dict, Overlay, Leverage]:
+    c1, c2, c3 = st.columns([1.3, 1, 1])
     rebalance = c1.selectbox("리밸런싱", list(REBALANCE_LABELS), key=init(f"{prefix}_rebalance", "Q"),
                              format_func=REBALANCE_LABELS.get, help="overlay를 켜면 매월 결정합니다.")
     band = c2.number_input("밴드 (%p)", 0.0, 30.0, step=1.0, key=init(f"{prefix}_band", 0.0),
-                           help="0이면 결정일마다 거래. 5면 모든 자산이 목표 ±5%p 안에 있을 때 거래를 건너뜁니다.")
-    cost = c3.number_input("거래비용 (bp, 한쪽)", 0.0, 100.0, step=5.0, key=init(f"{prefix}_cost", 10.0))
-    start = c4.date_input("시작일", key=init(f"{prefix}_start", date.fromisoformat(DEFAULT_START)), min_value=date(1993, 1, 29), max_value=last)
-    end = c5.date_input("종료일", key=init(f"{prefix}_end", last), min_value=date(1993, 1, 29), max_value=last)
-    o1, o2, o3 = st.columns([2.2, 1, 1.2])
+                           help="0이면 결정일마다 거래. 5면 모든 상품이 목표 ±5%p 안에 있을 때 거래를 건너뜁니다.")
+    cost = c3.number_input("거래비용 (bp, 한쪽)", 0.0, 100.0, step=5.0, key=init(f"{prefix}_cost", 10.0),
+                           help="매매 수수료 + 호가 차이. 10bp = 0.1%.")
+    o1, o2, o3 = st.columns([2.2, 1, 1.4])
     kind = o1.selectbox("overlay (전술 규칙)", list(OVERLAY_LABELS), key=init(f"{prefix}_ov_kind", "none"), format_func=OVERLAY_LABELS.get)
-    param = None
-    safe = CASH
+    param, safe = None, CASH
     if kind != "none":
         plabel, pdefault, pmin, pmax = OVERLAY_PARAM[kind]
         param = o2.number_input(plabel, float(pmin), float(pmax), step=1.0, key=init(f"{prefix}_ov_{kind}", float(pdefault)))
         if kind != "riskparity":
-            safe = o3.selectbox("안전자산 (비운 비중이 가는 곳)", [CASH] + ALL_SYMBOLS, key=init(f"{prefix}_ov_safe", CASH), format_func=label)
-    with st.expander("레버리지 (기본: 없음)"):
+            options = [CASH, "459580", "261240", "0091C0", "484790", "411060"]
+            safe = o3.selectbox("안전자산 (비운 비중이 가는 곳)", options, key=init(f"{prefix}_ov_safe", CASH), format_func=label)
+    with st.expander("가상 레버리지 (연구용 · 실제로는 위 레버리지 상품으로 구현)"):
+        st.caption("배분 전체에 일일 리셋 배수를 겁니다. 국내에 이런 상품은 없으니 ‘레버리지를 쓰면 어떻게 되나’를 볼 때만 쓰고, "
+                   "실제 운용은 레버리지 ETF를 체크해 비중으로 구성하세요.")
         l1, l2, l3 = st.columns(3)
-        factor = l1.number_input("전체 노출 배수 (변동성 목표에서는 상한)", 0.1, 3.0, step=0.1, key=init(f"{prefix}_lev", 1.0),
-                                 help="1 = 레버리지 없음. 1.5면 매일 자산의 150%를 보유하고 50%를 빌린 것과 같음(일일 리셋).")
-        spread = l2.number_input("조달 스프레드 (bp/년, 현금금리 위)", 0.0, 500.0, step=10.0, key=init(f"{prefix}_spread", 100.0))
+        factor = l1.number_input("전체 노출 배수 (변동성 목표에서는 상한)", 0.1, 3.0, step=0.1, key=init(f"{prefix}_lev", 1.0))
+        spread = l2.number_input("조달 스프레드 (bp/년, 원화 금리 위)", 0.0, 500.0, step=10.0, key=init(f"{prefix}_spread", 100.0))
         ter = l3.number_input("레버리지 상품 추가 보수 (bp/년)", 0.0, 300.0, step=10.0, key=init(f"{prefix}_ter", 60.0))
-        lev_assets = st.multiselect("자산별 배수 (예: S&P500 2배 ETF)", ALL_SYMBOLS, key=init(f"{prefix}_lev_assets", []), format_func=label)
-        per_asset = {}
-        if lev_assets:
-            cols = st.columns(min(len(lev_assets), 6))
-            for i, s in enumerate(lev_assets):
-                per_asset[s] = cols[i % len(cols)].number_input(f"{s} 배수", 0.5, 3.0, step=0.5, key=init(f"{prefix}_lm_{s}", 2.0))
-    return (dict(rebalance=rebalance, band=float(band), cost_bps=float(cost)), Overlay(kind, None if param is None else float(param), safe),
-            Leverage(float(factor), float(spread), float(ter), {k: float(v) for k, v in per_asset.items()}), str(start), str(end))
+    return (dict(rebalance=rebalance, band=float(band), cost_bps=float(cost)),
+            Overlay(kind, None if param is None else float(param), safe), Leverage(float(factor), float(spread), float(ter)))
 
 
-def strategy_builder(prefix: str, last: date) -> AllocConfig | None:
-    weights = weights_section(prefix)
+def strategy_builder(prefix: str, data: dict) -> AllocConfig | None:
+    if f"{prefix}_on_379800" not in st.session_state:  # first visit: the user's own portfolio
+        st.session_state[f"{prefix}_preset"] = "aaa_2026"
+        apply_preset(prefix)
+    c1, c2 = st.columns([1.2, 3])
+    preset = c1.selectbox("프리셋 불러오기", [CUSTOM] + list(PRESETS), key=init(f"{prefix}_preset", "aaa_2026"),
+                          format_func=lambda k: k if k == CUSTOM else PRESETS[k].name, on_change=apply_preset, args=(prefix,))
+    if preset in PRESETS:
+        c2.caption(PRESETS[preset].note)
+    st.markdown("**상품 고르기** · 상품 이름에 마우스를 올리면 종목코드·보수·상장일·대용 데이터가 보입니다.")
+    product_picker(prefix, data["unavailable"])
+    st.markdown("**비중**")
+    weights = weight_sliders(prefix)
     if not weights:
         return None
-    rules, overlay, lev, start, end = rules_section(prefix, last)
+    st.markdown("**규칙**")
+    start, end = period_section(prefix, data["panel"].last_date.date(), list(weights))
+    rules, overlay, lev = rules_section(prefix, list(weights))
     name = st.text_input("전략 이름", key=init(f"{prefix}_name", "내 배분"))
     if start >= end:
         st.warning("시작일이 종료일보다 앞서야 합니다.")
@@ -167,35 +294,33 @@ def strategy_builder(prefix: str, last: date) -> AllocConfig | None:
 
 def kpi_row(m: dict) -> None:
     cols = st.columns(8)
-    items = [("CAGR", pct(m["cagr"]), f"SPY {pct(m['spy_cagr'])}"),
-             ("최대 낙폭", pct(m["mdd"]), f"SPY {pct(m['spy_mdd'])}"),
-             ("현금 초과 샤프", num(m["sharpe_excess"]), "mean(r−현금)/std × √252"),
-             ("칼마", num(m["calmar"]), f"SPY {num(m['spy_calmar'])}"),
-             ("최악 12개월", pct(m["worst_12m"]), None),
-             ("CVaR 5% (월)", pct(m["cvar_5"]), f"최악 달 {pct(m['worst_month'])}"),
-             ("연간 회전율", pct(m["turnover"], 0), f"비용 드래그 {pct(m['cost_drag'], 2)}/년"),
-             ("평균 노출", num(m["exposure_mean"]), "1 = 무레버리지 전액 투자")]
-    for c, (lab, val, sub) in zip(cols, items):
-        c.metric(lab, val, help=sub)
+    items = [("CAGR", pct(m["cagr"]), f"{(m['cagr'] - m['spy_cagr']) * 100:+.1f}%p", f"{BENCH} {pct(m['spy_cagr'])}"),
+             ("최대 낙폭", pct(m["mdd"]), f"{(m['mdd'] - m['spy_mdd']) * 100:+.1f}%p", f"{BENCH} {pct(m['spy_mdd'])}"),
+             ("현금 초과 샤프", num(m["sharpe_excess"]), None, "mean(r − 원화 현금) / std × √252"),
+             ("칼마", num(m["calmar"]), f"{m['calmar'] - m['spy_calmar']:+.2f}", f"{BENCH} {num(m['spy_calmar'])}"),
+             ("변동성", pct(m.get("volatility")), None, "연율화 표준편차"),
+             ("최악 12개월", pct(m["worst_12m"]), None, None),
+             ("CVaR 5% (월)", pct(m["cvar_5"]), None, f"최악 달 {pct(m['worst_month'])}"),
+             ("연간 회전율", pct(m["turnover"], 0), None, f"비용 드래그 {pct(m['cost_drag'], 2)}/년")]
+    for c, (lab, val, delta, sub) in zip(cols, items):
+        c.metric(lab, val, delta=delta, help=sub)
 
 
 def gates_line(m: dict) -> None:
     g = gate_results(m)
-    txt = []
-    for k, ok in g.items():
-        txt.append(("✅ " if ok else "❌ ") + k)
-    st.markdown(" · ".join(txt) + "  \n<small>탐색 Gate: 칼마 ≥ SPY 칼마 그리고 |MDD| ≤ 0.75×|SPY MDD| · 최종 Gate: CAGR ≥ 0.8×SPY CAGR 그리고 |MDD| ≤ 0.75×|SPY MDD|</small>",
-                unsafe_allow_html=True)
+    txt = " · ".join(("✅ " if ok else "❌ ") + k for k, ok in g.items())
+    st.markdown(txt + f"  \n<small>{BENCH} 대비 · 탐색 Gate: 칼마 ≥ {BENCH} 칼마 그리고 |MDD| ≤ 0.75×|{BENCH} MDD| · "
+                f"최종 Gate: CAGR ≥ 0.8×{BENCH} CAGR 그리고 |MDD| ≤ 0.75×|{BENCH} MDD|</small>", unsafe_allow_html=True)
 
 
 def equity_chart(res: AllocResult, log: bool = True) -> go.Figure:
     fig = go.Figure()
     fig.add_scatter(x=res.equity.index, y=res.equity, name=res.config.name, line=dict(color=BLUE, width=2))
-    fig.add_scatter(x=res.benchmark.index, y=res.benchmark, name="SPY", line=dict(color=ORANGE, width=1.5))
+    fig.add_scatter(x=res.benchmark.index, y=res.benchmark, name=BENCH, line=dict(color=ORANGE, width=1.5))
     if res.sleeves:
         for i, (n, s) in enumerate(res.sleeves.items()):
             fig.add_scatter(x=s.index, y=s, name=f"슬리브 · {n}", line=dict(color=PALETTE[(i + 2) % len(PALETTE)], width=1, dash="dot"))
-    fig.update_layout(height=380, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10), title="자산 곡선 (시작 = 1)",
+    fig.update_layout(height=380, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10), title="자산 곡선 (시작 = 1, 원화)",
                       yaxis_type="log" if log else "linear", legend=dict(orientation="h", y=-0.15))
     return fig
 
@@ -203,7 +328,7 @@ def equity_chart(res: AllocResult, log: bool = True) -> go.Figure:
 def drawdown_chart(res: AllocResult) -> go.Figure:
     fig = go.Figure()
     fig.add_scatter(x=res.equity.index, y=drawdown(res.equity), name=res.config.name, fill="tozeroy", line=dict(color=BLUE, width=1))
-    fig.add_scatter(x=res.benchmark.index, y=drawdown(res.benchmark), name="SPY", line=dict(color=ORANGE, width=1))
+    fig.add_scatter(x=res.benchmark.index, y=drawdown(res.benchmark), name=BENCH, line=dict(color=ORANGE, width=1))
     fig.update_layout(height=260, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10), title="낙폭", yaxis_tickformat=".0%",
                       legend=dict(orientation="h", y=-0.2))
     return fig
@@ -217,7 +342,7 @@ def annual_frame(res: AllocResult) -> pd.DataFrame:
         prev_b = bm[bm.index < part.index[0]]
         e0 = prev.iloc[-1] if len(prev) else part.iloc[0]
         b0 = prev_b.iloc[-1] if len(prev_b) else bm.loc[part.index[0]]
-        rows.append({"연도": int(year), "전략": part.iloc[-1] / e0 - 1, "SPY": bm.loc[part.index[-1]] / b0 - 1,
+        rows.append({"연도": int(year), "전략": part.iloc[-1] / e0 - 1, BENCH: bm.loc[part.index[-1]] / b0 - 1,
                      "전략 MDD": drawdown(part / e0).min(), "부분 연도": len(part) < 240})
     return pd.DataFrame(rows)
 
@@ -225,7 +350,7 @@ def annual_frame(res: AllocResult) -> pd.DataFrame:
 def annual_chart(ann: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
     fig.add_bar(x=ann["연도"], y=ann["전략"], name="전략", marker_color=BLUE)
-    fig.add_bar(x=ann["연도"], y=ann["SPY"], name="SPY", marker_color=ORANGE)
+    fig.add_bar(x=ann["연도"], y=ann[BENCH], name=BENCH, marker_color=ORANGE)
     fig.update_layout(height=280, barmode="group", margin=dict(l=10, r=10, t=30, b=10), title="연도별 수익률", yaxis_tickformat=".0%",
                       legend=dict(orientation="h", y=-0.2))
     return fig
@@ -236,18 +361,43 @@ def weights_chart(res: AllocResult) -> go.Figure:
     fig = go.Figure()
     for i, col in enumerate(w.columns):
         if (w[col].abs() > 1e-9).any():
-            fig.add_scatter(x=w.index, y=w[col], name=label(col), stackgroup="one", line=dict(width=0.5, color=PALETTE[i % len(PALETTE)]))
+            fig.add_scatter(x=w.index, y=w[col], name=short(col), stackgroup="one", line=dict(width=0.5, color=PALETTE[i % len(PALETTE)]))
     if (res.exposure != 1.0).any():
         fig.add_scatter(x=res.exposure.index, y=res.exposure, name="노출 k", line=dict(color="black", width=1.5, dash="dash"), yaxis="y2")
         fig.update_layout(yaxis2=dict(overlaying="y", side="right", title="노출"))
-    fig.update_layout(height=300, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10), title="비중 (레버리지 전)", yaxis_tickformat=".0%",
-                      legend=dict(orientation="h", y=-0.2))
+    fig.update_layout(height=300, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10), title="비중 변화 (가상 레버리지 전)",
+                      yaxis_tickformat=".0%", legend=dict(orientation="h", y=-0.2))
     return fig
+
+
+def isa_table(cfg: AllocConfig, key: str) -> None:
+    """What to buy in the ISA account for this strategy."""
+    st.markdown("**ISA에서 이 전략을 실행할 상품**")
+    amount = st.number_input("투자금 (원)", 0, 10_000_000_000, step=1_000_000, key=init(f"{key}_amount", 10_000_000),
+                             help="비중대로 나눈 금액을 보여 줍니다. 실제 매수 수량은 ‘리밸런싱 계산기’에서 현재가를 넣어 계산하세요.")
+    total = sum(cfg.weights.values())
+    rows = []
+    for code, w in cfg.weights.items():
+        p = PRODUCTS.get(code)
+        rows.append({"상품": p.name if p else label(code), "종목코드": code if p else "", "비중": w / total,
+                     "금액": amount * w / total, "환": FX_LABELS[p.fx] if p else "원화", "배수": p.leverage if p else 1.0,
+                     "총보수(%)": p.ter if p else 0.0, "상장일": p.listed if p else "", "상장 전 대용": p.proxy_text if p else "한국은행 기준금리"})
+    df = pd.DataFrame(rows)
+    st.dataframe(df, hide_index=True, width="stretch", column_config={
+        "비중": st.column_config.NumberColumn(format="percent"), "금액": st.column_config.NumberColumn(format="localized"),
+        "배수": st.column_config.NumberColumn(format="%.0fx"), "총보수(%)": st.column_config.NumberColumn(format="%.4g")})
+    fee = float((df["비중"] * df["총보수(%)"]).sum())
+    extra = []
+    if cfg.overlay.kind != "none":
+        extra.append(f"overlay({cfg.overlay.describe()})가 켜져 있어 매달 비중이 바뀝니다. 이번 달 목표는 ‘리밸런싱 계산기’에서 확인하세요.")
+    if cfg.leverage.factor != 1.0:
+        extra.append("가상 레버리지는 국내 상품으로 그대로 살 수 없습니다.")
+    st.caption(f"가중 평균 총보수 {fee:.3f}%/년. " + " ".join(extra))
 
 
 def show_result(res: AllocResult, m: dict, key: str) -> None:
     for w in res.warnings:
-        st.caption("⚠️ " + w)
+        st.caption("ℹ️ " + w)
     s, e = res.period
     st.caption(f"{res.config.describe()} · 기간 {s.date()} → {e.date()} ({len(res.equity):,} 거래일) · 리밸런싱 거래 {res.n_trades}회")
     kpi_row(m)
@@ -259,15 +409,16 @@ def show_result(res: AllocResult, m: dict, key: str) -> None:
     ann = annual_frame(res)
     c3.plotly_chart(annual_chart(ann), width="stretch")
     c4.plotly_chart(weights_chart(res), width="stretch")
+    isa_table(res.config, key)
     with st.expander("연도별 표 · 위기 구간"):
         a, b = st.columns(2)
         a.dataframe(ann, hide_index=True, width="stretch", column_config={
-            "전략": st.column_config.NumberColumn(format="percent"), "SPY": st.column_config.NumberColumn(format="percent"),
+            "전략": st.column_config.NumberColumn(format="percent"), BENCH: st.column_config.NumberColumn(format="percent"),
             "전략 MDD": st.column_config.NumberColumn(format="percent")})
-        ct = crisis_table(res)
+        ct = crisis_table(res).rename(columns={"S&P500": BENCH})
         if len(ct):
             b.dataframe(ct, hide_index=True, width="stretch", column_config={
-                "전략": st.column_config.NumberColumn(format="percent"), "SPY": st.column_config.NumberColumn(format="percent")})
+                "전략": st.column_config.NumberColumn(format="percent"), BENCH: st.column_config.NumberColumn(format="percent")})
         else:
             b.info("기간 안에 등록된 위기 구간이 없습니다.")
 
@@ -275,13 +426,14 @@ def show_result(res: AllocResult, m: dict, key: str) -> None:
 # =========================================================================== page 1: research
 
 def research_page() -> None:
+    data = data_or_stop()
+    sidebar(data)
+    panel = data["panel"]
     st.title("자산배분 연구실")
-    st.caption("배분 → overlay → 레버리지 순서로 전략을 정하고, SPY와 같은 날짜로 비교합니다. 세금·환율·헤지 비용은 반영하지 않습니다. "
-               "모든 지표의 정의는 ‘용어 설명’ 페이지에 있습니다.")
-    panel = panel_or_stop()
-    last = panel.last_date.date()
+    st.caption("ISA에서 살 수 있는 **국내 상장 ETF**로 배분을 만들고 **원화 기준**으로 시험합니다. 상장 전 기간은 미국 ETF + 원/달러 환율 + 두 나라 금리로 만든 대용 데이터입니다. "
+               "세금은 반영하지 않습니다. 모든 지표의 정의는 ‘용어·상품 설명’에 있습니다.")
     st.subheader("① 배분")
-    cfg = strategy_builder("r", last)
+    cfg = strategy_builder("r", data)
     with st.expander("실행 규칙 자세히 보기"):
         st.markdown(RULES_KO)
     if cfg is None:
@@ -293,12 +445,13 @@ def research_page() -> None:
             with st.spinner("계산 중…"):
                 res = run_allocation(panel, cfg)
                 m = raw_metrics(res)
-                notes.log_run(cfg.name, cfg.describe(), (str(res.period[0].date()), str(res.period[1].date())), m)
+                notes.log_run(cfg.name, cfg.describe(), (str(res.period[0].date()), str(res.period[1].date())), m, config=cfg.to_dict())
                 st.session_state["aa_result"] = (res, m, panel.source)
         except ValueError as exc:
             st.error(str(exc))
     stored = st.session_state.get("aa_result")
     if stored is None:
+        st.caption("▶ 버튼을 누르면 결과가 나오고, 실행한 전략은 모두 ‘전략 비교’ 페이지에 쌓입니다.")
         return
     res, m, source = stored
     if res.config != cfg:
@@ -307,33 +460,247 @@ def research_page() -> None:
     with st.form("save_alloc", border=False):
         c1, c2 = st.columns([3, 1])
         name = c1.text_input("저장 이름", value=res.config.name)
-        if c2.form_submit_button("💾 전략 저장", width="stretch"):
+        if c2.form_submit_button("💾 전략 저장"):
             path = store.save_result(res, m, name, source)
-            st.success(f"저장했습니다: lab_results/{path.name} — ‘성적표·믹스’에서 비교할 수 있습니다.")
+            st.success(f"저장했습니다: lab_results/{path.name}")
 
 
-# =========================================================================== page 2: scorecard and mixes
+# =========================================================================== shared: candidates and re-runs
 
-def candidates(panel) -> dict[str, object]:
-    """name -> AllocConfig | MixConfig for everything the scorecard can compare."""
-    out: dict[str, object] = {}
-    for key, p in PRESETS.items():
-        out[f"프리셋 · {p.name}"] = AllocConfig(p.name, p.weights, DEFAULT_START, str(panel.last_date.date()))
-    for meta in store.list_saved():
-        out[f"저장 · {meta['name']} ({meta['saved_at'][:10]})"] = store.config_of(meta)
-    live = st.session_state.get("aa_result")
-    if live is not None:
-        out[f"현재 화면 · {live[0].config.name}"] = live[0].config
-    return out
+def usable(obj, panel) -> bool:
+    cfgs = [c for c, _ in obj.sleeves] if isinstance(obj, MixConfig) else [obj]
+    return all(all(s == CASH or s in panel.symbols for s in c.weights) for c in cfgs)
+
+
+def config_key(obj) -> str:
+    if isinstance(obj, MixConfig):
+        d = obj.to_dict()
+        d.pop("name")
+        for s in d["sleeves"]:
+            s["config"] = {k: v for k, v in s["config"].items() if k not in ("name", "start", "end")}
+        return "mix:" + json.dumps(d, sort_keys=True, default=str)
+    d = {k: v for k, v in obj.to_dict().items() if k not in ("name", "start", "end")}
+    return json.dumps(d, sort_keys=True, default=str)
+
+
+def config_from_json(text: str):
+    d = json.loads(text)
+    return MixConfig.from_dict(d["mix"]) if "mix" in d else AllocConfig.from_dict(d)
 
 
 def run_candidate(panel, obj, start: str, end: str) -> tuple[AllocResult, int]:
-    from dataclasses import replace
     if isinstance(obj, MixConfig):
         mix = MixConfig(obj.name, tuple((replace(c, start=start, end=end), w) for c, w in obj.sleeves), obj.rebalance, obj.cost_bps)
         return run_mix(panel, mix), mix_parameter_count(mix)
     cfg = replace(obj, start=start, end=end)
     return run_allocation(panel, cfg), cfg.parameter_count()
+
+
+def common_period(results: dict[str, AllocResult]) -> dict[str, AllocResult]:
+    """Trim every result to the dates all of them share, restarting each curve at 1."""
+    idx = None
+    for r in results.values():
+        idx = r.equity.index if idx is None else idx.intersection(r.equity.index)
+    out = {}
+    for n, r in results.items():
+        if len(r.equity) == len(idx):
+            out[n] = r
+            continue
+        eq, bm = r.equity.loc[idx], r.benchmark.loc[idx]
+        out[n] = AllocResult(r.config, eq / eq.iloc[0], bm / bm.iloc[0], r.cash.loc[idx], r.weights.loc[idx], r.exposure.loc[idx],
+                             r.turnover, r.n_trades, r.sleeves, r.warnings)
+    return out
+
+
+def log_config(obj) -> dict:
+    return {"mix": obj.to_dict()} if isinstance(obj, MixConfig) else obj.to_dict()
+
+
+# =========================================================================== page 2: compare everything tested
+
+def tested_strategies(panel, include_presets: bool) -> tuple[list[dict], int]:
+    """Every strategy run in this lab (run log), saved strategies and optionally presets; one row per setting."""
+    entries, seen, skipped = [], set(), 0
+    runs = notes.load_runs()
+    for _, row in runs.iloc[::-1].iterrows():  # newest first
+        text = row.get("config")
+        if not isinstance(text, str) or not text.strip():
+            skipped += 1
+            continue
+        try:
+            obj = config_from_json(text)
+        except (ValueError, KeyError, TypeError):
+            skipped += 1
+            continue
+        if not usable(obj, panel):
+            skipped += 1
+            continue
+        k = config_key(obj)
+        if k in seen:
+            continue
+        seen.add(k)
+        entries.append({"이름": str(row["name"]), "출처": "실행 기록", "시각": str(row["time"])[:16].replace("T", " "), "obj": obj})
+    for meta in store.list_saved():
+        try:
+            obj = store.config_of(meta)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not usable(obj, panel):
+            skipped += 1
+            continue
+        k = config_key(obj)
+        if k in seen:
+            continue
+        seen.add(k)
+        entries.append({"이름": meta["name"], "출처": "저장", "시각": meta["saved_at"][:16].replace("T", " "), "obj": obj})
+    if include_presets:
+        for p in PRESETS.values():
+            obj = AllocConfig(p.name, p.weights, DEFAULT_START, str(panel.last_date.date()))
+            k = config_key(obj)
+            if k in seen or not usable(obj, panel):
+                continue
+            seen.add(k)
+            entries.append({"이름": p.name, "출처": "프리셋", "시각": "", "obj": obj})
+    counts: dict[str, int] = {}
+    for e in entries:  # same name, different setting (e.g. a preset edited before running): number them
+        counts[e["이름"]] = counts.get(e["이름"], 0) + 1
+        if counts[e["이름"]] > 1:
+            e["이름"] = f"{e['이름']} #{counts[e['이름']]}"
+    return entries, skipped
+
+
+def compare_page() -> None:
+    data = data_or_stop()
+    sidebar(data)
+    panel = data["panel"]
+    st.title("전략 비교")
+    st.caption("이 연구실에서 **실행한 모든 전략**(같은 설정은 한 번만)과 저장한 전략을 같은 기간으로 다시 돌려 한 표·한 그래프로 봅니다. "
+               "표의 ‘선택’을 켜고 끄면 그래프가 바뀝니다. 열 이름을 누르면 정렬됩니다.")
+    c1, c2, c3, c4 = st.columns([1, 1, 1.2, 1.2])
+    last = panel.last_date.date()
+    start = c1.date_input("시작일", key=init("cmp_start", date.fromisoformat(DEFAULT_START)), min_value=EARLIEST, max_value=last)
+    end = c2.date_input("종료일", key=init("cmp_end", last), min_value=EARLIEST, max_value=last)
+    include_presets = c3.toggle("프리셋도 함께", key=init("cmp_presets", True))
+    same_period = c4.toggle("모두 공통 기간으로 맞추기", key=init("cmp_common", True),
+                            help="켜면 모든 전략이 데이터가 겹치는 기간에서만 비교됩니다(공정한 비교). 끄면 각자 가능한 기간 전체.")
+    entries, skipped = tested_strategies(panel, include_presets)
+    if skipped:
+        st.caption(f"예전 버전(미국 ETF 기준)이나 설정이 없는 기록 {skipped}건은 제외했습니다.")
+    if not entries:
+        st.info("아직 실행한 전략이 없습니다. ‘전략 연구’에서 ▶ 백테스트 실행을 누르면 여기에 쌓입니다.")
+        return
+    cache = st.session_state.setdefault("cmp_cache", {})
+    version = (str(panel.last_date.date()), float(st.session_state.get("m_hedge", 20.0)), str(start), str(end))
+    results, errors = {}, []
+    with st.spinner(f"{len(entries)}개 전략 계산 중…"):
+        for i, e in enumerate(entries):
+            ck = (config_key(e["obj"]), version)
+            if ck not in cache:
+                try:
+                    cache[ck] = run_candidate(panel, e["obj"], str(start), str(end))[0]
+                except ValueError as exc:
+                    cache[ck] = str(exc)
+            r = cache[ck]
+            if isinstance(r, str):
+                errors.append(f"{e['이름']}: {r}")
+            else:
+                results[i] = r
+    for err in errors[:5]:
+        st.caption("⚠️ " + err)
+    if not results:
+        return
+    if same_period:
+        results = {k: v for k, v in zip(results, common_period({str(k): v for k, v in results.items()}).values())}
+    metrics = {i: raw_metrics(r) for i, r in results.items()}
+    rows = []
+    for i, r in results.items():
+        e, m = entries[i], metrics[i]
+        g = gate_results(m)
+        rows.append({"선택": False, "이름": e["이름"], "출처": e["출처"], "시각": e["시각"], "CAGR": m["cagr"], "MDD": m["mdd"],
+                     "샤프": m["sharpe_excess"], "칼마": m["calmar"], "변동성": m.get("volatility"), "최악 12개월": m["worst_12m"],
+                     "탐색 Gate": g["탐색 Gate"], "최종 Gate": g["최종 Gate"], "기간": f"{r.period[0].date()} → {r.period[1].date()}",
+                     "설정": r.config.describe() if not r.sleeves else e["obj"].describe(), "_i": i})
+    df = pd.DataFrame(rows)
+    df["선택"] = df.index < 6  # newest six; the editor keeps the user's ticks while the list is unchanged
+    first = next(iter(results.values()))
+    bm = curve_bench = first.benchmark
+    bmm = raw_metrics(first)
+    st.caption(f"기준선 {BENCH}: CAGR {pct(bmm['spy_cagr'])} · MDD {pct(bmm['spy_mdd'])} · 칼마 {num(bmm['spy_calmar'])} "
+               f"(첫 전략의 기간 기준) · 최종 Gate 경계: CAGR ≥ {pct(0.8 * bmm['spy_cagr'])}, MDD ≥ {pct(0.75 * bmm['spy_mdd'])}")
+    edited = st.data_editor(df.drop(columns=["_i"]), hide_index=True, width="stretch", key=f"cmp_editor_{len(df)}_{version}",
+                            disabled=[c for c in df.columns if c != "선택"], column_config={
+                                "선택": st.column_config.CheckboxColumn("선택", help="그래프에 그릴 전략"),
+                                "CAGR": st.column_config.NumberColumn(format="percent"), "MDD": st.column_config.NumberColumn(format="percent"),
+                                "샤프": st.column_config.NumberColumn("현금 초과 샤프", format="%.2f"),
+                                "칼마": st.column_config.NumberColumn(format="%.2f"), "변동성": st.column_config.NumberColumn(format="percent"),
+                                "최악 12개월": st.column_config.NumberColumn(format="percent"),
+                                "탐색 Gate": st.column_config.CheckboxColumn(), "최종 Gate": st.column_config.CheckboxColumn()})
+    chosen = [int(df.loc[j, "_i"]) for j in np.flatnonzero(edited["선택"].to_numpy())]
+    # risk/return map: every strategy, chosen ones coloured
+    fig = go.Figure()
+    others = [i for i in results if i not in chosen]
+    fig.add_scatter(x=[metrics[i]["mdd"] for i in others], y=[metrics[i]["cagr"] for i in others], mode="markers", name="그 밖의 전략",
+                    marker=dict(color=GRAY, size=8, opacity=0.5), text=[entries[i]["이름"] for i in others],
+                    hovertemplate="%{text}<br>CAGR %{y:.1%} · MDD %{x:.1%}<extra></extra>")
+    for n, i in enumerate(chosen):
+        fig.add_scatter(x=[metrics[i]["mdd"]], y=[metrics[i]["cagr"]], mode="markers+text", name=entries[i]["이름"], text=[entries[i]["이름"]],
+                        textposition="top center" if n % 2 == 0 else "bottom center", marker=dict(color=PALETTE[n % len(PALETTE)], size=12),
+                        hovertemplate="%{text}<br>CAGR %{y:.1%} · MDD %{x:.1%}<extra></extra>")
+    fig.add_scatter(x=[bmm["spy_mdd"]], y=[bmm["spy_cagr"]], mode="markers+text", name=BENCH, text=[BENCH], textposition="bottom center",
+                    marker=dict(color=ORANGE, size=14, symbol="star"))
+    fig.add_vline(x=0.75 * bmm["spy_mdd"], line=dict(color=GRAY, dash="dot"), annotation_text="MDD 기준", annotation_position="bottom right")
+    fig.add_hline(y=0.8 * bmm["spy_cagr"], line=dict(color=GRAY, dash="dot"), annotation_text="최종 Gate CAGR 기준", annotation_position="bottom left")
+    fig.update_layout(height=420, margin=dict(l=10, r=10, t=30, b=10), title="수익·낙폭 지도 (오른쪽 위일수록 좋음 · 점선 오른쪽 위 = 최종 Gate 통과 영역)",
+                      xaxis=dict(title="최대 낙폭", tickformat=".0%"), yaxis=dict(title="CAGR", tickformat=".0%"), showlegend=False)
+    st.plotly_chart(fig, width="stretch")
+    if not chosen:
+        st.info("표에서 ‘선택’을 켜면 자산 곡선과 낙폭을 겹쳐 그립니다.")
+        return
+    log = st.toggle("로그 축", value=True, key="cmp_log")
+    eq_fig, dd_fig = go.Figure(), go.Figure()
+    for n, i in enumerate(chosen[:10]):
+        r = results[i]
+        color = PALETTE[n % len(PALETTE)]
+        eq_fig.add_scatter(x=r.equity.index, y=r.equity, name=entries[i]["이름"], line=dict(color=color, width=2))
+        dd_fig.add_scatter(x=r.equity.index, y=drawdown(r.equity), name=entries[i]["이름"], line=dict(color=color, width=1.2))
+    eq_fig.add_scatter(x=curve_bench.index, y=curve_bench, name=BENCH, line=dict(color=ORANGE, width=1.5, dash="dot"))
+    dd_fig.add_scatter(x=bm.index, y=drawdown(bm), name=BENCH, line=dict(color=ORANGE, width=1, dash="dot"))
+    eq_fig.update_layout(height=400, hovermode="x unified", yaxis_type="log" if log else "linear", margin=dict(l=10, r=10, t=30, b=10),
+                         title="자산 곡선 (시작 = 1, 원화)", legend=dict(orientation="h", y=-0.15))
+    dd_fig.update_layout(height=280, hovermode="x unified", yaxis_tickformat=".0%", margin=dict(l=10, r=10, t=30, b=10), title="낙폭",
+                         legend=dict(orientation="h", y=-0.2))
+    st.plotly_chart(eq_fig, width="stretch")
+    st.plotly_chart(dd_fig, width="stretch")
+    if len(chosen) > 10:
+        st.caption("그래프는 처음 10개만 그립니다.")
+    names = []
+    for i in chosen[:10]:  # unique labels (a preset and a run may share a name)
+        n = entries[i]["이름"]
+        while n in names:
+            n += " "
+        names.append(n)
+    years = pd.concat([annual_frame(results[i]).set_index("연도")["전략"].rename(n) for i, n in zip(chosen[:10], names)], axis=1)
+    if len(years.columns):
+        years[BENCH] = annual_frame(results[chosen[0]]).set_index("연도")[BENCH]
+        with st.expander("연도별 수익률 표"):
+            st.dataframe(years.T, width="stretch", column_config={c: st.column_config.NumberColumn(str(c), format="percent") for c in years.index})
+
+
+# =========================================================================== page 3: scorecard and mixes
+
+def candidates(panel) -> dict[str, object]:
+    """name -> AllocConfig | MixConfig for everything the scorecard can compare."""
+    out: dict[str, object] = {}
+    for p in PRESETS.values():
+        out[f"프리셋 · {p.name}"] = AllocConfig(p.name, p.weights, DEFAULT_START, str(panel.last_date.date()))
+    for meta in store.list_saved():
+        obj = store.config_of(meta)
+        if usable(obj, panel):
+            out[f"저장 · {meta['name']} ({meta['saved_at'][:10]})"] = obj
+    live = st.session_state.get("aa_result")
+    if live is not None and usable(live[0].config, panel):
+        out[f"현재 화면 · {live[0].config.name}"] = live[0].config
+    return out
 
 
 def score_heatmap(table: pd.DataFrame, raw: pd.DataFrame) -> go.Figure:
@@ -360,16 +727,19 @@ def score_heatmap(table: pd.DataFrame, raw: pd.DataFrame) -> go.Figure:
 
 
 def scorecard_page() -> None:
+    data = data_or_stop()
+    sidebar(data)
+    panel = data["panel"]
     st.title("견고함 성적표 · 전략 믹스")
     st.markdown("고른 전략들을 **같은 기간**에 다시 돌려 아홉 축으로 점수를 매깁니다. 점수는 비교 집합 안의 순위(0–100)라 집합이 바뀌면 같이 바뀝니다. "
                 "‘견고’는 축 점수의 평균으로 **참고용**이며, 판정은 Gate(통과/미달)로 합니다.")
-    panel = panel_or_stop()
     cands = candidates(panel)
-    default = [k for k in cands if k.startswith("프리셋 · 내 AAA") or k.endswith("SPY 보유") or "영구" in k or "60/40" in k]
+    default = [k for k in cands if k.startswith("프리셋 · 내 AAA") or k.endswith("S&P500 보유") or "영구" in k or "60/40" in k]
     chosen = st.multiselect("비교할 전략", list(cands), key=init("sc_chosen", default))
     c1, c2, c3 = st.columns([1, 1, 2])
-    start = c1.date_input("시작일", key=init("sc_start", date.fromisoformat(DEFAULT_START)), min_value=date(1993, 1, 29), max_value=panel.last_date.date())
-    end = c2.date_input("종료일", key=init("sc_end", panel.last_date.date()), min_value=date(1993, 1, 29), max_value=panel.last_date.date())
+    last = panel.last_date.date()
+    start = c1.date_input("시작일", key=init("sc_start", date.fromisoformat(DEFAULT_START)), min_value=EARLIEST, max_value=last)
+    end = c2.date_input("종료일", key=init("sc_end", last), min_value=EARLIEST, max_value=last)
     with c3.expander("견고 가중치 (기본 동일)"):
         wcols = st.columns(len(AXES))
         axis_w = {a: wcols[i].number_input(a, 0.0, 5.0, step=0.5, key=init(f"sc_w_{a}", 1.0)) for i, a in enumerate(AXES)}
@@ -381,7 +751,7 @@ def scorecard_page() -> None:
         if mix_parts:
             cols = st.columns(len(mix_parts) + 2)
             for i, k in enumerate(mix_parts):
-                mw[k] = cols[i].number_input(f"{cands[k].name} (%)", 0.0, 100.0, step=5.0, key=init(f"mix_w_{k}", round(100 / len(mix_parts))))
+                mw[k] = cols[i].slider(f"{cands[k].name}", 0, 100, step=5, key=init(f"mix_w_{k}", int(round(100 / len(mix_parts)))), format="%d%%")
             mix_reb = cols[-2].selectbox("슬리브 재조정", ["M", "Q", "A", "none"], key=init("mix_reb", "M"), format_func=REBALANCE_LABELS.get)
             mix_name = cols[-1].text_input("믹스 이름", key=init("mix_name", "믹스 1"))
             if st.button("➕ 믹스를 비교 목록에 추가"):
@@ -402,33 +772,25 @@ def scorecard_page() -> None:
         if len(todo) < 2:
             st.warning("두 개 이상 고르세요. 점수는 비교 집합 안의 순위입니다.")
             return
-        results, params, errors = {}, {}, []
+        results, params, objs, errors = {}, {}, {}, []
         with st.spinner(f"{len(todo)}개 전략 계산 중…"):
             for name, obj in todo.items():
                 try:
                     res, n = run_candidate(panel, obj, str(start), str(end))
-                    short = name.split(" · ", 1)[-1]
-                    results[short], params[short] = res, n
+                    short_name = name.split(" · ", 1)[-1]
+                    results[short_name], params[short_name], objs[short_name] = res, n, obj
                 except ValueError as exc:
                     errors.append(f"{name}: {exc}")
         for e in errors:
             st.error(e)
         if len(results) >= 2:
-            # one common period so every strategy sees the same crises
-            idx = None
-            for r in results.values():
-                idx = r.equity.index if idx is None else idx.intersection(r.equity.index)
-            for n, r in results.items():
-                if len(r.equity) != len(idx):
-                    eq = r.equity.loc[idx]
-                    bm = r.benchmark.loc[idx]
-                    results[n] = AllocResult(r.config, eq / eq.iloc[0], bm / bm.iloc[0], r.cash.loc[idx], r.weights.loc[idx],
-                                             r.exposure.loc[idx], r.turnover, r.n_trades, r.sleeves, r.warnings)
+            results = common_period(results)
+            idx = next(iter(results.values())).equity.index
             table, raw = scorecard(results, axis_w, params)
             st.session_state["sc_view"] = (table, raw, results, (str(idx[0].date()), str(idx[-1].date())))
             for n, r in results.items():
-                notes.log_run(n, r.config.describe(), (str(idx[0].date()), str(idx[-1].date())), raw.loc[n].to_dict(),
-                              kind="mix" if r.sleeves else "alloc")
+                notes.log_run(n, objs[n].describe(), (str(idx[0].date()), str(idx[-1].date())), raw.loc[n].to_dict(),
+                              kind="mix" if r.sleeves else "alloc", config=log_config(objs[n]))
     view = st.session_state.get("sc_view")
     if view is None:
         return
@@ -452,7 +814,7 @@ def scorecard_page() -> None:
     for i, (n, r) in enumerate(results.items()):
         fig.add_scatter(x=r.equity.index, y=r.equity, name=n, line=dict(color=PALETTE[i % len(PALETTE)], width=1.8))
     first = next(iter(results.values()))
-    fig.add_scatter(x=first.benchmark.index, y=first.benchmark, name="SPY", line=dict(color=GRAY, width=1.5, dash="dot"))
+    fig.add_scatter(x=first.benchmark.index, y=first.benchmark, name=BENCH, line=dict(color=GRAY, width=1.5, dash="dot"))
     fig.update_layout(height=380, hovermode="x unified", yaxis_type="log", margin=dict(l=10, r=10, t=30, b=10), title="자산 곡선 (공통 기간, 로그)",
                       legend=dict(orientation="h", y=-0.15))
     st.plotly_chart(fig, width="stretch")
@@ -461,14 +823,97 @@ def scorecard_page() -> None:
         with st.form("save_mix", border=False):
             c1, c2 = st.columns([3, 1])
             pick = c1.selectbox("저장할 믹스", mix_names)
-            if c2.form_submit_button("💾 믹스 저장", width="stretch"):
+            if c2.form_submit_button("💾 믹스 저장"):
                 mix = mixes.get(f"믹스 · {pick}")
                 if mix is not None:
                     path = store.save_result(results[pick], raw.loc[pick].to_dict(), pick, panel.source, mix=mix)
                     st.success(f"저장했습니다: lab_results/{path.name}")
 
 
-# =========================================================================== page 3: notes
+# =========================================================================== page 4: rebalancing calculator
+
+def rebalance_page() -> None:
+    data = data_or_stop()
+    sidebar(data)
+    panel = data["panel"]
+    st.title("리밸런싱 계산기")
+    st.caption("지금 ISA에 들어 있는 금액과 이번에 넣을 돈을 적으면, 목표 전략에 맞추려면 무엇을 얼마나 사고팔지 계산합니다. "
+               "입력한 보유 내역은 이 컴퓨터의 lab_results/aa_holdings.json에만 저장됩니다(Git 제외).")
+    targets_src: dict[str, object] = {f"프리셋 · {p.name}": AllocConfig(p.name, p.weights, DEFAULT_START, str(panel.last_date.date()))
+                                      for p in PRESETS.values()}
+    for meta in store.list_saved():
+        obj = store.config_of(meta)
+        if isinstance(obj, AllocConfig) and usable(obj, panel):
+            targets_src[f"저장 · {meta['name']} ({meta['saved_at'][:10]})"] = obj
+    live = st.session_state.get("aa_result")
+    if live is not None and usable(live[0].config, panel):
+        targets_src[f"전략 연구 화면 · {live[0].config.name}"] = live[0].config
+    keys = list(targets_src)
+    if st.session_state.get("rb_target") not in keys:
+        st.session_state["rb_target"] = keys[0]
+    pick = st.selectbox("목표 전략", keys, key="rb_target")
+    cfg = targets_src[pick]
+    try:
+        tw, why = current_targets(panel, cfg)
+    except ValueError as exc:
+        st.error(str(exc))
+        return
+    st.caption(f"목표: {why} · " + " · ".join(f"{short(c)} {w * 100:.1f}%" for c, w in tw.items()))
+
+    saved = rebal.load_holdings()
+    held = saved.get("holdings", {})
+    if saved.get("updated"):
+        st.caption(f"마지막으로 저장한 보유 내역: {saved['updated']}")
+    codes = list(dict.fromkeys([c for c in tw if c != CASH] + [c for c in held if c in PRODUCTS]))
+    extra = st.multiselect("목표에 없지만 들고 있는 상품 추가", [c for c in PRODUCTS if c not in codes], key=init("rb_extra", []), format_func=label)
+    codes += extra
+    base = pd.DataFrame({"code": codes, "상품": [label(c) for c in codes],
+                         "평가금액(원)": [float(held.get(c, {}).get("amount", 0.0)) for c in codes],
+                         "현재가(원)": [float(held.get(c, {}).get("price", 0.0)) for c in codes]})
+    edited = st.data_editor(base, hide_index=True, width="stretch", key="rb_editor", disabled=["code", "상품"], column_config={
+        "code": None, "평가금액(원)": st.column_config.NumberColumn(format="localized", min_value=0, step=10000),
+        "현재가(원)": st.column_config.NumberColumn(format="localized", min_value=0, step=5,
+                                                 help="한 주 가격. 넣으면 살·팔 주 수를 계산합니다(소수점 아래는 버림).")})
+    c1, c2, c3 = st.columns([1.2, 1.6, 1])
+    contribution = c1.number_input("이번에 넣을 돈 (원)", 0, 10_000_000_000, step=100_000, key=init("rb_contrib", 0))
+    mode = c2.radio("방식", ["buy_only", "full"], key=init("rb_mode", "buy_only"), horizontal=True,
+                    format_func={"buy_only": "입금액만으로 맞추기 (매도 없음)", "full": "전체 리밸런싱 (매도 포함)"}.get)
+    band = c3.number_input("밴드 (%p)", 0.0, 30.0, step=1.0, key=init("rb_band", 5.0),
+                           help="모든 상품이 목표 ± 밴드 안이면 팔지 않고 입금액만 배분합니다.")
+    holdings = dict(zip(edited["code"], edited["평가금액(원)"].fillna(0.0).astype(float)))
+    prices = dict(zip(edited["code"], edited["현재가(원)"].fillna(0.0).astype(float)))
+    target_codes = {c: w for c, w in tw.items() if c != CASH}
+    if tw.get(CASH):
+        st.caption(f"목표의 현금 {tw[CASH] * 100:.1f}%는 CD금리 ETF(459580)나 예수금으로 두세요. 아래 표는 나머지만 맞춥니다.")
+    try:
+        orders = rebal.rebalance_orders(holdings, target_codes, float(contribution), mode, float(band), prices)
+    except ValueError as exc:
+        st.info(str(exc))
+        return
+    shown = orders.drop(columns=["code", "계산 방식"])
+    if shown["주 수"].isna().all():
+        shown = shown.drop(columns=["주 수"])
+    else:  # blank (not "None") where no price was entered
+        shown["주 수"] = [("" if np.isnan(v) else f"{int(v):,}주") for v in shown["주 수"]]
+    st.dataframe(shown, hide_index=True, width="stretch", column_config={
+        "현재 금액": st.column_config.NumberColumn(format="localized"), "목표 금액": st.column_config.NumberColumn(format="localized"),
+        "매매 금액": st.column_config.NumberColumn(format="localized"), "매매 후 금액": st.column_config.NumberColumn(format="localized"),
+        "현재 비중": st.column_config.NumberColumn(format="percent"), "목표 비중": st.column_config.NumberColumn(format="percent"),
+        "매매 후 비중": st.column_config.NumberColumn(format="percent")})
+    buy = orders.loc[orders["매매 금액"] > 0, "매매 금액"].sum()
+    sell = abs(float(orders.loc[orders["매매 금액"] < 0, "매매 금액"].sum()))
+    left = contribution - (buy - sell)
+    st.markdown(f"매수 합계 **{won(buy)}** · 매도 합계 **{won(sell)}** · 남는 현금 **{won(left)}** · 계산 방식: {orders['계산 방식'].iloc[0]}")
+    if mode == "full" and orders["계산 방식"].iloc[0] == "입금액만 배분":
+        st.caption(f"모든 상품이 목표 ± {band:g}%p 안에 있어 팔지 않고 입금액만 배분했습니다. 전부 목표대로 맞추려면 밴드를 0으로 두세요.")
+    if prices and any(v > 0 for v in prices.values()):
+        st.caption("주 수는 현재가로 나눈 뒤 소수점 아래를 버린 값이고, 매매 금액도 그 주 수 기준입니다. 남는 현금은 그 차이입니다.")
+    if st.button("💾 보유 내역 저장 (다음 분기에 불러옴)"):
+        rebal.save_holdings({c: {"amount": float(holdings[c]), "price": float(prices.get(c, 0.0))} for c in holdings if holdings[c] > 0 or prices.get(c)})
+        st.success("저장했습니다: lab_results/aa_holdings.json")
+
+
+# =========================================================================== page 5: notes
 
 def notes_page() -> None:
     st.title("발견 · 경고 · 캠페인")
@@ -480,7 +925,7 @@ def notes_page() -> None:
         entries = data.get(key, [])
         if not entries:
             st.info("아직 항목이 없습니다.")
-        for day, text in (entries if key != "campaign" else entries):
+        for day, text in entries:
             with st.container(border=True):
                 st.markdown(f"<small>{day}</small>  \n{text}", unsafe_allow_html=True)
     st.divider()
@@ -500,15 +945,15 @@ def notes_page() -> None:
     if runs.empty:
         st.info("아직 실행 기록이 없습니다.")
         return
-    st.caption(f"{len(runs)}회 실행 · 전략 이름 기준 {runs['name'].nunique()}종 · 첫 기록 {str(runs['time'].iloc[0])[:10]}")
-    st.dataframe(runs.iloc[::-1], hide_index=True, width="stretch", column_config={
+    st.caption(f"{len(runs)}회 실행 · 전략 이름 기준 {runs['name'].nunique()}종 · 첫 기록 {str(runs['time'].iloc[0])[:10]} · 그래프로 비교하려면 ‘전략 비교’ 페이지")
+    st.dataframe(runs.drop(columns=["config"]).iloc[::-1], hide_index=True, width="stretch", column_config={
         "time": "시각", "name": "이름", "description": "설정", "period": "기간", "kind": "종류",
         "cagr": st.column_config.NumberColumn("CAGR", format="percent"), "mdd": st.column_config.NumberColumn("MDD", format="percent"),
         "calmar": st.column_config.NumberColumn("칼마", format="%.2f"), "sharpe_excess": st.column_config.NumberColumn("현금 초과 샤프", format="%.2f"),
         "turnover": st.column_config.NumberColumn("회전율", format="percent")})
 
 
-# =========================================================================== page 4: saved
+# =========================================================================== page 6: saved
 
 def saved_page() -> None:
     st.title("저장된 전략")
@@ -518,7 +963,8 @@ def saved_page() -> None:
         return
     rows = [{"선택": i < 4, "이름": it["name"], "저장 시각": it["saved_at"], "기간": " → ".join(it["period"]), "설정": it["description"],
              "CAGR": it["metrics"].get("cagr"), "MDD": it["metrics"].get("mdd"), "칼마": it["metrics"].get("calmar"),
-             "현금 초과 샤프": it["metrics"].get("sharpe_excess")} for i, it in enumerate(items)]
+             "현금 초과 샤프": it["metrics"].get("sharpe_excess"), "기준": "원화 국내 ETF" if it.get("currency") == "KRW" else "미국 ETF (예전 버전)"}
+            for i, it in enumerate(items)]
     df = pd.DataFrame(rows)
     edited = st.data_editor(df, hide_index=True, width="stretch", disabled=[c for c in df.columns if c != "선택"], column_config={
         "CAGR": st.column_config.NumberColumn(format="percent"), "MDD": st.column_config.NumberColumn(format="percent"),
@@ -530,61 +976,85 @@ def saved_page() -> None:
             eq = store.load_equity(it["path"])
             fig.add_scatter(x=eq.index, y=eq["strategy"], name=it["name"], line=dict(color=PALETTE[i % len(PALETTE)], width=2))
         eq0 = store.load_equity(chosen[0]["path"])
-        fig.add_scatter(x=eq0.index, y=eq0["SPY"], name="SPY (첫 결과 기간)", line=dict(color=GRAY, width=1.5, dash="dot"))
+        bcol = "benchmark" if "benchmark" in eq0.columns else "SPY"
+        fig.add_scatter(x=eq0.index, y=eq0[bcol], name="기준선 (첫 결과 기간)", line=dict(color=GRAY, width=1.5, dash="dot"))
         fig.update_layout(height=380, hovermode="x unified", yaxis_type="log", margin=dict(l=10, r=10, t=30, b=10), title="자산 곡선 비교 (최대 8개)",
                           legend=dict(orientation="h", y=-0.15))
         st.plotly_chart(fig, width="stretch")
-        st.caption("기간이 다른 결과는 시작점이 달라 직접 비교에 주의하세요. 같은 기간으로 보려면 ‘성적표·믹스’에서 다시 돌리세요.")
+        st.caption("저장할 때의 기간 그대로입니다. 같은 기간으로 다시 돌려 보려면 ‘전략 비교’ 페이지를 쓰세요.")
 
 
-# =========================================================================== page 5: glossary
+# =========================================================================== page 7: glossary and products
 
 def glossary_page() -> None:
-    st.title("용어 설명")
+    st.title("용어 · 상품 설명")
+    st.subheader("국내 상장 ETF (ISA 매수 가능)")
+    df = pd.DataFrame([{"분류": p.asset_class, "상품": p.name, "종목코드": c, "환": FX_LABELS[p.fx], "배수": p.leverage, "총보수(%)": p.ter,
+                        "상장일": p.listed, "상장 전 대용": p.proxy_text, "메모": p.note} for c, p in PRODUCTS.items()])
+    st.dataframe(df, hide_index=True, width="stretch", column_config={"배수": st.column_config.NumberColumn(format="%.0fx"),
+                                                                      "총보수(%)": st.column_config.NumberColumn(format="%.4g")})
+    st.caption("종목코드·총보수·상장일·환헤지 여부는 2026-10-24에 etfshopping.com, funetf.co.kr, 운용사 페이지에서 확인했습니다. 총보수 외 실부담비용은 더 클 수 있습니다.")
+    st.subheader("원화 수익률을 만드는 방법")
+    st.markdown(BR.join([
+        "상장 전 기간까지 길게 보려고 각 상품을 **미국 ETF(배당 재투자, 달러)**로 대신하고, 상품이 실제로 돈을 버는 방식대로 원화 수익률로 바꿉니다.",
+        "· **환노출**: (1 + 미국 ETF 수익률) × (1 + 원/달러 변화) − 1. 원화가 약해지면(환율 상승) 이득.",
+        "· **환헤지(H)**: 미국 ETF 수익률 − 달러 단기금리 + 원화 단기금리 − 헤지 추가 비용(왼쪽 사이드바, 기본 20bp/년). 환율 변화 대신 두 나라 금리 차이를 받습니다.",
+        "· **국내 주식(코스피 200)**: EWY(MSCI 한국, 달러)를 원화로 환산.",
+        "· **CD금리 ETF**: 한국은행 기준금리. **달러선물 ETF**: 원/달러 변화 + 달러 단기금리.",
+        "· **레버리지 ETF**: 하루 단위로 (기초 수익률 − 조달 통화 금리) × 배수 + 금리. 변동성 손실이 자연히 들어갑니다.",
+        "· 마지막에 각 상품의 총보수(와 알려진 차이, 예: 배당 제외 지수)를 뺍니다."]))
+    st.markdown(BR.join([
+        "**데이터**",
+        "· 원/달러: 미국 연준 H.10 정오 환율(FRED DEXKOUS, 1993년부터, 저장소에 스냅샷). 인터넷이 되면 Yahoo의 최근 값을 이어 붙입니다.",
+        f"· 원화 단기금리: 한국은행 기준금리 일정표(`{BOK_PATH.name}`). 2018-11 이후는 두 공개 사이트와 대조했고, 그 전은 확인이 더 필요합니다.",
+        "· 달러 단기금리: BIL(초단기 미국채 ETF), 2007년 이전은 13주 국채금리."]))
+    st.markdown(BR.join([
+        "**알아 둘 한계**",
+        "· 실제 국내 ETF의 추적오차·괴리율, 국내 금 프리미엄, 분배금 과세 시점은 들어 있지 않습니다.",
+        "· 미국 시장이 닫힌 날의 국내 가격 변화(시차)는 무시합니다. 일별 숫자보다 월·연 단위 결과를 보세요.",
+        "· 세금은 빠져 있습니다. ISA는 계좌 안 손익을 합쳐 200만원(서민형 400만원)까지 비과세, 초과분 9.9%."]))
     st.subheader("성적표의 아홉 축")
     st.markdown("점수는 비교 집합 안의 **백분위 순위**(0 = 가장 아쉬움, 100 = 가장 나음, 동점은 평균 순위)입니다. 집합이 바뀌면 점수도 바뀝니다. "
-                "‘견고’는 축 점수의 가중 평균으로 참고용이며, 판정은 Gate로만 합니다 (가중 합산 점수로 전략을 고르지 않는다는 연구실 원칙과 같음).")
+                "‘견고’는 축 점수의 가중 평균으로 참고용이며, 판정은 Gate로만 합니다.")
     for a in AXES:
         st.markdown(BR.join([f"**{a}**", AXIS_TEXT[a]]))
     st.subheader("Gate")
-    st.markdown(BR.join(["**탐색 Gate** · 칼마 ≥ SPY 칼마 그리고 |MDD| ≤ 0.75 × |SPY MDD|", "수익 조건 없이 ‘위험 대비’로만 보는 넓은 문. 추세추종 연구실의 탐색 Gate와 같음.",
-                         "**최종 Gate** · CAGR ≥ 0.80 × SPY CAGR 그리고 |MDD| ≤ 0.75 × |SPY MDD|", "헌장(CHARTER.md)의 최종 기준."]))
+    st.markdown(BR.join([f"**탐색 Gate** · 칼마 ≥ {BENCH} 칼마 그리고 |MDD| ≤ 0.75 × |{BENCH} MDD|", "수익 조건 없이 ‘위험 대비’로만 보는 넓은 문.",
+                         f"**최종 Gate** · CAGR ≥ 0.80 × {BENCH} CAGR 그리고 |MDD| ≤ 0.75 × |{BENCH} MDD|", "헌장(CHARTER.md)의 최종 기준.",
+                         f"{BENCH} = KODEX 미국S&P500(환노출)의 원화 수익률. 원화로 보면 2008년처럼 원화가 약해질 때 달러 자산이 덜 빠져, 미국 기준 SPY보다 낙폭이 작습니다."]))
     st.subheader("위기 구간 (성적표 ‘위기’ 축)")
     st.dataframe(pd.DataFrame([{"구간": k, "시작": a, "끝": b} for k, (a, b) in CRISIS_WINDOWS.items()]), hide_index=True, width="stretch")
-    st.caption("SPY의 고점→저점 날짜로 2026-10-24에 등록했고, 결과를 보고 고치지 않습니다.")
+    st.caption("미국 S&P 500의 고점→저점 날짜로 2026-10-24에 등록했고, 결과를 보고 고치지 않습니다.")
     st.subheader("기본 지표 (추세추종 연구실과 같은 계산)")
     for k in ("cagr", "mdd", "calmar", "volatility", "worst_12m", "underwater_days"):
         d = DEFINITIONS[k]
         st.markdown(BR.join([f"**{d.label}**", d.short, f"`{d.formula}`"]))
-    st.markdown(BR.join(["**현금 초과 샤프**", "일간 수익률에서 현금(단기국채) 수익률을 뺀 뒤 계산한 샤프. 현금 비중이 큰 배분을 과대평가하지 않으려고 씁니다.",
+    st.markdown(BR.join(["**현금 초과 샤프**", "일간 수익률에서 원화 현금(기준금리) 수익률을 뺀 뒤 계산한 샤프. 현금 비중이 큰 배분을 과대평가하지 않으려고 씁니다.",
                          "`mean(r − 현금) / std(r − 현금) × √252`"]))
     st.subheader("overlay")
-    for k, v in OVERLAY_LABELS.items():
+    for v in OVERLAY_LABELS.values():
         st.markdown(f"· **{v}**")
     st.subheader("실행 규칙")
     st.markdown(RULES_KO)
-    st.subheader("자산 대용과 국내 상품")
-    df = pd.DataFrame([{"자산군": a.asset_class, "티커": s, "뜻": a.label, "국내 상장 상품(참고)": a.korea} for s, a in ASSETS.items()])
-    df["자산군"] = pd.Categorical(df["자산군"], CLASS_ORDER)
-    st.dataframe(df.sort_values(["자산군", "티커"]), hide_index=True, width="stretch")
-    st.caption("백테스트는 미국 상장 ETF의 달러 수익률입니다. 국내 상품의 환율·헤지 비용·보수·세금은 들어 있지 않습니다.")
     st.subheader("프리셋")
-    st.dataframe(pd.DataFrame([{"이름": p.name, "비중": " · ".join(f"{s} {v:g}" for s, v in p.weights.items()), "설명": p.note} for p in PRESETS.values()]),
-                 hide_index=True, width="stretch")
+    st.dataframe(pd.DataFrame([{"이름": p.name, "비중": " · ".join(f"{short(s)} {v:g}" for s, v in p.weights.items()), "설명": p.note}
+                               for p in PRESETS.values()]), hide_index=True, width="stretch")
 
 
 # =========================================================================== navigation
 
-PERSIST_PREFIXES = ("r_", "sc_", "mix_")
+PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_")
 for _k in list(st.session_state.keys()):
-    if str(_k).startswith(PERSIST_PREFIXES):
+    if str(_k).startswith(PERSIST_PREFIXES) and "_editor" not in str(_k):
         st.session_state[_k] = st.session_state[_k]
 
 nav = st.navigation([
     st.Page(research_page, title="전략 연구", icon="🧺", default=True),
+    st.Page(compare_page, title="전략 비교", icon="📊"),
     st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
+    st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
     st.Page(notes_page, title="발견 · 경고 · 캠페인", icon="📝"),
     st.Page(saved_page, title="저장된 전략", icon="💾"),
-    st.Page(glossary_page, title="용어 설명", icon="📖"),
+    st.Page(glossary_page, title="용어 · 상품 설명", icon="📖"),
 ])
 nav.run()

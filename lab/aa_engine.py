@@ -13,7 +13,10 @@ Rules (shown in the app as RULES_KO):
   r = k * r_mix + (1 - k) * cash - max(k - 1, 0) * spread - ter.  Per-asset leverage (e.g. a 2x
   S&P 500 sleeve) applies the same formula to that asset's own daily return.
 - `cost_bps` is charged on turnover (one side). Uninvested cash earns the panel's cash return.
-- Prices are dividend-adjusted closes, so returns include distributions. No tax, no FX.
+- Prices are total-return indices. The app feeds a KRW panel of Korean-listed ETFs
+  (lab/aa_korea.py: FX and hedging are inside the product returns, cash is the KRW base rate);
+  the engine itself is currency-agnostic. The benchmark is `panel.benchmark` when the panel has
+  one (KODEX 미국S&P500 for the KRW panel), otherwise SPY. No tax.
 """
 from __future__ import annotations
 
@@ -24,7 +27,7 @@ from dataclasses import asdict, dataclass, field, replace
 import numpy as np
 import pandas as pd
 
-from .aa_assets import CASH
+from .aa_assets import CASH, short
 from .data import BENCHMARK, Panel
 
 TRADING_DAYS = 252
@@ -51,8 +54,10 @@ RULES_KO = """- 목표 비중은 **결정일(월·분기·연말) 종가**까지
 - 레버리지는 **일일 리셋**입니다 (전체 배분에 거는 레버리지 ETF와 같음). 노출 k일 때
   수익률 = k × 배분 수익률 + (1 − k) × 현금 수익률 − max(k − 1, 0) × 조달 스프레드 − 레버리지 상품 보수.
   자산별 배수(예: S&P500 2배)는 그 자산의 일간 수익률에 같은 식을 적용합니다. 변동성 손실(volatility decay)은 이 계산에 자연히 포함됩니다.
-- 거래 비용(bp)은 회전율(한쪽)에 부과합니다. 남는 현금은 단기국채(BIL, 2007년 이전은 13주 국채금리) 수익률을 받습니다.
-- 가격은 배당 조정 종가라 배당 재투자가 포함됩니다. **세금·환율·헤지 비용은 반영하지 않습니다.**
+- 거래 비용(bp)은 회전율(한쪽)에 부과합니다. 남는 현금은 **원화 단기금리(한국은행 기준금리)**를 받습니다.
+- 국내 ETF의 수익률은 상장 전 기간까지 미국 ETF(배당 재투자) + 원/달러 환율 + 두 나라 단기금리로 만듭니다.
+  환노출 상품은 환율 변동을 그대로 받고, 환헤지(H) 상품은 환율 대신 ‘원화 금리 − 달러 금리 − 헤지 추가 비용’을 받습니다. 각 상품의 총보수도 뺍니다.
+- **세금은 반영하지 않습니다** (ISA: 손익 통산 후 200만원(서민형 400만원) 비과세, 초과분 9.9% 분리과세).
 """
 
 
@@ -68,7 +73,7 @@ class Overlay:
         p = OVERLAY_PARAM[self.kind]
         v = self.param if self.param is not None else p[1]
         name = OVERLAY_LABELS[self.kind].split(" · ")[0]
-        safe = "" if self.safe == CASH else f", 안전자산 {self.safe}"
+        safe = "" if self.safe == CASH else f", 안전자산 {short(self.safe)}"
         return f"{name} {v:g}{safe}"
 
 
@@ -83,7 +88,7 @@ class Leverage:
         parts = []
         if self.factor != 1.0:
             parts.append(f"전체 {self.factor:g}배")
-        parts += [f"{s} {m:g}배" for s, m in self.per_asset.items() if m != 1.0]
+        parts += [f"{short(s)} {m:g}배" for s, m in self.per_asset.items() if m != 1.0]
         return ", ".join(parts) if parts else "없음"
 
     @property
@@ -123,7 +128,7 @@ class AllocConfig:
         return syms
 
     def describe(self) -> str:
-        w = " · ".join(f"{s} {v:g}" for s, v in self.weights.items())
+        w = " · ".join(f"{short(s)} {v:g}" for s, v in self.weights.items())
         ov = self.overlay.describe()
         lev = self.leverage.describe()
         extra = [REBALANCE_LABELS[self.rebalance] + (f" 밴드 {self.band:g}%p" if self.band else "")]
@@ -355,7 +360,7 @@ def _common_window(panel: Panel, syms: list[str], start: str, end: str) -> tuple
     begin = max(pd.Timestamp(start), data_start)
     if begin > pd.Timestamp(start):
         late = first_valid[first_valid == data_start].index.tolist()
-        warnings.append(f"{', '.join(late)}의 데이터가 {data_start.date()}부터 있어 시작일을 그날로 옮겼습니다.")
+        warnings.append(f"{', '.join(short(s) for s in late)}의 데이터가 {data_start.date()}부터 있어 시작일을 그날로 옮겼습니다.")
     idx = panel.close.index
     mask = (idx >= begin) & (idx <= pd.Timestamp(end))
     dates = idx[mask]
@@ -364,15 +369,20 @@ def _common_window(panel: Panel, syms: list[str], start: str, end: str) -> tuple
     return dates, warnings
 
 
+def benchmark_of(panel: Panel) -> str:
+    return getattr(panel, "benchmark", None) or BENCHMARK
+
+
 def run_allocation(panel: Panel, cfg: AllocConfig) -> AllocResult:
-    if BENCHMARK not in panel.symbols:
-        raise ValueError(f"벤치마크 {BENCHMARK} 가격이 데이터에 없습니다.")
+    bench_sym = benchmark_of(panel)
+    if bench_sym not in panel.symbols:
+        raise ValueError(f"벤치마크 {bench_sym} 가격이 데이터에 없습니다.")
     syms = cfg.assets
     missing = [s for s in syms if s not in panel.symbols]
     if missing:
-        raise ValueError(f"가격 데이터가 없는 자산: {', '.join(missing)}")
+        raise ValueError(f"가격 데이터가 없는 자산: {', '.join(short(m) for m in missing)}")
     base = _normalise(cfg.weights)
-    dates, warns = _common_window(panel, syms or [BENCHMARK], cfg.start, cfg.end)
+    dates, warns = _common_window(panel, syms or [bench_sym], cfg.start, cfg.end)
     close = panel.close.loc[:dates[-1], syms].ffill()
     cash_full = (panel.cash if (panel.cash is not None and cfg.cash_yield) else pd.Series(0.0, index=panel.close.index))
     cash_full = cash_full.reindex(panel.close.index).fillna(0.0)
@@ -405,10 +415,32 @@ def run_allocation(panel: Panel, cfg: AllocConfig) -> AllocResult:
 
     eq, weights, turnover, trades = simulate(rets, cash, targets, cfg.cost_bps, cfg.band, exposure,
                                              lev.spread_bps, lev.ter_bps, first)
-    bench = panel.close[BENCHMARK].loc[dates].ffill()
+    bench = panel.close[bench_sym].loc[dates].ffill()
     bench = bench / bench.iloc[0]
     exp_series = exposure if exposure is not None else pd.Series(1.0, index=dates)
     return AllocResult(cfg, eq, bench, cash, weights, exp_series, turnover, trades, warnings=warns)
+
+
+def current_targets(panel: Panel, cfg: AllocConfig) -> tuple[dict[str, float], str]:
+    """Target weights (fractions, may include CASH) the strategy holds after the latest month end,
+    for the rebalancing calculator. Returns (weights, explanation)."""
+    base = _normalise(cfg.weights)
+    if cfg.overlay.kind == "none":
+        return base, "정적 배분: 목표 비중 그대로"
+    res = run_allocation(panel, replace(cfg, end=str(panel.last_date.date())))
+    dates = res.equity.index
+    d = dates[decision_rows(dates, "M")[-1]]
+    if cfg.overlay.kind == "voltarget":
+        k = float(res.exposure.iloc[-1])
+        if k >= 1.0:
+            return base, f"변동성 목표: 최근 노출 {k:.2f} (1 이상은 레버리지 상품 없이는 못 따라가므로 기본 비중으로 표시)"
+        w = {s: v * k for s, v in base.items()}
+        w[CASH] = w.get(CASH, 0.0) + (1.0 - k)
+        return w, f"변동성 목표: {d.date()} 기준 노출 {k:.2f} → 나머지는 현금"
+    syms = cfg.assets
+    close = panel.close.loc[:dates[-1], syms].ffill()
+    sig = _Signals(close, panel.cash.reindex(close.index).fillna(0.0) if panel.cash is not None else pd.Series(0.0, index=close.index))
+    return target_weights(base, cfg.overlay, sig, d), f"{cfg.overlay.describe()}: {d.date()} 월말 신호 기준"
 
 
 def _vol_target_exposure(rets: pd.DataFrame, cash: pd.Series, base: dict[str, float], dates: pd.DatetimeIndex,
