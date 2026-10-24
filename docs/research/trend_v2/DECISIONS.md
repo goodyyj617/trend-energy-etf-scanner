@@ -445,6 +445,14 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     exits, risk layer by Sobol around the best screens) is registered after Stage A. Every cell
     is a trial. Runs on the lab computer through scripts/crsp_remote.py (panel copied from Drive
     to a temporary folder, results written back, folder deleted).
+78. Results of 77, Stage A (CRSP top 3,000, 4,640 cells, lab computer): 94 / 2,320 cells pass on
+    1993-2023 and 106 / 2,320 on 2017-2023, but only 2 cells pass both samples and neither sits in
+    a region that passes in both. The selection score decides; exclusion screens move pass shares
+    only within 2-6%. Winners flip between samples: dividend yield (18.1% vs 0.4%), small caps
+    (6.5% vs 0.4%), 36-month reversal (6.0% vs 0%) on 1993-2023; large caps (4.3% vs 40.1%) on
+    2017-2023. Momentum selection passes no cell in either sample under the fixed trading layer.
+    No holdout candidate. Trials 51,233 (lab-computer log merged), N_eff ~16,515.
+    Record: docs/research/lab/2026-10-25_screen_comparison_top3000.md.
 
 ## Open decisions
 
