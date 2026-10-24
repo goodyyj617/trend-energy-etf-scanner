@@ -31,6 +31,7 @@ from .aa_assets import CASH, short
 from .data import BENCHMARK, Panel
 
 TRADING_DAYS = 252
+RISK_PARITY_MIN_VOL = 0.01  # annualised; below this an asset is cash-like and keeps its base weight in risk parity
 REBALANCE_LABELS = {"M": "매월", "Q": "매분기", "A": "매년", "none": "안 함 (매수 후 보유)"}
 OVERLAY_LABELS = {
     "none": "없음 (정적 배분)",
@@ -269,14 +270,21 @@ def target_weights(base: dict[str, float], overlay: Overlay, sig: _Signals, d: p
         return {s: 1.0 / len(risky) for s in risky}  # no history yet: equal weight
     elif kind == "riskparity":
         vol = sig.volatility(d, int(p))[risky]
-        if vol.notna().all() and (vol > 0).all():
-            inv = 1.0 / vol
-            scale = 1.0 - w.get(CASH, 0.0)
-            w = {s: float(inv[s] / inv.sum()) * scale for s in risky}
+        # cash-like assets (a CD-rate product: volatility ~0) keep their base weight; otherwise the
+        # inverse of a near-zero volatility would put the whole portfolio into them
+        cashlike = [s for s in risky if vol[s] == vol[s] and vol[s] < RISK_PARITY_MIN_VOL]
+        volatile = [s for s in risky if s not in cashlike]
+        v = vol[volatile]
+        if volatile and v.notna().all() and (v > 0).all():
+            inv = 1.0 / v
+            scale = 1.0 - w.get(CASH, 0.0) - sum(w[s] for s in cashlike)
+            w = {**{s: w[s] for s in cashlike}, **{s: float(inv[s] / inv.sum()) * scale for s in volatile}}
             if base.get(CASH):
                 w[CASH] = base[CASH]
         return w
     for s in off:
+        if s == overlay.safe:  # the safe asset is where weight goes; it is never switched off itself
+            continue
         w[overlay.safe] = w.get(overlay.safe, 0.0) + w.pop(s)
     return w
 
