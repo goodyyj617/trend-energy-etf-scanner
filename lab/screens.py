@@ -403,7 +403,7 @@ def _s_new_highs(p: Panel, m: float) -> pd.DataFrame:
 
 def _s_clv(p: Panel, m: float) -> pd.DataFrame:
     rng = (p.high - p.low).replace(0, np.nan)
-    clv = ((p.close - p.low) - (p.high - p.close)) / rng
+    clv = (((p.close - p.low) - (p.high - p.close)) / rng).fillna(0.0).where(p.close.notna())  # zero range = neutral
     return clv.rolling(_n(m), min_periods=_n(m) // 2).mean()
 
 
@@ -443,7 +443,8 @@ def _s_fresh_high(p: Panel, _: float | None) -> pd.DataFrame:
     is_high = (c >= c.rolling(252, min_periods=126).max()) & c.notna()
     idx = pd.DataFrame(np.repeat(np.arange(len(c))[:, None], c.shape[1], axis=1), index=c.index, columns=c.columns)
     last = idx.where(is_high).ffill()
-    return -(idx - last)
+    since = (idx - last).fillna(idx)  # never made a 52-week high: count from the start of the data
+    return -since.where(c.notna())
 
 
 def _s_atr_momentum(p: Panel, m: float) -> pd.DataFrame:

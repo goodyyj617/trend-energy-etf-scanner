@@ -1054,7 +1054,8 @@ def _v2_panel():
         "FALL": 80 * np.cumprod(1 + rng.normal(-0.0010, 0.012, n)),
         "SPY": 200 * np.cumprod(1 + rng.normal(0.0004, 0.008, n)),
     }
-    panel, dates = make_panel({k: list(v) for k, v in paths.items()}, start="2017-01-02")
+    panel, dates = make_panel({k: list(v) for k, v in paths.items()}, start="2017-01-02",
+                              opens={k: list(v * (1 + rng.normal(0, 0.004, n))) for k, v in paths.items()})
     panel.info = pd.DataFrame({"symbol": panel.symbols, "name": panel.symbols, "asset_group": "",
                                "sic": [3570, 3571, 5812, 5813, np.nan]})  # LEAD/LEAD2 one industry, CHOP/FALL another
     panel.extra = {"cap": pd.DataFrame(2000.0, index=dates, columns=panel.symbols),
