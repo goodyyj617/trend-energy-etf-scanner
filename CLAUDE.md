@@ -42,7 +42,7 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 | 시스템 | 위치 | 상태 |
 |---|---|---|
 | **연구실 (lab)** | `lab/`, `tests/test_lab.py` | **현재 주력 제품.** 새 기능은 여기에 |
-| 자산배분 연구실 | `lab/aa_*.py`, `scripts/aa_link.py`, `scripts/aa_*_study.py`·`scripts/aa_broad_search.py`(재현 스크립트), `tests/test_aa.py`, `tests/test_aa_korea.py`, `docs/research/allocation/` | 별도 Streamlit 앱(포트 8511, 북마크 `aalab://`). 국내 상장 ETF(원화)로 자산 비중·리밸런싱·overlay·레버리지·전략 믹스 연구, ISA 리밸런싱 계산기 |
+| 자산배분 연구실 | `lab/aa_*.py`, `scripts/aa_link.py`, `scripts/aa_*_study.py`·`scripts/aa_broad_search.py`(재현 스크립트), `tests/test_aa.py`, `tests/test_aa_korea.py`, `tests/test_aa_tactical.py`, `docs/research/allocation/` | 별도 Streamlit 앱(포트 8511, 북마크 `aalab://`). 국내 상장 ETF(원화)로 자산 비중·리밸런싱·overlay·레버리지·전략 믹스 연구, ISA 리밸런싱 계산기. 전술 전략(HAA·BAA·VAA, `aa_tactical.py`)·검증 도구(`aa_validate.py`)·위기 회피 스위치(`aa_signals.py`)는 ‘전술 전략 · 검증’ 페이지 |
 | Daily Alert | `lab/daily_alert.py`, `config/alert.yml`, `.github/workflows/daily_alert.yml` | 평일 장 마감 후 자동 실행. 이슈 "📊 일일 알림"에 댓글 |
 | Daily ETF Scan | `src/run_daily_scan.py` → `universe`, `features`, `signal_history`, `update_aum`; 결과 `docs/data/`; 화면 `docs/index.html` (GitHub Pages) | 매일 자동 실행. 유지 |
 | v1 Backtest Only | `src/run_backtest_only.py` → `src/backtest.py`, `src/portfolio.py`; 결과 `docs/data/backtest_*`; `docs/backtest_dashboard.js` | score-breakout 기반 레거시. 동결. 자동 실행 꺼짐(수동 실행만, DECISIONS 44) |
