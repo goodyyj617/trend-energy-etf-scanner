@@ -242,7 +242,7 @@ def monthly_mask(panel: Panel, cfg: ScreenConfig, universe: pd.DataFrame | None 
     """
     close = panel.close
     base = universe if universe is not None else panel.eligible
-    base = (base.reindex(index=close.index, columns=close.columns).fillna(False).astype(bool) if base is not None
+    base = (base.reindex(index=close.index, columns=close.columns).astype(float).fillna(0.0).astype(bool) if base is not None
             else close.notna())
     if BENCHMARK in base.columns:
         base[BENCHMARK] = False
@@ -258,7 +258,7 @@ def monthly_mask(panel: Panel, cfg: ScreenConfig, universe: pd.DataFrame | None 
 
     allowed = base.loc[me]
     for key, value in cfg.exclude.items():
-        allowed &= ~frame(key, value).fillna(True).astype(bool)  # unknown = excluded
+        allowed &= ~frame(key, value).astype(float).fillna(1.0).astype(bool)  # unknown = excluded
     if cfg.select:
         pct = None
         for key, value in cfg.select.items():
@@ -272,7 +272,8 @@ def monthly_mask(panel: Panel, cfg: ScreenConfig, universe: pd.DataFrame | None 
         rank = rank.where(allowed)
     else:
         rank = pd.DataFrame(np.nan, index=me, columns=close.columns)
-    eligible = allowed.reindex(close.index, method="ffill").fillna(False).astype(bool)
+    # forward-filled through numbers: a reindexed bool frame would become object dtype and warn on fillna
+    eligible = allowed.astype("int8").reindex(close.index, method="ffill").fillna(0).astype(bool)
     rank = rank.reindex(close.index, method="ffill")
     return eligible, rank
 
