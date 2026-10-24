@@ -98,3 +98,32 @@ A19. Leverage in the UI: real exposure is built by checking leveraged products (
     them. The whole-mix virtual multiple (A5) stays in an expander labelled research-only, because no
     Korean product offers it. Per-asset virtual multiples are removed from the UI (the engine keeps
     the field so old saves still load).
+
+### Lower-drawdown candidates (2026-10-24, registered before any of these were run)
+
+A20. User request: "MDD를 줄이고 안정적인 수익" for the ISA allocation. Candidates, all Korean products,
+    quarterly rebalancing, 10 bp cost, KRW, hedge extra 20 bp:
+    - Equity share × defensive style grid. Equity sleeve keeps the held split S&P500 : MSCI선진국 :
+      EM선물(H) ≈ 6 : 3 : 2. 현재형 defensive = 30y(H) : 10y(H) : 금현물 ≈ 10 : 25 : 10; 분산형 defensive
+      = bonds : 금현물 : CD금리 ≈ 45 : 33 : 22 with 30y about a quarter of the bonds.
+      E55-현재 (= 내 AAA) 30/15/10 | 30y 10, 10y 25, 금 10; E55-분산 30/15/10 | 30y 5, 10y 15, 금 15, CD 10;
+      E45-현재형 25/12/8 | 12, 30, 13; E45-분산 25/12/8 | 7, 18, 금 18, CD 12;
+      E35-현재형 19/10/6 | 15, 35, 15; E35-분산 19/10/6 | 8, 22, 금 20, CD 15.
+    - E55-달러: 내 AAA with 10y 25 → 15 and KODEX 미국달러선물 10.
+    - Rules on 내 AAA: risk parity (63 days), volatility target 8% (cap 1.0), trend filter 10 months →
+      CD금리, quarterly check with a 5 %p band.
+    - Reference presets: S&P500, 60/40, 올웨더, 영구, 골든 버터플라이, AAA 금 20, AAA 구배분.
+    Periods: 2005-01-03 to the last date, and the halves 2005–2014 and 2015–end.
+    Judging (fixed now): (1) return floor, full-period CAGR ≥ 내 AAA CAGR − 1.0 %p; (2) among those,
+    lexicographic order by the worse of the two half-period MDDs, then full-period Calmar, then the
+    longest underwater stretch. Gaps under 1 %p of MDD or 0.3 %p of CAGR are read as ties. Crisis-window
+    returns, worst 12 months and rolling 36-month wins over cash are reported, not ranked. In-sample, no
+    holdout; the result is a recommendation, not an approval.
+A21. A20 result (2026-10-24, data to 2026-10-08; memo 2026-10-24_lower_drawdown.md): the rule ranks
+    E35-분산 first (8.2% / −11.1%) and E45-분산 second (8.9% / −13.0%) against 내 AAA (9.1% / −16.2%). A
+    check added after the run (201 rolling 5-year windows) shows E35-분산 giving up 1.4 %p a year in the
+    median window, more than the 1 %p floor, so the recommendation to the user is E45-분산 (median −0.6 %p,
+    MDD lower in 76% of windows), with E35-분산 as the option for a larger drawdown cut. Both are registered
+    as presets `stable45`, `stable35` after the results were seen (selection bias noted in the note text).
+    Overlays (risk parity, volatility target, trend filter) failed the return floor; the dollar-futures
+    variant's gain came from 2008 alone. Script: `scripts/aa_lower_drawdown_study.py`.
