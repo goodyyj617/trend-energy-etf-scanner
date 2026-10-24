@@ -15,12 +15,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **지금 어디까지 왔는지**: `docs/research/lab/`에서 날짜가 가장 최근인 메모. 끝의 "남은 판단" 절이 사용자 결정 대기 항목이다.
 2. **왜 그렇게 정했는지**: `docs/research/trend_v2/DECISIONS.md` (번호순, 19번부터 lab).
 3. 연구를 대신 수행하거나 기준을 바꿨다면 1·2를 같은 PR에서 갱신한다. 다음 세션이 읽는 곳이 여기뿐이다.
+4. 자산배분(포트폴리오 비중·리밸런싱·레버리지) 연구는 `docs/research/allocation/`에 따로 쌓인다: `NOTES.md`(발견·경고·캠페인), `DECISIONS.md`(A번호), 날짜별 메모.
 
 ## 명령어 (Windows, 저장소 루트, `.venv`는 Python 3.13)
 
 ```bash
 # 연구실 앱 실행 (사용자는 "추세추종 연구실 시작.cmd" 더블클릭)
 .venv/Scripts/python.exe -m streamlit run lab/app.py        # http://127.0.0.1:8501
+.venv/Scripts/python.exe -m streamlit run lab/aa_app.py     # 자산배분 연구실, http://127.0.0.1:8511 ("자산배분 연구실 시작.cmd")
 
 # 테스트 — 반드시 `python -m pytest` (루트를 sys.path에 넣어 `src`, `lab` import가 됨. pytest 설정 파일 없음)
 .venv/Scripts/python.exe -m pytest -q tests/test_lab.py                       # lab 변경 시
@@ -35,11 +37,12 @@ python -m src.run_backtest_only
 CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x 두 버전으로 `-W error::FutureWarning` 전체 스위트를 돈다. 로컬 venv는 3.13이므로 3.12+ 전용 문법과 pandas FutureWarning을 피할 것.
 린터/포매터 설정은 없다.
 
-## 저장소 구조: 다섯 개의 하위 시스템
+## 저장소 구조: 여섯 개의 하위 시스템
 
 | 시스템 | 위치 | 상태 |
 |---|---|---|
 | **연구실 (lab)** | `lab/`, `tests/test_lab.py` | **현재 주력 제품.** 새 기능은 여기에 |
+| 자산배분 연구실 | `lab/aa_*.py`, `scripts/aa_link.py`, `tests/test_aa.py`, `docs/research/allocation/` | 별도 Streamlit 앱(포트 8511, 북마크 `aalab://`). 자산 비중·리밸런싱·overlay·레버리지·전략 믹스 연구 |
 | Daily Alert | `lab/daily_alert.py`, `config/alert.yml`, `.github/workflows/daily_alert.yml` | 평일 장 마감 후 자동 실행. 이슈 "📊 일일 알림"에 댓글 |
 | Daily ETF Scan | `src/run_daily_scan.py` → `universe`, `features`, `signal_history`, `update_aum`; 결과 `docs/data/`; 화면 `docs/index.html` (GitHub Pages) | 매일 자동 실행. 유지 |
 | v1 Backtest Only | `src/run_backtest_only.py` → `src/backtest.py`, `src/portfolio.py`; 결과 `docs/data/backtest_*`; `docs/backtest_dashboard.js` | score-breakout 기반 레거시. 동결. 자동 실행 꺼짐(수동 실행만, DECISIONS 44) |
@@ -112,6 +115,20 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - `.streamlit/config.toml`: `magicEnabled = false`(단독 표현식이 화면에 출력되는 것 방지), `address = 127.0.0.1`(외부 노출 방지).
 - `.cmd` 런처의 echo 문구는 ASCII로만 쓴다. 한글 echo는 cmd 인코딩 문제로 깨진다(PR #44).
 - 사용자 화면에 내부 구조 용어(StrategyRun, hash 등)를 노출하지 않는다. 모든 지표·옵션에 정의를 붙인다.
+
+## 자산배분 연구실 (`lab/aa_*.py`)
+
+추세추종 연구실과 **별도 앱**이다. `lab/data.py`(가격 패널)와 `lab/metrics.py`(지표 공식)만 가져다 쓰고 `lab/app.py`·`engine.py`·`store.py`·시험 기록(DSR 시험 수)은 건드리지 않는다. 방법론 결정은 `docs/research/allocation/DECISIONS.md`(A1, A2, …로 번호를 매겨 추세 DECISIONS와 겹치지 않음), 사용법은 같은 폴더의 `README.md`.
+
+- **`aa_assets.py`**: 자산군 ETF(USD 총수익, 한글 라벨, 국내 상품은 안내 문구만)와 프리셋(`PRESETS`). 프리셋은 결과를 보고 고치지 않는다. 새 배분은 새 프리셋으로 등록.
+- **`aa_engine.py`**: `AllocConfig`(비중·주기·밴드·비용·`Overlay`·`Leverage`) → `run_allocation(panel, cfg)` → `AllocResult`. 결정일 종가로 목표를 정하고 다음 거래일 종가에 체결, 편도 회전율에 비용, 현금은 패널 현금 수익률. 레버리지는 일일 리셋(`levered_returns`). `MixConfig`/`run_mix`는 슬리브를 따로 돌려 고정 비율로 섞는다(믹스의 믹스는 없음).
+- **`aa_score.py`**: 아홉 축(단순·일관·위기·꼬리·비용·샤프 전반/후반·최대낙폭·칼마)을 비교 집합 안의 백분위 순위(0–100)로 점수화한다. 합성 '견고'는 **참고용**이고 판정은 Gate(탐색: 칼마 ≥ SPY·|MDD| ≤ 0.75×SPY, 최종: CAGR ≥ 0.8×SPY·같은 MDD 조건)로만 한다(DECISIONS 24와 일치). 위기 구간은 `CRISIS_WINDOWS`에 등록.
+- **`aa_notes.py`**: `docs/research/allocation/NOTES.md`의 세 절(실무에 바로 쓰는 발견 / 정직한 경고 / 여기까지 오게 된 캠페인)을 읽고 덧붙인다. 다른 스레드·세션도 이 파일을 직접 고쳐 공유한다. 실행 기록은 `lab_results/aa_runs.csv`(git 제외).
+- **`aa_store.py`**: `lab_results/<시각>_alloc_<이름>/` (meta.json + equity.csv + weights.csv). 추세 연구실 `store.py`와 폴더를 같이 쓰되 종류 접두어가 다르다.
+- **`aa_app.py`**: 페이지 5개(전략 연구, 성적표·믹스, 발견·경고·캠페인, 저장된 전략, 용어 설명). `init`/`PERSIST_PREFIXES`(`r_`, `sc_`, `mix_`) 규칙은 `app.py`와 같다. 캐시만 있고 네트워크가 없으면 캐시 최신 날짜로 내려가 동작한다.
+- **런처**: `자산배분 연구실 시작.cmd`(8511), `자산배분 연구실 북마크 등록.cmd` → `scripts/aa_link.py`가 `aalab://` 프로토콜을 등록해 Chrome 북마크(`aalab://scorecard` 등)로 앱을 켠다. 추세 연구실의 `trendlab://`(8501)과 독립.
+- 확인용 서버는 8512 등 다른 포트로 띄운다. 테스트(`tests/test_aa.py`)는 streamlit/yaml을 import하지 않고 `lab_results/`에 쓰지 않는다(임시 경로 사용).
+- 모든 결과는 미국 ETF의 달러 수익률이다. 국내 상품의 환율·헤지 비용·세금은 모형에 없으니 결과를 말할 때 이 한계를 붙인다.
 
 ## 확정된 연구 방법론 (상세: `docs/research/trend_v2/DECISIONS.md` 19번 이후, 목표: `CHARTER.md`)
 
