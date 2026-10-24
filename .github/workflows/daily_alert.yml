@@ -6,6 +6,11 @@ name: Daily Alert
 # Settings: config/alert.yml. Read-only for the repository: it commits nothing.
 on:
   workflow_dispatch:
+    inputs:
+      deliver:
+        description: "Post the comment (false = dry run: only print the message in the log)"
+        type: boolean
+        default: true
   schedule:
     - cron: "15 22 * * 1-5"   # 22:15 UTC = after the 16:00 New York close (EST and EDT)
 
@@ -35,4 +40,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python -m lab.daily_alert --deliver
+        run: python -m lab.daily_alert ${{ (github.event_name == 'schedule' || inputs.deliver) && '--deliver' || '' }}
