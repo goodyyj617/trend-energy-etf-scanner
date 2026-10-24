@@ -796,7 +796,8 @@ def test_engine_delist_exit_and_eligible_mask():
     el.iloc[:60, 1] = False
     plain.eligible = el
     res2 = run_backtest(plain, cfg(entries={"above_ma": 5}, exits={"low_break": 5}, max_positions=2))
-    entries = pd.concat([res2.trades, res2.open_positions])
+    cols = ["symbol", "entry_date"]
+    entries = pd.concat([res2.trades[cols], res2.open_positions[cols]])
     bbb = entries[entries.symbol == "BBB"].entry_date
     assert len(bbb) and bbb.min() > dates[60]
 
