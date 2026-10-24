@@ -276,3 +276,46 @@ A30. 날짜 견고 joins the final gate (user's choice on 2026-10-25 00:31 KST: 
     others failed already. On 2008-01 – 2026-10 nothing passes (CAGR bar 9.4 %). Correction: the A26 table in
     the study script compared against `AllocGates()` after its defaults had changed, so its "기존" column
     showed the new rule; with the old rule HAA fails (10.2 % < 0.8 × 13.4 %). No other row changed.
+
+### Global static search with MDD as the only cut (2026-10-25, registered before running)
+
+A31. User request (2026-10-25 01:20–01:39 KST, thread "더 나은 자산배분 전략 찾기"): the lab's searches so far were local
+    perturbations of 안정형 35/45 (audit: docs/research/allocation/2026-10-25_wider_search_design.md §1); search a much
+    wider space, keep **full-period MDD ≥ −15 % as the only mandatory cut**, do not drop candidates on anything else
+    (the user judges CAGR against MDD themselves), and show every other check as a column or a ⚠ flag.
+    Correction recorded at the same time: under the A30 gate 안정형 45·금 26 (9.2 % / −13.7 %) and 골든 버터플라이
+    (8.6 % / −14.7 %) also pass; the A30 note listed only the six strategies its script had run.
+    Universe (30): all 28 products of A13/A22 plus two synthetic products, 미국10년 환노출 (IEF × USD/KRW; real products
+    TIGER 미국채10년선물 305080 / KODEX 미국채10년선물 308620 to be verified before any preset) and 미국30년 환노출
+    (TLT × USD/KRW; real product to be verified). Classes: 미국 주식 (379800 449180 379810 245340 463640 453630 453640
+    218420), 그 밖 주식 (251350 291890 069500 280930), 환헤지 채권 (0091C0 484790), 환노출 채권 (468370 468630 + the two
+    synthetic), 금·실물 (411060 132030 352560 182480), 현금·달러 (459580 261240), 레버리지 (225040 409820 418660 452250
+    225130 122630, class total ≤ 20 %).
+    Sampling (seed 2026): (1) class weights: 20,000 Sobol points; the leverage share is 0 in half of them and uniform
+    on (0, 20 %] in the other half, the remaining share is Dirichlet(1) over the six other classes (uniform on the
+    simplex, no other cap); (2) products: per class 1 / 2 / 3 products with probability 50 / 35 / 15 % (3 only in the
+    two equity classes, never more than the class has), uniform picks, Dirichlet(1) split; 10 product draws per class
+    point → 200,000 candidates; weights rounded to whole percent, parts under 3 % dropped, renormalised to 100 (largest
+    remainder); (3) check sample: 50,000 portfolios of 3–10 products drawn from all 30 without class structure, same
+    rounding; (4) refinement: the top 300 by CAGR among MDD-passing candidates are improved by moving 5 %p from one
+    product to another (all pairs) until no neighbour is better, at most 3 rounds; refined candidates are flagged
+    "다듬음" and listed apart from raw samples.
+    Simulation: a static-only vectorised simulator (`lab/aa_search.StaticSim`) reproducing `run_allocation` (decide at
+    the period's last close, trade at the next close, one-way cost 10 bp, drift between trades) within 1e-9 on synthetic
+    panels (test) and within 1e-6 on the registered presets (run-time self-check); quarterly, 2005-01-03 – 2026-10-16,
+    hedge extra 20 bp, product fees. Finalists are re-run with the engine.
+    Columns per candidate (none drops a candidate): CAGR, MDD, excess Sharpe, Calmar, turnover, product count, class
+    shares; 2005–2014 and 2015–2026 CAGR/MDD (⚠ when a half breaks −15 %); drawdowns inside the 2008 / 2020 / 2022
+    windows of A22; CAGR/MDD from 2008-01 and 2010-01; holdout (last 15 % of days) CAGR/MDD; for the top 2,000: share of
+    the 5-year rolling windows with MDD within −15 % and the median window CAGR (⚠ below 80 %); for the top 300: worst MDD
+    over all ±5 %p neighbours (⚠ when it breaks −15 %) and the A30 timing check (offsets 0/1/5/10/15).
+    Campaign-level dials (reported, not used to drop): overlap between the top lists on the full period and on
+    2005-01 – 2023-07 (holdout removed) with the holdout CAGR/MDD of the latter; CSCV over monthly returns (10 blocks,
+    252 splits, rule = best CAGR among candidates within −15 % MDD in the training half) giving PBO and, per candidate,
+    the share of splits where it stays within −15 % MDD out of sample.
+    Outputs: top 10 per MDD band (−10 … −15 %, 1 %p bands; ties within 0.3 %p CAGR shown together), a CAGR × MDD scatter
+    (colour = equity share, marker = leverage), the full candidate CSV and a top-300 CSV, the registered presets placed
+    in the same table. The user chooses; recommendations are one line per band and do not alter the tables.
+    Stages 2–4 as in the design memo (finalist sensitivity; HAA/BAA with 4-tranche staggering, Korean-product signals
+    and core/satellite mixes; real Korean ETF prices and 국고채 via the lab PC) follow in later entries.
+
