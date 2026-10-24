@@ -1,4 +1,4 @@
-"""HAA + BAA reproduction, timing luck and the final-Gate reset (DECISIONS A24–A28; memo 2026-10-25_gate_reset_and_validation.md).
+"""HAA + BAA reproduction, timing luck and the final-Gate reset (DECISIONS A24–A28, A30; memo 2026-10-25_gate_reset_and_validation.md).
 
     .venv/Scripts/python.exe scripts/aa_gate_reset_study.py            # everything, data to 2026-10-23
     .venv/Scripts/python.exe scripts/aa_gate_reset_study.py --quick    # skip bootstrap and lazy draws
@@ -23,7 +23,7 @@ from lab.aa_korea import krw_panel, load_bok_rate, load_usdkrw  # noqa: E402
 from lab.aa_score import AllocGates, gate_results, raw_metrics  # noqa: E402
 from lab.aa_tactical import TacticalSpec, krw_coverage, monthly_sharpe, run_tactical  # noqa: E402
 from lab.aa_validate import (block_bootstrap, cscv, headline, holdout_split, lazy_table, split_metrics,  # noqa: E402
-                             timing_summary, timing_table)
+                             timing_summary, timing_table, timing_worst_mdd)
 from lab.data import download_panel  # noqa: E402
 
 END = "2026-10-23"
@@ -132,24 +132,29 @@ def main(argv: list[str]) -> None:
     print(f"  표본밖 샤프 중앙값: 튜닝 {out['tuned_out_median']:.2f} · 균등 {out['equal_out_median']:.2f} · 천장 {out['ceiling_out_median']:.2f}")
     print("  자주 뽑힌 튜닝 비중:", "; ".join(f"{k} ({v})" for k, v in out["top_picks"].items()))
 
-    print("\n[8] Gate: 기존(CAGR ≥ 0.8×, MDD ≤ 0.75×) vs 새 최종 Gate(CAGR ≥ 0.7× S&P500(원화), MDD ≥ −15%), 2008-01 – 2026-10")
-    old, new = AllocGates(), AllocGates(min_cagr_ratio=0.70, max_mdd_abs=0.15)
+    print("\n[8] 최종 Gate 세 버전, 2008-01 – 2026-10: 기존(CAGR ≥ 0.8×, |MDD| ≤ 0.75×|S&P500 MDD|) · "
+          "A26(CAGR ≥ 0.7×, MDD ≥ −15%) · 현행 A30(A26 + 날짜 바꾼 최악 MDD ≥ −20%)")
+    old = AllocGates(min_cagr_ratio=0.80, max_mdd_abs=None, max_timing_mdd_abs=None)
+    a26 = AllocGates(max_timing_mdd_abs=None)
+    now = AllocGates()
     for name, r in res.items():
         m = raw_metrics(r)
-        g_old, g_new = gate_results(m, old), gate_results(m, new)
-        worst = timing_summary(timing[name])["mdd_worst"] if name in timing else float("nan")
+        m["timing_mdd_worst"] = timing_summary(timing[name])["mdd_worst"]
+        verdict = "  ".join(f"{k} {'통과' if gate_results(m, g)['최종 Gate'] else '탈락'}" for k, g in (("기존", old), ("A26", a26), ("현행", now)))
         print(f"  {name:16s} CAGR {pct(m['cagr'])} (기준 {pct(0.7 * m['spy_cagr'])})  MDD {pct(m['mdd'])}  "
-              f"기존 {'통과' if g_old['최종 Gate'] else '탈락'}  새 {'통과' if g_new['최종 Gate'] else '탈락'}  "
-              f"날짜 바꾼 최악 MDD {pct(worst)} → {'견고' if worst >= -0.20 else '타이밍 취약'}")
-    print("\n[9] 2005-01 시작(정적 배분만, 전술은 DBC 12개월 이력 때문에 2007-03부터)")
-    for name, key in STATIC.items():
-        r = static(krw, key, start=LONG_START)
-        m = raw_metrics(r)
-        print(line(name, headline(r), f"새 Gate {'통과' if gate_results(m, new)['최종 Gate'] else '탈락'}"))
+              f"날짜 바꾼 최악 MDD {pct(m['timing_mdd_worst'])}  {verdict}")
+    print("\n[9] 2005-01 시작(정적 배분만, 전술은 DBC 12개월 이력 때문에 2007-03부터), 현행 최종 Gate")
+    long_runs = {name: (static(krw, key, start=LONG_START), lambda o, k=key: static(krw, k, start=LONG_START, offset=o))
+                 for name, key in STATIC.items()}
     for name in ("HAA", "HAA+BAA 50:50"):
-        r = tactical(usd, krw, TACTICAL[name], start="2007-03-01")
+        long_runs[name + " (2007-03–)"] = (tactical(usd, krw, TACTICAL[name], start="2007-03-01"),
+                                          lambda o, p=TACTICAL[name]: tactical(usd, krw, p, start="2007-03-01", offset=o))
+    for name, (r, run) in long_runs.items():
         m = raw_metrics(r)
-        print(line(name + " (2007-03–)", headline(r), f"새 Gate {'통과' if gate_results(m, new)['최종 Gate'] else '탈락'}"))
+        m["timing_mdd_worst"] = timing_worst_mdd(run, r)
+        print(line(name, headline(r), f"날짜 견고 {pct(m['timing_mdd_worst'])}  "
+                                      f"A26 {'통과' if gate_results(m, a26)['최종 Gate'] else '탈락'}  "
+                                      f"현행 {'통과' if gate_results(m, now)['최종 Gate'] else '탈락'}"))
 
 
 if __name__ == "__main__":

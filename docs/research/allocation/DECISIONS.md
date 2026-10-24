@@ -221,8 +221,8 @@ A26. Final gate reset (user: "CAGR 기준을 조금 낮추고, MDD 기준은 −
     최종 Gate = CAGR >= 0.70 x S&P500(원화) CAGR over the same period AND MDD >= −15 % (absolute, daily).
     This replaces the final gate of A9 (CAGR >= 0.80 x, |MDD| <= 0.75 x |benchmark MDD|, about −22 % in KRW).
     The exploration gate is unchanged. A timing check ("날짜 견고": worst MDD over rebalance dates month end,
-    +1, +5, +10 and +15 trading days >= −20 %) is shown next to the gate as a reference, not inside it, until the
-    user decides. `AllocGates(min_cagr_ratio=0.70, max_mdd_abs=0.15)`; `max_mdd_abs=None` restores the old rule.
+    +1, +5, +10 and +15 trading days >= −20 %) was first shown next to the gate as a reference; A30 moved it
+    inside. `AllocGates(min_cagr_ratio=0.70, max_mdd_abs=0.15)`; `max_mdd_abs=None` restores the old MDD rule.
     On 2005-01 – 2026-10: 안정형 40 (8.6 % / −11.8 %) and 안정형 45 (8.8 % / −13.0 %) pass, 안정형 35 misses the
     CAGR bar (8.2 % vs 8.5 %), 내 AAA misses on MDD (−16.2 %); HAA (from 2007-03) passes but is timing-fragile
     (worst −34.3 %), HAA+BAA fails on MDD (−17.1 %). The CAGR bar moves with the window (S&P500 KRW 12.1 % from
@@ -261,3 +261,18 @@ A29. Crisis-avoidance study (user: "MDD가 특정 상황에만 생기는지, 미
     Dollar futures as the refuge were worse than CD. Decision: no switch is added to the presets; lowering
     the equity weight remains the reliable way to lower drawdown; the TIP canary stays an out-of-sample
     candidate to re-check later.
+A30. 날짜 견고 joins the final gate (user's choice on 2026-10-25 00:31 KST: "넣기: 최악 MDD −20% 이내").
+    최종 Gate = A26 AND the worst MDD over the five rebalance dates of A27 (month end, +1, +5, +10, +15 trading
+    days; same period, no one-month delay) >= −20 %. Metric `timing_mdd_worst` from
+    `lab/aa_validate.timing_worst_mdd`; a mix shifts its sleeves and its own re-weighting days together
+    (`aa_engine.with_rebalance_offset`, new `MixConfig.rebalance_offset`, omitted from `to_dict` when 0). A
+    result without the number (not computed) does not pass. The app computes it on the research page, the
+    comparison page (cached per strategy and period), the scorecard and tactical KRW runs; comparisons trimmed
+    to a common period judge it on that period. `AllocGates(max_timing_mdd_abs=None)` gives A26 alone.
+    Why −20 %: wider than the −15 % MDD line so that static mixes (which move ±0.5 %p) are not failed by
+    noise, tight enough to fail rules whose low MDD depends on the decision day (HAA −13.2 % at month end,
+    −34.3 % at +10 days). Result (scripts/aa_gate_reset_study.py [8]–[9]): on 2005-01 – 2026-10 안정형 40
+    (worst −12.0 %) and 안정형 45 (−13.1 %) still pass; HAA (from 2007-03), which passed A26, now fails; the
+    others failed already. On 2008-01 – 2026-10 nothing passes (CAGR bar 9.4 %). Correction: the A26 table in
+    the study script compared against `AllocGates()` after its defaults had changed, so its "기존" column
+    showed the new rule; with the old rule HAA fails (10.2 % < 0.8 × 13.4 %). No other row changed.

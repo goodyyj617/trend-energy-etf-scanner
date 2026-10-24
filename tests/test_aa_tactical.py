@@ -6,8 +6,8 @@ import pytest
 from lab import aa_signals as sig
 from lab import aa_tactical as tac
 from lab import aa_validate as val
-from lab.aa_engine import AllocConfig, decision_rows, run_allocation
-from lab.aa_score import AllocGates, gate_results
+from lab.aa_engine import AllocConfig, MixConfig, decision_rows, run_allocation, run_mix, with_rebalance_offset
+from lab.aa_score import AllocGates, gate_results, gate_text, scorecard, timing_ok
 from lab.data import panel_from_long
 
 
@@ -135,14 +135,64 @@ def test_rebalance_offset_moves_decisions_and_keeps_old_fingerprints():
     assert r5.weights["A"].iloc[rows[0] + 6] == pytest.approx(0.5)
 
 
-def test_final_gate_uses_absolute_mdd_and_lower_cagr_ratio():
-    m = {"cagr": 0.085, "mdd": -0.14, "spy_cagr": 0.12, "spy_mdd": -0.30, "calmar": 0.6, "spy_calmar": 0.4}
-    assert gate_results(m)["최종 Gate"]  # 8.5% >= 0.7 x 12% and -14% within -15%
+def test_final_gate_uses_absolute_mdd_lower_cagr_ratio_and_timing():
+    m = {"cagr": 0.085, "mdd": -0.14, "spy_cagr": 0.12, "spy_mdd": -0.30, "calmar": 0.6, "spy_calmar": 0.4,
+         "timing_mdd_worst": -0.18}
+    assert gate_results(m)["최종 Gate"]  # 8.5% >= 0.7 x 12%, -14% within -15%, worst over offsets -18% within -20%
     assert not gate_results({**m, "mdd": -0.16})["최종 Gate"]
     assert not gate_results({**m, "cagr": 0.08})["최종 Gate"]
-    old = AllocGates(min_cagr_ratio=0.8, max_mdd_abs=None)
+    assert not gate_results({**m, "timing_mdd_worst": -0.25})["최종 Gate"]  # timing-fragile (A30)
+    no_timing = {k: v for k, v in m.items() if k != "timing_mdd_worst"}
+    assert timing_ok(no_timing) is None and not gate_results(no_timing)["최종 Gate"]  # not computed = not passed
+    assert not gate_results({**m, "timing_mdd_worst": float("nan")})["최종 Gate"]
+    assert gate_results(no_timing, AllocGates(max_timing_mdd_abs=None))["최종 Gate"]  # A26 alone
+    assert gate_results({**m, "timing_mdd_worst": -0.25})["탐색 Gate"]  # the exploration gate ignores timing
+    assert "날짜 견고" in gate_text() and "날짜 견고" not in gate_text(AllocGates(max_timing_mdd_abs=None))
+    old = AllocGates(min_cagr_ratio=0.8, max_mdd_abs=None, max_timing_mdd_abs=None)
     assert not gate_results(m, old)["최종 Gate"]  # 8.5% < 9.6%
     assert gate_results({**m, "cagr": 0.10, "mdd": -0.20}, old)["최종 Gate"]  # old rule: |MDD| <= 22.5%
+
+
+def test_timing_worst_mdd_takes_the_worst_offset_on_the_period():
+    idx = pd.bdate_range("2010-01-04", periods=200)
+    up = pd.Series(1.0, index=idx)
+    dip = up.copy()
+    dip.iloc[20:30] *= 0.7  # a -30% hole early on, only at offset 10
+    base = val.AllocResult.__new__(val.AllocResult)
+    base.equity = up
+    calls = []
+
+    def run(o):
+        calls.append(o)
+        if o == 15:
+            raise ValueError("too short")
+        return dip if o == 10 else up
+
+    assert val.timing_worst_mdd(run, base) == pytest.approx(-0.3)
+    assert 0 not in calls  # the base result is reused for offset 0
+    assert val.timing_worst_mdd(run, base, period=(idx[40], idx[-1])) == pytest.approx(0.0)  # the hole is outside
+
+
+def test_mix_offset_shifts_sleeves_and_reweighting_and_feeds_the_scorecard():
+    n = 260
+    panel = make_panel({"A": trend(n, 0.002), "B": trend(n, -0.001), "SPY": trend(n, 0.001)})
+    a = AllocConfig("a", {"A": 100}, "2005-01-01", "2030-01-01", rebalance="none", cost_bps=0.0)
+    ab = AllocConfig("ab", {"A": 50, "B": 50}, "2005-01-01", "2030-01-01", rebalance="M", cost_bps=0.0)
+    mix = MixConfig("m", ((a, 50.0), (ab, 50.0)), "M")
+    m5 = with_rebalance_offset(mix, 5)
+    assert m5.rebalance_offset == 5 and all(c.rebalance_offset == 5 for c, _ in m5.sleeves)
+    assert "rebalance_offset" not in mix.to_dict() and MixConfig.from_dict(m5.to_dict()) == m5
+    assert with_rebalance_offset(ab, 3) == AllocConfig("ab", {"A": 50, "B": 50}, "2005-01-01", "2030-01-01",
+                                                       rebalance="M", cost_bps=0.0, rebalance_offset=3)
+    r0, r5 = run_mix(panel, mix), run_mix(panel, m5)
+    rows = decision_rows(r0.equity.index, "M")
+    assert r0.weights["a"].iloc[rows[0] + 1] == pytest.approx(0.5)
+    assert r5.weights["a"].iloc[rows[0] + 1] != pytest.approx(0.5)
+    assert r5.weights["a"].iloc[rows[0] + 6] == pytest.approx(0.5)
+    results = {"a": run_allocation(panel, a), "ab": run_allocation(panel, ab)}
+    table, raw = scorecard(results, timing={"a": -0.01})
+    assert raw.loc["a", "timing_mdd_worst"] == pytest.approx(-0.01) and np.isnan(raw.loc["ab", "timing_mdd_worst"])
+    assert not table.loc["ab", "최종 Gate"]  # no timing number, no final pass
 
 
 # --------------------------------------------------------------------------- validation tools
