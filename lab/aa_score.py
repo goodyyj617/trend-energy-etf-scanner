@@ -13,10 +13,11 @@ Axes (raw value -> higher score is better):
 
 Gates (pass/fail, the primary verdict):
 - 탐색 Gate: Calmar >= SPY Calmar and |MDD| <= 0.75 x |SPY MDD|   (same as the trend lab's charter)
-- 최종 Gate (A26, 2026-10-25): CAGR >= 0.70 x benchmark CAGR and MDD >= -15 % (absolute, daily).
+- 최종 Gate (A26 + A30, 2026-10-25): CAGR >= 0.70 x benchmark CAGR, MDD >= -15 % (absolute, daily)
+  and 날짜 견고: the worst MDD over rebalance dates shifted by 0/1/5/10/15 trading days >= -20 %
+  (metric "timing_mdd_worst", lab/aa_validate.timing_worst_mdd; missing = not passed).
   Until 2026-10-24 it was CAGR >= 0.80 x and |MDD| <= 0.75 x |benchmark MDD|; in KRW that MDD line
   was -22 %, looser than the user's target, and the 0.80 bar sat above every low-drawdown mix.
-  The timing check (lab/aa_validate.timing_table) is reported next to the gate, not inside it.
 """
 from __future__ import annotations
 
@@ -69,6 +70,7 @@ AXIS_TEXT = {
 class AllocGates:
     min_cagr_ratio: float = 0.70  # final gate: CAGR >= ratio x benchmark CAGR (A26; was 0.80)
     max_mdd_abs: float | None = 0.15  # final gate: MDD >= -15 % absolute (A26); None = the old relative rule
+    max_timing_mdd_abs: float | None = 0.20  # final gate: worst MDD over rebalance offsets >= -20 % (A30); None = off
     max_mdd_ratio: float = 0.75  # exploration gate (and the old final gate): |MDD| <= ratio x |benchmark MDD|
 
 
@@ -156,18 +158,32 @@ def raw_metrics(res: AllocResult, parameters: int | None = None) -> dict[str, fl
     return out
 
 
+def timing_ok(m: dict, gates: AllocGates = AllocGates()) -> bool | None:
+    """날짜 견고 part of the final gate: True / False, or None when it was not computed."""
+    if gates.max_timing_mdd_abs is None:
+        return True
+    v = m.get("timing_mdd_worst", np.nan)
+    if v is None or not np.isfinite(v):
+        return None
+    return bool(v >= -gates.max_timing_mdd_abs)
+
+
 def gate_results(m: dict, gates: AllocGates = AllocGates()) -> dict[str, bool]:
     mdd_rel_ok = abs(m["mdd"]) <= gates.max_mdd_ratio * abs(m["spy_mdd"]) if m["spy_mdd"] < 0 else False
     mdd_final_ok = mdd_rel_ok if gates.max_mdd_abs is None else bool(m["mdd"] >= -gates.max_mdd_abs)
     cagr_ok = (m["cagr"] >= gates.min_cagr_ratio * m["spy_cagr"]) if m["spy_cagr"] > 0 else m["cagr"] >= m["spy_cagr"]
     calmar_ok = np.isfinite(m.get("calmar", np.nan)) and np.isfinite(m.get("spy_calmar", np.nan)) and m["calmar"] >= m["spy_calmar"]
-    return {"탐색 Gate": bool(calmar_ok and mdd_rel_ok), "최종 Gate": bool(cagr_ok and mdd_final_ok)}
+    final_ok = cagr_ok and mdd_final_ok and bool(timing_ok(m, gates))  # not computed counts as not passed
+    return {"탐색 Gate": bool(calmar_ok and mdd_rel_ok), "최종 Gate": bool(final_ok)}
 
 
 def gate_text(gates: AllocGates = AllocGates()) -> str:
     mdd = (f"최대 낙폭 −{gates.max_mdd_abs * 100:g}% 이내" if gates.max_mdd_abs is not None
            else f"최대 낙폭이 벤치마크의 {gates.max_mdd_ratio:g}배 이내")
-    return f"CAGR ≥ 벤치마크(S&P500 원화) × {gates.min_cagr_ratio:g} 그리고 {mdd}"
+    out = f"CAGR ≥ 벤치마크(S&P500 원화) × {gates.min_cagr_ratio:g} 그리고 {mdd}"
+    if gates.max_timing_mdd_abs is not None:
+        out += f" 그리고 날짜 견고(리밸런싱 날짜를 말일·+1·+5·+10·+15거래일로 바꿔도 최악 낙폭 −{gates.max_timing_mdd_abs * 100:g}% 이내)"
+    return out
 
 
 def percentile_scores(raw: pd.DataFrame) -> pd.DataFrame:
@@ -186,9 +202,12 @@ def percentile_scores(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def scorecard(results: dict[str, AllocResult], weights: dict[str, float] | None = None,
-              parameters: dict[str, int] | None = None, gates: AllocGates = AllocGates()) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """(table, raw): table has 견고 (weighted mean of axis scores), the axes, gates and headline metrics."""
+              parameters: dict[str, int] | None = None, gates: AllocGates = AllocGates(),
+              timing: dict[str, float] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(table, raw): table has 견고 (weighted mean of axis scores), the axes, gates and headline metrics.
+    `timing` maps a name to its worst MDD over rebalance offsets (needed for the final gate)."""
     raw = pd.DataFrame({name: raw_metrics(r, (parameters or {}).get(name)) for name, r in results.items()}).T
+    raw["timing_mdd_worst"] = [float((timing or {}).get(n, np.nan)) for n in raw.index]
     scores = percentile_scores(raw)
     w = pd.Series({a: 1.0 for a in AXES}) if not weights else pd.Series({a: float(weights.get(a, 0.0)) for a in AXES})
     w = w / w.sum() if w.sum() > 0 else pd.Series({a: 1.0 / len(AXES) for a in AXES})
@@ -199,7 +218,7 @@ def scorecard(results: dict[str, AllocResult], weights: dict[str, float] | None 
     gate_df = pd.DataFrame({n: gate_results(raw.loc[n].to_dict(), gates) for n in raw.index}).T
     table["탐색 Gate"] = gate_df["탐색 Gate"]
     table["최종 Gate"] = gate_df["최종 Gate"]
-    for col in ("cagr", "mdd", "calmar", "sharpe_excess", "volatility", "turnover"):
+    for col in ("cagr", "mdd", "timing_mdd_worst", "calmar", "sharpe_excess", "volatility", "turnover"):
         table[col] = raw[col]
     return table.sort_values("견고 (참고)", ascending=False), raw
 

@@ -27,16 +27,16 @@ from lab.aa_assets import (  # noqa: E402
 )
 from lab.aa_engine import (  # noqa: E402
     OVERLAY_LABELS, OVERLAY_PARAM, REBALANCE_LABELS, RULES_KO, AllocConfig, AllocResult, Leverage, MixConfig, Overlay,
-    current_targets, mix_parameter_count, run_allocation, run_mix,
+    current_targets, mix_parameter_count, run_allocation, run_mix, with_rebalance_offset,
 )
 from lab.aa_korea import BOK_PATH, KrwModel, fetch_usdkrw_tail, krw_panel, load_bok_rate, load_usdkrw, splice  # noqa: E402
 from lab.aa_score import (  # noqa: E402
     AXES, AXIS_TEXT, CRISIS_WINDOWS, RAW_COLUMNS, AllocGates, axis_raw_table, crisis_table, gate_results, gate_text,
-    raw_metrics, scorecard,
+    raw_metrics, scorecard, timing_ok,
 )
 from lab.aa_validate import (  # noqa: E402
-    LAZY_PROBS, block_bootstrap, cscv, headline, holdout_split, lazy_table, leave_one_out, monthly_table, split_metrics,
-    timing_summary, timing_table,
+    LAZY_PROBS, TIMING_OFFSETS, block_bootstrap, cscv, headline, holdout_split, lazy_table, leave_one_out, monthly_table, split_metrics,
+    timing_summary, timing_table, timing_worst_mdd,
 )
 from lab.data import download_panel  # noqa: E402
 from lab.metrics import DEFINITIONS, drawdown  # noqa: E402
@@ -313,9 +313,17 @@ def kpi_row(m: dict) -> None:
         c.metric(lab, val, delta=delta, help=sub)
 
 
+def timing_label(m: dict) -> str:
+    ok = timing_ok(m, GATES)
+    if ok is None:
+        return "날짜 견고 미계산"
+    return ("✅" if ok else "❌") + f" 날짜 견고 {pct(m['timing_mdd_worst'])}"
+
+
 def gates_line(m: dict) -> None:
     g = gate_results(m)
     txt = " · ".join(("✅ " if ok else "❌ ") + k for k, ok in g.items())
+    txt += f" ({timing_label(m)}: 리밸런싱 날짜를 바꾼 최악 MDD)"
     st.markdown(txt + f"  \n<small>{BENCH} 대비 · 탐색 Gate: 칼마 ≥ {BENCH} 칼마 그리고 |MDD| ≤ 0.75×|{BENCH} MDD| · "
                 f"최종 Gate: {gate_text()}</small>", unsafe_allow_html=True)
 
@@ -454,6 +462,7 @@ def research_page() -> None:
             with st.spinner("계산 중…"):
                 res = run_allocation(panel, cfg)
                 m = raw_metrics(res)
+                m["timing_mdd_worst"] = timing_worst_mdd(lambda o: run_allocation(panel, with_rebalance_offset(cfg, o)), res)
                 notes.log_run(cfg.name, cfg.describe(), (str(res.period[0].date()), str(res.period[1].date())), m, config=cfg.to_dict())
                 st.session_state["aa_result"] = (res, m, panel.source)
         except ValueError as exc:
@@ -499,10 +508,28 @@ def config_from_json(text: str):
 
 def run_candidate(panel, obj, start: str, end: str) -> tuple[AllocResult, int]:
     if isinstance(obj, MixConfig):
-        mix = MixConfig(obj.name, tuple((replace(c, start=start, end=end), w) for c, w in obj.sleeves), obj.rebalance, obj.cost_bps)
+        mix = replace(obj, sleeves=tuple((replace(c, start=start, end=end), w) for c, w in obj.sleeves))
         return run_mix(panel, mix), mix_parameter_count(mix)
     cfg = replace(obj, start=start, end=end)
     return run_allocation(panel, cfg), cfg.parameter_count()
+
+
+def candidate_timing(panel, obj, start: str, end: str, base: AllocResult, memo: dict | None = None) -> float:
+    """날짜 견고 of a candidate: worst MDD over the rebalance offsets, judged on `base`'s period (which may
+    be a trimmed common period). `memo` keeps the offset curves (offset -> equity or error text)."""
+    memo = {} if memo is None else memo
+
+    def run(o: int) -> pd.Series:
+        if o not in memo:
+            try:
+                memo[o] = run_candidate(panel, with_rebalance_offset(obj, o), start, end)[0].equity
+            except ValueError as exc:
+                memo[o] = str(exc)
+        if isinstance(memo[o], str):
+            raise ValueError(memo[o])
+        return memo[o]
+
+    return timing_worst_mdd(run, base, period=base.period)
 
 
 def common_period(results: dict[str, AllocResult]) -> dict[str, AllocResult]:
@@ -621,12 +648,16 @@ def compare_page() -> None:
     if same_period:
         results = {k: v for k, v in zip(results, common_period({str(k): v for k, v in results.items()}).values())}
     metrics = {i: raw_metrics(r) for i, r in results.items()}
+    with st.spinner("날짜 견고 계산 중 (리밸런싱 날짜를 네 가지로 더 바꿔 돌림, 처음 한 번만)…"):
+        for i, r in results.items():
+            memo = cache.setdefault((config_key(entries[i]["obj"]), version, "timing"), {})
+            metrics[i]["timing_mdd_worst"] = candidate_timing(panel, entries[i]["obj"], str(start), str(end), r, memo)
     rows = []
     for i, r in results.items():
         e, m = entries[i], metrics[i]
         g = gate_results(m)
         rows.append({"선택": False, "이름": e["이름"], "출처": e["출처"], "시각": e["시각"], "CAGR": m["cagr"], "MDD": m["mdd"],
-                     "샤프": m["sharpe_excess"], "칼마": m["calmar"], "변동성": m.get("volatility"), "최악 12개월": m["worst_12m"],
+                     "날짜 견고": m["timing_mdd_worst"], "샤프": m["sharpe_excess"], "칼마": m["calmar"], "변동성": m.get("volatility"), "최악 12개월": m["worst_12m"],
                      "탐색 Gate": g["탐색 Gate"], "최종 Gate": g["최종 Gate"], "기간": f"{r.period[0].date()} → {r.period[1].date()}",
                      "설정": r.config.describe() if not r.sleeves else e["obj"].describe(), "_i": i})
     df = pd.DataFrame(rows)
@@ -635,11 +666,13 @@ def compare_page() -> None:
     bm = curve_bench = first.benchmark
     bmm = raw_metrics(first)
     st.caption(f"기준선 {BENCH}: CAGR {pct(bmm['spy_cagr'])} · MDD {pct(bmm['spy_mdd'])} · 칼마 {num(bmm['spy_calmar'])} "
-               f"(첫 전략의 기간 기준) · 최종 Gate 경계: CAGR ≥ {pct(GATES.min_cagr_ratio * bmm['spy_cagr'])}, MDD ≥ {pct(-GATES.max_mdd_abs)}")
+               f"(첫 전략의 기간 기준) · 최종 Gate 경계: CAGR ≥ {pct(GATES.min_cagr_ratio * bmm['spy_cagr'])}, MDD ≥ {pct(-GATES.max_mdd_abs)}, "
+               f"날짜 견고 ≥ {pct(-GATES.max_timing_mdd_abs)} (리밸런싱 날짜를 말일·+1·+5·+10·+15거래일로 바꾼 최악 MDD)")
     edited = st.data_editor(df.drop(columns=["_i"]), hide_index=True, width="stretch", key=f"cmp_editor_{len(df)}_{version}",
                             disabled=[c for c in df.columns if c != "선택"], column_config={
                                 "선택": st.column_config.CheckboxColumn("선택", help="그래프에 그릴 전략"),
                                 "CAGR": st.column_config.NumberColumn(format="percent"), "MDD": st.column_config.NumberColumn(format="percent"),
+                                "날짜 견고": st.column_config.NumberColumn(format="percent", help="리밸런싱 날짜를 말일·+1·+5·+10·+15거래일로 바꾼 다섯 번 중 최악 MDD"),
                                 "샤프": st.column_config.NumberColumn("현금 초과 샤프", format="%.2f"),
                                 "칼마": st.column_config.NumberColumn(format="%.2f"), "변동성": st.column_config.NumberColumn(format="percent"),
                                 "최악 12개월": st.column_config.NumberColumn(format="percent"),
@@ -795,7 +828,9 @@ def scorecard_page() -> None:
         if len(results) >= 2:
             results = common_period(results)
             idx = next(iter(results.values())).equity.index
-            table, raw = scorecard(results, axis_w, params)
+            with st.spinner("날짜 견고 계산 중…"):
+                timing = {n: candidate_timing(panel, objs[n], str(start), str(end), r) for n, r in results.items()}
+            table, raw = scorecard(results, axis_w, params, timing=timing)
             st.session_state["sc_view"] = (table, raw, results, (str(idx[0].date()), str(idx[-1].date())))
             for n, r in results.items():
                 notes.log_run(n, objs[n].describe(), (str(idx[0].date()), str(idx[-1].date())), raw.loc[n].to_dict(),
@@ -808,9 +843,10 @@ def scorecard_page() -> None:
     st.plotly_chart(score_heatmap(table, raw), width="stretch")
     show = table.copy()
     show.insert(0, "전략", show.index)
-    st.dataframe(show[["전략", "탐색 Gate", "최종 Gate", "cagr", "mdd", "calmar", "sharpe_excess", "volatility", "turnover"]],
+    st.dataframe(show[["전략", "탐색 Gate", "최종 Gate", "cagr", "mdd", "timing_mdd_worst", "calmar", "sharpe_excess", "volatility", "turnover"]],
                  hide_index=True, width="stretch", column_config={
                      "cagr": st.column_config.NumberColumn("CAGR", format="percent"), "mdd": st.column_config.NumberColumn("MDD", format="percent"),
+                     "timing_mdd_worst": st.column_config.NumberColumn("날짜 견고", format="percent", help="리밸런싱 날짜를 바꾼 다섯 번 중 최악 MDD"),
                      "calmar": st.column_config.NumberColumn("칼마", format="%.2f"), "sharpe_excess": st.column_config.NumberColumn("현금 초과 샤프", format="%.2f"),
                      "volatility": st.column_config.NumberColumn("변동성", format="percent"), "turnover": st.column_config.NumberColumn("연간 회전율", format="percent"),
                      "탐색 Gate": st.column_config.CheckboxColumn("탐색 Gate"), "최종 Gate": st.column_config.CheckboxColumn("최종 Gate")})
@@ -1030,9 +1066,10 @@ def glossary_page() -> None:
     st.subheader("Gate")
     st.markdown(BR.join([f"**탐색 Gate** · 칼마 ≥ {BENCH} 칼마 그리고 |MDD| ≤ 0.75 × |{BENCH} MDD|", "수익 조건 없이 ‘위험 대비’로만 보는 넓은 문.",
                          f"**최종 Gate** · {gate_text()}",
-                         "2026-10-25 재설정(DECISIONS A26): 이전에는 CAGR ≥ 0.80 × 그리고 |MDD| ≤ 0.75 × |벤치마크 MDD|(원화로는 약 −22%)였습니다. "
+                         "2026-10-25 재설정(DECISIONS A26, A30): 이전에는 CAGR ≥ 0.80 × 그리고 |MDD| ≤ 0.75 × |벤치마크 MDD|(원화로는 약 −22%)였습니다. "
                          "사용자 목표(낙폭 −15% 선, HAA+BAA 수준)에 맞춰 MDD는 절대 기준으로, CAGR 기준은 0.7배로 낮췄습니다.",
-                         "**날짜 견고(참고)** · 리밸런싱 날짜를 말일·+1·+5·+10·+15거래일로 바꿔도 최대 낙폭이 −20% 이내인지. ‘전술 전략·검증’ 페이지에서 계산합니다.",
+                         "**날짜 견고(최종 Gate 조건, A30)** · 같은 전략을 리밸런싱 날짜만 말일·+1·+5·+10·+15거래일로 바꿔 다섯 번 돌린 뒤, 그중 최악 MDD가 −20% 이내여야 합니다. "
+                         "판단일 하나를 잘 골라 낙폭이 작아 보이는 전략(예: HAA는 +10거래일이면 −34%)을 걸러 냅니다. 계산하지 못한 경우는 통과로 보지 않습니다.",
                          f"{BENCH} = KODEX 미국S&P500(환노출)의 원화 수익률. 원화로 보면 2008년처럼 원화가 약해질 때 달러 자산이 덜 빠져, 미국 기준 SPY보다 낙폭이 작습니다."]))
     st.subheader("위기 구간 (성적표 ‘위기’ 축)")
     st.dataframe(pd.DataFrame([{"구간": k, "시작": a, "끝": b} for k, (a, b) in CRISIS_WINDOWS.items()]), hide_index=True, width="stretch")
@@ -1154,8 +1191,8 @@ def mapping_table(signals: pd.DataFrame) -> pd.DataFrame:
 def verdict_lines(timing: pd.DataFrame, split: pd.DataFrame, boot: pd.DataFrame | None, lazy: pd.DataFrame | None) -> list[str]:
     ts = timing_summary(timing)
     out = []
-    ok = ts["mdd_worst"] >= -0.20
-    out.append(("✅" if ok else "⚠️") + f" 날짜 견고: 판단일을 바꾼 최악 MDD {pct(ts['mdd_worst'])} (말일 {pct(ts['mdd_base'])}), "
+    ok = ts["mdd_worst"] >= -GATES.max_timing_mdd_abs
+    out.append(("✅" if ok else "❌") + f" 날짜 견고(최종 Gate 조건): 판단일을 바꾼 최악 MDD {pct(ts['mdd_worst'])} (말일 {pct(ts['mdd_base'])}), "
                f"CAGR {pct(ts['cagr_min'])} ~ {pct(ts['cagr_max'])}" + ("" if ok else " → 숫자가 날짜 운에 기대고 있음"))
     if "delay" in timing and (timing["delay"] == 1).any():
         d = timing[timing["delay"] == 1].iloc[0]
@@ -1201,7 +1238,11 @@ def tactical_page() -> None:
             try:
                 with st.spinner("계산 중…"):
                     res = run_tactical_ui(data, usd, spec, holdings)
-                    st.session_state["tac_result"] = (res, raw_metrics(res, spec.parameter_count()), holdings)
+                    m = raw_metrics(res, spec.parameter_count())
+                    if holdings == "krw":  # the final gate is judged in KRW only
+                        m["timing_mdd_worst"] = timing_worst_mdd(
+                            lambda o: run_tactical_ui(data, usd, replace(spec, offset=o), holdings), res)
+                    st.session_state["tac_result"] = (res, m, holdings)
             except ValueError as exc:
                 st.error(str(exc))
         stored = st.session_state.get("tac_result")

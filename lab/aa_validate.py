@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from .aa_engine import TRADING_DAYS, AllocResult
-from .metrics import curve_metrics
+from .metrics import curve_metrics, drawdown
 
 HOLDOUT_SHARE = 0.15
 TIMING_OFFSETS = (0, 1, 5, 10, 15)  # trading days after the period end: month end, next day, ~1 week, mid-month, ~3 weeks
@@ -78,6 +78,27 @@ def timing_summary(table: pd.DataFrame) -> dict[str, float]:
             "mdd_worst": float(same["mdd"].min()), "mdd_best": float(same["mdd"].max()),
             "cagr_min": float(same["cagr"].min()), "cagr_max": float(same["cagr"].max()),
             "sharpe_spread": float(same["sharpe"].max() - same["sharpe"].min())}
+
+
+def timing_worst_mdd(run: Callable[[int], AllocResult | pd.Series], base: AllocResult | None = None,
+                     offsets=TIMING_OFFSETS, period: tuple | None = None) -> float:
+    """Worst MDD over the rebalance-date offsets (the 날짜 견고 condition of the final gate, A30).
+    run(offset) -> result or its equity curve; `base` is reused for offset 0. With `period` =
+    (first, last) every curve is cut to those dates first, so a comparison trimmed to a common
+    period is judged on it too. NaN when no offset could be run."""
+    worst = float("nan")
+    for o in offsets:
+        try:
+            r = base if (o == 0 and base is not None) else run(o)
+        except ValueError:
+            continue
+        eq = r.equity if isinstance(r, AllocResult) else r
+        eq = eq if period is None else eq.loc[period[0]:period[1]]
+        if len(eq) < 2:
+            continue
+        mdd = float(drawdown(eq).min())
+        worst = mdd if not np.isfinite(worst) else min(worst, mdd)
+    return worst
 
 
 def lazy_skip_months(months: list[str], rng: np.random.Generator, probs=LAZY_PROBS) -> tuple[str, ...]:
@@ -241,6 +262,6 @@ def blend_equity(sleeve_eq: pd.DataFrame, weights: dict[str, float]) -> pd.Serie
     return (1.0 + (r[w.index] * w).sum(axis=1)).cumprod()
 
 
-__all__ = ["HOLDOUT_SHARE", "TIMING_OFFSETS", "timing_table", "timing_summary", "lazy_table", "lazy_skip_months",
+__all__ = ["HOLDOUT_SHARE", "TIMING_OFFSETS", "timing_table", "timing_summary", "timing_worst_mdd", "lazy_table", "lazy_skip_months",
            "holdout_split", "split_metrics", "block_bootstrap", "leave_one_out", "weight_grid", "cscv",
            "blend_equity", "headline", "monthly_table"]

@@ -482,18 +482,23 @@ class MixConfig:
     sleeves: tuple  # ((AllocConfig, weight percent), ...)
     rebalance: str = "M"
     cost_bps: float = 0.0  # sleeve-level costs are already inside each sleeve
+    rebalance_offset: int = 0  # as AllocConfig.rebalance_offset, for the sleeve re-weighting days
 
     def describe(self) -> str:
-        return " + ".join(f"{c.name} {w:g}%" for c, w in self.sleeves) + f" | 슬리브 재조정 {REBALANCE_LABELS[self.rebalance]}"
+        return (" + ".join(f"{c.name} {w:g}%" for c, w in self.sleeves) + f" | 슬리브 재조정 {REBALANCE_LABELS[self.rebalance]}"
+                + (f" | 기간 끝 +{self.rebalance_offset}거래일에 매매" if self.rebalance_offset else ""))
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "rebalance": self.rebalance, "cost_bps": self.cost_bps,
-                "sleeves": [{"weight": w, "config": c.to_dict()} for c, w in self.sleeves]}
+        d = {"name": self.name, "rebalance": self.rebalance, "cost_bps": self.cost_bps,
+             "sleeves": [{"weight": w, "config": c.to_dict()} for c, w in self.sleeves]}
+        if self.rebalance_offset:
+            d["rebalance_offset"] = self.rebalance_offset
+        return d
 
     @staticmethod
     def from_dict(d: dict) -> "MixConfig":
         return MixConfig(d["name"], tuple((AllocConfig.from_dict(s["config"]), float(s["weight"])) for s in d["sleeves"]),
-                         d.get("rebalance", "M"), float(d.get("cost_bps", 0.0)))
+                         d.get("rebalance", "M"), float(d.get("cost_bps", 0.0)), int(d.get("rebalance_offset", 0)))
 
 
 def run_mix(panel: Panel, mix: MixConfig) -> AllocResult:
@@ -515,7 +520,7 @@ def run_mix(panel: Panel, mix: MixConfig) -> AllocResult:
     rets = sleeve_eq.pct_change(fill_method=None)
     cash = results[0].cash.loc[idx]
     w = _normalise({n: w for n, (_, w) in zip(names, mix.sleeves)})
-    rows = decision_rows(idx, mix.rebalance)
+    rows = decision_rows(idx, mix.rebalance) + int(mix.rebalance_offset)
     rows = rows[rows < len(idx) - 1]
     targets = {int(i): dict(w) for i in rows}
     eq, weights, turnover, trades = simulate(rets, cash, targets, mix.cost_bps, 0.0, None, 0.0, 0.0, dict(w))
@@ -531,3 +536,12 @@ def run_mix(panel: Panel, mix: MixConfig) -> AllocResult:
 
 def mix_parameter_count(mix: MixConfig) -> int:
     return sum(c.parameter_count() for c, _ in mix.sleeves) + (1 if len(mix.sleeves) > 1 else 0)
+
+
+def with_rebalance_offset(obj, offset: int):
+    """The same strategy trading `offset` trading days after each period end (a mix shifts its
+    sleeves and its own re-weighting days together). Used by the 날짜 견고 part of the final gate."""
+    if isinstance(obj, MixConfig):
+        return replace(obj, sleeves=tuple((replace(c, rebalance_offset=int(offset)), w) for c, w in obj.sleeves),
+                       rebalance_offset=int(offset))
+    return replace(obj, rebalance_offset=int(offset))
