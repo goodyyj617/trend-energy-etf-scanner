@@ -64,7 +64,7 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`universe.py` / `etf_meta.py`**: ETF 필터 깔때기(현금성 제외 → 자산군 → AUM → 총보수 → 상관 ≥ 0.98 중복 정리). 각 단계 제외 사유를 기록해 화면에 보여준다.
   ETF 메타데이터(총보수·AUM·Morningstar 분류)는 `lab/etf_meta.csv`(커밋됨)에서 읽는다. 갱신: `.venv/Scripts/python.exe -m lab.etf_meta`.
   분류 → 자산군 매핑은 `asset_class()`의 키워드 목록이다. 새 분류가 '기타'로 빠지면 여기를 고친다.
-- **`families.py`**: 사전 등록된 고정 메뉴(v2: 진입 7 × 청산 4 = 28개 계열, 각 6×6)로 `run_grid`를 계열마다 돌려 격자 전체 성적으로 비교한다(DECISIONS 33–34, 45).
+- **`families.py`**: 사전 등록된 고정 메뉴(v3: 진입 11 × 청산 7 = 77개 계열, 각 6×6)로 `run_grid`를 계열마다 돌려 격자 전체 성적으로 비교한다(DECISIONS 33–34, 45, 59).
   200칸 이상이면 계열을 여러 프로세스(`default_workers`: 코어 수, 최대 8. 환경변수 `LAB_WORKERS=1`이면 끔)로 나눠 돌린다. 결과와 `on_result` 호출 순서(시험 기록 순서)는 한 프로세스로 돌릴 때와 같다.
   작업 프로세스는 spawn으로 뜨므로 앱 스크립트를 다시 실행하지 않도록 `_main_script_hidden`이 `__main__.__file__`을 잠시 숨긴다.
   메뉴 값은 결과를 본 뒤 고치지 않는다. 바꾸려면 `MENU_VERSION`을 올려 새 메뉴로 등록한다.
@@ -72,6 +72,10 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
   국면 전환(`kind="switch"`): 국면 진입 필터와 그 정반대 청산(`blocks.REGIME_PAIRS`)을 함께 더한다(DECISIONS 50–51).
 - **`macro.py`**: 매크로 국면 블록(블록 분류 "매크로")이 읽는 FRED 일간 시리즈(T10Y3M, BAA10Y, VIXCLS). 연구는 커밋된 `lab/macro_snapshot.csv.gz`만 읽는다(갱신: Actions "Refresh macro snapshot" 수동 실행 또는 `python -m lab.macro`).
   t일 결정에는 t−1일 이전 값만 쓴다(공표 시차). 사후 수정되는 지표는 넣지 않는다(DECISIONS 49).
+- **`single.py`**: 종목별 단독 시험(DECISIONS 67). 엔진을 `single=True`(슬롯 = 종목 수, 현금 제한 없음, numpy 경로)로 한 번 돌려 종목별 단독 계좌와 매매 기록 포트폴리오(sleeve)를 만든다. 한 종목 백테스트와 매매가 같다는 테스트가 있다.
+- **`target.py`**: 사용자 목표 지표. 레버리지 없이 낙폭 15%에 맞춘 비중·수익, 같은 낙폭의 SPY+국채 혼합, 3년 롤링 구간 승률(DECISIONS 64–65). `explore.py`: Sobol 표본 탐색과 PBO(66).
+- **`crsp.py` / `crsp_study.py`**: CRSP 일별 파일(사용자 드라이브 `H:\내 드라이브\CRSP`, 커밋 금지) → 시점별 시총 상위 N 패널(`Panel.eligible`, `delist_exit`) → 종목별 단독 시험·Sobol을 중간 저장하며 실행(DECISIONS 70–71). 실행은 노트북 RAM을 아끼려고 **Colab**(`colab/crsp_study.ipynb`, 드라이브 연결)에서 하고, 결과는 드라이브 `CRSP/lab_crsp/`로 돌아온다. `--dry`로 파이프라인만 점검할 수 있다.
+  엔진의 `Panel.eligible`은 진입만 막는다(보유 종목은 청산 규칙대로). `delist_exit=True`면 가격 시계열이 기간 중 끝나는 종목을 마지막 봉에서 강제 청산한다(`DELIST_KEY`). 두 기능 모두 기존 패널(`None`/`False`)에서는 결과를 바꾸지 않는다(2026-10-23 비트 단위 확인).
 - **`batch.py`**: 앱 기본 유니버스·설정으로 공통 조건 시험을 명령줄에서 돌린다(`python -m lab.batch addon <kind> <key>`). 앱과 똑같이 시험 횟수에 기록하고 결과를 저장한다.
 - **`daily_alert.py`**: 일일 알림(DECISIONS 53). `config/alert.yml` 전략의 모델 포트폴리오를 오늘까지 시뮬레이션해 다음 시가 주문(`BacktestResult.pending_orders`)과 국면 상태를 이슈 댓글로 보낸다. 성과는 보여주지 않는다.
 - **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
@@ -90,7 +94,10 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`engine.py`**: 신호는 t일 종가로 계산하고 t+1일 시가에 체결. 동일 금액 슬롯(`max_positions`), 리밸런싱 없음, 편도 비용 bp, 신호 초과 시 20일 평균 거래대금 순으로 선택.
   - `SignalCache`가 블록 출력을 `(key, value)`로 재사용한다. 격자 속도의 핵심이다.
   - `RULES_KO`는 화면에 그대로 보여주는 규칙 설명이다. 엔진 동작을 바꾸면 함께 고칠 것.
-  - 포지션 크기 `sizing`: `equal` | `inverse_vol`(기본, 60일 변동성·2배 상한). `to_dict()`는 기본값 `equal`일 때 키를 생략해 예전 시험 키를 유지한다. 새 설정 필드를 더할 때도 같은 방식으로.
+  - 포지션 크기 `sizing`: `equal` | `inverse_vol`(기본, 60일 변동성·2배 상한) | `risk`(위험 기준: 초기 손절폭으로 주식 수 결정, `risk_pct`·`max_weight`). `to_dict()`는 기본값 `equal`일 때 키를 생략해 예전 시험 키를 유지한다. 새 설정 필드를 더할 때도 같은 방식으로.
+  - 리스크 관리층(DECISIONS 72): `atr_stop` 청산 블록(신호일 ATR 기준 초기 손절), `heat`(열 상한), `breakeven_r`(손익분기 이동, 의사 청산 키 `BREAKEVEN_KEY`). 모두 기본값에서 꺼져 있다. 초기 손절 거리 R은 `risk_per_share`가 `atr_stop` 또는 `stop_loss_pct`에서 계산한다. 피라미딩은 아직 없다.
+  - `time_stop`은 `first_exit`의 경로 청산이다. `take_profit_pct`(PARTIAL_KEY)는 전량 청산이 아니라 `first_partial`이 정한 날 다음 시가에 50%를 판다. 거래 목록은 포지션당 한 줄(두 매도를 합친 수익률), 부분 매도 기록은 `BacktestResult.partial_exits`.
+  - 큰 패널에서 여러 규칙을 차례로 돌릴 때는 규칙이 바뀔 때 `SignalCache.drop_rule_data(keep_window)`로 규칙별 배열을 비운다(안 그러면 CRSP 3,700종목에서 수십 GB가 쌓임).
   - 일간 루프는 numpy 스칼라 대신 파이썬 리스트를 쓴다(수 배 빠름, 결과는 비트 단위로 동일). 기간(window)별 리스트는 `SignalCache.memo`로 격자 칸끼리 재사용한다.
   - 청산은 매일 보유 종목을 검사하지 않고, 매수하는 순간 `first_exit`가 그 종목의 이후 종가 배열에서 첫 청산일과 사유를 찾는다(규칙은 같음: 종가 없는 날 건너뜀, 고점은 매수가와 그날 종가까지 포함, 사유는 `cfg.exits` 순서).
     청산일은 (종목, 매수일)에만 달려 있어 같은 청산 설정의 모든 칸이 `exit_at` 메모를 공유한다. 포지션 상태가 필요한 청산 블록을 추가하면 `first_exit`에 넣을 것.
@@ -132,15 +139,18 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 
 ## 확정된 연구 방법론 (상세: `docs/research/trend_v2/DECISIONS.md` 19번 이후, 목표: `CHARTER.md`)
 
-- **포트폴리오 단위 지표(같은 날짜의 SPY 대비)가 주 기준**이다. 거래 단위 지표(t-통계량, 손익비 등)는 거래당 통계적 우위를 보는 **보조**.
+- 2026-10-22부터 탐색의 주 기준은 **종목별 단독 시험**(`lab/single.py`, DECISIONS 67)이다: 종목마다 전략 vs 그 종목 보유, 그리고 매매 기록 포트폴리오 vs SPY(+국채 혼합). 포트폴리오 단위 결과는 비교용으로 함께 본다. 거래 단위 지표는 보조.
+- 개별 종목 유니버스는 CRSP 시점별 시총 상위 1,000(DECISIONS 70)이다. 현재 지수 구성 종목만 쓰면 생존 편향이 커지므로 쓰지 않는다.
 - 강건성 판정에 **가중 합산 점수를 쓰지 않는다.** 판정은 Gate(통과/탈락)와 구조적 기준(영역, 이웃, LOYO), 사전식 정렬로만 한다.
 - Gate 기본값은 CHARTER에서 왔다: CAGR ≥ 0.80×SPY, |MDD| ≤ 0.75×|SPY MDD|, 완료 거래 ≥ 30. 통과 후보가 없어도 기준을 자동으로 낮추지 않는다.
+  탐색 단계(계열·구성 요소 비교)는 탐색용 Gate `grid.EXPLORE_GATES`(칼마 ≥ SPY 칼마, 수익 조건 없음)를 쓰고, 보류 구간 후보는 위 최종 Gate로 고른다(DECISIONS 58). 최종 Gate는 결과를 본 뒤 바꾸지 않는다.
 - 보류 구간(기본 2024-01-01 이후)은 연구에 쓰지 않는다. 앱의 종료일 상한이 보류 구간 직전으로 묶인다. 연구 결과를 보여줄 때 보류 구간 데이터를 섞지 말 것.
   보류 구간 평가는 **사용자가 그 후보를 지정해 요청할 때만** 한다. 평가할 때마다 `holdout.json`에 남고 볼수록 검증력이 줄어든다. 판정은 수익·낙폭 Gate만 쓴다(거래 수는 참고).
 - 모든 백테스트는 기준선 3개(SPY 보유, SPY 200일선, 유니버스 동일비중)와 같이 본다. 단일 전략 강건성은 7개 통과/미달 체크리스트(DECISIONS 31).
 - 남는 현금은 단기국채 수익률을 받는다(기본). 0%로 두면 추세추종이 부당하게 불리해진다.
-- 2차원 격자(신호 파라미터 × 청산 파라미터)는 허용, 그 이상의 전수 탐색은 금지.
-- 고정 보유기간 청산과 고정 목표가 청산은 쓰지 않는다(CHARTER).
+- 2차원 격자(신호 파라미터 × 청산 파라미터)는 허용, 그 이상의 전수 탐색은 금지. 여러 변수를 함께 볼 때는 고정 예산 Sobol 표본 탐색(`lab/explore.py`)과 PBO로 한다(DECISIONS 66).
+- 사용자 목표는 "레버리지 없이 수익 최대·낙폭 최소"다. 탐색 기준은 낙폭 15% 맞춤 수익이 SPY+국채 혼합보다 높은지(`lab/target.py`, DECISIONS 64)와 3년 롤링 구간 승률(65)이다.
+- 고정 보유기간 청산과 전량 고정 목표가 청산은 쓰지 않는다(CHARTER). 단, 사용자 결정으로 조건부 시간 손절(`time_stop`: N일 뒤 진입가 이하일 때만)과 1회 부분 익절(`take_profit_pct`: +X%에 50% 매도)은 허용한다(DECISIONS 73).
 - 블록은 가격·거래량과 최소한의 파생 지표로 시작한다. ETF 우선, 개별 종목은 yfinance 경로로(생존 편향 경고 유지).
 - 기존 trend-energy score(0.65·TE63 + 0.35·TE126)와 score breakout은 연구 경로에서 폐기됐다. 되살리지 않는다.
 - 결과는 표본 내(in-sample) 연구다. 스냅샷 유니버스가 현재 AUM 기준이라 생존 편향이 있다. 결과를 "승인"이나 "실거래 가능"으로 표현하지 않는다.

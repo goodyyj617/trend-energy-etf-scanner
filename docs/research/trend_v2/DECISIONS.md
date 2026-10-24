@@ -177,6 +177,221 @@ rules? Each indicator is tested as a component across every family, as in 47, no
     Calmar change is near zero. Nothing is added by default. Trials 28,569, N_eff ~8,662.
     Record: docs/research/lab/2026-10-22_confirmation_filters.md.
 
+### Market-trend switch on the top family (2026-10-22, registered before running)
+
+56. Candidate: the top v2 family momentum x trailing_pct with the market_trend switch of 51
+    (entry filter market_trend 200 + exit market_off 200, both at their defaults), settings and
+    universes of 43. In each universe the family's 6x6 grid is run with the switch and the cell
+    ranked first by the grid ordering (largest region, neighbor survival, LOYO, Calmar among
+    Gate-passing cells) is chosen; if no cell passes, that is the result for that universe. The
+    chosen cell is run through the 7-item checklist of 31 (halves v2 of 40, DSR with N_eff of 41)
+    in its own universe. Descriptive only, deciding nothing: the same cell without the switch, and
+    each universe's chosen cell run on the other universe. The holdout is not used. A cell that
+    passes all 7 items is reported as a holdout candidate for the user to decide on; nothing is
+    adopted by this test.
+57. Results of 56: snapshot 2017-2023 has no Gate-passing cell (all 36 fail the return gate,
+    median CAGR 0.42 x SPY), so no candidate. Long 2000-2023: 7 of 36 pass; the top cell
+    momentum 189 / trailing 10% passes 3 of 7 checklist items (gate, halves, beats SPY 200-day)
+    and fails neighbors (3/8), 2x cost, LOYO (0.67) and DSR (0.26). The switch cuts the drawdown
+    (-34% to -24%) but also the return, leaving the cell on the edge of the return gate. Not a
+    holdout candidate; C2 (6/7) remains the strongest. Trials 28,581, N_eff ~8,665.
+    Record: docs/research/lab/2026-10-22_market_switch_checklist.md.
+
+### Exploration gate and family menu v3 (2026-10-22, registered before running)
+
+58. Two gates, both fixed now. Exploration gate (for comparing families and components):
+    strategy Calmar >= 1.0 x SPY Calmar on the same dates, |MDD| <= 0.75 x |SPY MDD|, completed
+    trades >= 30; no return gate, so strategies that earn less than SPY but lose much less
+    survive. LOYO under this gate re-checks the Calmar and drawdown conditions. Final gate
+    (unchanged, 39): CAGR >= 0.80 x SPY, |MDD| <= 0.75 x |SPY MDD|, trades >= 30. A holdout
+    candidate must pass the final gate and the 7-item checklist of 31 evaluated under the final
+    gate; the final gate is not changed after these results are seen. Results show both gates.
+59. Pre-registered menu `family-menu-v3`: v2 unchanged plus new price/volume blocks, one parameter
+    each, other windows fixed. Entries: near_high (close >= (1 - X%) x 252-day highest close)
+    X {2, 5, 8, 12, 16, 20}; adx_trend (Wilder ADX(14) >= X and +DI > -DI) X {15, 20, 25, 30, 35, 40};
+    keltner (close > EMA20 + k x ATR14) k {0.5, 1.0, 1.5, 2.0, 2.5, 3.0}; cmf_min (Chaikin Money
+    Flow 20 >= X) X {-0.05, 0, 0.05, 0.10, 0.15, 0.20}. Exits: momentum_neg (N-day return < 0)
+    N {21, 42, 63, 126, 189, 252}; rsi_below (RSI14 < X) X {30, 35, 40, 45, 50, 55}; cmf_below
+    (CMF20 < X) X {-0.25, -0.20, -0.15, -0.10, -0.05, 0}. 11 entries x 7 exits = 77 families.
+60. Test: the 77-family comparison under the exploration gate, on the universes and settings of
+    43. Families are ordered as in 34 and ranked across universes by rank sum. Descriptive:
+    average family rank of each entry and each exit block per universe (as in 48), and each
+    family's final-gate pass share. For the three families with the lowest rank sum, the top cell
+    of each universe's grid (ordering of 34 under the exploration gate) is run through the
+    checklist under both gates. A cell passing all 7 items under the final gate is reported as a
+    holdout candidate for the user to decide on; nothing is adopted by this test.
+61. Results of 60 (exploration gate): breakout x atr_trail has the lowest rank sum (1 + 6), then
+    breakout x below_ma (9 + 1) and breakout x rsi_below (8 + 3). breakout is the best entry in
+    both universes and trailing_pct the best exit, as in 48. Among new blocks keltner is the best
+    entry (mid-upper in both), near_high and adx_trend are mid, cmf_min is near the bottom; the
+    three new exits are all in the lower half. No checklist cell passes 7/7 under the final
+    gate; the best is breakout 80 / below_ma 200 on the long history (5/7), below C2 (6/7). Under
+    the exploration gate breakout 20 / rsi_below 50 on the snapshot passes 6/7 (fails only DSR,
+    0.50). No holdout candidate. Trials 32,139, N_eff ~9,572.
+    Record: docs/research/lab/2026-10-22_menu_v3_exploration_gate.md.
+
+### Absolute drawdown limit (2026-10-22, user decision, registered before running)
+
+62. By user decision, both gates add an absolute limit |MDD| <= 15% on the research period
+    (grid.EXPLORE_GATES and grid.FINAL_GATES; LOYO re-checks it with each year removed). The
+    relative limit 0.75 x |SPY MDD| and the other conditions of 58 are unchanged. This makes both
+    gates stricter, not looser, and is the user's stated goal rather than a reaction to which
+    families passed. The test of 60 is rerun unchanged on menu v3 under the new gates.
+    The fixed-rule blocks ma_stack and up_candle were never part of the family runs (their base
+    configuration has no entries); ma_stack was only tested as a common add-on in 54.
+63. Results of 62 (menu v3 under the 15% drawdown limit): exploration-gate passing cells fall to
+    45 (snapshot) and 62 (long) of 2,772; final-gate passing cells to 0 and 3. bollinger entries
+    take the seven lowest rank sums, and every top cell is bollinger k = 3.0, the largest menu
+    value (rarely invested). Their checklists pass at most 6/7 under the exploration gate (all
+    fail DSR, 0.41-0.58) and at most 2/7 under the final gate. Descriptive: a daily-rebalanced
+    SPY/T-bill mix scaled to a 15% drawdown returns 6.6% (snapshot, 41% SPY) and 3.3% (long, 25%
+    SPY); the top cells beat it on Calmar but not on snapshot CAGR. No holdout candidate.
+    Trials 32,161, N_eff ~9,586. Proposals for period bias (rolling windows, universe/period
+    split, CPCV/PBO, block bootstrap) and multi-variable search (Sobol sampling with PBO) are in
+    docs/research/lab/2026-10-22_drawdown_limit_and_next_methods.md; none is adopted yet.
+
+### Goal-based criterion, rolling windows, universe/period split (2026-10-22, registered before running)
+
+The user's goal is the highest return with the smallest drawdown, without relying on leverage.
+
+64. Goal criterion (lab/target.py). Each strategy is blended daily with T-bills at the largest
+    weight w in [0, 1] (0.01 steps) that keeps its research-period |MDD| <= 15%; w = 1 when the
+    drawdown is already within 15% (no leverage). The same scaling of SPY gives the reference
+    "SPY + T-bill mix". A cell passes when its scaled CAGR >= the mix's scaled CAGR and it has
+    >= 30 completed trades. This replaces the gates of 58 and 62 for exploration; those gates
+    stay defined and are still reported.
+65. Time robustness: rolling windows of three full calendar years stepping one year inside each
+    research period; in each window the strategy and the mix keep their full-period weights,
+    and the window counts as won when the strategy's CAGR >= the mix's. window_share = share of
+    windows won. Universe/period split: a third sample, the long-history universe on the
+    snapshot dates (2017-08-01 - 2023-12-31), so that "same ETFs, different period" and "same
+    period, different ETFs" can be told apart.
+    Test: menu v3 (77 families) in the three samples. Family order (lexicographic): share of
+    passing cells, largest connected passing region, median window_share, median excess CAGR
+    over the mix; families ranked across samples by rank sum. The top cell of a family is the
+    passing cell ordered by region size, neighbor survival, window_share, excess CAGR. Reported
+    for the three families with the lowest rank sum, with DSR. Holdout-candidate rules are
+    registered after the multi-variable search (Sobol + PBO), not here; nothing is adopted.
+66. Multi-variable search (lab/explore.py), by user decision replacing "no exhaustive search
+    beyond two parameters" with a fixed-budget sample: 2,048 points of an unscrambled Sobol
+    sequence over 8 variables, the same points in the three samples of 65, settings otherwise of
+    43. Variables: entry block (the 11 menu-v3 entries) and its value inside its menu range,
+    snapped to the parameter step; exit block (the 7 menu-v3 exits) and its value likewise;
+    filter (none, market_trend, ma_stack, obv_up, volume_surge, adx_trend, near_high at their
+    defaults); initial stop (none for half the points, otherwise 5-20%); max positions 5-20;
+    sizing equal or inverse-vol. Every point is evaluated with 64 and 65 and logged as a trial.
+    Reported: share of passing points; per-variable summaries (descriptive); PBO by CSCV with 12
+    contiguous blocks of monthly returns, ranking by min(CAGR, 0.15 x Calmar) in each half; and
+    the robust point = passing in all three samples with window_share >= 0.5 in each, maximizing
+    the smallest excess over the mix across samples, with its DSR. A point is proposed as a
+    holdout candidate only if it passes in all three samples, has window_share >= 2/3 in each,
+    and PBO < 0.5 in every sample; the user decides whether to evaluate it, and the holdout
+    verdict would use the criterion of 64.
+
+### Strategy-only test (2026-10-22, user decision, registered before running)
+
+67. By user decision the primary test is now the rule itself, without portfolio construction
+    (replacing "portfolio metrics are primary" for exploration). lab/single.py: every ETF is
+    traded alone, 100% in while a position is open and in T-bills otherwise (one engine run with
+    one slot per symbol and entries not limited by cash; each symbol's trades equal a stand-alone
+    run, checked by a test). Costs, price and liquidity filters as in 43; max positions and
+    sizing play no role. A symbol is judged if it has >= 3 years of data in the period. Symbol
+    excess = 15%-budget CAGR of the strategy (64) - 15%-budget CAGR of that symbol's buy-and-hold.
+    The sleeve portfolio, built from the trade records, is the daily equal-weight average of the
+    stand-alone accounts; it is evaluated with 64 (against the SPY + T-bill mix) and 65. A cell
+    passes when >= 50% of judged symbols have excess >= 0 and the sleeve passes 64. Family order:
+    share of passing cells, largest connected passing region, median symbol pass share, median
+    sleeve excess; ranked across the three samples of 65 by rank sum, menu v3. The portfolio-level
+    run of 65 is kept as a comparison. Every cell is logged as a trial (sleeve curve).
+68. The Sobol search of 66 is run in the strategy-only mode: the same 2,048 points, variables 1-6
+    (max positions and sizing are dropped as portfolio settings). Pass, PBO (on sleeve monthly
+    returns), robust point and holdout-candidate rule as in 66, with the pass of 67 and the
+    sleeve's window_share.
+69. Results of 65, 67 and 68. Portfolio level (65): passing cells 48 / 888 / 105 (snapshot / long /
+    long 2017-2023); best families beat the 15%-budget SPY+T-bill mix by 0.2-1.9 points a year,
+    DSR 0.16-0.54. Strategy-only (67): passing cells 0 / 220 / 28; no family beats buy-and-hold
+    (same budget) on a majority of snapshot ETFs; trailing_pct families lead on the long history,
+    and the same ETFs on 2017-2023 mostly fail, so the split points to the period, not the
+    universe. Sobol (68): pass 0% / 10.7% / 0.2%, no point passes all three samples; PBO 0.68 /
+    0.25 / 0.53. No holdout candidate. Trials 41,049, N_eff ~11,956.
+    Record: docs/research/lab/2026-10-22_strategy_only_and_sobol.md.
+
+### Individual stocks from CRSP, point-in-time universe (2026-10-23, registered before running)
+
+The user wants the test on individual stocks, with a universe wide enough not to be a
+large-cap proxy of SPY, and the goal stated as "CAGR above SPY with MDD below SPY" without
+leverage. The user's CRSP daily stock file (1991-2024, delisted stocks included) is used
+locally or from the user's Google Drive in Colab; the data is never committed.
+
+70. Data and universe (lab/crsp.py). Common stocks (SHRCD 10, 11) on NYSE, AMEX and Nasdaq.
+    Prices are total-return adjusted (chain of 1 + RET anchored at the last split-adjusted
+    price, like yfinance Adj Close); volume x CFACPR keeps close x volume the day's dollar
+    volume. Point-in-time universe: at each year-end the TOP_N = 1,000 stocks by market value
+    (|PRC| x SHROUT) are the entry candidates of the following year (Panel.eligible); a
+    holding that drops out is kept until its exit rule fires. Delisting: one bar on the next
+    trading day at last close x (1 + DLRET), DLRET missing -> -30% for codes 500 and 520-584
+    (Shumway 1997), else 0; the engine's forced "delist" exit sells at that bar
+    (Panel.delist_exit). A stock's last two bars are never entry candidates. Price >= $5 and
+    20-day dollar volume >= $5M filters of 43 still apply; 10 bp per side. Research samples:
+    1993-02-01 - 2023-12-31 (SPY's history) and 2017-08-01 - 2023-12-31; 2024 stays unseen.
+    Top 3,000 is a later registration if the top 1,000 shows anything.
+71. Test (lab/crsp_study.py, strategy-only mode of 67). Menu v3 families and 1,024 Sobol
+    points over variables 1-6 of 66, in both samples. A cell passes when its sleeve portfolio
+    (equal weight over that day's eligible and held stand-alone accounts, 100% invested, no
+    leverage) has CAGR >= SPY CAGR, |MDD| <= |SPY MDD| and >= 30 completed trades. Family
+    order: pass share, largest connected passing region, median CAGR excess over SPY, median
+    share of stocks beating their own buy-and-hold at the 15% budget (67); ranked across the
+    two samples by rank sum. PBO by CSCV (12 blocks) on the Sobol sleeves per sample. The
+    15%-budget metrics of 64-65 are reported alongside. A point or cell is proposed as a
+    holdout candidate only if it passes in both samples with window_share >= 2/3 in each and
+    PBO < 0.5 in both; the user decides on the holdout look (verdict: the goal of this item).
+    Every cell is logged as a trial. Results and the record go into a dated note under
+    docs/research/lab/ when the run finishes.
+
+### Per-position risk management layer (2026-10-23, components registered before any run)
+
+The user wants strategies built on the risk management of individual positions, not on asset
+allocation. Review: docs/research/lab/2026-10-23_quant_models_small_account.md.
+
+72. Engine components, all off by default (existing configs keep their keys and results, checked
+    by tests): exit block atr_stop (close < entry - k x ATR14 of the signal day; k default 2,
+    range 0.5-5); sizing "risk" (shares = risk_pct% of equity / initial stop distance, risk_pct
+    default 1, with an optional cap max_weight on one position; a symbol without an initial
+    stop is not bought); heat (no buy that lifts the sum of open initial risks above this
+    fraction of equity); breakeven_r (after a gain of X R the stop moves to the entry price,
+    exit reason "손익분기 이동"). Pyramiding (adding units as a position gains) is not built yet.
+    Time stops and fixed or partial profit targets stay excluded by the CHARTER unless the user
+    changes it. Trade-level R-multiple statistics (expectancy, win rate, SQN) are the secondary
+    readout of this layer.
+    Test (to run after 71): base rules = the families that pass 71 in both samples or, if none,
+    breakout x trailing_pct and momentum x trailing_pct (the two-sample leaders of 48 and 61).
+    On the CRSP universe of 70, account level, no leverage, max_positions 20: a Sobol sample of
+    1,024 points over atr_stop k {0.5-5}, risk_pct {0.25-2}, max_weight {5-25%}, heat {2-20%
+    or off}, breakeven_r {off, 0.5-2}, trailing exit value within its menu range, entry value
+    within its menu range; verdict as in 71 (CAGR >= SPY, |MDD| <= |SPY MDD|, both samples,
+    window_share, PBO), plus after-cost and after-tax CAGR (round trip 0.5% unless the user
+    gives the broker's terms; Korean capital-gains tax 22% above 2.5M won a year).
+73. CHARTER amendment by user decision (2026-10-23): two risk-management exits are allowed.
+    time_stop N (exit when a position has been held N trading days and its close is at or below
+    the entry price; profitable positions are not touched; default 20, range 5-120) and
+    take_profit_pct X (on the first close at or above entry x (1 + X%), sell 50% at the next open,
+    once; the rest follows the other exits; default 20, range 5-100). An unconditional holding
+    period and a target that closes the whole position stay prohibited. A position with a partial
+    sale is one row in the trade list, its return combining both sales (exit reason suffixed
+    "(부분 익절 50% 후)"); the sales are in BacktestResult.partial_exits and lab/single.py rebuilds
+    the part-stock, part-cash stand-alone account from them (tested against the one-slot engine).
+    Both join the variables of the risk-management test of 72.
+74. Long runs on the CRSP panel: the first Colab run stopped after 4 families when a worker ran
+    out of memory (block outputs and exit arrays of every family stayed in the cache). The study
+    now frees rule-specific arrays when the family changes (SignalCache.drop_rule_data), stores
+    the next-exit array as int32, and computes the per-symbol metrics as matrices
+    (target.fit_weights; identical weights, per-symbol buy-and-hold now from float64 prices,
+    differences < 1e-6). Results of the four finished families stand; the run resumes from them.
+    A second stop (8 workers on 51 GB, after 15 more families) came from memory peaks of
+    workers coinciding: the notebook now allows about 8 GB per worker, and the runner restarts
+    the pool with one worker fewer and resumes when a worker is killed. Finished families are
+    unaffected (each is written only when complete).
+
 ## Open decisions
 
 - final trend-filter definition;

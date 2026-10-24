@@ -12,8 +12,12 @@ reducing maximum drawdown, CDaR, and recovery duration.
 2. It should retain broadly comparable long-term return rather than maximize
    isolated trade statistics.
 3. Losses should be bounded while profitable trends are allowed to continue.
-4. Fixed holding-period exits are prohibited.
-5. Fixed profit targets are prohibited.
+4. Fixed holding-period exits are prohibited. Amended 2026-10-23 by user decision (DECISIONS 73):
+   a conditional time stop (exit after N days only if the position is not above its entry price)
+   is allowed as a risk-management component.
+5. Fixed profit targets are prohibited. Amended 2026-10-23 by user decision (DECISIONS 73): a
+   one-time partial take-profit (sell half at +X%, the rest follows the other exits) is allowed;
+   a target that closes the whole position remains prohibited.
 6. Portfolio-level return and downside risk are primary.
 7. Trade-level metrics are diagnostics.
 8. Simpler rules are preferred unless added complexity demonstrates

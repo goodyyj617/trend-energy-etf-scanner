@@ -80,6 +80,26 @@ def obv(p: Panel) -> pd.DataFrame:
     return (direction * p.volume.fillna(0.0)).cumsum().where(p.close.notna())
 
 
+def cmf(p: Panel, n: int = 20) -> pd.DataFrame:
+    """Chaikin Money Flow: n-day sum of (close location in the day's range x volume) / n-day volume."""
+    rng = (p.high - p.low).replace(0, np.nan)
+    mfm = (((p.close - p.low) - (p.high - p.close)) / rng).fillna(0.0)  # zero-range day = neutral
+    vol = p.volume.fillna(0.0)
+    return (mfm * vol).rolling(n, min_periods=n).sum() / vol.rolling(n, min_periods=n).sum().replace(0, np.nan)
+
+
+def adx_di(p: Panel, n: int = 14) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Wilder's ADX, +DI and -DI."""
+    up, down = p.high.diff(), -p.low.diff()
+    plus_dm = up.where((up > down) & (up > 0), 0.0).where(up.notna())
+    minus_dm = down.where((down > up) & (down > 0), 0.0).where(down.notna())
+    tr = atr(p, n)
+    plus_di = 100 * wilder(plus_dm, n) / tr.replace(0, np.nan)
+    minus_di = 100 * wilder(minus_dm, n) / tr.replace(0, np.nan)
+    dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
+    return wilder(dx, n), plus_di, minus_di
+
+
 # --------------------------------------------------------------------------- entry rules
 
 def _breakout(p: Panel, n: float) -> pd.DataFrame:
@@ -172,7 +192,38 @@ def _up_candle(p: Panel, _: float | None) -> pd.DataFrame:
     return p.close > p.open
 
 
+def _near_high(p: Panel, x: float) -> pd.DataFrame:
+    hi = p.close.rolling(252, min_periods=252).max()
+    return p.close >= hi * (1 - x / 100.0)
+
+
+def _adx_trend(p: Panel, x: float) -> pd.DataFrame:
+    adx, plus_di, minus_di = adx_di(p, 14)
+    return (adx >= x) & (plus_di > minus_di)
+
+
+def _keltner(p: Panel, k: float) -> pd.DataFrame:
+    mid = p.close.ewm(span=20, adjust=False, min_periods=20).mean()
+    return p.close > mid + k * atr(p, 14)
+
+
+def _cmf_min(p: Panel, x: float) -> pd.DataFrame:
+    return cmf(p, 20) >= x
+
+
 # --------------------------------------------------------------------------- exit rules
+
+def _momentum_neg(p: Panel, n: float) -> pd.DataFrame:
+    return p.close / p.close.shift(int(n)) - 1.0 < 0
+
+
+def _rsi_below(p: Panel, x: float) -> pd.DataFrame:
+    return rsi(p.close, 14) < x
+
+
+def _cmf_below(p: Panel, x: float) -> pd.DataFrame:
+    return cmf(p, 20) < x
+
 
 def _low_break(p: Panel, n: float) -> pd.DataFrame:
     n = int(n)
@@ -257,6 +308,22 @@ ENTRY_BLOCKS: dict[str, Block] = {
         Block("williams", "Williams %R(14) 이상", "%R = −100 × (14일 최고가 − 종가) / (14일 최고가 − 14일 최저가) ≥ X",
               "종가가 최근 14일 범위의 위쪽에 있을 때만 진입 (0 = 범위 최상단, −100 = 최하단).",
               Param("X", -20, -50, -5, 5, "점", "%R 하한"), _williams, "보조지표"),
+        Block("near_high", "52주 고가 근접", "오늘 종가 ≥ 최근 252거래일 최고 종가 × (1 − X%)",
+              "1년 최고가에서 X% 안쪽에 있을 때만 진입. 신고가 근처 종목이 계속 강한 경향(52주 고가 효과)을 씁니다. "
+              "돌파 순간이 아니라 '고가 근처에 머무는 상태'를 봅니다. 기간 252일은 고정입니다.",
+              Param("X (%)", 5, 1, 30, 1, "%", "1년 최고 종가에서 허용하는 거리"), _near_high, "가격"),
+        Block("adx_trend", "ADX 추세 강도", "ADX(14) ≥ X 이고 +DI(14) > −DI(14)",
+              "ADX는 방향과 상관없이 추세가 얼마나 뚜렷한지(0–100), +DI > −DI는 그 추세가 위쪽이라는 뜻입니다. "
+              "횡보 구간의 가짜 신호를 거르는 용도. 고가·저가·종가로 계산하고 기간 14일(Wilder)은 고정입니다.",
+              Param("X", 25, 10, 50, 5, "점", "ADX 하한 (25 이상이면 흔히 '추세 있음')"), _adx_trend, "보조지표"),
+        Block("keltner", "켈트너 채널 상단 돌파", "오늘 종가 > EMA20 + k × ATR(14)",
+              "볼린저밴드와 비슷하지만 표준편차 대신 ATR(평균 진폭)로 폭을 잽니다. 갭과 장중 변동까지 반영합니다. "
+              "기간 20·14일은 고정입니다.",
+              Param("k (ATR 배수)", 2.0, 0.5, 4.0, 0.25, "ATR", "채널 폭"), _keltner, "보조지표"),
+        Block("cmf_min", "자금 흐름 유입 (CMF)", "CMF(20) ≥ X   (CMF = Σ20일[(종가−저가) − (고가−종가)] / (고가−저가) × 거래량 ÷ Σ20일 거래량)",
+              "Chaikin Money Flow. 거래량이 실린 날 종가가 하루 범위의 위쪽에서 끝나면 매수 쪽 자금 흐름으로 봅니다(−1–+1). "
+              "기간 20일은 고정입니다.",
+              Param("X", 0.05, -0.2, 0.4, 0.05, "", "CMF 하한 (0 초과 = 유입 우세)"), _cmf_min, "거래량"),
     ]
 }
 
@@ -279,6 +346,16 @@ EXIT_BLOCKS: dict[str, Block] = {
         Block("stop_loss_pct", "진입가 대비 손절", "오늘 종가 < 진입가 × (1 − X%)",
               "진입 직후 신호가 틀렸을 때 손실을 X%로 제한합니다.",
               Param("X (%)", 10, 2, 30, 1, "%", "진입가 대비 허용 손실폭"), None, "가격"),
+        Block("time_stop", "시간 손절", "진입 후 N거래일이 지났는데 오늘 종가 ≤ 진입가",
+              "오래 지나도 오르지 않는 포지션을 정리합니다. 수익 중인 포지션은 이 조건으로 팔지 않습니다.",
+              Param("N (거래일)", 20, 5, 120, 5, "거래일", "진입 후 기다리는 거래일 수"), None, "가격"),
+        Block("take_profit_pct", "부분 익절 (보유의 50%)", "종가 ≥ 진입가 × (1 + X%)인 첫날 → 다음 날 시가에 보유의 50% 매도 (한 번만)",
+              "수익의 일부를 확정합니다. 남은 절반은 다른 청산 조건으로 팝니다. 이 조건만으로는 전량 청산이 일어나지 않습니다.",
+              Param("X (%)", 20, 5, 100, 5, "%", "진입가 대비 상승률"), None, "가격"),
+        Block("atr_stop", "ATR 손절 (진입가 기준)", "오늘 종가 < 진입가 − k × ATR(14)   (ATR은 신호일 값으로 고정)",
+              "손절 폭을 종목의 평소 변동폭에 맞춥니다(변동성이 큰 종목은 넓게, 작은 종목은 좁게). 이 폭이 '위험 기준' 포지션 크기의 "
+              "기준 단위 R이 됩니다.",
+              Param("k (ATR 배수)", 2.0, 0.5, 5.0, 0.5, "ATR", "진입가에서 몇 ATR 아래에서 손절할지"), None, "보조지표"),
         Block("market_off", "시장 추세 이탈 (SPY 이동평균 아래)", "SPY 종가 < SPY의 최근 N거래일 SMA",
               "시장 전체가 하락 추세로 바뀌면 보유 종목을 모두 팝니다. ‘시장 추세’ 진입 필터의 정반대 조건.",
               Param("N (거래일)", 200, 50, 300, 10, "거래일", "SPY 이동평균 기간"), _market_off, "매크로"),
@@ -291,6 +368,15 @@ EXIT_BLOCKS: dict[str, Block] = {
         Block("vix_high", "VIX 높음 (매크로)", "전일 VIX 종가 ≥ X",
               "기대 변동성이 X 이상으로 올라가면 보유 종목을 모두 팝니다. ‘VIX 낮음’의 정반대 조건.",
               Param("X", 25.0, 12.0, 50.0, 1.0, "점", "VIX 기준"), _vix_high, "매크로"),
+        Block("momentum_neg", "N일 수익률 마이너스", "오늘 종가 / N거래일 전 종가 − 1 < 0",
+              "N일 전보다 가격이 낮아지면 청산(시계열 모멘텀이 꺼짐). 'N일 수익률 플러스' 진입의 반대 조건.",
+              Param("N (거래일)", 63, 21, 252, 21, "거래일", "수익률을 재는 기간"), _momentum_neg, "가격"),
+        Block("rsi_below", "RSI(14) 하락", "RSI(14) < X",
+              "최근 14일 하락 힘이 상승 힘보다 커지면 청산. X가 높을수록 일찍 팝니다.",
+              Param("X", 40, 20, 60, 5, "점", "RSI 기준"), _rsi_below, "보조지표"),
+        Block("cmf_below", "자금 흐름 유출 (CMF)", "CMF(20) < X",
+              "거래량이 실린 날 종가가 하루 범위의 아래쪽에서 끝나는 날이 우세해지면(매도 쪽 자금 흐름) 청산. 기간 20일은 고정입니다.",
+              Param("X", -0.1, -0.4, 0.2, 0.05, "", "CMF 기준 (0 미만 = 유출 우세)"), _cmf_below, "거래량"),
     ]
 }
 

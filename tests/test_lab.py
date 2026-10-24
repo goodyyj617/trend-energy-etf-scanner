@@ -245,10 +245,10 @@ def test_menu_values_are_inside_block_bounds():
             p = blocks[key].param
             assert len(vals) == 6 and vals == sorted(vals)
             assert all(p.minimum <= v <= p.maximum for v in vals)
-    assert families.cell_count() == 28 * 36
+    assert families.cell_count() == 77 * 36
     # a family whose own block is the common add-on is skipped
-    assert families.cell_count({"breakout": 20}) == 24 * 36
-    assert families.cell_count(extra_exits={"stop_loss_pct": 10}) == 28 * 36
+    assert families.cell_count({"breakout": 20}) == 70 * 36
+    assert families.cell_count(extra_exits={"stop_loss_pct": 10}) == 77 * 36
 
 
 def test_ma_cross_uses_quarter_length_short_average():
@@ -495,6 +495,42 @@ def test_pending_orders_are_the_last_close_decisions():
     assert r.pending_orders["sell"] == {"AAA": "low_break"}
 
 
+# --------------------------------------------------------------------------- menu v3 blocks and the exploration gate
+
+from lab import blocks as lab_blocks  # noqa: E402
+from lab.grid import EXPLORE_GATES, gate_caption  # noqa: E402
+
+
+def test_exploration_gate_uses_calmar_instead_of_return():
+    # half of SPY's return with a third of its drawdown: fails the final gate, passes the exploration gate
+    m = {"cagr": 0.05, "mdd": -0.10, "spy_cagr": 0.10, "spy_mdd": -0.30, "n_trades": 40}
+    assert check_gates(m, Gates()) == ["수익 유지"]
+    assert check_gates(m, EXPLORE_GATES) == []
+    worse = {**m, "cagr": 0.03, "mdd": -0.14}  # Calmar 0.21 < SPY 0.33
+    assert check_gates(worse, EXPLORE_GATES) == ["위험 대비 수익 (탐색용)"]
+    assert "min_calmar_ratio" not in Gates().to_dict()  # saved form of the final gate is unchanged
+    assert "칼마 ≥ 1.00×SPY 칼마" in gate_caption(EXPLORE_GATES.to_dict())
+    assert "CAGR" not in gate_caption(EXPLORE_GATES.to_dict())
+    deep = {**m, "cagr": 0.09, "mdd": -0.18, "spy_mdd": -0.50}  # passes everything but the 15% limit
+    assert check_gates(deep, EXPLORE_GATES) == ["낙폭 한도"]
+    assert check_gates(deep, Gates()) == []
+    assert "|MDD| ≤ 15%" in gate_caption(EXPLORE_GATES.to_dict())
+
+
+def test_cmf_and_adx_directions():
+    n = 80
+    up = list(np.linspace(100, 160, n))
+    down = list(np.linspace(160, 100, n))
+    # closes at the top of the day's range on the way up, at the bottom on the way down
+    panel, _ = make_panel({"UP": up, "DN": down, "SPY": up}, opens={"UP": [c - 1 for c in up], "DN": [c + 1 for c in down],
+                                                                     "SPY": [c - 1 for c in up]})
+    c = lab_blocks.cmf(panel, 20).iloc[-1]
+    assert c["UP"] == pytest.approx(1.0) and c["DN"] == pytest.approx(-1.0)
+    adx, plus_di, minus_di = lab_blocks.adx_di(panel, 14)
+    assert adx.iloc[-1]["UP"] > 25 and plus_di.iloc[-1]["UP"] > minus_di.iloc[-1]["UP"]
+    assert ENTRY_BLOCKS["adx_trend"].compute(panel, 25).iloc[-1].to_dict() == {"UP": True, "DN": False, "SPY": True}
+    assert EXIT_BLOCKS["momentum_neg"].compute(panel, 21).iloc[-1].to_dict() == {"UP": False, "DN": True, "SPY": False}
+    assert ENTRY_BLOCKS["near_high"].compute(panel, 5).iloc[-1].isna().sum() == 0  # < 252 days -> False, not NaN
 # --------------------------------------------------------------------------- performance paths (results unchanged)
 
 def test_exit_found_at_entry_matches_day_by_day_rule():
@@ -558,3 +594,327 @@ def test_mean_pairwise_corr_matches_pandas():
     corr = pd.DataFrame(x).corr(min_periods=research_log.MIN_OVERLAP_MONTHS).to_numpy()
     off = corr[~np.eye(len(corr), dtype=bool)]
     assert research_log.mean_pairwise_corr(x) == pytest.approx(np.nanmean(off), rel=1e-12)
+
+
+# --------------------------------------------------------------------------- drawdown-budget target (DECISIONS 64-65)
+
+from lab import target  # noqa: E402
+from lab.metrics import DEFINITIONS  # noqa: E402
+
+
+def test_fit_weight_scales_down_only():
+    # one 40% crash: w x 40% must stay within 15% -> w = 0.37 (0.37 x 0.4 = 14.8%)
+    rets = np.array([0.01] * 50 + [-0.40] + [0.01] * 50)
+    cash = np.zeros_like(rets)
+    w = target.fit_weight(rets, cash)
+    assert w == pytest.approx(0.37)
+    assert target._mdd(target.blend(rets, cash, w)) >= -0.15
+    rng = np.random.default_rng(8)
+    for _ in range(30):  # bisection agrees with checking every weight
+        r = rng.normal(0.0005, rng.uniform(0.005, 0.03), 800)
+        c = np.full(800, 0.0001)
+        assert target.fit_weight(r, c) == target.fit_weight_grid(r, c)
+    calm = np.full(100, 0.001)  # never falls: stays at 100%, no leverage
+    assert target.fit_weight(calm, np.zeros(100)) == 1.0
+
+
+def test_target_report_and_windows():
+    idx = pd.bdate_range("2010-01-01", "2016-12-31")
+    rng = np.random.default_rng(5)
+    spy = pd.Series(np.cumprod(1 + rng.normal(0.0004, 0.012, len(idx))), idx)
+    strat = pd.Series(np.cumprod(1 + rng.normal(0.0004, 0.004, len(idx))), idx)
+    cash = pd.Series(0.0, idx)
+    assert target.windows(idx) == [(2010, 2012), (2011, 2013), (2012, 2014), (2013, 2015), (2014, 2016)]
+    rep = target.target_report(strat, spy, cash, n_trades=40)
+    assert rep["windows"] == 5 and 0 <= rep["window_share"] <= 1
+    assert rep["dd_mdd"] >= -0.15 - 1e-9 and 0 < rep["dd_weight"] <= 1
+    assert rep["dd_pass"] == (rep["dd_cagr"] >= rep["mix_cagr"])
+    assert {"dd_weight", "dd_cagr", "mix_cagr", "dd_excess", "window_share"} <= set(DEFINITIONS)
+
+
+# --------------------------------------------------------------------------- Sobol search and PBO (DECISIONS 66)
+
+from lab import explore  # noqa: E402
+
+
+def test_sobol_known_points_and_balance():
+    pts = explore.sobol(8, 2)
+    assert pts[:, 0].tolist() == [0, 0.5, 0.75, 0.25, 0.375, 0.875, 0.625, 0.125]
+    assert pts[:, 1].tolist() == [0, 0.5, 0.25, 0.75, 0.375, 0.875, 0.125, 0.625]
+    big = explore.sobol(1024, 10)
+    for d in range(10):  # each coordinate hits each of the 1024 equal cells exactly once
+        assert len(set((big[:, d] * 1024).astype(int))) == 1024
+    pairs = (big[:256, :2] * 16).astype(int)  # 2-D stratification of the first 256 points
+    assert len({(a, b) for a, b in pairs}) == 256
+
+
+def test_point_config_stays_in_menu_ranges():
+    base = cfg()
+    for u in explore.sobol(512, 8):
+        c = explore.point_config(u, base)
+        e = next(k for k in c.entries if k in explore.ENTRIES)
+        x = next(k for k in c.exits if k in explore.EXITS)
+        assert min(families.ENTRY_MENU[e]) <= c.entries[e] <= max(families.ENTRY_MENU[e])
+        assert min(families.EXIT_MENU[x]) <= c.exits[x] <= max(families.EXIT_MENU[x])
+        assert 5 <= c.max_positions <= 20 and c.sizing in ("equal", "inverse_vol")
+
+
+def test_pbo_detects_noise_and_skill():
+    rng = np.random.default_rng(9)
+    noise = pd.DataFrame(rng.normal(0.005, 0.04, (240, 60)))
+    assert explore.pbo(noise, blocks=10)["pbo"] > 0.4  # pure luck: at least a coin flip
+    skill = noise.copy()
+    skill[0] = rng.normal(0.03, 0.02, 240)  # one column truly better
+    assert explore.pbo(skill, blocks=10)["pbo"] < 0.05
+
+
+# --------------------------------------------------------------------------- strategy-only test (DECISIONS 67)
+
+from dataclasses import replace  # noqa: E402
+
+from lab import single  # noqa: E402
+
+
+def test_single_mode_matches_trading_each_symbol_alone():
+    rng = np.random.default_rng(21)
+    n = 900
+    prices = {s: list(40 * np.cumprod(1 + rng.normal(0.0007, 0.02, n))) for s in ("AAA", "BBB", "CCC", "DDD", "EEE", "SPY")}
+    panel = make_panel(prices)[0]
+    base = cfg(entries={"breakout": 20}, exits={"trailing_pct": 8.0, "low_break": 30}, cost_bps=10.0)
+    scfg = single.single_config(base, panel)
+    res = run_backtest(panel, scfg)
+    rets = single.symbol_returns(panel, scfg, res)
+    for s in panel.tradable_symbols:
+        alone = run_backtest(panel.subset([s]), replace(base, max_positions=1))
+        mine = res.trades[res.trades.symbol == s].reset_index(drop=True)
+        pd.testing.assert_frame_equal(mine[["entry_date", "exit_date", "exit_reason"]],
+                                      alone.trades[["entry_date", "exit_date", "exit_reason"]].reset_index(drop=True))
+        # rebuilt stand-alone account vs the engine's one-symbol account (cash here earns 0)
+        eq = (1 + rets[s].fillna(0.0)).cumprod()
+        assert eq.iloc[-1] == pytest.approx(alone.equity.iloc[-1] / alone.equity.iloc[0], rel=1e-9)
+    out = single.evaluate(panel, base)
+    assert out["symbols"] == len(panel.tradable_symbols)  # 900 days >= 3 years each
+    assert out["n_trades"] == len(res.trades)
+
+
+def test_save_study_round_trip(tmp_path, monkeypatch):
+    monkeypatch.setattr(store, "RESULTS_DIR", tmp_path)
+    df = pd.DataFrame({"계열": ["a", "b"], "통과 비율": [0.5, 0.25]})
+    idx = pd.bdate_range("2020-01-01", periods=5)
+    raw = pd.DataFrame({"전략 A": np.linspace(1, 1.2, 5), "SPY": np.linspace(1, 1.1, 5)}, index=idx)
+    store.save_study("연구", "설명", [{"title": "표", "frame": df, "pct": ["통과 비율"]}], ["메모"], "64", "docs/x.md",
+                     curves=[{"group": "표본", "raw": raw, "baselines": ["SPY"]}])
+    (meta,) = store.list_results()
+    assert meta["kind"] == "study" and meta["tables"][0]["pct"] == ["통과 비율"]
+    pd.testing.assert_frame_equal(store.load_study_table(meta["path"], meta["tables"][0]["file"]), df)
+    (g,) = meta["curves"]
+    assert "scaled" not in g
+    pd.testing.assert_frame_equal(store.load_study_curves(meta["path"], g["raw"]), raw, check_freq=False)
+
+
+# --------------------------------------------------------------------------- CRSP panel and point-in-time universe (DECISIONS 70)
+
+from lab import crsp  # noqa: E402
+from lab.engine import DELIST_LABEL  # noqa: E402
+
+
+def _crsp_rows(permno, dates, p0, r, shrout, cfacpr_before_split=None, split_day=None, delist_code=None, dlret=np.nan,
+               shrcd="11", exchcd="1", ticker="X"):
+    rows = []
+    for t, d in enumerate(dates):
+        adj = p0 * (1 + r) ** t
+        if split_day is not None and t < split_day:
+            prc, cf = adj * cfacpr_before_split, cfacpr_before_split
+        else:
+            prc, cf = adj, 1.0
+        last = t == len(dates) - 1
+        rows.append({"PERMNO": permno, "date": d, "SHRCD": shrcd, "EXCHCD": exchcd, "TICKER": ticker, "PRC": prc,
+                     "VOL": 1000.0, "RET": r, "SHROUT": shrout, "CFACPR": cf, "OPENPRC": prc * 0.99, "BIDLO": prc * 0.98,
+                     "ASKHI": prc * 1.02, "DLSTCD": delist_code if (last and delist_code) else np.nan,
+                     "DLRET": dlret if (last and delist_code) else np.nan})
+    return rows
+
+
+def test_crsp_adjust_removes_splits_and_adds_delisting_bar():
+    dates = pd.bdate_range("2001-01-02", periods=40)
+    rows = _crsp_rows("1", dates, 50.0, 0.01, 1000.0, cfacpr_before_split=2.0, split_day=20)
+    rows += _crsp_rows("2", dates[:30], 20.0, 0.0, 500.0, delist_code=500, dlret=np.nan)
+    adj = crsp.adjust(pd.DataFrame(rows))
+    a = adj[adj.symbol == "1"].sort_values("date")
+    assert np.allclose(a["close"].pct_change().dropna(), 0.01)  # no jump on the split day
+    assert a["close"].iloc[-1] == pytest.approx(50.0 * 1.01 ** 39)  # anchored at the last split-adjusted price
+    assert np.allclose(a["open"] / a["close"], 0.99)
+    b = adj[adj.symbol == "2"]
+    bar = b[b["date"].isna()]
+    assert len(bar) == 1 and bar["close"].iloc[0] == pytest.approx(20.0 * 0.7)  # missing DLRET on code 500 -> -30%
+
+
+def test_crsp_build_panel_point_in_time(tmp_path):
+    y1 = pd.bdate_range("2001-01-02", "2001-12-31")
+    y2 = pd.bdate_range("2002-01-02", "2002-12-31")
+    dates = y1.append(y2)
+    rows = _crsp_rows("1", dates, 100.0, 0.0005, 10_000.0, ticker="AAA")  # largest both years
+    rows += _crsp_rows("2", dates[:len(y1) + 100], 50.0, 0.0, 5_000.0, delist_code=584, dlret=-0.5, ticker="BBB")
+    rows += _crsp_rows("3", dates, 10.0, 0.004, 1_000.0, ticker="CCC")  # small in 2001, grows
+    rows += _crsp_rows(crsp.SPY_PERMNO, dates, 100.0, 0.0003, 1.0, shrcd="73", exchcd="1", ticker="SPY")
+    rows += _crsp_rows("9", dates, 5.0, 0.0, 90_000.0, shrcd="31", ticker="ADR")  # not a common stock: excluded
+    pd.DataFrame(rows).to_parquet(tmp_path / "CRSP_20010101_20051231.parquet")
+    panel, info, meta = crsp.build_panel(tmp_path, top_n=2, years=(2001, 2002), log=lambda m: None)
+    assert set(panel.symbols) == {"1", "2", "3", "SPY"} and panel.tradable_symbols == ["1", "2", "3"]
+    el = panel.eligible
+    assert not el.loc["2001"].any().any()  # no year-end before 2001 in the data
+    assert el.loc["2002", "1"].all() and not el.loc["2002", "3"].any() and not el["SPY"].any()
+    # BBB: delisted 100 trading days into 2002 at -50%, one bar later, never bought on its last two bars
+    b = panel.close["2"].dropna()
+    assert len(b) == len(y1) + 101 and b.iloc[-1] == pytest.approx(b.iloc[-2] * 0.5, rel=1e-6)
+    assert b.index[-1] == y2[100] and panel.open["2"].loc[y2[100]] == pytest.approx(b.iloc[-1], rel=1e-6)
+    assert el.loc[b.index[-3], "2"] and not el.loc[b.index[-2:], "2"].any()
+    assert panel.delist_exit and info.set_index("symbol").loc["1", "name"] == "AAA"
+    crsp.save_panel(panel, info, meta, tmp_path / "out")
+    back = crsp.load_panel(tmp_path / "out")
+    pd.testing.assert_frame_equal(back.close, panel.close)
+    pd.testing.assert_frame_equal(back.eligible, panel.eligible)
+    assert back.subset(["1"]).eligible.columns.tolist() == ["1", "SPY"]
+
+
+def test_engine_delist_exit_and_eligible_mask():
+    n = 120
+    up = list(np.linspace(100, 200, n))
+    aaa = up[:80] + [np.nan] * (n - 80)  # series ends on day 79
+    panel, dates = make_panel({"AAA": aaa, "BBB": up, "SPY": [100.0] * n})
+    panel.delist_exit = True
+    res = run_backtest(panel, cfg(entries={"above_ma": 5}, exits={"low_break": 5}, max_positions=2))
+    t = res.trades[res.trades.symbol == "AAA"]
+    assert len(t) == 1 and t.exit_reason.iloc[0] == DELIST_LABEL
+    assert t.exit_date.iloc[0] == dates[79] and t.exit_price.iloc[0] == pytest.approx(panel.open["AAA"].iloc[79])
+    assert (res.trades[res.trades.symbol == "BBB"].exit_reason != DELIST_LABEL).all()
+    # the same rules on an unchanged panel: no forced exit
+    plain, _ = make_panel({"AAA": aaa, "BBB": up, "SPY": [100.0] * n})
+    assert (run_backtest(plain, cfg(entries={"above_ma": 5}, exits={"low_break": 5}, max_positions=2)).trades.symbol != "AAA").all()
+    # eligibility: BBB may not be bought before day 60
+    el = pd.DataFrame(True, index=dates, columns=["AAA", "BBB", "SPY"])
+    el.iloc[:60, 1] = False
+    plain.eligible = el
+    res2 = run_backtest(plain, cfg(entries={"above_ma": 5}, exits={"low_break": 5}, max_positions=2))
+    bbb = [t.entry_date for f in (res2.trades, res2.open_positions) for t in f.itertuples() if t.symbol == "BBB"]
+    assert bbb and min(bbb) > dates[60]
+
+
+# --------------------------------------------------------------------------- per-position risk management (DECISIONS 72)
+
+from lab.engine import BREAKEVEN_LABEL  # noqa: E402
+
+
+def _risk_panel():
+    rng = np.random.default_rng(31)
+    n = 400
+    prices = {s: list(60 * np.cumprod(1 + rng.normal(0.0008, 0.015, n))) for s in ("AAA", "BBB", "CCC", "DDD", "SPY")}
+    return make_panel(prices)
+
+
+def test_atr_stop_exits_at_entry_minus_k_atr_of_signal_day():
+    panel, dates = _risk_panel()
+    c = cfg(entries={"breakout": 10}, exits={"atr_stop": 2.0}, max_positions=4, cost_bps=0.0)
+    res = run_backtest(panel, c)
+    from lab.blocks import atr as atr_fn
+    a14 = atr_fn(panel, 14)
+    stops = res.trades[res.trades.exit_reason == EXIT_BLOCKS["atr_stop"].label]
+    assert len(stops) > 3
+    idx = {d: i for i, d in enumerate(dates)}
+    for t in stops.itertuples():
+        e = idx[t.entry_date]
+        level = t.entry_price - 2.0 * a14[t.symbol].iloc[e - 1]  # ATR of the signal day
+        closes = panel.close[t.symbol].iloc[e:idx[t.exit_date]]  # closes from the entry day to the signal day
+        assert closes.iloc[-1] < level and (closes.iloc[:-1] >= level).all()
+
+
+def test_risk_sizing_heat_and_breakeven():
+    panel, dates = _risk_panel()
+    base = cfg(entries={"breakout": 10}, exits={"stop_loss_pct": 8.0}, max_positions=4, cost_bps=0.0)
+    risk = replace(base, sizing="risk", risk_pct=2.0)
+    res = run_backtest(panel, risk)
+    # first position: shares x stop distance = 2% of equity (equity = 1 before the first buy)
+    first = res.trades.sort_values("entry_date").iloc[0]
+    shares = 0.02 * 1.0 / (first.entry_price * 0.08)
+    assert "위험 2%/거래" in risk.describe()
+    assert first.entry_price * shares == pytest.approx(0.25, rel=1e-9)  # 2% / 8% = 25% of equity
+    capped = run_backtest(panel, replace(risk, max_weight=0.10))
+    f2 = capped.trades.sort_values("entry_date").iloc[0]
+    assert f2.entry_date == first.entry_date and f2.symbol == first.symbol
+    day = f2.entry_date  # every buy on the first day is capped at 10% of equity (equity = 1, no cost)
+    same_day = capped.trades[capped.trades.entry_date == day]
+    invested = capped.exposure.loc[day] * capped.equity.loc[day]
+    expected = sum(0.10 * panel.close[t.symbol].loc[day] / t.entry_price for t in same_day.itertuples())
+    assert invested == pytest.approx(expected, rel=1e-9)
+    # heat: with 2% risk per position, a 3% heat limit leaves room for one position at a time
+    hot = run_backtest(panel, replace(risk, heat=0.03))
+    held = pd.Series(0, index=dates)
+    for t in hot.trades.itertuples():
+        held.loc[t.entry_date:t.exit_date] += 1
+    assert held.max() <= 2 and len(hot.trades) < len(res.trades)  # 2 only on the day one exits and another enters
+    # breakeven: after +1R the stop sits at the entry price; such exits are labelled and lose nothing
+    be = run_backtest(panel, replace(base, breakeven_r=1.0))
+    b = be.trades[be.trades.exit_reason == BREAKEVEN_LABEL]
+    assert len(b) > 0 and (b.exit_price > b.entry_price * 0.92).all()
+    # defaults off: the config keys and results of earlier runs are unchanged
+    assert "risk_pct" not in base.to_dict() and "heat" not in base.to_dict() and "breakeven_r" not in base.to_dict()
+    pd.testing.assert_frame_equal(run_backtest(panel, base).trades, run_backtest(panel, replace(base, heat=None)).trades)
+    # risk sizing needs an initial stop: without one nothing is bought
+    assert run_backtest(panel, replace(risk, exits={"low_break": 10})).trades.empty
+
+
+def test_fit_weights_matches_one_column_at_a_time():
+    rng = np.random.default_rng(12)
+    T, m = 900, 40
+    R = rng.normal(0.0004, rng.uniform(0.003, 0.04, m), (T, m))
+    C = np.full((T, m), 0.0001)
+    starts = rng.integers(0, 400, m)
+    for k, f in enumerate(starts):  # later starts: zero return and zero cash before the first day
+        R[:f, k], C[:f, k] = 0.0, 0.0
+    R[:, 0] = 0.0005  # never falls: 100%
+    got = target.fit_weights(R, C)
+    want = [target.fit_weight(R[f:, k], C[f:, k]) for k, f in enumerate(starts)]
+    assert got.tolist() == want and got[0] == 1.0
+
+
+# --------------------------------------------------------------------------- time stop and partial take-profit (DECISIONS 73)
+
+from lab.engine import PARTIAL_SUFFIX  # noqa: E402
+
+
+def test_time_stop_only_cuts_positions_not_in_profit():
+    n = 80
+    flat = [10.0] * 30
+    up = flat + [11.0] + [11.0] * 5 + list(np.linspace(11.0, 14.0, n - 36))  # breakout, then a slow rise
+    dull = flat + [11.0] + [10.8] * (n - 31)  # breakout, then stuck below the entry
+    panel, dates = make_panel({"AAA": up, "BBB": dull, "SPY": [100.0] * n})
+    res = run_backtest(panel, cfg(entries={"breakout": 5}, exits={"time_stop": 10}, max_positions=2))
+    t = res.trades
+    assert list(t.symbol) == ["BBB"] and t.exit_reason.iloc[0] == EXIT_BLOCKS["time_stop"].label
+    entry = dates.get_loc(t.entry_date.iloc[0])
+    assert dates.get_loc(t.exit_date.iloc[0]) == entry + 10 + 1  # signal on day entry+10, sold next open
+    assert list(res.open_positions.symbol) == ["AAA"]
+
+
+def test_partial_take_profit_one_row_and_stand_alone_account():
+    n = 120
+    rng = np.random.default_rng(3)
+    base_path = [10.0] * 30 + list(10.0 * np.cumprod(1 + rng.normal(0.004, 0.012, n - 30)))
+    panel, dates = make_panel({"AAA": base_path, "SPY": [100.0] * n})
+    c = cfg(entries={"breakout": 5}, exits={"trailing_pct": 12.0, "take_profit_pct": 15.0}, cost_bps=10.0)
+    res = run_backtest(panel, c)
+    assert len(res.partial_exits) >= 1
+    pe = res.partial_exits.iloc[0]
+    trade = res.trades[res.trades.entry_date == pe.entry_date]
+    if len(trade):  # closed: one row, both sales in its return
+        t = trade.iloc[0]
+        cc = 10 / 10_000
+        want = (0.5 * pe.price + 0.5 * t.exit_price) * (1 - cc) / (t.entry_price * (1 + cc)) - 1
+        assert t["return"] == pytest.approx(want) and t.exit_reason.endswith(PARTIAL_SUFFIX)
+    # the stand-alone account rebuilt from the records equals the engine's one-slot account
+    scfg = single.single_config(c, panel)
+    sres = run_backtest(panel, scfg)
+    pd.testing.assert_frame_equal(sres.partial_exits, res.partial_exits)
+    rets = single.symbol_returns(panel, scfg, sres)
+    eq = (1 + rets["AAA"].fillna(0.0)).cumprod()
+    assert eq.iloc[-1] == pytest.approx(res.equity.iloc[-1] / res.equity.iloc[0], rel=1e-9)

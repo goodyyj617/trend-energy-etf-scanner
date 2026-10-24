@@ -29,7 +29,8 @@ from lab.engine import (  # noqa: E402
     BASELINE_HELP, BASELINE_LABELS, RULES_KO, SIZING_LABELS, StrategyConfig, baselines, run_backtest,
 )
 from lab.grid import (  # noqa: E402
-    CHECK_TEXT, GATE_TEXT, MAX_AXIS_VALUES, ROBUST_TEXT, Gates, axis_values, check_gates, run_grid, strategy_checklist,
+    CHECK_TEXT, GATE_TEXT, MAX_AXIS_VALUES, ROBUST_TEXT, Gates, axis_values, check_gates, gate_caption, run_grid,
+    strategy_checklist,
 )
 from lab.metrics import DEFINITIONS, all_metrics, annual_table, curve_metrics, deflated_sharpe, drawdown, fmt_value  # noqa: E402
 from lab.universe import (  # noqa: E402
@@ -312,19 +313,39 @@ def strategy_section() -> StrategyConfig | None:
     sizing = c1.selectbox(
         "포지션 크기", list(SIZING_LABELS), format_func=SIZING_LABELS.get, key=init("sizing", "inverse_vol"),
         help="동일 금액: 새 종목마다 총자산 ÷ 최대 보유 수.\n\n"
+             "위험 기준 (손절폭): 초기 손절까지의 손실이 총자산의 r%가 되도록 주식 수를 정합니다(아래 입력).\n\n"
              "변동성 역가중: 새 종목마다 (총자산 ÷ 최대 보유 수) × min(유니버스 중앙 변동성 ÷ 그 종목 변동성, 2). "
              "변동성 = 신호일까지 60거래일 일간 수익률의 표준편차. 잔잔한 종목은 더 많이(최대 2배), 출렁이는 종목은 적게 사서 "
              "종목마다 위험을 비슷하게 맞춥니다. 진입 후 비중은 다시 맞추지 않습니다.")
     cash = c2.checkbox("남는 현금에 단기국채 수익률 적용 (BIL, 2007년 이전은 13주 국채금리)", key=init("cash_yield", True),
                        help="추세추종은 하락장에서 현금으로 피하는 것이 핵심이라, 현금 수익률 0%는 전략을 부당하게 불리하게 만듭니다. "
                             "실제로는 SGOV·BIL 같은 단기국채 ETF나 증권사 달러 예수금 이자로 비슷한 수익을 얻을 수 있습니다.")
+    risk_pct, max_weight = 1.0, None
+    if sizing == "risk":
+        r1, r2 = st.columns(2)
+        risk_pct = r1.number_input("거래당 위험 (총자산의 %)", 0.1, 5.0, step=0.1, key=init("risk_pct", 1.0),
+                                   help="초기 손절(ATR 손절 또는 진입가 대비 손절)에 걸렸을 때 잃는 금액이 총자산의 이 비율이 되도록 "
+                                        "주식 수를 정합니다. 초기 손절 조건이 없으면 매수하지 않습니다.")
+        cap = r2.number_input("종목당 비중 상한 (%, 0 = 없음)", 0.0, 100.0, step=5.0, key=init("risk_cap", 25.0),
+                              help="손절폭이 좁은 종목은 위험 기준으로 계산한 금액이 커지므로 상한을 둡니다.")
+        max_weight = None if cap <= 0 else float(cap) / 100.0
+    st.markdown("**리스크 관리 (선택)**")
+    r1, r2 = st.columns(2)
+    heat = r1.number_input("열(heat) 상한 (총자산의 %, 0 = 없음)", 0.0, 100.0, step=1.0, key=init("risk_heat", 0.0),
+                           help="보유 중인 포지션의 초기 위험(주식 수 × 손절폭) 합이 이 비율을 넘게 되는 매수는 하지 않습니다. "
+                                "초기 손절 조건(ATR 손절 또는 진입가 대비 손절)이 있을 때만 의미가 있습니다.")
+    be = r2.number_input("손익분기 이동 (R 배수, 0 = 없음)", 0.0, 5.0, step=0.5, key=init("risk_be", 0.0),
+                         help="종가가 진입가 + 이 배수 × 손절폭 이상에 닿은 뒤에는 종가가 진입가 아래로 내려오면 청산합니다. "
+                              "R = 초기 손절까지의 거리.")
     if not entries or not exits:
         st.warning("진입 조건과 청산 조건을 각각 하나 이상 선택하세요.")
         return None
     return StrategyConfig(entries=entries, exits=exits, start=str(st.session_state["start"]),
                           end=str(st.session_state["end"]), max_positions=int(k), cost_bps=float(cost),
                           min_price=float(min_price), min_dollar_volume=float(min_dv) * 1e6,
-                          liquidity_days=int(liq), cash_yield=bool(cash), sizing=str(sizing))
+                          liquidity_days=int(liq), cash_yield=bool(cash), sizing=str(sizing),
+                          risk_pct=float(risk_pct), max_weight=max_weight,
+                          heat=None if heat <= 0 else float(heat) / 100.0, breakeven_r=None if be <= 0 else float(be))
 
 
 # =========================================================================== backtest view
@@ -602,7 +623,7 @@ def show_grid_result(cells: pd.DataFrame, x_key: str, y_key: str | None, summary
     c[1].metric("Gate 통과", summary["passed"], help="수익 유지 · 낙폭 축소 · 최소 거래 수를 모두 만족한 조합 수")
     c[2].metric("연결 영역 수", summary["regions"], help=ROBUST_TEXT["region_size"][1])
     c[3].metric("가장 큰 영역 (셀 수)", summary["largest_region"], help=ROBUST_TEXT["region_size"][1])
-    st.caption(f"Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · |MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · 완료 거래 ≥ {gates['min_trades']}")
+    st.caption(gate_caption(gates))
 
     metric = st.selectbox("히트맵에 표시할 지표", GRID_METRICS, key=f"hm_metric_{key}",
                           format_func=lambda k: DEFINITIONS[k].label, help="✓ 표시는 Gate를 통과한 조합입니다.")
@@ -727,8 +748,7 @@ def family_matrix(summary: pd.DataFrame, metric: str) -> go.Figure:
 
 
 def show_family_result(summary: pd.DataFrame, cells: pd.DataFrame, gates: dict, ma200: float, key: str) -> None:
-    st.caption(f"Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · |MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · "
-               f"완료 거래 ≥ {gates['min_trades']} · 같은 조건의 SPY 200일선 칼마 = {ma200:.2f}")
+    st.caption(f"{gate_caption(gates)} · 같은 조건의 SPY 200일선 칼마 = {ma200:.2f}")
     st.markdown("#### 계열 순위")
     st.caption("정렬(사전식): ① Gate 통과 비율 → ② 가장 큰 연결 영역 → ③ SPY 200일선 이긴 비율 → ④ 중간 칼마. "
                "앞 기준이 같을 때만 다음 기준을 봅니다. 가중 점수는 없습니다. 각 열 이름에 마우스를 올리면 정의가 보입니다.")
@@ -823,8 +843,7 @@ VERDICT_SHORT = {"base": "기준", "improve": "✅ 개선", "mixed": "↔ 엇갈
 
 def show_refinement(table: pd.DataFrame, cells: pd.DataFrame, entry_key: str, exit_key: str, gates: dict,
                     ma200: float, key: str) -> None:
-    st.caption(f"계열: **{family_label(entry_key, exit_key)}** · Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · "
-               f"|MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · 완료 거래 ≥ {gates['min_trades']} · "
+    st.caption(f"계열: **{family_label(entry_key, exit_key)}** · {gate_caption(gates)} · "
                f"SPY 200일선 칼마 = {ma200:.2f}")
     improved = table.loc[table["verdict"] == "improve", "condition"].tolist()
     if improved:
@@ -916,8 +935,7 @@ def refine_tab(panel: Panel, cfg: StrategyConfig) -> None:
 # =========================================================================== common add-on test view
 
 def show_addon_result(table: pd.DataFrame, cells: pd.DataFrame, label: str, gates: dict, ma200: float, key: str) -> None:
-    st.caption(f"추가한 조건: **{label}** · Gate: CAGR ≥ {gates['min_cagr_ratio']:.2f}×SPY · "
-               f"|MDD| ≤ {gates['max_mdd_ratio']:.2f}×|SPY MDD| · 완료 거래 ≥ {gates['min_trades']} · "
+    st.caption(f"추가한 조건: **{label}** · {gate_caption(gates)} · "
                f"SPY 200일선 칼마 = {ma200:.2f}")
     n = len(table)
     counts = {k: int((table["verdict"] == k).sum()) for k in ("improve", "mixed", "same", "worse")}
@@ -1150,8 +1168,16 @@ def saved_page() -> None:
     fams = [i for i in items if i["kind"] == "family"]
     refs = [i for i in items if i["kind"] == "refine"]
     adds = [i for i in items if i["kind"] == "addon"]
-    t1, t2, t3, t4, t5 = st.tabs([f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})", f"계열 비교 ({len(fams)})",
-                                  f"확인 조건 시험 ({len(refs)})", f"공통 조건 시험 ({len(adds)})"])
+    studies = [i for i in items if i["kind"] == "study"]
+    t0, t1, t2, t3, t4, t5 = st.tabs([f"연구 요약 ({len(studies)})", f"백테스트 ({len(bts)})", f"강건성 격자 ({len(grids)})",
+                                      f"계열 비교 ({len(fams)})", f"확인 조건 시험 ({len(refs)})", f"공통 조건 시험 ({len(adds)})"])
+    with t0:
+        if not studies:
+            st.info("저장된 연구 요약이 없습니다.")
+        else:
+            idx = st.selectbox("연구 선택", range(len(studies)), key="saved_study",
+                               format_func=lambda i: f"{studies[i]['saved_at'][:16].replace('T', ' ')} · {studies[i]['name']}")
+            show_study(studies[idx])
     with t1:
         if not bts:
             st.info("저장된 백테스트가 없습니다.")
@@ -1218,6 +1244,50 @@ def saved_page() -> None:
                        f"메뉴 {am['menu_version']}")
             show_addon_result(store.load_addon_table(am["path"]), store.load_cells(am["path"]), am["label"], am["gates"],
                               am["ma200_calmar"], "saved")
+
+
+def show_study_curves(sm: dict) -> None:
+    st.markdown("#### 자산 곡선")
+    groups = sm["curves"]
+    c1, c2 = st.columns([2, 1])
+    gi = c1.selectbox("표본", range(len(groups)), format_func=lambda i: groups[i]["group"], key=f"study_grp_{sm['name']}")
+    g = groups[gi]
+    scaled = c2.toggle("낙폭 15% 맞춤으로 보기", key=f"study_scaled_{sm['name']}", disabled="scaled" not in g,
+                       help=DEFINITIONS["dd_cagr"].short + " 기준선은 같은 낙폭에 맞춘 SPY+국채 혼합입니다.")
+    df = store.load_study_curves(sm["path"], g["scaled" if scaled and "scaled" in g else "raw"])
+    names = [c for c in df.columns if c not in g["baselines"]]
+    pick = pd.DataFrame({"선택": [i < 3 for i in range(len(names))], "전략": names})
+    edited = st.data_editor(pick, hide_index=True, width="stretch", disabled=["전략"], key=f"study_pick_{sm['name']}_{gi}")
+    chosen = [n for n, on in zip(names, edited["선택"]) if on][:8]
+    fig = go.Figure()
+    palette = [BLUE, ORANGE, AQUA, "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
+    for i, n in enumerate(chosen):
+        fig.add_scatter(x=df.index, y=df[n], name=n, line=dict(color=palette[i], width=2))
+    for j, b in enumerate(c for c in g["baselines"] if c in df.columns):
+        fig.add_scatter(x=df.index, y=df[b], name=b, line=dict(color=GRAY, width=1.5, dash="dot" if j == 0 else "dash"))
+    fig.update_layout(height=420, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10),
+                      title="자산 곡선 비교 (최대 8개, 시작 = 1)", legend=dict(orientation="h", y=-0.15))
+    st.plotly_chart(fig, width="stretch")
+    st.caption("표에서 체크한 전략이 그래프에 나옵니다. 점선·파선은 기준선입니다.")
+
+
+def show_study(sm: dict) -> None:
+    st.markdown(sm["description"])
+    for note in sm.get("notes", []):
+        st.markdown(f"- {note}")
+    refs = " · ".join(x for x in (f"결정 {sm['decisions']}" if sm.get("decisions") else "",
+                                  f"기록: `{sm['record']}`" if sm.get("record") else "") if x)
+    if refs:
+        st.caption(refs)
+    if sm.get("curves"):
+        show_study_curves(sm)
+    for t in sm["tables"]:
+        st.markdown(f"#### {t['title']}")
+        df = store.load_study_table(sm["path"], t["file"])
+        cfg = {c: st.column_config.NumberColumn(format="percent") for c in t.get("pct", []) if c in df.columns}
+        st.dataframe(df, hide_index=True, width="stretch", column_config=cfg)
+        if t.get("caption"):
+            st.caption(t["caption"])
 
 
 def glossary_page() -> None:
@@ -1299,7 +1369,7 @@ def sidebar_status() -> None:
 
 
 PERSIST_PREFIXES = ("entry_", "exit_", "max_positions", "cost_bps", "min_price", "min_dv", "liq_days", "cash_yield",
-                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_", "sizing")
+                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_", "sizing", "risk_")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES):
         st.session_state[_k] = st.session_state[_k]  # keeps settings when visiting another page
