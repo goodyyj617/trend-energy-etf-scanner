@@ -1092,3 +1092,30 @@ def test_profiles_run_through_monthly_mask():
     assert rank.loc[last, "LEAD"] >= 1
     assert set(screens.STYLE_TILTS) <= set(screens.SELECT_SCORES)
     assert set(screens.HYGIENE_SCREENS) <= set(screens.ALL_SCREENS)
+
+
+def test_every_selection_score_computes_and_points_the_right_way():
+    panel, dates = _v2_panel()
+    last = dates[-1]
+    tiers = screens.scores_by_tier()
+    assert len(screens.SELECT_SCORES) >= 35 and all(tiers[t] for t in (1, 2, 3))
+    for key, sc in screens.SELECT_SCORES.items():
+        val = sc.param.default if sc.param else None
+        if key == "s_reversal":
+            val = 24  # the default 36 months is longer than this synthetic history
+        out = sc.compute(panel, val)
+        assert out.shape == panel.close.shape, key
+        assert np.isfinite(out.loc[last, "LEAD"]), key  # a long clean series has a score at the end
+    # direction checks on the synthetic paths: LEAD (steady uptrend) beats FALL (downtrend)
+    for key in ("s_rs_spy", "s_new_highs", "s_efficiency", "s_slope_r2", "s_ma_slope", "s_adx", "s_low52_dist",
+                "s_consistency", "s_dd_shallow", "s_atr_momentum", "s_rs_line_high", "s_fresh_high"):
+        sc = screens.SELECT_SCORES[key]
+        v = sc.compute(panel, sc.param.default if sc.param else None).loc[last]
+        assert v["LEAD"] > v["FALL"], key
+    # squeeze scores: CHOP (flat, noisy) is not "contracting" more than a trend by construction; just finite
+    for key in ("s_atr_squeeze", "s_bb_squeeze", "s_range_contraction"):
+        sc = screens.SELECT_SCORES[key]
+        assert np.isfinite(sc.compute(panel, sc.param.default if sc.param else None).loc[last, "CHOP"]), key
+    # style tilts stay available as selection scores (small caps must remain testable)
+    assert all(k in screens.SELECT_SCORES for k in screens.STYLE_TILTS)
+    assert "h_cap" not in screens.HYGIENE_DEFAULT
