@@ -89,7 +89,9 @@ def test_krw_panel_builds_products_cash_and_benchmark():
     fx = pd.Series(1000 * np.cumprod(1 + rng.normal(0, 0.004, n)), index=dates)
     panel, unavailable = krw_panel(usd, fx, flat_bok(3.15))
     assert panel.benchmark == BENCHMARK_CODE and panel.kind == "krw"
-    assert set(unavailable) == {"069500", "122630"}  # EWY not in the panel
+    # products whose proxy is missing from the USD panel (EWY, DIA, sector/bond ETFs) are reported, nothing else
+    missing = {code for code, pr in PRODUCTS.items() if any(sym not in closes for sym in pr.proxy_symbols)}
+    assert {"069500", "122630"} <= set(unavailable) == missing
     assert "379800" in panel.symbols and "459580" in panel.symbols
     assert panel.cash.iloc[5] == pytest.approx(0.0315 / TD)
     # unhedged S&P500 in KRW = SPY x FX (no fee to speak of)

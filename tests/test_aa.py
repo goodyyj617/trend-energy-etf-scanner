@@ -112,6 +112,29 @@ def test_sma_overlay_moves_falling_asset_to_safe():
     assert safe.weights.iloc[-1]["UP"] == pytest.approx(1.0)
 
 
+def test_sma_overlay_safe_asset_in_base_is_never_switched_off():
+    """Safe asset below its own moving average: its weight stays (it must not be doubled)."""
+    n = 24 * 21
+    panel, _ = make_panel({"UP": geometric(n, 0.001), "DOWN": geometric(n, -0.002), "SPY": geometric(n, 0.001)})
+    res = run_allocation(panel, cfg({"UP": 50, "DOWN": 50}, overlay=Overlay("sma", 3, "DOWN")))
+    sums = res.weights.sum(axis=1)
+    assert sums.max() == pytest.approx(1.0) and sums.min() == pytest.approx(1.0)
+    assert res.weights.iloc[-1]["DOWN"] == pytest.approx(0.5, abs=0.02) and res.weights.iloc[-1]["UP"] == pytest.approx(0.5, abs=0.02)
+
+
+def test_risk_parity_keeps_cash_like_asset_at_base_weight():
+    n = 400
+    rng = np.random.default_rng(5)
+    calm = 100 * np.cumprod(1 + rng.normal(0, 0.005, n))
+    wild = 100 * np.cumprod(1 + rng.normal(0, 0.02, n))
+    cd = 100 * np.cumprod(np.full(n, 1 + 0.03 / 252))  # a CD-rate product: volatility ~0
+    panel, _ = make_panel({"CALM": calm, "WILD": wild, "CD": cd, "SPY": calm})
+    res = run_allocation(panel, cfg({"CALM": 40, "WILD": 40, "CD": 20}, overlay=Overlay("riskparity", 63)))
+    w = res.weights.iloc[-1]
+    assert w["CD"] == pytest.approx(0.2, abs=0.01)  # not the whole portfolio
+    assert w["CALM"] > w["WILD"] > 0.05 and w["CALM"] + w["WILD"] + w["CD"] == pytest.approx(1.0)
+
+
 def test_dual_momentum_holds_strongest_or_safe():
     n = 30 * 21
     strong = geometric(n, 0.002)
