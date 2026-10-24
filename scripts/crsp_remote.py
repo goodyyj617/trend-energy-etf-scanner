@@ -80,7 +80,16 @@ def main(argv: list[str]) -> int:
                 ram = psutil.virtual_memory().total / 1e9
             except ImportError:
                 ram = 16.0
-            workers = max(1, min((os.cpu_count() or 2) - 1, int((ram - 3) // 8)))
+            # memory per worker grows with the panel: about 16 float64 copies of one (days x symbols) table
+            # at the peak (prices, signals, dollar volume, screens). Top 3,000 (11,900 symbols): ~13 GB.
+            try:
+                import json as _json
+                n_sym = _json.loads((panel / "meta.json").read_text(encoding="utf-8"))["symbols"]
+            except (OSError, KeyError, ValueError):
+                n_sym = 4000
+            per_worker = max(8.0, n_sym * 8600 * 8 * 16 / 1e9)
+            workers = max(1, min((os.cpu_count() or 2) - 1, int((ram * 0.85 - 3) // per_worker)))
+            print(f"memory {ram:.0f} GB, about {per_worker:.0f} GB per worker -> {workers} workers", flush=True)
         print(f"[3/3] study {a.study}: {workers} workers, checkpoints synced to {out_dst} every 10 min", flush=True)
         stop = threading.Event()
         th = threading.Thread(target=sync_loop, args=(out, out_dst, stop), daemon=True)
