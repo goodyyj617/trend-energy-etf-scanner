@@ -110,11 +110,12 @@ def load():
 def preset_matrix() -> tuple[np.ndarray, list[str]]:
     rows, names = [], []
     for p in PRESETS.values():
-        if any(s not in SYMBOLS and s != CASH for s in p.weights):
+        if any(s not in SYMBOLS for s in p.weights):  # a preset holding CASH or a product outside the universe is skipped
+            print(f"프리셋 건너뜀(유니버스 밖 상품 또는 현금): {p.name}")
             continue
         w = np.zeros(len(SYMBOLS) + 1)
         for s, v in p.weights.items():
-            w[SYMBOLS.index(s) if s != CASH else -1] = v
+            w[SYMBOLS.index(s)] = v
         rows.append(w / w.sum())
         names.append(p.name)
     return np.vstack(rows), names
@@ -125,7 +126,7 @@ def self_check(krw, sim: srch.StaticSim, W: np.ndarray, names: list[str], tol: f
     paths, turnover = sim.run(W)
     worst = 0.0
     for k, name in enumerate(names):
-        weights = {(s if s != CASH else CASH): v * 100 for s, v in zip(SYMBOLS + [CASH], W[k]) if v > 0}
+        weights = {s: v * 100 for s, v in zip(SYMBOLS + [CASH], W[k]) if v > 0}
         res = run_allocation(krw, AllocConfig(name, weights, START, END, rebalance=REBALANCE, cost_bps=COST_BPS))
         rel = float(np.max(np.abs(paths[k] / res.equity.to_numpy() - 1.0)))
         rel_t = abs(turnover[k] - res.turnover) / max(res.turnover, 1e-12)
@@ -275,7 +276,7 @@ TABLE_COLS = ["cagr", "mdd", "sharpe_excess", "calmar", "turnover", "상품 수"
               "출처", "⚠", "비중"]
 
 
-def band_tables(df: pd.DataFrame, presets: pd.DataFrame, top: int = 10, tie: float = 0.003) -> str:
+def band_tables(df: pd.DataFrame, presets: pd.DataFrame, top: int = 10, tie: float = 0.003, n_seeds: int | None = None) -> str:
     """Top candidates per 1 %p MDD band (ties within `tie` CAGR of the last shown row are included)."""
     lines = ["# MDD 구간별 상위 후보 (A31 1단계)", "",
              f"기간 {START} – {END}, 분기 리밸런싱, 편도 {COST_BPS:.0f}bp, 원화. 필수 조건은 전체 기간 MDD ≥ {MDD_LINE * 100:.0f}% 하나이고, "
@@ -283,8 +284,10 @@ def band_tables(df: pd.DataFrame, presets: pd.DataFrame, top: int = 10, tie: flo
              "창 안 낙폭이 −15% 아래, 보류 = 마지막 15% 구간 MDD가 −15% 아래, 창 = 5년 롤링 창 중 −15% 안에 든 비율 < 80%, "
              "이웃 = ±5%p 이웃 중 최악 MDD가 −15% 아래, 날짜 = 리밸런싱 날짜 0/1/5/10/15일 이동 시 최악 MDD가 −20% 아래. "
              "환노출 = 달러 노출 상품 합(%). * = 가상 상품(실제 상품 확인 전).", ""]
+    refined = df[df["출처"] == "다듬음"]
+    n_seeds = n_seeds or int(refined["seed_rank"].max()) if "seed_rank" in refined and len(refined) else n_seeds
     groups = [("## 무작위 표본 (계층·희소)", df[df["출처"] != "다듬음"]),
-              ("## 다듬은 후보 (상위 300개의 ±5%p 이웃 이동, 최대 3회) — 표본과 따로 본다", df[df["출처"] == "다듬음"])]
+              (f"## 다듬은 후보 (상위 {n_seeds or '?'}개의 ±5%p 이웃 이동, 최대 3회) — 표본과 따로 본다", refined)]
     edges = np.arange(-0.15, 0.0, 0.01)
     for title, part in groups:
         passing = part[part["mdd"] >= MDD_LINE]
@@ -568,7 +571,7 @@ def main(argv: list[str]) -> None:
             out / "top300_refined.csv", index=False, float_format="%.6g")
     pres_df[["이름"] + cols].to_csv(out / "presets.csv", index=False, float_format="%.6g")
     both = pd.concat([df, refined_df], ignore_index=True) if len(refined_df) else df
-    (out / "bands.md").write_text(band_tables(both, pres_df), encoding="utf-8")
+    (out / "bands.md").write_text(band_tables(both, pres_df, n_seeds=len(top_ref)), encoding="utf-8")
     (out / "frontier.md").write_text(frontier_table(df, pres_df), encoding="utf-8")
     summary["scatter"] = scatter(df, pres_df, out / "scatter.png", Path(args.font) if args.font else None)
     summary["seconds"] = round(time.time() - t_all)

@@ -166,3 +166,14 @@ def test_cagr_mdd_helper_matches_curve_metrics():
     for k in range(3):
         m = curve_metrics(pd.Series(paths[k], index=pd.bdate_range("2005-01-03", periods=800)))
         assert cagr[k] == pytest.approx(m["cagr"]) and mdd[k] == pytest.approx(m["mdd"])
+
+
+def test_round_weights_keeps_the_invariants_on_random_simplex_points():
+    rng = np.random.default_rng(0)
+    for _ in range(5000):
+        k = int(rng.integers(2, 11))
+        out = srch.round_weights(rng.dirichlet(np.ones(k)), min_pct=3)
+        assert out.sum() == 100 and np.all((out == 0) | (out >= 3))
+    for d in (3, 7, 10):  # parts that sit exactly on the 3 % line after renormalisation
+        out = srch.round_weights(np.array([0.03 * d, 0.97 * d]), min_pct=3)
+        assert out.tolist() == [3, 97]
