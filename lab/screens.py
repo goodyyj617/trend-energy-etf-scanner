@@ -247,21 +247,22 @@ def monthly_mask(panel: Panel, cfg: ScreenConfig, universe: pd.DataFrame | None 
     if BENCHMARK in base.columns:
         base[BENCHMARK] = False
     cache = {} if cache is None else cache
+    me = month_ends(close.index)
 
     def frame(key: str, value):
+        """The screen's month-end rows (only those are decided on); cached per screen and value."""
         k = (key, None if value is None else float(value))
         if k not in cache:
-            cache[k] = ALL_SCREENS[key].compute(panel, value)
+            cache[k] = ALL_SCREENS[key].compute(panel, value).loc[me]
         return cache[k]
 
-    me = month_ends(close.index)
     allowed = base.loc[me]
     for key, value in cfg.exclude.items():
-        allowed &= ~frame(key, value).loc[me].fillna(True).astype(bool)  # unknown = excluded
+        allowed &= ~frame(key, value).fillna(True).astype(bool)  # unknown = excluded
     if cfg.select:
         pct = None
         for key, value in cfg.select.items():
-            s = frame(key, value).loc[me].where(allowed)
+            s = frame(key, value).where(allowed)
             r = s.rank(axis=1, pct=True)
             pct = r if pct is None else pct + r
         score = pct / len(cfg.select)

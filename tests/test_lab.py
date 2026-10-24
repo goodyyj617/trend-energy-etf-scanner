@@ -1016,3 +1016,25 @@ def test_engine_buys_best_rank_first_and_defaults_unchanged():
     assert first.symbol == cands.idxmin()
     # a panel without rank/screens behaves as before (dollar-volume order): same trades as the plain run
     pd.testing.assert_frame_equal(run_backtest(panel, c).trades, plain.trades)
+
+
+def test_big_panel_path_matches_list_path(monkeypatch):
+    from lab import engine as eng
+    panel = _random_panel(n=500, seed=8)
+    c = cfg(entries={"breakout": 10}, exits={"trailing_pct": 8.0, "low_break": 15}, max_positions=2, cost_bps=10.0,
+            sizing="inverse_vol")
+    a = run_backtest(panel, c)
+    monkeypatch.setattr(eng, "LIST_MAX", 0)  # force the numpy-row path
+    b = run_backtest(panel, c)
+    pd.testing.assert_series_equal(a.equity, b.equity)
+    pd.testing.assert_frame_equal(a.trades, b.trades)
+    pd.testing.assert_series_equal(a.exposure, b.exposure)
+
+
+def test_signal_cache_share_from_reuses_frames():
+    panel = _random_panel(n=300, seed=9)
+    base = SignalCache(panel)
+    base.frame("breakout", 10)
+    other = SignalCache(panel).share_from(base)
+    assert other.frame("breakout", 10) is base.frame("breakout", 10)
+    assert len(base._frames) == 1

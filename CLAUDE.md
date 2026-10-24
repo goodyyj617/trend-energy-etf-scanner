@@ -76,6 +76,8 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`target.py`**: 사용자 목표 지표. 레버리지 없이 낙폭 15%에 맞춘 비중·수익, 같은 낙폭의 SPY+국채 혼합, 3년 롤링 구간 승률(DECISIONS 64–65). `explore.py`: Sobol 표본 탐색과 PBO(66).
 - **`crsp.py` / `crsp_study.py`**: CRSP 일별 파일(사용자 드라이브 `H:\내 드라이브\CRSP`, 커밋 금지) → 시점별 시총 상위 N 패널(`Panel.eligible`, `delist_exit`) → 종목별 단독 시험·Sobol을 중간 저장하며 실행(DECISIONS 70–71). 실행은 노트북 RAM을 아끼려고 **Colab**(`colab/crsp_study.ipynb`, 드라이브 연결)에서 하고, 결과는 드라이브 `CRSP/lab_crsp/`로 돌아온다. `--dry`로 파이프라인만 점검할 수 있다.
   엔진의 `Panel.eligible`은 진입만 막는다(보유 종목은 청산 규칙대로). `delist_exit=True`면 가격 시계열이 기간 중 끝나는 종목을 마지막 봉에서 강제 청산한다(`DELIST_KEY`). 두 기능 모두 기존 패널(`None`/`False`)에서는 결과를 바꾸지 않는다(2026-10-23 비트 단위 확인).
+- **`screens.py` / `screen_study.py`**: 종목 스크린(DECISIONS 77). 제외 필터(True = 사지 않음)와 선별 점수(높을수록 좋음, 평균 백분위 순위로 결합, 상위 K)를 매월 말 결정해 다음 달 `Panel.eligible`·`Panel.rank`로 넣는다. 엔진은 `rank`가 있으면 거래대금 대신 순위 순으로 산다. 시총·배당은 `Panel.extra["cap"|"dividend"]`(CRSP 패널만). `screen_study.py`는 제외 × 선별 조합을 계좌 단위로 비교한다(중간 저장, `--dry`). 새 스크린은 `EXCLUDE_SCREENS`/`SELECT_SCORES`에 넣으면 되고, 등록 메뉴 값은 `screen_study.EXCLUDE_MENU`·`K_MENU`.
+- **`scripts/crsp_remote.py` / `CRSP_remote_run.cmd`**: 연구실 컴퓨터용. 드라이브의 패널을 임시 폴더로 복사(없으면 생성)해 연구를 돌리고 결과를 드라이브 `CRSP/lab_crsp/<study>_top<N>`에 쓴 뒤 임시 폴더를 지운다. CRSP 데이터는 그 컴퓨터에 남지 않는다.
 - **`batch.py`**: 앱 기본 유니버스·설정으로 공통 조건 시험을 명령줄에서 돌린다(`python -m lab.batch addon <kind> <key>`). 앱과 똑같이 시험 횟수에 기록하고 결과를 저장한다.
 - **`daily_alert.py`**: 일일 알림(DECISIONS 53, 75). 네 시장 국면(SPY 200일선·금리차·신용 스프레드·VIX)의 상태, 지속 기간, 값의 뜻을 풀어 쓴 해설을 이슈 댓글로 보낸다. 모델 포트폴리오는 2026-10-24에 뺐다. 가격은 SPY만 받고, `trim_incomplete_tail`로 당일 미완성 봉을 잘라 낸다(yfinance 당일 봉은 시각이 섞여 `data.normalize_dates`로 날짜를 맞춘다).
 - **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
@@ -97,6 +99,7 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
   - 포지션 크기 `sizing`: `equal` | `inverse_vol`(기본, 60일 변동성·2배 상한) | `risk`(위험 기준: 초기 손절폭으로 주식 수 결정, `risk_pct`·`max_weight`). `to_dict()`는 기본값 `equal`일 때 키를 생략해 예전 시험 키를 유지한다. 새 설정 필드를 더할 때도 같은 방식으로.
   - 리스크 관리층(DECISIONS 72): `atr_stop` 청산 블록(신호일 ATR 기준 초기 손절), `heat`(열 상한), `breakeven_r`(손익분기 이동, 의사 청산 키 `BREAKEVEN_KEY`). 모두 기본값에서 꺼져 있다. 초기 손절 거리 R은 `risk_per_share`가 `atr_stop` 또는 `stop_loss_pct`에서 계산한다. 피라미딩은 아직 없다.
   - `time_stop`은 `first_exit`의 경로 청산이다. `take_profit_pct`(PARTIAL_KEY)는 전량 청산이 아니라 `first_partial`이 정한 날 다음 시가에 50%를 판다. 거래 목록은 포지션당 한 줄(두 매도를 합친 수익률), 부분 매도 기록은 `BacktestResult.partial_exits`.
+  - 종목이 `LIST_MAX`(1,500)개를 넘으면 계좌 모드에서도 일간 루프가 리스트 대신 numpy 행을 읽는다(결과 동일, 테스트 있음). 같은 가격의 다른 패널(스크린만 다름)은 `SignalCache.share_from`으로 블록 출력을 공유한다.
   - 큰 패널에서 여러 규칙을 차례로 돌릴 때는 규칙이 바뀔 때 `SignalCache.drop_rule_data(keep_window)`로 규칙별 배열을 비운다(안 그러면 CRSP 3,700종목에서 수십 GB가 쌓임).
   - 일간 루프는 numpy 스칼라 대신 파이썬 리스트를 쓴다(수 배 빠름, 결과는 비트 단위로 동일). 기간(window)별 리스트는 `SignalCache.memo`로 격자 칸끼리 재사용한다.
   - 청산은 매일 보유 종목을 검사하지 않고, 매수하는 순간 `first_exit`가 그 종목의 이후 종가 배열에서 첫 청산일과 사유를 찾는다(규칙은 같음: 종가 없는 날 건너뜀, 고점은 매수가와 그날 종가까지 포함, 사유는 `cfg.exits` 순서).

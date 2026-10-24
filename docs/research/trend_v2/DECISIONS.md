@@ -418,6 +418,34 @@ allocation. Review: docs/research/lab/2026-10-23_quant_models_small_account.md.
 
 ### Daily alert redesign (2026-10-24, user request)
 
+### Selection, then trading (2026-10-24, user direction, registered before running)
+
+The user's direction after 76: first screen out stocks that must not be bought, then pick stocks
+and entry timing with swappable filters, widen the universe to small caps, keep the existing exits,
+and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-24_selection_then_trade_design.md.
+
+77. Screens (lab/screens.py), all price/volume/size/dividend based (CRSP has no accounting data;
+    Compustat can be added later). Exclusion screens (True = do not buy): x_downtrend (12-1 return
+    < X%), x_drawdown (close < 52w high x (1 - X%)), x_volatility (60d vol in top X%), x_lottery
+    (max daily return over 21d >= X%), x_overextended (36m return in top X%), x_small (cap < $X M),
+    x_thin (21d dollar volume < $X M). Selection scores (higher = better, combined by mean
+    percentile rank, top K stay buyable): s_momentum (M-1 return), s_high52, s_smooth (share of up
+    days over M months), s_quality (M-1 return / M-month vol), s_volume_trend, s_small, s_large,
+    s_dividend (M-month dividend yield), s_reversal (-M-month return), s_lowvol. Screens are
+    decided on each month's last trading day and hold for the next month (Panel.eligible); the
+    engine buys eligible symbols in selection-rank order (Panel.rank). Universe: CRSP top 3,000 by
+    year-end market value (as 70 with TOP_N = 3,000), price >= $5, 21-day dollar volume >= $1M.
+    Stage A test (lab/screen_study.py): every exclusion screen (and none) x every selection score,
+    grid = exclusion value {4 registered values} x K {20, 50, 100, 200}, two entry variants
+    (always, above_ma 100), fixed trading layer: trailing_pct 30 + atr_stop 3 (risk unit), sizing
+    risk 1% / position cap 10%, max 20 positions, 20 bp per side; samples of 71; account level.
+    Verdict per cell: CAGR >= SPY and |MDD| <= |SPY MDD| and >= 30 trades. Family order: pass
+    share, largest connected passing region, median CAGR excess, median window share; rank sum
+    across samples. Reported alongside: 15%-budget metrics, buyable count. Stage B (entries,
+    exits, risk layer by Sobol around the best screens) is registered after Stage A. Every cell
+    is a trial. Runs on the lab computer through scripts/crsp_remote.py (panel copied from Drive
+    to a temporary folder, results written back, folder deleted).
+
 ## Open decisions
 
 - final trend-filter definition;

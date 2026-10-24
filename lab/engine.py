@@ -52,6 +52,7 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 TRADE_COLUMNS = ["symbol", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days", "exit_reason"]
 PARTIAL_COLUMNS = ["symbol", "entry_date", "date", "price", "fraction"]
 VOL_DAYS = 60  # volatility window for inverse-volatility sizing
+LIST_MAX = 1500  # above this many symbols the daily loop reads numpy rows instead of Python lists (same results)
 SIZE_CAP = 2.0  # a position is at most twice the equal slot
 SIZING_LABELS = {"equal": "동일 금액", "inverse_vol": "변동성 역가중", "risk": "위험 기준 (손절폭)"}
 BREAKEVEN_KEY = "breakeven"  # pseudo exit: the stop moved to the entry price (StrategyConfig.breakeven_r)
@@ -200,6 +201,15 @@ class SignalCache:
         self._atr: pd.DataFrame | None = None
         self._memo: dict[tuple, object] = {}
 
+    def share_from(self, other: "SignalCache") -> "SignalCache":
+        """Reuse another cache's block outputs, dollar volume and ATR: for a panel with the same
+        prices but a different eligible mask or rank (lab/screens.py). Window memos are not shared
+        because candidates depend on the mask."""
+        self._frames = other._frames
+        self._dv = other._dv
+        self._atr = other._atr
+        return self
+
     def memo(self, key: tuple, make):
         """Per-window derived data (plain lists for the daily loop). Grids reuse one window."""
         if key not in self._memo:
@@ -305,10 +315,11 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     CT = cache.memo(("close", w), lambda: np.ascontiguousarray(panel.close.loc[dates].to_numpy(dtype=float).T))
     # Plain Python lists: the daily loop touches single values, and Python floats are far
     # faster than numpy scalars for that. Results are bit-for-bit identical (both are doubles).
-    if single:  # arrays, not lists: a large universe (thousands of symbols) would not fit as lists
+    big = len(panel.symbols) > LIST_MAX
+    if single or big:  # arrays, not lists: a large universe (thousands of symbols) would not fit as lists
         O = cache.memo(("open_np", w), lambda: panel.open.loc[dates].to_numpy(dtype=float))
         LC = cache.memo(("last_close_np", w), lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float))
-    else:
+    if not single:
         O = cache.memo(("open", w), lambda: panel.open.loc[dates].to_numpy(dtype=float).tolist())
         LC = cache.memo(("last_close", w),  # last known close of each symbol, within the window
                         lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float).tolist())
@@ -496,7 +507,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
             if single:
                 slot = 1.0  # stand-alone accounts: the size plays no role
             else:
-                held_value = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
+                held_value = sum(p["shares"] * float(Oi[j] if Oi[j] == Oi[j] else last_close[j]) for j, p in pos.items())
                 eq_now = cash + held_value  # equity at today's open, the same for every buy today
                 slot = eq_now / K
             for j in pending_entry:
@@ -548,7 +559,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         if single:  # the account value is not used; lab/single.py rebuilds each symbol's account
             equity[i] = cash
         else:
-            invested = sum(map(mul, held_sh, map(last_close.__getitem__, held_j)))  # same terms, same order
+            invested = sum(map(mul, held_sh, map(float, map(last_close.__getitem__, held_j))))  # same terms, same order
             equity[i] = cash + invested
             exposure[i] = invested / equity[i] if equity[i] > 0 else 0.0
 

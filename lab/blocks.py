@@ -258,6 +258,9 @@ def _vix_high(p: Panel, x: float) -> pd.DataFrame:
 ENTRY_BLOCKS: dict[str, Block] = {
     b.key: b
     for b in [
+        Block("always", "조건 없음 (선별 목록이면 매수)", "항상 참",
+              "진입 시점 조건을 두지 않습니다. 선별 목록(스크린)에 들어 있고 자리가 비면 바로 삽니다. 선별만으로 충분한지 비교할 때 씁니다.",
+              None, lambda p, _: p.close.notna(), "가격"),
         Block("breakout", "N일 신고가 돌파", "오늘 종가 > 직전 N거래일 고가의 최댓값",
               "가격이 최근 N일 범위를 위로 벗어나는 순간을 잡습니다. 대표적인 돈치안(Donchian) 돌파.",
               Param("N (거래일)", 20, 5, 250, 5, "거래일", "비교할 과거 고가 구간의 길이"), _breakout, "가격"),
