@@ -318,4 +318,6 @@ A31. User request (2026-10-25 01:20–01:39 KST, thread "더 나은 자산배분
     in the same table. The user chooses; recommendations are one line per band and do not alter the tables.
     Stages 2–4 as in the design memo (finalist sensitivity; HAA/BAA with 4-tranche staggering, Korean-product signals
     and core/satellite mixes; real Korean ETF prices and 국고채 via the lab PC) follow in later entries.
+    Run 2026-10-25 02:15 KST (seed 2026, 249,934 candidates, 40,992 within −15 %): memo 2026-10-25_global_search.md and
+    folder 2026-10-25_global_search/. No preset was registered from it; the refined (다듬음) list is not a candidate list.
 

@@ -287,11 +287,11 @@ def band_tables(df: pd.DataFrame, presets: pd.DataFrame, top: int = 10, tie: flo
               ("## 다듬은 후보 (상위 300개의 ±5%p 이웃 이동, 최대 3회) — 표본과 따로 본다", df[df["출처"] == "다듬음"])]
     edges = np.arange(-0.15, 0.0, 0.01)
     for title, part in groups:
-        passing = part[part["통과"]]
+        passing = part[part["mdd"] >= MDD_LINE]
         if passing.empty:
             continue
         lines += [title, ""]
-        for lo in edges[::-1]:
+        for lo in edges:  # deepest band first: the highest CAGR comes first
             hi = lo + 0.01
             band = passing[(passing["mdd"] > lo - 1e-12) & (passing["mdd"] <= hi + 1e-12)]
             if band.empty:
@@ -304,17 +304,19 @@ def band_tables(df: pd.DataFrame, presets: pd.DataFrame, top: int = 10, tie: flo
             lines.append("| CAGR | MDD | 초과샤프 | 칼마 | 회전 | 수 | 주식 | 채권 | 금 | 현금·달러 | 레버 | 환노출 | 출처 | ⚠ | 비중 |")
             lines.append("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|")
             for _, r in shown.iterrows():
+                warn = "" if pd.isna(r["⚠"]) else r["⚠"]
                 lines.append(f"| {pct(r['cagr'])} | {pct(r['mdd'])} | {r['sharpe_excess']:.2f} | {r['calmar']:.2f} | {pct(r['turnover'], 0)}% | "
                              f"{int(r['상품 수'])} | {int(r['주식'])} | {int(r['채권'])} | {int(r['금·실물'])} | {int(r['현금·달러'])} | "
-                             f"{int(r['레버리지'])} | {int(r['환노출'])} | {r['출처']} | {r['⚠']} | {r['비중']} |")
+                             f"{int(r['레버리지'])} | {int(r['환노출'])} | {r['출처']} | {warn} | {r['비중']} |")
             lines.append("")
     lines.append("## 등록된 프리셋 (같은 조건)")
     lines.append("")
     lines.append("| 프리셋 | CAGR | MDD | 초과샤프 | 칼마 | 통과 | ⚠ |")
     lines.append("|---|---:|---:|---:|---:|:--:|---|")
     for _, r in presets.sort_values("cagr", ascending=False).iterrows():
+        warn = "" if pd.isna(r["⚠"]) else r["⚠"]
         lines.append(f"| {r['이름']} | {pct(r['cagr'])} | {pct(r['mdd'])} | {r['sharpe_excess']:.2f} | {r['calmar']:.2f} | "
-                     f"{'✓' if r['통과'] else '✗'} | {r['⚠']} |")
+                     f"{'✓' if r['mdd'] >= MDD_LINE else '✗'} | {warn} |")
     return "\n".join(lines) + "\n"
 
 
@@ -375,7 +377,7 @@ def scatter(df: pd.DataFrame, presets: pd.DataFrame, path: Path, font_path: Path
     cb.outline.set_edgecolor(grid)
     handles = [Line2D([], [], marker="o", color="#3987e5", ls="", ms=6, label="레버리지 없음"),
                Line2D([], [], marker="^", color="#3987e5", ls="", ms=6, label="레버리지 포함(≤ 20%)"),
-               Line2D([], [], marker="D", color="white", markeredgecolor=ink, ls="", ms=6, label="등록 프리셋 (번호는 왼쪽 표)")]
+               Line2D([], [], marker="D", color="white", markeredgecolor=ink, ls="", ms=6, label="등록 프리셋 (번호는 오른쪽 표)")]
     ax.legend(handles=handles, loc="lower left", frameon=False, fontsize=9, labelcolor=ink)
     fig.tight_layout()
     fig.savefig(path)
@@ -383,11 +385,51 @@ def scatter(df: pd.DataFrame, presets: pd.DataFrame, path: Path, font_path: Path
     return True
 
 
+SUBSETS = [  # (label, products that must be absent) — the same frontier without the pieces a buyer may not want
+    ("전체", ()),
+    ("레버리지 없음", ("레버리지",)),
+    ("가상 상품 없음", ("*",)),
+    ("레버리지·가상 없음", ("레버리지", "*")),
+    ("레버리지·가상·섹터 없음", ("레버리지", "*", "유틸리티", "필수소비재", "헬스케어", "에너지")),
+    ("… 나스닥100도 없음", ("레버리지", "*", "유틸리티", "필수소비재", "헬스케어", "에너지", "나스닥")),
+]
+
+
+def frontier_table(df: pd.DataFrame, presets: pd.DataFrame) -> str:
+    """Best CAGR per 1 %p MDD band among passing raw samples, for the whole set and for buyable subsets."""
+    passing = df[(df["mdd"] >= MDD_LINE) & (df["출처"] != "다듬음")].copy()
+    passing["band"] = np.ceil(passing["mdd"] * 100).astype(int)
+    bands = list(range(-14, 0, 1))
+    head = "| 부분집합 | " + " | ".join(f"({b - 1}, {b}]" for b in bands) + " |"
+    lines = ["# MDD 구간별 최고 CAGR (%) — 부분집합별 경계선", "",
+             f"통과 표본({len(passing):,}개) 중 각 1 %p MDD 구간에서 가장 높은 CAGR. 행은 특정 상품을 뺀 부분집합이고, "
+             "열 머리글은 구간 (하한, 상한]. 레버리지 = 2배 상품 6종, 가상 = 실제 상품 확인 전인 환노출 미국채(*), "
+             "섹터 = S&P500 유틸리티·필수소비재·헬스케어·에너지. 다듬은 후보는 제외.", "", head,
+             "|---|" + "---:|" * len(bands)]
+    for label, absent in SUBSETS:
+        mask = np.ones(len(passing), dtype=bool)
+        for token in absent:
+            col = passing["레버리지"] > 0 if token == "레버리지" else passing["비중"].str.contains(token, regex=False)
+            mask &= ~col.to_numpy()
+        best = passing[mask].groupby("band")["cagr"].max()
+        cells = [f"{best[b] * 100:.1f}" if b in best.index else "–" for b in bands]
+        lines.append(f"| {label} ({int(mask.sum()):,}) | " + " | ".join(cells) + " |")
+    lines += ["", "등록 프리셋의 자리 (CAGR / MDD):", ""]
+    for _, r in presets.sort_values("cagr", ascending=False).iterrows():
+        lines.append(f"- {r['이름']}: {r['cagr'] * 100:.1f} / {r['mdd'] * 100:.1f}" + ("" if r["mdd"] >= MDD_LINE else " (−15% 밖)"))
+    return "\n".join(lines) + "\n"
+
+
 def replot(out: Path, full_out: Path, font: Path | None) -> None:
-    df = pd.read_csv(full_out / "candidates_full.csv.gz", usecols=["cagr", "mdd", "주식", "레버리지"])
+    """Rebuild bands.md, frontier.md and scatter.png from the saved tables (no simulation)."""
+    df = pd.read_csv(full_out / "candidates_full.csv.gz")
     presets = pd.read_csv(out / "presets.csv")
+    refined_path = out / "top300_refined.csv"
+    both = pd.concat([df, pd.read_csv(refined_path)], ignore_index=True) if refined_path.exists() else df
+    (out / "bands.md").write_text(band_tables(both, presets), encoding="utf-8")
+    (out / "frontier.md").write_text(frontier_table(df, presets), encoding="utf-8")
     scatter(df, presets, out / "scatter.png", font)
-    print(f"산점도를 다시 그렸습니다: {out / 'scatter.png'}")
+    print(f"다시 만들었습니다: {out / 'bands.md'}, {out / 'frontier.md'}, {out / 'scatter.png'}")
 
 
 # --------------------------------------------------------------------------- main
@@ -399,7 +441,7 @@ def main(argv: list[str]) -> None:
     ap.add_argument("--full-out", default=None, help="folder for the full candidate table (default: --out)")
     ap.add_argument("--font", default=None, help="TTF with Hangul for the scatter (optional)")
     ap.add_argument("--no-pbo", action="store_true")
-    ap.add_argument("--replot", action="store_true", help="only redraw scatter.png from the saved tables")
+    ap.add_argument("--replot", action="store_true", help="only rebuild bands.md, frontier.md and scatter.png from the saved tables")
     args = ap.parse_args(argv)
     P = QUICK if args.quick else FULL
     out = Path(args.out)
@@ -527,6 +569,7 @@ def main(argv: list[str]) -> None:
     pres_df[["이름"] + cols].to_csv(out / "presets.csv", index=False, float_format="%.6g")
     both = pd.concat([df, refined_df], ignore_index=True) if len(refined_df) else df
     (out / "bands.md").write_text(band_tables(both, pres_df), encoding="utf-8")
+    (out / "frontier.md").write_text(frontier_table(df, pres_df), encoding="utf-8")
     summary["scatter"] = scatter(df, pres_df, out / "scatter.png", Path(args.font) if args.font else None)
     summary["seconds"] = round(time.time() - t_all)
     summary["pass_by_source"] = {k: int(v) for k, v in df[df["통과"]]["출처"].value_counts().items()}
@@ -534,7 +577,7 @@ def main(argv: list[str]) -> None:
                                for hi, g in both[both["통과"]].groupby(np.ceil(both[both["통과"]]["mdd"] * 100) / 100)]
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print(f"완료 ({summary['seconds']}s). 결과: {out}/ (bands.md, top300.csv, top300_refined.csv, top2000.csv, presets.csv, "
-          f"scatter.png, summary.json), 전체 표: {full_out}/candidates_full.csv.gz")
+          f"scatter.png, frontier.md, summary.json), 전체 표: {full_out}/candidates_full.csv.gz")
 
 
 if __name__ == "__main__":
