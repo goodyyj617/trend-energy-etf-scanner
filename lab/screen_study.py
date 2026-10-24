@@ -53,6 +53,19 @@ KEEP = ["cagr", "mdd", "calmar", "sharpe", "n_trades", "exposure", "spy_cagr", "
 _W: dict = {}
 
 
+class ScreenedConfig:
+    """A strategy config plus its screen, for the trial log (identity and description)."""
+
+    def __init__(self, cfg: StrategyConfig, scfg: screens.ScreenConfig):
+        self.cfg, self.scfg = cfg, scfg
+
+    def to_dict(self) -> dict:
+        return {**self.cfg.to_dict(), "screen": self.scfg.to_dict()}
+
+    def describe(self) -> str:
+        return f"{self.scfg.describe()} | {self.cfg.describe()}"
+
+
 def base_config(sample: str) -> StrategyConfig:
     s, e, _ = SAMPLES[sample]
     return StrategyConfig(entries={}, start=s, end=e, **TRADING)
@@ -87,7 +100,7 @@ def _run(job):
     row["goal_excess"] = m["cagr"] - m["spy_cagr"]
     row["goal_pass"] = bool(m["cagr"] >= m["spy_cagr"] and abs(m["mdd"]) <= abs(m["spy_mdd"]) and m["n_trades"] >= 30)
     row["buyable_median"] = float(sp.eligible.loc[res.equity.index].sum(axis=1).median())
-    return tag, cfg, scfg, row, res.equity.astype("float32")
+    return tag, ScreenedConfig(cfg, scfg), scfg, row, res.equity.astype("float32")
 
 
 # --------------------------------------------------------------------------- families
