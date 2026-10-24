@@ -109,6 +109,7 @@ class AllocConfig:
     overlay: Overlay = Overlay()
     leverage: Leverage = Leverage()
     cash_yield: bool = True
+    rebalance_offset: int = 0  # trade this many trading days after the period's last day (timing-luck check, A27)
 
     def __post_init__(self):
         def native(v):
@@ -137,12 +138,16 @@ class AllocConfig:
             extra.append(ov)
         if lev != "없음":
             extra.append("레버리지 " + lev)
+        if self.rebalance_offset:
+            extra.append(f"기간 끝 +{self.rebalance_offset}거래일에 매매")
         return f"{w} | " + " | ".join(extra)
 
     def to_dict(self) -> dict:
         d = asdict(self)
         d["overlay"] = asdict(self.overlay)
         d["leverage"] = asdict(self.leverage)
+        if not d["rebalance_offset"]:  # keep fingerprints of configs saved before the field existed
+            d.pop("rebalance_offset")
         return d
 
     @staticmethod
@@ -404,7 +409,7 @@ def run_allocation(panel: Panel, cfg: AllocConfig) -> AllocResult:
 
     # decision days: the overlay decides monthly, a static mix at its own frequency
     freq = "M" if cfg.overlay.kind != "none" else cfg.rebalance
-    rows = decision_rows(dates, freq)
+    rows = decision_rows(dates, freq) + int(cfg.rebalance_offset)
     rows = rows[rows < len(dates) - 1]  # a decision on the last day has no next close
     sig = _Signals(close, cash_full.loc[close.index]) if cfg.overlay.kind != "none" else None
     targets: dict[int, dict[str, float]] = {}

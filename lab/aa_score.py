@@ -11,9 +11,12 @@ Axes (raw value -> higher score is better):
 - 샤프 전반 / 후반   excess-over-cash Sharpe in the first and second half of the period
 - 최대낙폭, 칼마     from lab.metrics (same formulas as the trend lab)
 
-Gates (pass/fail, the primary verdict, same thresholds as the trend lab's charter):
-- 탐색 Gate: Calmar >= SPY Calmar and |MDD| <= 0.75 x |SPY MDD|
-- 최종 Gate: CAGR >= 0.80 x SPY CAGR and |MDD| <= 0.75 x |SPY MDD|
+Gates (pass/fail, the primary verdict):
+- 탐색 Gate: Calmar >= SPY Calmar and |MDD| <= 0.75 x |SPY MDD|   (same as the trend lab's charter)
+- 최종 Gate (A26, 2026-10-25): CAGR >= 0.70 x benchmark CAGR and MDD >= -15 % (absolute, daily).
+  Until 2026-10-24 it was CAGR >= 0.80 x and |MDD| <= 0.75 x |benchmark MDD|; in KRW that MDD line
+  was -22 %, looser than the user's target, and the 0.80 bar sat above every low-drawdown mix.
+  The timing check (lab/aa_validate.timing_table) is reported next to the gate, not inside it.
 """
 from __future__ import annotations
 
@@ -64,8 +67,9 @@ AXIS_TEXT = {
 
 @dataclass(frozen=True)
 class AllocGates:
-    min_cagr_ratio: float = 0.80
-    max_mdd_ratio: float = 0.75
+    min_cagr_ratio: float = 0.70  # final gate: CAGR >= ratio x benchmark CAGR (A26; was 0.80)
+    max_mdd_abs: float | None = 0.15  # final gate: MDD >= -15 % absolute (A26); None = the old relative rule
+    max_mdd_ratio: float = 0.75  # exploration gate (and the old final gate): |MDD| <= ratio x |benchmark MDD|
 
 
 def excess_sharpe(equity: pd.Series, cash: pd.Series) -> float:
@@ -153,10 +157,17 @@ def raw_metrics(res: AllocResult, parameters: int | None = None) -> dict[str, fl
 
 
 def gate_results(m: dict, gates: AllocGates = AllocGates()) -> dict[str, bool]:
-    mdd_ok = abs(m["mdd"]) <= gates.max_mdd_ratio * abs(m["spy_mdd"]) if m["spy_mdd"] < 0 else False
+    mdd_rel_ok = abs(m["mdd"]) <= gates.max_mdd_ratio * abs(m["spy_mdd"]) if m["spy_mdd"] < 0 else False
+    mdd_final_ok = mdd_rel_ok if gates.max_mdd_abs is None else bool(m["mdd"] >= -gates.max_mdd_abs)
     cagr_ok = (m["cagr"] >= gates.min_cagr_ratio * m["spy_cagr"]) if m["spy_cagr"] > 0 else m["cagr"] >= m["spy_cagr"]
     calmar_ok = np.isfinite(m.get("calmar", np.nan)) and np.isfinite(m.get("spy_calmar", np.nan)) and m["calmar"] >= m["spy_calmar"]
-    return {"탐색 Gate": bool(calmar_ok and mdd_ok), "최종 Gate": bool(cagr_ok and mdd_ok)}
+    return {"탐색 Gate": bool(calmar_ok and mdd_rel_ok), "최종 Gate": bool(cagr_ok and mdd_final_ok)}
+
+
+def gate_text(gates: AllocGates = AllocGates()) -> str:
+    mdd = (f"최대 낙폭 −{gates.max_mdd_abs * 100:g}% 이내" if gates.max_mdd_abs is not None
+           else f"최대 낙폭이 벤치마크의 {gates.max_mdd_ratio:g}배 이내")
+    return f"CAGR ≥ 벤치마크(S&P500 원화) × {gates.min_cagr_ratio:g} 그리고 {mdd}"
 
 
 def percentile_scores(raw: pd.DataFrame) -> pd.DataFrame:

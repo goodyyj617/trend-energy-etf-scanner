@@ -19,7 +19,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lab import aa_notes as notes  # noqa: E402
 from lab import aa_rebalance as rebal  # noqa: E402
+from lab import aa_signals as sig  # noqa: E402
 from lab import aa_store as store  # noqa: E402
+from lab import aa_tactical as tac  # noqa: E402
 from lab.aa_assets import (  # noqa: E402
     CASH, CLASS_ORDER, DEFAULT_PRODUCTS, FX_LABELS, PRESETS, PRODUCTS, PROXY_SYMBOLS, label, short,
 )
@@ -29,8 +31,12 @@ from lab.aa_engine import (  # noqa: E402
 )
 from lab.aa_korea import BOK_PATH, KrwModel, fetch_usdkrw_tail, krw_panel, load_bok_rate, load_usdkrw, splice  # noqa: E402
 from lab.aa_score import (  # noqa: E402
-    AXES, AXIS_TEXT, CRISIS_WINDOWS, RAW_COLUMNS, AllocGates, axis_raw_table, crisis_table, gate_results, raw_metrics,
-    scorecard,
+    AXES, AXIS_TEXT, CRISIS_WINDOWS, RAW_COLUMNS, AllocGates, axis_raw_table, crisis_table, gate_results, gate_text,
+    raw_metrics, scorecard,
+)
+from lab.aa_validate import (  # noqa: E402
+    LAZY_PROBS, block_bootstrap, cscv, headline, holdout_split, lazy_table, leave_one_out, monthly_table, split_metrics,
+    timing_summary, timing_table,
 )
 from lab.data import download_panel  # noqa: E402
 from lab.metrics import DEFINITIONS, drawdown  # noqa: E402
@@ -41,6 +47,7 @@ BLUE, ORANGE, GRAY, AQUA = "#2a78d6", "#eb6834", "#8a8984", "#1baf7a"
 PALETTE = [BLUE, AQUA, "#eda100", "#e87ba4", "#4a3aa7", "#008300", "#e34948", "#7a5c2e", "#00a3c4", "#b25fd0"]
 CLASS_COLORS = {"주식": "#2a78d6", "채권": "#1baf7a", "금·실물": "#eda100", "현금·달러": "#8a8984", "레버리지": "#e34948"}
 RED_GREEN = [[0, "#e34948"], [0.5, "#f6f1e8"], [1, "#1baf7a"]]
+GATES = AllocGates()
 BR = "  " + chr(10)
 DEFAULT_START = "2005-01-03"
 EARLIEST = date(1993, 1, 29)
@@ -310,7 +317,7 @@ def gates_line(m: dict) -> None:
     g = gate_results(m)
     txt = " · ".join(("✅ " if ok else "❌ ") + k for k, ok in g.items())
     st.markdown(txt + f"  \n<small>{BENCH} 대비 · 탐색 Gate: 칼마 ≥ {BENCH} 칼마 그리고 |MDD| ≤ 0.75×|{BENCH} MDD| · "
-                f"최종 Gate: CAGR ≥ 0.8×{BENCH} CAGR 그리고 |MDD| ≤ 0.75×|{BENCH} MDD|</small>", unsafe_allow_html=True)
+                f"최종 Gate: {gate_text()}</small>", unsafe_allow_html=True)
 
 
 def equity_chart(res: AllocResult, log: bool = True) -> go.Figure:
@@ -410,6 +417,8 @@ def show_result(res: AllocResult, m: dict, key: str) -> None:
     c3.plotly_chart(annual_chart(ann), width="stretch")
     c4.plotly_chart(weights_chart(res), width="stretch")
     isa_table(res.config, key)
+    with st.expander("월별 수익률"):
+        st.plotly_chart(monthly_heatmap(res.equity), width="stretch")
     with st.expander("연도별 표 · 위기 구간"):
         a, b = st.columns(2)
         a.dataframe(ann, hide_index=True, width="stretch", column_config={
@@ -626,7 +635,7 @@ def compare_page() -> None:
     bm = curve_bench = first.benchmark
     bmm = raw_metrics(first)
     st.caption(f"기준선 {BENCH}: CAGR {pct(bmm['spy_cagr'])} · MDD {pct(bmm['spy_mdd'])} · 칼마 {num(bmm['spy_calmar'])} "
-               f"(첫 전략의 기간 기준) · 최종 Gate 경계: CAGR ≥ {pct(0.8 * bmm['spy_cagr'])}, MDD ≥ {pct(0.75 * bmm['spy_mdd'])}")
+               f"(첫 전략의 기간 기준) · 최종 Gate 경계: CAGR ≥ {pct(GATES.min_cagr_ratio * bmm['spy_cagr'])}, MDD ≥ {pct(-GATES.max_mdd_abs)}")
     edited = st.data_editor(df.drop(columns=["_i"]), hide_index=True, width="stretch", key=f"cmp_editor_{len(df)}_{version}",
                             disabled=[c for c in df.columns if c != "선택"], column_config={
                                 "선택": st.column_config.CheckboxColumn("선택", help="그래프에 그릴 전략"),
@@ -648,8 +657,8 @@ def compare_page() -> None:
                         hovertemplate="%{text}<br>CAGR %{y:.1%} · MDD %{x:.1%}<extra></extra>")
     fig.add_scatter(x=[bmm["spy_mdd"]], y=[bmm["spy_cagr"]], mode="markers+text", name=BENCH, text=[BENCH], textposition="bottom center",
                     marker=dict(color=ORANGE, size=14, symbol="star"))
-    fig.add_vline(x=0.75 * bmm["spy_mdd"], line=dict(color=GRAY, dash="dot"), annotation_text="MDD 기준", annotation_position="bottom right")
-    fig.add_hline(y=0.8 * bmm["spy_cagr"], line=dict(color=GRAY, dash="dot"), annotation_text="최종 Gate CAGR 기준", annotation_position="bottom left")
+    fig.add_vline(x=-GATES.max_mdd_abs, line=dict(color=GRAY, dash="dot"), annotation_text="최종 Gate MDD 기준", annotation_position="bottom right")
+    fig.add_hline(y=GATES.min_cagr_ratio * bmm["spy_cagr"], line=dict(color=GRAY, dash="dot"), annotation_text="최종 Gate CAGR 기준", annotation_position="bottom left")
     fig.update_layout(height=420, margin=dict(l=10, r=10, t=30, b=10), title="수익·낙폭 지도 (오른쪽 위일수록 좋음 · 점선 오른쪽 위 = 최종 Gate 통과 영역)",
                       xaxis=dict(title="최대 낙폭", tickformat=".0%"), yaxis=dict(title="CAGR", tickformat=".0%"), showlegend=False)
     st.plotly_chart(fig, width="stretch")
@@ -1020,7 +1029,10 @@ def glossary_page() -> None:
         st.markdown(BR.join([f"**{a}**", AXIS_TEXT[a]]))
     st.subheader("Gate")
     st.markdown(BR.join([f"**탐색 Gate** · 칼마 ≥ {BENCH} 칼마 그리고 |MDD| ≤ 0.75 × |{BENCH} MDD|", "수익 조건 없이 ‘위험 대비’로만 보는 넓은 문.",
-                         f"**최종 Gate** · CAGR ≥ 0.80 × {BENCH} CAGR 그리고 |MDD| ≤ 0.75 × |{BENCH} MDD|", "헌장(CHARTER.md)의 최종 기준.",
+                         f"**최종 Gate** · {gate_text()}",
+                         "2026-10-25 재설정(DECISIONS A26): 이전에는 CAGR ≥ 0.80 × 그리고 |MDD| ≤ 0.75 × |벤치마크 MDD|(원화로는 약 −22%)였습니다. "
+                         "사용자 목표(낙폭 −15% 선, HAA+BAA 수준)에 맞춰 MDD는 절대 기준으로, CAGR 기준은 0.7배로 낮췄습니다.",
+                         "**날짜 견고(참고)** · 리밸런싱 날짜를 말일·+1·+5·+10·+15거래일로 바꿔도 최대 낙폭이 −20% 이내인지. ‘전술 전략·검증’ 페이지에서 계산합니다.",
                          f"{BENCH} = KODEX 미국S&P500(환노출)의 원화 수익률. 원화로 보면 2008년처럼 원화가 약해질 때 달러 자산이 덜 빠져, 미국 기준 SPY보다 낙폭이 작습니다."]))
     st.subheader("위기 구간 (성적표 ‘위기’ 축)")
     st.dataframe(pd.DataFrame([{"구간": k, "시작": a, "끝": b} for k, (a, b) in CRISIS_WINDOWS.items()]), hide_index=True, width="stretch")
@@ -1041,9 +1053,346 @@ def glossary_page() -> None:
                                for p in PRESETS.values()]), hide_index=True, width="stretch")
 
 
+# =========================================================================== page 8: tactical strategies and validation
+
+TACTICAL_CHOICES = {
+    "HAA + BAA 공격형 50:50": (("haa", 50.0), ("baa_g4", 50.0)),
+    "HAA": (("haa", 100.0),),
+    "BAA 공격형 (G4)": (("baa_g4", 100.0),),
+    "VAA 공격형 (G4)": (("vaa_g4", 100.0),),
+}
+US_CLASS_COLORS = {"미국 주식": "#e34948", "해외·신흥 주식": "#eda100", "리츠": "#7a5c2e", "원자재": "#008300", "금": "#d4b106",
+                   "채권": "#2a78d6", "현금성": "#8a8984"}
+OFFSET_LABELS = {0: "말일", 1: "다음 달 첫 거래일 (말일 +1)", 5: "말일 +5거래일", 10: "말일 +10거래일 (중순)", 15: "말일 +15거래일"}
+
+
+@st.cache_resource(show_spinner="전술 전략 신호용 미국 ETF 가격을 불러오는 중…")
+def load_signal_data(day: str):
+    syms = list(tac.ALL_SYMBOLS)  # VIX comes from lab/macro_snapshot (its Yahoo series has bars on US holidays)
+    try:
+        usd, failed = download_panel(syms, day)
+    except Exception as exc:  # offline: cached files only
+        from lab.data import CACHE_DIR
+        cached = [s for s in syms if (CACHE_DIR / "yf" / f"{s.replace('^', '_')}.csv.gz").exists()]
+        if not cached:
+            raise
+        last = min(pd.read_csv(CACHE_DIR / "yf" / f"{s.replace('^', '_')}.csv.gz", usecols=["date"])["date"].max() for s in cached)
+        usd, failed = download_panel(cached, str(last))
+        failed = list(failed) + [f"(오프라인: {exc})"]
+    return usd, failed
+
+
+def tactical_spec_from_ui(last: date) -> tuple[tac.TacticalSpec, str] | None:
+    c1, c2, c3 = st.columns([2, 2, 2])
+    choice = c1.selectbox("전략", list(TACTICAL_CHOICES) + [CUSTOM], key=init("tac_choice", "HAA + BAA 공격형 50:50"))
+    if choice == CUSTOM:
+        cols = st.columns(len(tac.STRATEGIES))
+        parts = []
+        for col, (k, name) in zip(cols, tac.STRATEGIES.items()):
+            w = col.number_input(name, 0, 100, step=10, key=init(f"tac_w_{k}", 50 if k in ("haa", "baa_g4") else 0))
+            if w:
+                parts.append((k, float(w)))
+        if not parts:
+            st.info("비중을 하나 이상 넣어 주세요.")
+            return None
+        parts = tuple(parts)
+    else:
+        parts = TACTICAL_CHOICES[choice]
+    holdings = c2.radio("보유 상품", ["krw", "usd"], key=init("tac_hold", "krw"), horizontal=True,
+                        format_func=lambda v: "국내 ETF · 원화 (ISA)" if v == "krw" else "미국 ETF · 달러 (논문·지인 도구 재현)")
+    missing_to = c3.selectbox("국내 대체가 없는 자산(DBC 등)을 담을 곳", ["459580", "411060"], key=init("tac_missing", "459580"),
+                              format_func=short, disabled=holdings == "usd")
+    d1, d2, d3, d4, d5 = st.columns(5)
+    start = d1.date_input("시작일", key=init("tac_start", date(2008, 1, 1)), min_value=date(2007, 3, 1), max_value=last)
+    end = d2.date_input("끝", key=init("tac_end", last), min_value=date(2008, 1, 1), max_value=last)
+    offset = d3.selectbox("판단·매매일", list(OFFSET_LABELS), key=init("tac_offset", 0), format_func=OFFSET_LABELS.get)
+    same = d4.toggle("판단일 종가에 바로 매매 (재현용)", key=init("tac_same", False),
+                     help="논문·지인 도구처럼 월말 종가로 신호를 보고 같은 종가에 산다고 가정합니다. 실제로는 불가능해서 기본은 꺼짐(다음 날 종가).")
+    cost = d5.number_input("거래 비용 (bp, 한쪽)", 0.0, 100.0, step=5.0, key=init("tac_cost", 10.0))
+    name = " + ".join(f"{tac.STRATEGIES[k].split(' (')[0]} {w:g}" for k, w in parts)
+    spec = tac.TacticalSpec(name, parts=parts, start=str(start), end=str(end), cost_bps=float(cost), offset=int(offset),
+                            same_close=bool(same), missing_to=missing_to)
+    return spec, holdings
+
+
+def run_tactical_ui(data: dict, usd, spec: tac.TacticalSpec, holdings: str) -> AllocResult:
+    hold_panel = data["panel"] if holdings == "krw" else usd
+    return tac.run_tactical(hold_panel, usd.close, spec, holdings, usd.cash)
+
+
+def class_area_chart(signals: pd.DataFrame) -> go.Figure:
+    cls = tac.class_table(signals)
+    fig = go.Figure()
+    for c in cls.columns:
+        fig.add_scatter(x=cls.index, y=cls[c], name=c, stackgroup="one", line=dict(width=0.5, color=US_CLASS_COLORS.get(c, GRAY)))
+    fig.update_layout(height=300, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10), title="시기별 목표 자산 구성 (매월 신호, 미국 ETF 기준 분류)",
+                      yaxis_tickformat=".0%", legend=dict(orientation="h", y=-0.2))
+    return fig
+
+
+def monthly_heatmap(equity: pd.Series) -> go.Figure:
+    t = monthly_table(equity)
+    z = t.to_numpy() * 100
+    text = [["" if not np.isfinite(v) else f"{v:.1f}" for v in row] for row in z]
+    fig = go.Figure(go.Heatmap(z=z, x=[f"{m}월" for m in range(1, 13)] + ["연간"], y=[str(y) for y in t.index], text=text,
+                               texttemplate="%{text}", colorscale=RED_GREEN, zmid=0, zmin=-8, zmax=8, showscale=False,
+                               hovertemplate="%{y} %{x}: %{z:.1f}%<extra></extra>"))
+    fig.update_layout(height=max(260, 22 * len(t) + 60), margin=dict(l=10, r=10, t=30, b=10), title="월별 수익률 (%, 비용 차감 후)",
+                      yaxis=dict(autorange="reversed", type="category"))
+    return fig
+
+
+def mapping_table(signals: pd.DataFrame) -> pd.DataFrame:
+    last = signals.iloc[-1]
+    rows = []
+    for s, w in last[last > 0].sort_values(ascending=False).items():
+        code, quality, note = tac.KRW_MAP.get(s, (None, "없음", ""))
+        rows.append({"미국 ETF": s, "비중": float(w), "국내 대체": label(code) if code else "없음", "일치": quality, "설명": note})
+    return pd.DataFrame(rows)
+
+
+def verdict_lines(timing: pd.DataFrame, split: pd.DataFrame, boot: pd.DataFrame | None, lazy: pd.DataFrame | None) -> list[str]:
+    ts = timing_summary(timing)
+    out = []
+    ok = ts["mdd_worst"] >= -0.20
+    out.append(("✅" if ok else "⚠️") + f" 날짜 견고: 판단일을 바꾼 최악 MDD {pct(ts['mdd_worst'])} (말일 {pct(ts['mdd_base'])}), "
+               f"CAGR {pct(ts['cagr_min'])} ~ {pct(ts['cagr_max'])}" + ("" if ok else " → 숫자가 날짜 운에 기대고 있음"))
+    if "delay" in timing and (timing["delay"] == 1).any():
+        d = timing[timing["delay"] == 1].iloc[0]
+        out.append(f"• 한 달 늦게 따라가면: CAGR {pct(d['cagr'])} · MDD {pct(d['mdd'])}")
+    if lazy is not None:
+        out.append(f"• 게으른 리밸런싱(50회): CAGR 중앙 {pct(lazy['cagr'].median())} · MDD 중앙 {pct(lazy['mdd'].median())} · MDD 하위 10% {pct(lazy['mdd'].quantile(0.1))}")
+    sel, hold = split.iloc[0], split.iloc[1]
+    ok = hold["sharpe"] >= 0.5 * sel["sharpe"] if np.isfinite(sel["sharpe"]) else False
+    out.append(("✅" if ok else "⚠️") + f" 성역(마지막 15%): 선정 구간 샤프 {num(sel['sharpe'])} → 성역 {num(hold['sharpe'])}, "
+               f"성역 CAGR {pct(hold['cagr'])} · MDD {pct(hold['mdd'])}")
+    if boot is not None:
+        out.append(f"• 부트스트랩 90% 구간: 샤프 {num(boot['샤프'].iloc[0])} ~ {num(boot['샤프'].iloc[2])}, MDD {pct(boot['MDD'].iloc[0])} ~ {pct(boot['MDD'].iloc[2])}")
+    return out
+
+
+def tactical_page() -> None:
+    data = data_or_stop()
+    sidebar(data)
+    st.title("전술 전략 · 검증")
+    st.caption("Keller 계열 전술 배분(HAA·BAA·VAA)을 **미국 ETF 가격으로 신호를 보고** 국내 ETF(원화) 또는 미국 ETF(달러)로 담아 시험합니다. "
+               "아래 검증 도구(날짜 민감도·게으른 리밸런싱·성역·부트스트랩·정직 vs 균등·위기 회피 스위치)는 프리셋에도 씁니다. DECISIONS A24–A29.")
+    try:
+        usd, failed = load_signal_data(str(date.today()))
+    except Exception as exc:
+        st.error(f"미국 ETF 가격을 불러오지 못했습니다: {exc}")
+        return
+    if failed:
+        st.caption("받지 못한 종목: " + ", ".join(map(str, failed)))
+    last = min(data["panel"].last_date.date(), usd.last_date.date())
+    tab1, tab2, tab3, tab4 = st.tabs(["① 전술 전략", "② 검증", "③ 정직 vs 균등", "④ 위기 회피 스위치"])
+
+    with tab1:
+        with st.expander("전략 규칙"):
+            for k, v in tac.STRATEGY_TEXT.items():
+                st.markdown(f"**{tac.STRATEGIES[k]}** · {v}")
+            st.caption("모멘텀: 13612U = 1·3·6·12개월 수익률의 평균, 13612W = (12·1개월 + 4·3개월 + 2·6개월 + 12개월) / 4, "
+                       "SMA12 = 현재가 / 최근 13개 월말가 평균 − 1. VEA·BND·BIL은 상장 전 기간을 EFA·AGG·미국 단기금리로 잇습니다.")
+        got = tactical_spec_from_ui(last)
+        if got is None:
+            return
+        spec, holdings = got
+        if st.button("▶ 실행", type="primary", key="btn_tac_run"):
+            try:
+                with st.spinner("계산 중…"):
+                    res = run_tactical_ui(data, usd, spec, holdings)
+                    st.session_state["tac_result"] = (res, raw_metrics(res, spec.parameter_count()), holdings)
+            except ValueError as exc:
+                st.error(str(exc))
+        stored = st.session_state.get("tac_result")
+        if stored:
+            res, m, hold = stored
+            if res.spec != spec or hold != holdings:
+                st.warning("아래 결과는 현재 설정과 다릅니다. 다시 실행하면 갱신됩니다.")
+            s, e = res.period
+            bench = BENCH if hold == "krw" else "SPY(달러)"
+            st.caption(f"{res.spec.describe()} · {'국내 ETF 원화' if hold == 'krw' else '미국 ETF 달러'} · {s.date()} → {e.date()} · "
+                       f"매매 {res.n_trades}회 · 월간 샤프(무위험 0, 지인 도구와 같은 방식) {num(tac.monthly_sharpe(res.equity))}")
+            kpi_row(m)
+            if hold == "krw":
+                gates_line(m)
+            else:
+                st.caption(f"달러 결과는 원화 Gate와 비교하지 않습니다. 기준선은 {bench}.")
+            c1, c2 = st.columns([3, 2])
+            c1.plotly_chart(equity_chart(res), width="stretch")
+            c2.plotly_chart(drawdown_chart(res), width="stretch")
+            c3, c4 = st.columns(2)
+            c3.plotly_chart(class_area_chart(res.signals.loc[s - pd.offsets.MonthEnd(1):]), width="stretch")
+            c4.plotly_chart(monthly_heatmap(res.equity), width="stretch")
+            st.markdown(f"**이번 달 목표({res.signals.index[-1].date()} 신호)와 국내 대체**")
+            st.dataframe(mapping_table(res.signals), hide_index=True, width="stretch",
+                         column_config={"비중": st.column_config.NumberColumn(format="percent")})
+            cov = tac.krw_coverage(res.signals.loc[s - pd.offsets.MonthEnd(1):])
+            st.caption(f"기간 평균으로 목표 비중의 {pct(cov['정확'].mean(), 0)}는 같은 지수·같은 환노출 국내 상품, {pct(cov['근사'].mean(), 0)}는 비슷한 상품"
+                       f"(환헤지·지수 차이), {pct(cov['없음'].mean(), 0)}는 국내 상품이 없어 ‘{short(spec.missing_to)}’로 대체했습니다. "
+                       "국내 대체의 차이는 원화 결과에 이미 들어 있습니다.")
+
+    with tab2:
+        st.markdown("결과 숫자 하나가 **운**인지 보려고, 같은 전략을 조건만 바꿔 다시 돌립니다. 지인 도구의 ‘실전 이탈 리스크’·‘진짜 성역’·‘부트스트랩’에 해당합니다.")
+        targets = ["현재 전술 전략 설정"] + [p.name for p in PRESETS.values()]
+        target = st.selectbox("검증할 전략", targets, key=init("val_target", targets[0]))
+        c1, c2 = st.columns(2)
+        do_boot = c1.toggle("부트스트랩 (1000회, 수십 초)", value=True, key=init("val_boot", True))
+        do_lazy = c2.toggle("게으른 리밸런싱 (50회, 전술 전략만)", value=True, key=init("val_lazy", True))
+        if st.button("▶ 전체 검증 실행", type="primary", key="btn_val_run"):
+            got = None
+            try:
+                with st.spinner("여러 번 다시 돌리는 중…"):
+                    if target == targets[0]:
+                        spec, holdings = (tactical_spec_from_state(last))
+                        base = run_tactical_ui(data, usd, spec, holdings)
+                        timing = timing_table(lambda o, d: run_tactical_ui(data, usd, replace(spec, offset=o, delay=d), holdings))
+                        lazy = None
+                        if do_lazy:
+                            months = [str(d.to_period("M")) for d in base.signals.index]
+                            lazy = lazy_table(lambda skip: run_tactical_ui(data, usd, replace(spec, skip_months=skip), holdings), months)
+                        loo = leave_one_out(list(spec.parts), lambda parts: run_tactical_ui(data, usd, replace(spec, parts=tuple(parts)), holdings)) \
+                            if len(spec.parts) > 1 else None
+                    else:
+                        preset = next(p for p in PRESETS.values() if p.name == target)
+                        cfg = AllocConfig(preset.name, preset.weights, DEFAULT_START, str(last), rebalance="Q", cost_bps=10.0)
+                        base = run_allocation(data["panel"], cfg)
+                        timing = timing_table(lambda o, d: run_allocation(data["panel"], replace(cfg, rebalance_offset=o)), delays=(0,))
+                        lazy, loo = None, None
+                    split = split_metrics(base)
+                    boot = block_bootstrap(base) if do_boot else None
+                    got = (target, base, timing, lazy, loo, split, boot)
+            except ValueError as exc:
+                st.error(str(exc))
+            if got:
+                st.session_state["val_result"] = got
+        got = st.session_state.get("val_result")
+        if got:
+            target_done, base, timing, lazy, loo, split, boot = got
+            st.markdown(f"#### {target_done}")
+            for line_ in verdict_lines(timing, split, boot, lazy):
+                st.markdown(line_)
+            fmt = {"cagr": st.column_config.NumberColumn("CAGR", format="percent"), "mdd": st.column_config.NumberColumn("MDD", format="percent"),
+                   "sharpe": st.column_config.NumberColumn("현금 초과 샤프", format="%.2f"), "calmar": st.column_config.NumberColumn("칼마", format="%.2f")}
+            a, b = st.columns(2)
+            a.markdown("**리밸런싱 날짜 · 지연**")
+            a.dataframe(timing.drop(columns=["offset", "delay"]), hide_index=True, width="stretch", column_config=fmt)
+            b.markdown("**선정 구간 / 성역 / 전체**")
+            b.dataframe(split, width="stretch", column_config=fmt)
+            if boot is not None:
+                a.markdown("**블록 부트스트랩 (21거래일 블록, 1000회) 백분위**")
+                a.dataframe(boot, width="stretch", column_config={"CAGR": st.column_config.NumberColumn(format="percent"),
+                                                                  "MDD": st.column_config.NumberColumn(format="percent"),
+                                                                  "샤프": st.column_config.NumberColumn(format="%.2f")})
+            if loo is not None:
+                b.markdown("**하나씩 빼 보기 (잭나이프)**")
+                b.dataframe(loo.replace(tac.STRATEGIES), hide_index=True, width="stretch", column_config=fmt)
+            if lazy is not None:
+                st.caption(f"게으른 리밸런싱: 매매 직후 다음 매매가 1·2·3개월 뒤일 확률 {', '.join(f'{p:.0%}' for p in LAZY_PROBS)}로 50번(시드 고정). "
+                           "건너뛴 달은 비중이 그대로 흘러갑니다.")
+
+    with tab3:
+        st.markdown("여러 전략을 섞을 때 과거로 맞춘 비중(**정직**)이 같은 비율(**균등**)보다 나은지 봅니다. 기간을 10토막으로 나눠 5토막에서 비중을 고르고 "
+                    "나머지 5토막에서 채점하기를 252가지(10C5)로 반복합니다(CSCV). 마지막 15%(성역)는 쓰지 않습니다. "
+                    "섞기는 일간 가중 평균(매일 비중 유지)으로 근사합니다.")
+        options = list(TACTICAL_CHOICES)[1:] + [p.name for p in PRESETS.values()]
+        chosen = st.multiselect("후보 전략 (원화)", options, key=init("cv_set", ["HAA", "BAA 공격형 (G4)", "VAA 공격형 (G4)", "안정형 40 (금·현금 분산)",
+                                                                       "내 AAA (2026-06 이후)", "영구 포트폴리오", "60/40", "S&P500 보유"]))
+        c1, c2 = st.columns(2)
+        max_k = c1.selectbox("한 조합에 담을 전략 수 최대", [2, 3], index=1, key=init("cv_k", 3))
+        step = c2.selectbox("비중 격자", [0.1, 0.2, 0.25], key=init("cv_step", 0.1), format_func=lambda v: f"{v:.0%}")
+        if st.button("▶ 252분할 검증", type="primary", key="btn_cv_run") and len(chosen) >= 2:
+            with st.spinner("후보 조합을 252번 채점하는 중…"):
+                eqs = {}
+                for n in chosen:
+                    if n in TACTICAL_CHOICES:
+                        sp = tac.TacticalSpec(n, parts=TACTICAL_CHOICES[n], start="2007-03-01", end=str(last))
+                        eqs[n] = run_tactical_ui(data, usd, sp, "krw").equity
+                    else:
+                        preset = next(p for p in PRESETS.values() if p.name == n)
+                        eqs[n] = run_allocation(data["panel"], AllocConfig(n, preset.weights, "2007-03-01", str(last), rebalance="Q", cost_bps=10.0)).equity
+                eq = pd.DataFrame(eqs).dropna()
+                cut = holdout_split(eq.index)
+                rets = eq.loc[:cut].pct_change(fill_method=None).dropna()
+                st.session_state["cv_result"] = (cscv(rets, data["panel"].cash, step=float(step), max_k=int(max_k)), eq.index[0], cut)
+        cv = st.session_state.get("cv_result")
+        if cv:
+            out, a, cut = cv
+            ok = out["win_rate"] > 0.6 and out["pbo"] < 0.3
+            st.markdown(("✅" if ok else "⚠️") + f" 튜닝한 비중이 균등을 이긴 분할 **{out['win_rate']:.0%}** · PBO(튜닝 1등이 표본밖에서 중간 아래로 떨어질 확률) **{out['pbo']:.0%}** "
+                        f"· 후보 {out['candidates']:,}개 · 구간 {a.date()} – {cut.date()}")
+            st.markdown(f"표본밖 샤프 중앙값: 튜닝 **{num(out['tuned_out_median'])}** · 균등 **{num(out['equal_out_median'])}** · 천장(답을 본 최고) {num(out['ceiling_out_median'])}")
+            st.caption("승률이 50% 근처이고 PBO가 50% 근처면 ‘비중 튜닝은 과거 암기’입니다. 이 경우 고른 전략들을 같은 비율로 담는 쪽이 정직한 선택입니다.")
+            st.dataframe(out["top_picks"].rename("뽑힌 분할 수").rename_axis("자주 뽑힌 튜닝 비중").to_frame(), width="stretch")
+
+    with tab4:
+        st.markdown("정적 배분의 **주식 상품**을 신호가 켜진 달에만 안전 상품으로 옮깁니다(월말 판단, 다음 날 종가 매매, 나머지는 분기 리밸런싱). "
+                    "‘사후 정답’은 위기 구간을 미리 안다고 가정한 상한선이라 전략이 아닙니다.")
+        c1, c2, c3 = st.columns(3)
+        pname = c1.selectbox("배분", [p.name for p in PRESETS.values()], key=init("sw_preset", PRESETS["stable40"].name))
+        safe = c2.selectbox("회피처", ["459580", "261240", "0091C0"], key=init("sw_safe", "459580"), format_func=short)
+        sigs = c3.multiselect("신호", list(sig.SIGNALS), key=init("sw_sigs", list(sig.SIGNALS)), format_func=sig.SIGNALS.get)
+        if st.button("▶ 스위치 비교", type="primary", key="btn_sw_run"):
+            preset = next(p for p in PRESETS.values() if p.name == pname)
+            cfg = AllocConfig(preset.name, preset.weights, DEFAULT_START, str(last), rebalance="Q", cost_bps=10.0)
+            equity_codes = [c for c, p in PRODUCTS.items() if p.asset_class == "주식"]
+            dates = data["panel"].close.index
+            rows = [("스위치 없음", run_allocation(data["panel"], cfg))]
+            with st.spinner("신호별로 다시 돌리는 중…"):
+                for k in sigs:
+                    flags = sig.signal_series(k, usd.close, usd.cash, dates)
+                    rows.append((sig.SIGNALS[k], sig.run_switch(data["panel"], cfg, flags, equity_codes, safe)))
+            table = []
+            for name_, r in rows:
+                h = headline(r)
+                row = {"신호": name_, "CAGR": h["cagr"], "MDD": h["mdd"], "샤프": h["sharpe"]}
+                for w, (a, b) in sig.ORACLE_WINDOWS.items():
+                    part = r.equity.loc[a:b]
+                    row[f"{w} 낙폭"] = float((part / part.cummax() - 1).min()) if len(part) > 5 else np.nan
+                late = r.equity.loc["2015-01-02":]
+                row["2015+ CAGR"] = headline(late, r.cash)["cagr"]
+                row["회피 달 비율"] = float(r.risk_off.mean()) if hasattr(r, "risk_off") else 0.0
+                table.append(row)
+            st.session_state["sw_result"] = (pname, pd.DataFrame(table), rows)
+        got = st.session_state.get("sw_result")
+        if got:
+            pname_done, table, rows = got
+            st.markdown(f"#### {pname_done}")
+            st.dataframe(table, hide_index=True, width="stretch", column_config={
+                c: st.column_config.NumberColumn(format="%.2f" if c == "샤프" else "percent") for c in table.columns if c != "신호"})
+            pick = st.selectbox("그래프로 볼 신호", [n for n, _ in rows[1:]], key="sw_pick") if len(rows) > 1 else None
+            if pick:
+                r0, r1 = rows[0][1], dict(rows)[pick]
+                fig = go.Figure()
+                fig.add_scatter(x=r0.equity.index, y=r0.equity, name="스위치 없음", line=dict(color=GRAY, width=1.5))
+                fig.add_scatter(x=r1.equity.index, y=r1.equity, name=pick, line=dict(color=BLUE, width=2))
+                off = r1.risk_off.astype(int)
+                fig.add_scatter(x=off.index, y=off * r1.equity.max(), name="회피 중", fill="tozeroy", line=dict(width=0),
+                                fillcolor="rgba(227,73,72,0.12)", hoverinfo="skip")
+                fig.update_layout(height=380, yaxis_type="log", hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10),
+                                  title="자산 곡선과 회피 구간(붉은 배경)", legend=dict(orientation="h", y=-0.15))
+                st.plotly_chart(fig, width="stretch")
+            st.caption("신호 목록은 결과를 보기 전에 정했습니다(DECISIONS A29). 2022년을 잘 피한 TIP 카나리아는 2023년에 발표된 규칙이라 2022년이 표본 안입니다.")
+
+
+def tactical_spec_from_state(last: date) -> tuple[tac.TacticalSpec, str]:
+    """The tactical settings currently in the ① tab (session state), for the validation tab."""
+    ss = st.session_state
+    choice = ss.get("tac_choice", "HAA + BAA 공격형 50:50")
+    if choice == CUSTOM:
+        parts = tuple((k, float(ss.get(f"tac_w_{k}", 0))) for k in tac.STRATEGIES if ss.get(f"tac_w_{k}", 0))
+    else:
+        parts = TACTICAL_CHOICES[choice]
+    holdings = ss.get("tac_hold", "krw")
+    spec = tac.TacticalSpec(choice, parts=parts, start=str(ss.get("tac_start", date(2008, 1, 1))), end=str(ss.get("tac_end", last)),
+                            cost_bps=float(ss.get("tac_cost", 10.0)), offset=0, same_close=bool(ss.get("tac_same", False)),
+                            missing_to=ss.get("tac_missing", "459580"))
+    return spec, holdings
+
+
 # =========================================================================== navigation
 
-PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_")
+PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES) and "_editor" not in str(_k):
         st.session_state[_k] = st.session_state[_k]
@@ -1052,6 +1401,7 @@ nav = st.navigation([
     st.Page(research_page, title="전략 연구", icon="🧺", default=True),
     st.Page(compare_page, title="전략 비교", icon="📊"),
     st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
+    st.Page(tactical_page, title="전술 전략 · 검증", icon="🧭"),
     st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
     st.Page(notes_page, title="발견 · 경고 · 캠페인", icon="📝"),
     st.Page(saved_page, title="저장된 전략", icon="💾"),

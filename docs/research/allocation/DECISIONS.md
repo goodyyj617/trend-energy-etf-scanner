@@ -193,3 +193,71 @@ A23. Result of A22 (2026-10-24, memo 2026-10-24_broad_search.md; script scripts/
     base weights was being switched off and re-added (weights summed to 2.0); risk parity gave the whole
     portfolio to a zero-volatility cash product. Now the safe asset is never switched off, and assets with
     annualised volatility below RISK_PARITY_MIN_VOL (1 %) keep their base weight.
+
+### Gate reset, tactical strategies and validation (2026-10-25, user request in the thread "자산배분 연구실 Gate 재설정과 검증 기능 확장")
+
+A24. User request (2026-10-24 23:42 KST): replicate the important parts of a friend's allocation tool (12 screenshots:
+    HAA+BAA mixes, real daily drawdown, cost deduction, rebalance-date and lazy-rebalance risk, a 15% holdout,
+    252-split honest-vs-equal cross-validation, bootstrap / jackknife / DSR, holdings over time, ISA/CMA fill
+    helper), reset the final gate around HAA+BAA aggressive 50:50, and check whether the MDD comes only from
+    crises that a signal could avoid. Registered before the first run:
+    - `lab/aa_tactical.py`: HAA (Keller & Keuning 2023), BAA aggressive G4 (Keller 2022), VAA aggressive G4
+      (Keller & Keuning 2017), implemented from memory of the papers (rules in the module docstring) and
+      blends of them on the target weights. Signals always use US ETF total-return closes sampled on the
+      decision day of each month; VEA, BND and BIL are extended back with EFA, AGG and the T-bill index.
+      Holdings are the US ETFs (USD run, for reproduction) or Korean products via `KRW_MAP` with a quality
+      label (정확 / 근사 / 없음); DBC has no Korean product and goes to CD금리 (option: 금현물).
+    - Execution as in A3 (decide at the close, trade at the next close). `same_close` (trade at the deciding
+      close) exists only to reproduce published monthly backtests and is labelled 재현용 in the app.
+    - Study script `scripts/aa_gate_reset_study.py`; KRW window 2008-01 – 2026-10 (DBC needs 12 months of
+      history), plus 2005-01 for the static presets.
+A25. Result of A24's reproduction (memo 2026-10-25_gate_reset_and_validation.md). USD 2008-01 – 2026-08:
+    HAA 50 + BAA 50 9.7 % / −15.5 % / monthly Sharpe (rf 0) 1.07 with same-close trading vs the friend's
+    10.3 % / −15.5 % / 1.09; with next-close trading 8.8 % / −15.9 % / 0.97. KRW with Korean products:
+    9.6 % / −17.1 % (DBC → CD) and 10.2 % / −17.1 % (DBC → gold); HAA alone 10.2 % / −13.2 %; BAA alone
+    8.8 % / −22.9 %. Of the blend's monthly target weight, 25 % has an exact Korean product, 68 % an
+    approximate one (hedged, or MSCI World for VEA) and 7 % none (DBC).
+A26. Final gate reset (user: "CAGR 기준을 조금 낮추고, MDD 기준은 −15% 선으로", "HAA+BAA와 비슷한 기준"):
+    최종 Gate = CAGR >= 0.70 x S&P500(원화) CAGR over the same period AND MDD >= −15 % (absolute, daily).
+    This replaces the final gate of A9 (CAGR >= 0.80 x, |MDD| <= 0.75 x |benchmark MDD|, about −22 % in KRW).
+    The exploration gate is unchanged. A timing check ("날짜 견고": worst MDD over rebalance dates month end,
+    +1, +5, +10 and +15 trading days >= −20 %) is shown next to the gate as a reference, not inside it, until the
+    user decides. `AllocGates(min_cagr_ratio=0.70, max_mdd_abs=0.15)`; `max_mdd_abs=None` restores the old rule.
+    On 2005-01 – 2026-10: 안정형 40 (8.6 % / −11.8 %) and 안정형 45 (8.8 % / −13.0 %) pass, 안정형 35 misses the
+    CAGR bar (8.2 % vs 8.5 %), 내 AAA misses on MDD (−16.2 %); HAA (from 2007-03) passes but is timing-fragile
+    (worst −34.3 %), HAA+BAA fails on MDD (−17.1 %). The CAGR bar moves with the window (S&P500 KRW 12.1 % from
+    2005, 13.4 % from 2008), so a pass should be read with the period.
+A27. Validation tools (`lab/aa_validate.py`, app page "전술 전략 · 검증", bookmark aalab://tactical), settings
+    fixed before the first run: rebalance-date offsets {0, 1, 5, 10, 15} trading days after the period end
+    (new `AllocConfig.rebalance_offset`, omitted from `to_dict` when 0 so saved fingerprints do not change) and a
+    one-month delay for tactical rules; lazy rebalancing with the next trade 1 / 2 / 3 months later at 60 / 30 /
+    10 %, 50 draws, seed 7; holdout = last 15 % of trading days, never used to choose; CSCV with 10 blocks
+    (C(10,5) = 252 splits), Sharpe as the selection score, blends on a 10 % grid of up to 3 sleeves as
+    daily-weighted averages, PBO = share of splits where the in-sample best lands in the bottom half out of
+    sample; stationary block bootstrap with mean block 21 days, 1000 draws; leave-one-out over blend parts.
+    Also: monthly-return heatmap on the research page, target asset-class chart and Korean-substitute table
+    for tactical runs.
+A28. Result of A27 (KRW, memo): static presets move by ±0.3 %p CAGR and ±0.5 %p MDD across rebalance dates;
+    tactical rules swing widely (HAA+BAA MDD −16.0 % to −32.7 %, HAA −13.2 % to −34.3 %, worst at +10 days),
+    matching the friend's own "실전 이탈 리스크" table. Lazy rebalancing: HAA+BAA CAGR median 9.1 %, MDD median
+    −17.2 %, 10th percentile −19.8 %. Holdout 2023-11 – 2026-10: HAA+BAA Sharpe 0.77 → 0.47, 안정형 40 0.57 →
+    1.19. Bootstrap 90 % intervals of HAA+BAA and 안정형 40 overlap (Sharpe 0.43–1.03 vs 0.40–0.98). CSCV over
+    HAA, BAA, VAA, 안정형 40, 내 AAA, 영구, 60/40, S&P500 (2,276 blends): tuned beats equal weight in 48 % of
+    splits, PBO 50 %, out-of-sample Sharpe medians 0.68 vs 0.67. Weight tuning is noise here; equal weights of
+    chosen sleeves are the honest default.
+A29. Crisis-avoidance study (user: "MDD가 특정 상황에만 생기는지, 미리 감지하고 피할 수 있는지, 피하면 더 좋은지";
+    `lab/aa_signals.py`, `scripts/aa_crisis_signal_study.py`). Registered before the run: bases 안정형 40, 안정형 45,
+    내 AAA (KRW, 2005-01 – 2026-10, quarterly); signals S&P500 below its 10-month average, below its 200-day
+    average, TIP 13612U <= 0, any of SPY/VWO/VEA/BND 13612W < 0, VIX > 25, Baa−10y spread > its 12-month low
+    + 0.5 %p, 10y−3m < 0, and the hindsight oracle (on inside the three crash windows) as the upper bound; when
+    a signal is on at a month end, every equity product moves to CD금리 (variant: 미국달러선물) at the next close.
+    Result: the three deepest drawdowns of every preset are 2008, 2020 and 2022, but the next ones are −9 to
+    −10 % (including the drawdown in progress since 2026-06), so even the oracle only takes 안정형 40 from −11.8 %
+    to −9.4 % (내 AAA −16.2 % → −10.2 %). Trend, VIX, credit and breadth-canary switches cut the 2008 drawdown
+    (−11.8 % → −7.3 %) but cost 1.0–1.7 %p CAGR (about 2 %p since 2015) and leave the full-period MDD the same
+    or worse through false alarms. The TIP canary is the only signal that raised CAGR and Sharpe (안정형 40
+    8.6 % → 8.8 %, 0.67 → 0.82; 2022 drawdown −9.3 % → −4.7 %) but it does not touch 2020, so the MDD is
+    unchanged; it is timing-sensitive (+10 days: 8.3 % / −14.1 %) and the rule was published after 2022.
+    Dollar futures as the refuge were worse than CD. Decision: no switch is added to the presets; lowering
+    the equity weight remains the reliable way to lower drawdown; the TIP canary stays an out-of-sample
+    candidate to re-check later.
