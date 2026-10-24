@@ -42,7 +42,7 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 | 시스템 | 위치 | 상태 |
 |---|---|---|
 | **연구실 (lab)** | `lab/`, `tests/test_lab.py` | **현재 주력 제품.** 새 기능은 여기에 |
-| 자산배분 연구실 | `lab/aa_*.py`, `scripts/aa_link.py`, `tests/test_aa.py`, `docs/research/allocation/` | 별도 Streamlit 앱(포트 8511, 북마크 `aalab://`). 자산 비중·리밸런싱·overlay·레버리지·전략 믹스 연구 |
+| 자산배분 연구실 | `lab/aa_*.py`, `scripts/aa_link.py`, `tests/test_aa.py`, `tests/test_aa_korea.py`, `docs/research/allocation/` | 별도 Streamlit 앱(포트 8511, 북마크 `aalab://`). 국내 상장 ETF(원화)로 자산 비중·리밸런싱·overlay·레버리지·전략 믹스 연구, ISA 리밸런싱 계산기 |
 | Daily Alert | `lab/daily_alert.py`, `config/alert.yml`, `.github/workflows/daily_alert.yml` | 평일 장 마감 후 자동 실행. 이슈 "📊 일일 알림"에 댓글 |
 | Daily ETF Scan | `src/run_daily_scan.py` → `universe`, `features`, `signal_history`, `update_aum`; 결과 `docs/data/`; 화면 `docs/index.html` (GitHub Pages) | 매일 자동 실행. 유지 |
 | v1 Backtest Only | `src/run_backtest_only.py` → `src/backtest.py`, `src/portfolio.py`; 결과 `docs/data/backtest_*`; `docs/backtest_dashboard.js` | score-breakout 기반 레거시. 동결. 자동 실행 꺼짐(수동 실행만, DECISIONS 44) |
@@ -127,15 +127,17 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 
 추세추종 연구실과 **별도 앱**이다. `lab/data.py`(가격 패널)와 `lab/metrics.py`(지표 공식)만 가져다 쓰고 `lab/app.py`·`engine.py`·`store.py`·시험 기록(DSR 시험 수)은 건드리지 않는다. 방법론 결정은 `docs/research/allocation/DECISIONS.md`(A1, A2, …로 번호를 매겨 추세 DECISIONS와 겹치지 않음), 사용법은 같은 폴더의 `README.md`.
 
-- **`aa_assets.py`**: 자산군 ETF(USD 총수익, 한글 라벨, 국내 상품은 안내 문구만)와 프리셋(`PRESETS`). 프리셋은 결과를 보고 고치지 않는다. 새 배분은 새 프리셋으로 등록.
-- **`aa_engine.py`**: `AllocConfig`(비중·주기·밴드·비용·`Overlay`·`Leverage`) → `run_allocation(panel, cfg)` → `AllocResult`. 결정일 종가로 목표를 정하고 다음 거래일 종가에 체결, 편도 회전율에 비용, 현금은 패널 현금 수익률. 레버리지는 일일 리셋(`levered_returns`). `MixConfig`/`run_mix`는 슬리브를 따로 돌려 고정 비율로 섞는다(믹스의 믹스는 없음).
-- **`aa_score.py`**: 아홉 축(단순·일관·위기·꼬리·비용·샤프 전반/후반·최대낙폭·칼마)을 비교 집합 안의 백분위 순위(0–100)로 점수화한다. 합성 '견고'는 **참고용**이고 판정은 Gate(탐색: 칼마 ≥ SPY·|MDD| ≤ 0.75×SPY, 최종: CAGR ≥ 0.8×SPY·같은 MDD 조건)로만 한다(DECISIONS 24와 일치). 위기 구간은 `CRISIS_WINDOWS`에 등록.
-- **`aa_notes.py`**: `docs/research/allocation/NOTES.md`의 세 절(실무에 바로 쓰는 발견 / 정직한 경고 / 여기까지 오게 된 캠페인)을 읽고 덧붙인다. 다른 스레드·세션도 이 파일을 직접 고쳐 공유한다. 실행 기록은 `lab_results/aa_runs.csv`(git 제외).
+- **`aa_assets.py`**: 국내 상장 상품 `PRODUCTS`(종목코드 → 이름·자산군·미국 대용 ETF·환헤지 여부·총보수·상장일·레버리지 배수, 2026-10-24 확인)와 프리셋(`PRESETS`, 상품 코드 → %). 사용자는 ISA라 국내 상품만 살 수 있다(DECISIONS A13). 프리셋은 결과를 보고 고치지 않는다. 새 배분은 새 프리셋으로 등록.
+- **`aa_korea.py`**: 미국 대용 ETF 패널(`lab/data.py`) + 원/달러(`lab/aa_usdkrw.csv.gz`, FRED DEXKOUS) + 한국은행 기준금리(`lab/aa_bok_rate.csv`)로 상품별 원화 수익률을 만든 `krw_panel`(열 = 종목코드, 현금 = 원화 단기금리, `panel.benchmark` = 379800). 환노출·환헤지·원화·레버리지 공식은 모듈 docstring. 원/달러 갱신: `python -m lab.aa_korea refresh`.
+- **`aa_engine.py`**: `AllocConfig`(비중·주기·밴드·비용·`Overlay`·`Leverage`) → `run_allocation(panel, cfg)` → `AllocResult`. 결정일 종가로 목표를 정하고 다음 거래일 종가에 체결, 편도 회전율에 비용, 현금은 패널 현금 수익률, 기준선은 `benchmark_of(panel)`. 레버리지는 일일 리셋(`levered_returns`). `MixConfig`/`run_mix`는 슬리브를 따로 돌려 고정 비율로 섞는다(믹스의 믹스는 없음). `current_targets`는 오늘 기준 목표 비중(리밸런싱 계산기용).
+- **`aa_rebalance.py`**: ISA 리밸런싱 계산기(`rebalance_orders`: 입금액만으로 맞추기 / 전체 리밸런싱 + 밴드, 주 수는 버림). 보유 내역은 `lab_results/aa_holdings.json`(git 제외).
+- **`aa_score.py`**: 아홉 축(단순·일관·위기·꼬리·비용·샤프 전반/후반·최대낙폭·칼마)을 비교 집합 안의 백분위 순위(0–100)로 점수화한다. 합성 '견고'는 **참고용**이고 판정은 Gate(기준선 = S&P500 원화. 탐색: 칼마 ≥ 기준선·|MDD| ≤ 0.75×기준선, 최종: CAGR ≥ 0.8×기준선·같은 MDD 조건)로만 한다(DECISIONS 24와 일치). 위기 구간은 `CRISIS_WINDOWS`에 등록.
+- **`aa_notes.py`**: `docs/research/allocation/NOTES.md`의 세 절(실무에 바로 쓰는 발견 / 정직한 경고 / 여기까지 오게 된 캠페인)을 읽고 덧붙인다. 다른 스레드·세션도 이 파일을 직접 고쳐 공유한다. 실행 기록은 `lab_results/aa_runs.csv`(git 제외, `config` 열에 설정 JSON → '전략 비교' 페이지가 다시 돌림).
 - **`aa_store.py`**: `lab_results/<시각>_alloc_<이름>/` (meta.json + equity.csv + weights.csv). 추세 연구실 `store.py`와 폴더를 같이 쓰되 종류 접두어가 다르다.
-- **`aa_app.py`**: 페이지 5개(전략 연구, 성적표·믹스, 발견·경고·캠페인, 저장된 전략, 용어 설명). `init`/`PERSIST_PREFIXES`(`r_`, `sc_`, `mix_`) 규칙은 `app.py`와 같다. 캐시만 있고 네트워크가 없으면 캐시 최신 날짜로 내려가 동작한다.
-- **런처**: `자산배분 연구실 시작.cmd`(8511), `자산배분 연구실 북마크 등록.cmd` → `scripts/aa_link.py`가 `aalab://` 프로토콜을 등록해 Chrome 북마크(`aalab://scorecard` 등)로 앱을 켠다. 추세 연구실의 `trendlab://`(8501)과 독립.
-- 확인용 서버는 8512 등 다른 포트로 띄운다. 테스트(`tests/test_aa.py`)는 streamlit/yaml을 import하지 않고 `lab_results/`에 쓰지 않는다(임시 경로 사용).
-- 모든 결과는 미국 ETF의 달러 수익률이다. 국내 상품의 환율·헤지 비용·세금은 모형에 없으니 결과를 말할 때 이 한계를 붙인다.
+- **`aa_app.py`**: 페이지 7개(전략 연구, 전략 비교, 성적표·믹스, 리밸런싱 계산기, 발견·경고·캠페인, 저장된 전략, 용어·상품 설명). 상품은 체크박스, 비중은 정수 % 슬라이더. `init`/`PERSIST_PREFIXES`(`r_`, `sc_`, `mix_`, `cmp_`, `rb_`, `m_`) 규칙은 `app.py`와 같다. 버튼 키는 이 접두어로 시작하지 않게 하고(`btn_…`), `_editor`가 들어간 data_editor 키는 재할당에서 뺀다. 캐시만 있고 네트워크가 없으면 캐시 최신 날짜로 내려가 동작한다(EWY 캐시가 없으면 KODEX 200·레버리지는 비활성).
+- **런처**: `자산배분 연구실 시작.cmd`(8511), `자산배분 연구실 북마크 등록.cmd` → `scripts/aa_link.py`가 `aalab://` 프로토콜을 등록해 Chrome 북마크(`aalab://research|compare|scorecard|rebalance|notes|saved|glossary`)로 앱을 켠다. 추세 연구실의 `trendlab://`(8501)과 독립.
+- 확인용 서버는 8512 등 다른 포트로 띄운다. 테스트(`tests/test_aa.py`, `tests/test_aa_korea.py`)는 streamlit/yaml을 import하지 않고 `lab_results/`에 쓰지 않는다(임시 경로 사용).
+- 모든 결과는 국내 상장 ETF의 원화 수익률이고, 상장 전은 대용 데이터다(미국 ETF + 원/달러 + 두 나라 단기금리 + 총보수, 헤지 추가 비용 기본 20bp). 괴리율·추적오차·국내 금 프리미엄·세금은 모형에 없으니 결과를 말할 때 이 한계를 붙인다. 2026-10-24 이전 노트의 달러 숫자와 직접 비교하지 않는다(원화 기준선 MDD가 훨씬 작다).
 
 ## 확정된 연구 방법론 (상세: `docs/research/trend_v2/DECISIONS.md` 19번 이후, 목표: `CHARTER.md`)
 

@@ -9,6 +9,7 @@ numbers) and feeds the "campaign" tab. It is the user's research record and is n
 """
 from __future__ import annotations
 
+import json
 import re
 from datetime import date, datetime
 from pathlib import Path
@@ -30,7 +31,8 @@ SECTION_HELP = {
     "campaign": "어떤 질문에서 출발해 무엇을 시험했고 어디까지 왔는지. 다음 세션이 이어 가는 곳.",
 }
 _ENTRY = re.compile(r"^- (\d{4}-\d{2}-\d{2}) · (.*)$")
-RUN_COLUMNS = ["time", "name", "description", "period", "cagr", "mdd", "calmar", "sharpe_excess", "turnover", "kind"]
+RUN_COLUMNS = ["time", "name", "description", "period", "cagr", "mdd", "calmar", "sharpe_excess", "turnover", "kind",
+               "config"]  # config: JSON of the AllocConfig (or {"mix": MixConfig}) so a run can be re-run later
 
 
 def load_notes(path: Path = NOTES_PATH) -> dict[str, list[tuple[str, str]]]:
@@ -84,14 +86,20 @@ def add_note(section: str, text: str, day: str | None = None, path: Path = NOTES
 
 
 def log_run(name: str, description: str, period: tuple, metrics: dict, kind: str = "alloc",
-            path: Path | None = None) -> None:
+            path: Path | None = None, config: dict | None = None) -> None:
     path = path or RUNS_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     row = {
         "time": datetime.now().isoformat(timespec="seconds"), "name": name, "description": description,
         "period": f"{period[0]} → {period[1]}",
         **{k: metrics.get(k) for k in ("cagr", "mdd", "calmar", "sharpe_excess", "turnover")}, "kind": kind,
+        "config": json.dumps(config, ensure_ascii=False, default=str) if config is not None else "",
     }
+    if path.exists():
+        header = pd.read_csv(path, nrows=0, encoding="utf-8").columns.tolist()
+        if header != RUN_COLUMNS:  # a log from an older version: rewrite it with the current columns
+            old = pd.read_csv(path, encoding="utf-8").reindex(columns=RUN_COLUMNS)
+            old.to_csv(path, index=False, encoding="utf-8")
     pd.DataFrame([row], columns=RUN_COLUMNS).to_csv(path, mode="a", header=not path.exists(), index=False, encoding="utf-8")
 
 
@@ -99,4 +107,4 @@ def load_runs(path: Path | None = None) -> pd.DataFrame:
     path = path or RUNS_PATH
     if not path.exists():
         return pd.DataFrame(columns=RUN_COLUMNS)
-    return pd.read_csv(path, encoding="utf-8")
+    return pd.read_csv(path, encoding="utf-8").reindex(columns=RUN_COLUMNS)
