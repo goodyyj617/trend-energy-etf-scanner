@@ -246,6 +246,12 @@ def fam(e: str, x: str) -> str:
 
 
 def save_studies(out: Path, panel, meta: dict, summ: dict, n_eff: float, sr_var: float) -> None:
+    save_family_study(out, panel, meta, n_eff, sr_var)
+    save_sobol_study(out, panel, meta, summ)
+
+
+def save_family_study(out: Path, panel, meta: dict, n_eff: float, sr_var: float) -> None:
+    """The family comparison as a study for the app (panel: only close[SPY] and cash are read)."""
     sums = {k: family_summary(out, k) for k in SAMPLES}
     rk = {k: {(r.entry, r.exit): i + 1 for i, r in enumerate(s.itertuples())} for k, (s, _) in sums.items()}
     ranks = pd.DataFrame([{"entry": e, "exit": x, **{f"rank_{k}": rk[k][(e, x)] for k in rk}} for e, x in rk["full"]])
@@ -288,7 +294,9 @@ def save_studies(out: Path, panel, meta: dict, summ: dict, n_eff: float, sr_var:
                               "매매 기록 포트폴리오 = 그날 매수 가능한 종목(당해 상위 N)과 보유 중인 종목의 단독 계좌를 동일비중으로 합친 것",
                               "그래프: 순위 합 상위 10개 계열의 대표 칸 (표본마다 따로 고른 칸)"],
                      "70–71", "docs/research/lab/", curves=curves)
-    # Sobol study
+
+
+def save_sobol_study(out: Path, panel, meta: dict, summ: dict) -> None:
     d = out / "sobol"
     rows = {k: pd.read_csv(d / f"{k}.csv").set_index("i").sort_index() for k in SAMPLES}
     pbo = pd.DataFrame([{"표본": SAMPLES[k][2], "통과 비율": summ["pass_share"][k], "PBO (과최적화 확률)": summ["pbo"][k]["pbo"],
@@ -353,8 +361,7 @@ def main(argv: list[str]) -> None:
     n_eff, rho, _ = rlog.effective_trials()
     _, sr_var = rlog.trial_stats()
     if a.skip_sobol:
-        for k in SAMPLES:
-            family_summary(out, k)
+        save_family_study(out, panel, meta, n_eff, sr_var)
     else:
         save_studies(out, panel, meta, summ, n_eff, sr_var)
     n, _ = rlog.trial_stats()

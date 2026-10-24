@@ -391,6 +391,14 @@ allocation. Review: docs/research/lab/2026-10-23_quant_models_small_account.md.
     workers coinciding: the notebook now allows about 8 GB per worker, and the runner restarts
     the pool with one worker fewer and resumes when a worker is killed. Finished families are
     unaffected (each is written only when complete).
+75. Results of 71, families part (CRSP point-in-time top 1,000, strategy-only, menu v3, 5,544
+    cells): no cell meets the goal in either sample (0 / 2,772 each). Nearly every cell has a
+    smaller drawdown than SPY (best CAGR among them 8.8% vs SPY 9.9% on 1993-2023, 10.4% vs 12.7%
+    on 2017-2023). At the 15% drawdown budget 19.7% of 1993-2023 cells beat the SPY + T-bill mix
+    (best +2.2 points), none on 2017-2023. The rule beats holding the stock on only 15-34% of
+    stocks (family medians). trailing_pct exits and long entry windows lead both samples. The
+    Sobol part of 71 was not run (Colab TPU quota). Trials 46,593 (Colab log merged), N_eff
+    ~13,459. Record: docs/research/lab/2026-10-24_crsp_individual_stocks.md.
 
 ### Daily alert redesign (2026-10-24, user request)
 
