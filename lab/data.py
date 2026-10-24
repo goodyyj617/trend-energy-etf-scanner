@@ -140,6 +140,23 @@ def _cache_path(symbol: str) -> Path:
     return CACHE_DIR / "yf" / f"{symbol.replace('^', '_')}.csv.gz"
 
 
+def normalize_dates(dates: pd.Series) -> pd.Series:
+    """Daily bar timestamps -> tz-naive midnight of the New York trading date.
+
+    yfinance stamps finished bars at local midnight, but the current day's bar (built from the
+    live quote after the close) can carry the quote time, and some versions return tz-aware
+    timestamps. Mixed stamps pivot into separate rows with mostly-NaN closes, so every bar is
+    reduced to its trading date here before symbols are combined.
+    """
+    try:
+        d = pd.to_datetime(dates, format="mixed")
+    except (ValueError, TypeError):  # mixed UTC offsets in one column: go through UTC
+        d = pd.to_datetime(dates, format="mixed", utc=True)
+    if getattr(d.dt, "tz", None) is not None:
+        d = d.dt.tz_convert("America/New_York").dt.tz_localize(None)
+    return d.dt.normalize()
+
+
 def _download_one(sym: str, want_end: pd.Timestamp, refresh: bool) -> pd.DataFrame | None:
     import yfinance as yf
 
@@ -157,7 +174,8 @@ def _download_one(sym: str, want_end: pd.Timestamp, refresh: bool) -> pd.DataFra
         return None
     raw = raw.reset_index().rename(columns=str.lower)
     raw["symbol"] = sym
-    raw = raw[["date", "symbol", *FIELDS]].dropna(subset=["close"])
+    raw["date"] = normalize_dates(raw["date"])
+    raw = raw[["date", "symbol", *FIELDS]].dropna(subset=["close"]).drop_duplicates("date", keep="last")
     raw, _ = filter_completed_daily_bars(raw)
     path.parent.mkdir(parents=True, exist_ok=True)
     raw.to_csv(path, index=False)

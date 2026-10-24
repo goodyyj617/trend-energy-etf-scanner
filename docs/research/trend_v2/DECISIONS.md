@@ -392,6 +392,24 @@ allocation. Review: docs/research/lab/2026-10-23_quant_models_small_account.md.
     the pool with one worker fewer and resumes when a worker is killed. Finished families are
     unaffected (each is written only when complete).
 
+### Daily alert redesign (2026-10-24, user request)
+
+75. The daily alert of 53 drops the model portfolio and its next-open orders: the user does not
+    need them, and no strategy has passed the final gate (the alert strategy was only the v2
+    leader's defaults). It now reports the four regimes of 50 with, for each: the current value,
+    the on rule, how long the current state has held, a plain-language reading (level band,
+    one-month change, percentile since 1990, distance to the 200-day reference), a flag on the
+    day a regime flips, and a fixed explanation of what the indicator measures. The research
+    verdict of 52 (no regime improved timing; macro adds nothing beyond SPY's 200-day line) is
+    repeated in every comment so the alert is read as context, not as a trading signal.
+    Bug fixed with it: yfinance stamps the current day's bar at an intraday time (tz-aware,
+    differing per ticker), so the wide pivot put it in a separate row that was NaN for SPY and
+    most holdings while a few tickers' signals still fired. lab/data.normalize_dates maps every
+    stamp to the New York trading date; the alert additionally drops trailing rows with no SPY
+    close (daily_alert.trim_incomplete_tail). Research results are unaffected: the snapshot
+    files are midnight-stamped, and a yfinance cache file could carry such a stamp only on its
+    last row (the download day), which lies after every research end date (holdout start - 1).
+
 ## Open decisions
 
 - final trend-filter definition;

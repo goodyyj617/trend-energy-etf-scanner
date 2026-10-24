@@ -462,7 +462,7 @@ def test_regime_switch_addon_adds_filter_and_complement_exit(monkeypatch):
     assert "국면 전환" in at.label and len(at.table()) == 1
 
 
-def test_daily_alert_reports_regimes_and_next_open_orders():
+def test_daily_alert_explains_regimes_and_flags_flips():
     from lab import daily_alert, macro
 
     panel = _random_panel(n=400)
@@ -471,17 +471,51 @@ def test_daily_alert_reports_regimes_and_next_open_orders():
     vix[-2] = 30.0  # VIX known for the last day is 30 (one-day lag) -> regime off; the day before it was on
     _fake_macro(idx, T10Y3M=np.full(len(idx), 1.0), BAA10Y=np.full(len(idx), 2.0), VIXCLS=vix)
     try:
-        rows = {r.key: r for r in daily_alert.regime_rows(panel)}
+        regimes = daily_alert.regime_rows(panel)
+        rows = {r.key: r for r in regimes}
+        assert [r.key for r in regimes] == ["market_trend", "curve_ok", "credit_calm", "vix_calm"]
         assert rows["vix_calm"].on_today is False and rows["vix_calm"].flipped
         assert rows["curve_ok"].on_today is True and not rows["curve_ok"].flipped
-        c = cfg(entries={"momentum": 21}, exits={"trailing_pct": 10}, max_positions=2)
-        book = daily_alert.model_portfolio(panel, c)
-        assert len(book["holdings"]) <= 2 and set(book["sell"]) <= {h["symbol"] for h in book["holdings"]}
-        text = daily_alert.render(list(rows.values()), book, "someone")
-        assert "VIX 낮음" in text and "⚠️ 바뀜" in text and text.endswith("cc @someone")
-        assert daily_alert.has_news(list(rows.values()), book)
+        assert rows["vix_calm"].since.endswith("1거래일") and rows["curve_ok"].since.endswith("거래일")
+        assert all(r.context for r in regimes)  # every regime gets a plain-language reading
+        as_of = str(idx[-1].date())
+        text = daily_alert.render(regimes, as_of, "someone", dropped_rows=1)
+        assert as_of in text and "VIX 낮음" in text and "⚠️ 오늘 바뀜" in text
+        assert "지금 상황 읽기" in text and "지표 해설" in text and "마지막 1행" in text
+        assert text.endswith("cc @someone")
+        assert daily_alert.has_news(regimes)
+        plain = daily_alert.plain_text(text)
+        assert "**" not in plain and "<details>" not in plain and "|---" not in plain
     finally:
         macro.use(None)
+
+
+def test_normalize_dates_maps_intraday_and_tz_aware_stamps_to_the_trading_day():
+    from lab.data import normalize_dates
+
+    cases = [
+        pd.Series(["2026-10-22", "2026-10-23 16:00:02"]),  # yfinance's half-built current-day bar
+        pd.Series(["2026-10-22 00:00:00-04:00", "2026-10-23 15:59:00-04:00"]),  # tz-aware
+        pd.Series(["2026-10-22 04:00:00+00:00", "2026-10-23 20:00:00+00:00"]),  # UTC stamps
+    ]
+    for raw in cases:
+        out = normalize_dates(raw)
+        assert out.dt.tz is None
+        assert list(out) == [pd.Timestamp("2026-10-22"), pd.Timestamp("2026-10-23")], raw.tolist()
+
+
+def test_trim_incomplete_tail_drops_rows_without_a_benchmark_close():
+    from lab import daily_alert
+
+    up = list(np.linspace(10, 20, 30))
+    panel, _ = make_panel({"AAA": up, "SPY": up})
+    same, n = daily_alert.trim_incomplete_tail(panel)
+    assert n == 0 and same.close.index.equals(panel.close.index)
+    broken = up[:-2] + [np.nan, np.nan]
+    panel, _ = make_panel({"AAA": up, "SPY": broken})
+    cut, n = daily_alert.trim_incomplete_tail(panel)
+    assert n == 2 and len(cut.close) == 28 and cut.close["SPY"].notna().all()
+    assert cut.tradable == panel.tradable and cut.cash is None  # cash series is cut the same way when present
 
 
 def test_pending_orders_are_the_last_close_decisions():
