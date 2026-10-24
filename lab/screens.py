@@ -28,7 +28,7 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 
-from .blocks import Param, sma
+from .blocks import Param, adx_di, atr, cmf, obv, rsi, sma
 from .data import BENCHMARK, Panel
 
 MONTH = 21  # trading days
@@ -43,6 +43,7 @@ class Screen:
     param: Param | None
     compute: Callable[[Panel, float | None], pd.DataFrame]
     family: str = "가격"  # 가격 / 거래량 / 규모 / 배당
+    tier: int = 1  # 1 = price & volume directly, 2 = first derivatives (ATR, slopes, indicators), 3 = size, dividend, industry
 
 
 # --------------------------------------------------------------------------- helpers
@@ -362,7 +363,235 @@ SELECT_SCORES: dict[str, Screen] = {
     ]
 }
 
-STYLE_TILTS = ("s_small", "s_large", "s_dividend", "s_reversal", "s_lowvol")  # factor tilts, not trend screens
+# --------------------------------------------------------------------------- 2b. more selection scores
+# Priority set by the user (2026-10-25): tier 1 uses open/high/low/close/volume directly; tier 2 the
+# first derivatives of them (ATR, moving-average slopes, regression, RSI, ADX, CMF); tier 3 size,
+# dividend and industry. Each score has one lookback parameter M (months) or none; the representative
+# default is fixed here and other values are for the robustness tests.
+
+def _n(m: float) -> int:
+    return _months(m)
+
+
+def _dd(close: pd.DataFrame, n: int) -> pd.DataFrame:
+    return close / close.rolling(n, min_periods=n // 2).max() - 1.0
+
+
+def _s_mom_short(p: Panel, m: float) -> pd.DataFrame:
+    return _ret(p.close, m)
+
+
+def _s_rs_spy(p: Panel, m: float) -> pd.DataFrame:
+    r = _ret(p.close, m, 1)
+    return r.sub(r[BENCHMARK], axis=0)
+
+
+def _s_rs_line_high(p: Panel, _: float | None) -> pd.DataFrame:
+    line = p.close.div(p.close[BENCHMARK], axis=0)
+    return line / line.rolling(252, min_periods=126).max()
+
+
+def _s_low52_dist(p: Panel, _: float | None) -> pd.DataFrame:
+    return p.close / p.close.rolling(252, min_periods=126).min() - 1.0
+
+
+def _s_new_highs(p: Panel, m: float) -> pd.DataFrame:
+    hi = p.close.rolling(252, min_periods=200).max()
+    is_high = ((p.close >= hi) & p.close.notna()).astype(float)
+    return is_high.rolling(_n(m), min_periods=_n(m)).sum()
+
+
+def _s_clv(p: Panel, m: float) -> pd.DataFrame:
+    rng = (p.high - p.low).replace(0, np.nan)
+    clv = (((p.close - p.low) - (p.high - p.close)) / rng).fillna(0.0).where(p.close.notna())  # zero range = neutral
+    return clv.rolling(_n(m), min_periods=_n(m) // 2).mean()
+
+
+def _s_overnight(p: Panel, m: float) -> pd.DataFrame:
+    gap = p.open / p.close.shift(1) - 1.0
+    return gap.rolling(_n(m), min_periods=_n(m) // 2).sum()
+
+
+def _s_obv_slope(p: Panel, m: float) -> pd.DataFrame:
+    n = _n(m)
+    o = obv(p)
+    return (o - o.shift(n)) / p.volume.rolling(n, min_periods=n).sum().replace(0, np.nan)
+
+
+def _s_dollar_volume(p: Panel, _: float | None) -> pd.DataFrame:
+    dv = (p.close * p.volume).rolling(63, min_periods=63).mean()
+    return np.log(dv.where(dv > 0))
+
+
+def _s_range_contraction(p: Panel, m: float) -> pd.DataFrame:
+    rng = (p.high - p.low) / p.close
+    return rng.rolling(_n(m), min_periods=_n(m)).mean() / rng.rolling(MONTH, min_periods=MONTH).mean().replace(0, np.nan)
+
+
+def _s_consistency(p: Panel, m: float) -> pd.DataFrame:
+    monthly = (p.close / p.close.shift(MONTH) - 1.0 > 0).astype(float).where(p.close.notna())
+    return monthly.rolling(_n(m), min_periods=_n(m)).mean()
+
+
+def _s_dd_shallow(p: Panel, m: float) -> pd.DataFrame:
+    n = _n(m)
+    return _dd(p.close, n).rolling(n, min_periods=n // 2).min()
+
+
+def _s_fresh_high(p: Panel, _: float | None) -> pd.DataFrame:
+    c = p.close
+    is_high = (c >= c.rolling(252, min_periods=126).max()) & c.notna()
+    idx = pd.DataFrame(np.repeat(np.arange(len(c))[:, None], c.shape[1], axis=1), index=c.index, columns=c.columns)
+    last = idx.where(is_high).ffill()
+    since = (idx - last).fillna(idx)  # never made a 52-week high: count from the start of the data
+    return -since.where(c.notna())
+
+
+def _s_atr_momentum(p: Panel, m: float) -> pd.DataFrame:
+    return _ret(p.close, m) / (atr(p, 14) / p.close).replace(0, np.nan)
+
+
+def _s_atr_squeeze(p: Panel, _: float | None) -> pd.DataFrame:
+    return -(atr(p, 20) / atr(p, 120).replace(0, np.nan))
+
+
+def _s_bb_squeeze(p: Panel, m: float) -> pd.DataFrame:
+    width = p.close.rolling(20, min_periods=20).std(ddof=0) / sma(p.close, 20)
+    return -(width / width.rolling(_n(m), min_periods=_n(m) // 2).max().replace(0, np.nan))
+
+
+def _s_adx(p: Panel, _: float | None) -> pd.DataFrame:
+    adx, plus, minus = adx_di(p, 14)
+    return adx * np.sign(plus - minus)
+
+
+def _s_efficiency(p: Panel, m: float) -> pd.DataFrame:
+    n = _n(m)
+    path = p.close.diff().abs().rolling(n, min_periods=n).sum().replace(0, np.nan)
+    return (p.close - p.close.shift(n)) / path
+
+
+def _s_slope_r2(p: Panel, m: float) -> pd.DataFrame:
+    """Clenow's momentum: annualised exponential regression slope x R^2 over M months."""
+    n = _n(m)
+    y = np.log(p.close.where(p.close > 0))
+    t = pd.Series(np.arange(len(y), dtype=float), index=y.index)
+    ty = y.mul(t, axis=0)
+    cov = ty.rolling(n, min_periods=n).mean() - y.rolling(n, min_periods=n).mean().mul(t.rolling(n).mean(), axis=0)
+    var_t = (n ** 2 - 1) / 12.0
+    var_y = y.rolling(n, min_periods=n).var(ddof=0).replace(0, np.nan)
+    slope = cov / var_t
+    r2 = cov ** 2 / (var_t * var_y)
+    return (np.exp(slope * 252) - 1.0) * r2
+
+
+def _s_ma_slope(p: Panel, _: float | None) -> pd.DataFrame:
+    m50 = sma(p.close, 50)
+    return m50 / m50.shift(MONTH) - 1.0
+
+
+def _s_ma_distance(p: Panel, _: float | None) -> pd.DataFrame:
+    return p.close / sma(p.close, 200) - 1.0
+
+
+def _s_rsi(p: Panel, _: float | None) -> pd.DataFrame:
+    return rsi(p.close, 14)
+
+
+def _s_cmf(p: Panel, m: float) -> pd.DataFrame:
+    return cmf(p, _n(m))
+
+
+def _s_downside(p: Panel, m: float) -> pd.DataFrame:
+    r = p.close.pct_change(fill_method=None).clip(upper=0.0)
+    return -np.sqrt((r ** 2).rolling(_n(m), min_periods=_n(m)).mean())
+
+
+def _s_ulcer(p: Panel, m: float) -> pd.DataFrame:
+    n = _n(m)
+    return -np.sqrt((_dd(p.close, n) ** 2).rolling(n, min_periods=n // 2).mean())
+
+
+def _s_beta_low(p: Panel, _: float | None) -> pd.DataFrame:
+    r = p.close.pct_change(fill_method=None)
+    m = r[BENCHMARK]
+    return -r.rolling(63, min_periods=40).cov(m).div(m.rolling(63, min_periods=40).var(), axis=0)
+
+
+def _s_turnover(p: Panel, _: float | None) -> pd.DataFrame:
+    """Dollar volume relative to market value (shares traded as a share of the company)."""
+    dv = (p.close * p.volume).rolling(63, min_periods=63).mean()
+    return dv / (_cap(p) * 1e6).replace(0, np.nan)
+
+
+_M = lambda default, lo, hi, step=3: Param("M (개월)", default, lo, hi, step, "개월", "계산 기간")  # noqa: E731
+SELECT_SCORES.update({
+    s.key: s for s in [
+        # ---- tier 1: price and volume directly
+        Screen("s_mom_short", "단기 모멘텀 (M개월 수익률)", "지난 M개월 수익률 (최근 달 포함)",
+               "3개월 안팎의 짧은 추세. 1개월만 보면 단기 반전이 섞이므로 기본 3개월.", _M(3, 1, 6, 1), _s_mom_short),
+        Screen("s_rs_spy", "SPY 대비 초과수익", "M-1개월 수익률 − SPY의 같은 기간 수익률",
+               "시장보다 얼마나 더 올랐나(상대강도선의 기울기).", _M(6, 3, 12), _s_rs_spy),
+        Screen("s_rs_line_high", "상대강도선 신고가 근접", "(종가 ÷ SPY) ÷ 그 비율의 52주 최고값",
+               "O'Neil의 RS선 신고가. 시장 대비 비율이 1년 고점에 가까운 종목. 파라미터 없음.", None, _s_rs_line_high),
+        Screen("s_low52_dist", "52주 저가 대비 상승폭", "종가 ÷ 52주 최저 종가 − 1",
+               "바닥에서 얼마나 올라왔나(Minervini 템플릿의 '저가 대비 30% 이상' 조건의 연속형). 파라미터 없음.", None, _s_low52_dist),
+        Screen("s_new_highs", "신고가 횟수", "지난 M개월 중 52주 신고가를 기록한 날 수",
+               "계속 새 고가를 쓰는 종목. 한 번 튄 종목과 구분됩니다.", _M(3, 1, 12), _s_new_highs),
+        Screen("s_clv", "종가 위치 (일중 범위)", "지난 M개월 평균 [(종가−저가) − (고가−종가)] ÷ (고가−저가)",
+               "장중 범위의 위쪽에서 끝나는 날이 많으면 매수세가 강한 것으로 봅니다(−1~+1).", _M(3, 1, 6, 1), _s_clv),
+        Screen("s_overnight", "야간 수익 누적", "지난 M개월 (시가 ÷ 전일 종가 − 1)의 합",
+               "갭으로 오르는 종목은 뉴스·기관 수요가 있는 경우가 많습니다.", _M(3, 1, 12), _s_overnight),
+        Screen("s_obv_slope", "OBV 기울기", "(OBV − M개월 전 OBV) ÷ 같은 기간 거래량 합",
+               "오른 날 거래량이 내린 날보다 얼마나 많았나(−1~+1).", _M(3, 1, 12), _s_obv_slope, "거래량"),
+        Screen("s_dollar_volume", "거래대금 (유동성)", "log(63일 평균 거래대금)",
+               "거래가 활발한 종목 우선. 파라미터 없음.", None, _s_dollar_volume, "거래량"),
+        Screen("s_range_contraction", "변동폭 수축 (VCP)", "지난 M개월 평균 일중 범위 ÷ 최근 21일 평균 일중 범위",
+               "Minervini의 VCP: 돌파 전 일중 변동폭이 줄어드는 종목. 값이 클수록 최근이 조용함.", _M(6, 3, 12), _s_range_contraction),
+        Screen("s_consistency", "월간 승률", "지난 M개월 중 21일 수익률이 양수였던 날의 비율",
+               "꾸준히 오르는 종목.", _M(12, 6, 24, 6), _s_consistency),
+        Screen("s_dd_shallow", "낙폭 얕음", "−(지난 M개월 최대 낙폭)",
+               "같은 기간 덜 빠진 종목 우선.", _M(12, 3, 24), _s_dd_shallow),
+        Screen("s_fresh_high", "최근 고가 (경과일 짧음)", "−(52주 고가 이후 지난 거래일 수)",
+               "고가를 막 쓴 종목이 앞섭니다. 파라미터 없음.", None, _s_fresh_high),
+        # ---- tier 2: first derivatives
+        Screen("s_atr_momentum", "ATR 대비 모멘텀", "M개월 수익률 ÷ (ATR14 ÷ 종가)",
+               "하루 평균 변동폭 몇 개만큼 올랐나. 변동성이 다른 종목을 같은 잣대로 비교합니다.", _M(6, 3, 12), _s_atr_momentum, "보조지표", 2),
+        Screen("s_atr_squeeze", "ATR 수축", "−(ATR20 ÷ ATR120)",
+               "최근 변동폭이 장기보다 작아진 종목(에너지 응축). 파라미터 없음.", None, _s_atr_squeeze, "보조지표", 2),
+        Screen("s_bb_squeeze", "볼린저 밴드폭 수축", "−(20일 밴드폭 ÷ 지난 M개월 밴드폭 최댓값)",
+               "밴드폭이 최근 몇 달 중 가장 좁은 종목(스퀴즈).", _M(6, 3, 12), _s_bb_squeeze, "보조지표", 2),
+        Screen("s_adx", "ADX 추세 강도 (방향 포함)", "ADX(14) × 부호(+DI − −DI)",
+               "추세가 뚜렷하고 위쪽인 종목. 파라미터 없음.", None, _s_adx, "보조지표", 2),
+        Screen("s_efficiency", "추세 효율 (Kaufman)", "(종가 − M개월 전 종가) ÷ Σ|일간 종가 변화|",
+               "같은 상승이라도 지그재그가 적을수록 1에 가깝습니다.", _M(6, 3, 12), _s_efficiency, "보조지표", 2),
+        Screen("s_slope_r2", "회귀 기울기 × R² (Clenow)", "지난 M개월 log 종가의 지수회귀 기울기(연율) × 결정계수",
+               "Andreas Clenow의 모멘텀 순위. 가파르고 매끄러운 상승에 높은 점수.", _M(4, 3, 12, 1), _s_slope_r2, "보조지표", 2),
+        Screen("s_ma_slope", "50일선 기울기", "SMA50 ÷ 21일 전 SMA50 − 1", "중기 이동평균이 올라가는 속도. 파라미터 없음.", None, _s_ma_slope, "보조지표", 2),
+        Screen("s_ma_distance", "200일선 대비 거리", "종가 ÷ SMA200 − 1", "장기 추세 위로 얼마나 올라와 있나. 파라미터 없음.", None, _s_ma_distance, "보조지표", 2),
+        Screen("s_rsi", "RSI(14)", "RSI(14)", "상승 힘의 비율(0–100). 파라미터 없음.", None, _s_rsi, "보조지표", 2),
+        Screen("s_cmf", "자금 흐름 (CMF)", "Chaikin Money Flow, M개월", "거래량이 실린 종가 위치. 매집/분산의 또 다른 계산.", _M(3, 1, 6, 1), _s_cmf, "거래량", 2),
+        Screen("s_downside", "하방 변동성 낮음", "−√(지난 M개월 음(−) 일간 수익률 제곱 평균)", "내릴 때 덜 내리는 종목.", _M(6, 3, 12), _s_downside, "보조지표", 2),
+        Screen("s_ulcer", "낙폭 고통 지수 낮음 (Ulcer)", "−√(지난 M개월 낙폭² 평균)", "낙폭의 깊이와 길이를 함께 봅니다(Martin 1987).", _M(12, 6, 24, 6), _s_ulcer, "보조지표", 2),
+        Screen("s_beta_low", "저베타", "−(SPY 대비 63일 베타)", "시장에 덜 끌려다니는 종목(Frazzini & Pedersen 2014). 파라미터 없음.", None, _s_beta_low, "보조지표", 2),
+        # ---- tier 3: size, dividend, industry
+        Screen("s_turnover", "회전율", "63일 평균 거래대금 ÷ 시가총액", "회사 크기 대비 거래가 활발한 종목. 파라미터 없음.", None, _s_turnover, "규모", 3),
+    ]
+})
+for key, tier in {"s_quality": 2, "s_lowvol": 2, "s_small": 3, "s_large": 3, "s_dividend": 3, "s_reversal": 3, "s_industry_rs": 3}.items():
+    from dataclasses import replace as _replace
+    SELECT_SCORES[key] = _replace(SELECT_SCORES[key], tier=tier)
+STYLE_TILTS = ("s_small", "s_large", "s_dividend", "s_reversal", "s_lowvol")  # single-factor tilts (kept: the user wants small caps testable)
+TIER_LABELS = {1: "1순위: 가격·거래량", 2: "2순위: 파생 지표", 3: "3순위: 규모·배당·업종"}
+
+
+def scores_by_tier() -> dict[int, list[str]]:
+    out: dict[int, list[str]] = {1: [], 2: [], 3: []}
+    for k, sc in SELECT_SCORES.items():
+        out[sc.tier].append(k)
+    return out
+
+
 ALL_SCREENS: dict[str, Screen] = {**HYGIENE_SCREENS, **EXCLUDE_SCREENS, **SELECT_SCORES}
 
 
@@ -385,7 +614,7 @@ class ScreenConfig:
 
 # Ready-made combinations in the shape traders publish them. Values are the published defaults,
 # fixed before any backtest; a profile is tested as a unit (its K and the trading layer vary).
-HYGIENE_DEFAULT: dict[str, float | None] = {"h_history": 12, "h_price": 10, "h_liquidity": 2, "h_illiquid": 20}
+HYGIENE_DEFAULT: dict[str, float | None] = {"h_history": 12, "h_price": 5, "h_liquidity": 1, "h_illiquid": 20}  # no size floor
 PROFILES: dict[str, tuple[str, ScreenConfig]] = {
     "minervini": ("Minervini 추세 템플릿", ScreenConfig(
         exclude={**HYGIENE_DEFAULT, "tt_fail": 25, "x_extended": 25}, select={"s_rs": None}, top_k=50)),
