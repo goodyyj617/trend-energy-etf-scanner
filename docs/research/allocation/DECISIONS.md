@@ -321,3 +321,16 @@ A31. User request (2026-10-25 01:20–01:39 KST, thread "더 나은 자산배분
     Run 2026-10-25 02:15 KST (seed 2026, 249,934 candidates, 40,992 within −15 %): memo 2026-10-25_global_search.md and
     folder 2026-10-25_global_search/. No preset was registered from it; the refined (다듬음) list is not a candidate list.
 
+A32. Stage 2 of A31 (user's list, 2026-10-25 23:35 KST: "MDD −15%, CAGR 13.2%로 나오는 것도 포함, 나스닥 포함"):
+    candidates R (best refined, 13.2 / −14.9), A (best raw sample), B1–B5 (best per band without leverage or synthetic
+    products), plus the user's current 내 AAA and 안정형 40 for comparison. Each is re-run, one change at a time, with
+    the engine (`run_allocation`, band 0 / 3 / 5 %p), monthly / annual rebalancing, 20 bp cost, the A30 date offsets,
+    hedge cost 40 bp, starts 2008 / 2010 / 2015, every ±2 %p and ±5 %p neighbour (share within −15 %, worst MDD, CAGR
+    median / min), and, where a synthetic unhedged treasury is held, with it replaced by the hedged product and by
+    달러선물. Nothing is a cut; the memo reads the table. Script `scripts/aa_stage2.py`, outputs
+    `2026-10-25_stage2/` (stage2.csv, neighbours.csv.gz), memo `2026-10-25_stage2.md`.
+    Result: R and B1 break −15 % under almost every change (neighbours 27–56 % outside, band, monthly, date offsets;
+    R also under product substitution) — edge overfits, not candidates. A holds under ±2 %p (91 %) and substitution
+    but exceeds −15 % by 0.1–0.2 %p with a 3 %p band or date offsets. B2 (10.9 / −13.2) and B4 (9.5 / −11.7) stay
+    within −15 % under every test. 내 AAA is outside the line in every test (−16.3 %, 3 % of ±2 %p neighbours inside).
+    No preset registered; the user chooses.
