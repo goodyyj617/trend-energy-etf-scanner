@@ -165,22 +165,14 @@ def class_shares(W: np.ndarray) -> pd.DataFrame:
 
 def flags(df: pd.DataFrame) -> pd.Series:
     """⚠ flags from the information columns (never used to drop a candidate). Missing values raise no flag."""
-    out = []
-    for _, r in df.iterrows():
-        f = []
-        if r.get("mdd_h1", 0) < MDD_LINE or r.get("mdd_h2", 0) < MDD_LINE:
-            f.append("반기")
-        if any(r.get(f"dd_{k}", 0) < MDD_LINE for k in WINDOWS):
-            f.append("위기")
-        if r.get("mdd_holdout", 0) < MDD_LINE:
-            f.append("보류")
-        if r.get("roll_share", 1) < ROLL_MIN_SHARE:
-            f.append("창")
-        if r.get("nb_worst_mdd", 0) < MDD_LINE:
-            f.append("이웃")
-        if r.get("timing_worst", 0) < TIMING_LINE:
-            f.append("날짜")
-        out.append(" ".join(f))
+    def below(col: str, line: float) -> np.ndarray:  # NaN compares False: no flag
+        return (df[col].to_numpy(dtype=float) < line) if col in df.columns else np.zeros(len(df), dtype=bool)
+
+    tests = [("반기", below("mdd_h1", MDD_LINE) | below("mdd_h2", MDD_LINE)),
+             ("위기", np.logical_or.reduce([below(f"dd_{k}", MDD_LINE) for k in WINDOWS])),
+             ("보류", below("mdd_holdout", MDD_LINE)), ("창", below("roll_share", ROLL_MIN_SHARE)),
+             ("이웃", below("nb_worst_mdd", MDD_LINE)), ("날짜", below("timing_worst", TIMING_LINE))]
+    out = [" ".join(name for name, hit in tests if hit[i]) for i in range(len(df))]
     return pd.Series(out, index=df.index, dtype=object)
 
 
@@ -232,7 +224,7 @@ def load_results(folder: Path | str = RESULTS_DIR) -> SearchResults:
     W = np.vstack([W_pass, W_ref])
     presets = pd.read_csv(folder / "presets.csv")
     preset_W = matrix([parse_names(t) for t in presets["비중"]])
-    presets = _with_derived(presets[["이름"] + [c for c in APP_COLS if c in presets.columns]], preset_W)
+    presets = _with_derived(presets[["이름"] + [c for c in APP_COLS if c in presets.columns]], preset_W).assign(출처="프리셋")
     reps = pd.read_csv(folder / "representatives.csv")
     cloud = pd.read_csv(folder / "cloud.csv.gz")
     summary = json.loads((folder / "summary.json").read_text(encoding="utf-8"))

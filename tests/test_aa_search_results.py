@@ -90,6 +90,7 @@ def test_load_results_on_a_small_folder(tmp_path):
     assert res.cands["비중"].iloc[0] == sr.describe(res.W[0])
     assert {"주식", "채권", "레버리지", "상품 수", "⚠"} <= set(res.cands.columns)
     assert res.presets["이름"].tolist() == ["가", "나"] and res.preset_W.shape == (2, 30)
+    assert (res.presets["출처"] == "프리셋").all()  # the detail view reads 출처 for presets too
     assert len(res.cloud) == 5 and res.summary["n_pass"] == len(passing)
 
 

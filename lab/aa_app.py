@@ -1519,7 +1519,7 @@ def pick_from_table(key: str, rows_key: str) -> None:
     if sel is None and isinstance(ev, dict):
         sel = ev.get("selection", {}).get("rows", [])
     rows = st.session_state.get(rows_key, [])
-    if sel and sel[0] < len(rows):
+    if sel and sel[0] < len(rows) and rows[sel[0]][1] >= 0:  # -1 = a row that was not found in the results
         st.session_state["gs_pick"] = rows[sel[0]]
 
 
@@ -1740,7 +1740,7 @@ def search_detail(res: sr.SearchResults) -> None:
     st.markdown(f"**{title}** · CAGR **{pct(r['cagr'])}** · MDD **{pct(r['mdd'])}** · 상품 {int(r['상품 수'])}개 · 주식 {int(r['주식'])}% · "
                 f"채권 {int(r['채권'])}% · 금·실물 {int(r['금·실물'])}% · 현금·달러 {int(r['현금·달러'])}% · 레버리지 {int(r['레버리지'])}% · 환노출 {int(r['환노출'])}%")
     st.plotly_chart(search_bar(w), width="stretch", config={"displayModeBar": False})
-    if r["출처"] == "다듬음":
+    if r.get("출처") == "다듬음":
         st.warning("다듬은 배분입니다. 상위 300개에서 5%p씩 옮겨 CAGR을 올리다 −15% 선에 닿은 것이라 이웃 배분 다수가 선을 넘습니다. 후보가 아니라 참고로만 보세요.")
     if any(c in sr.SYNTHETIC for c in w):
         st.warning("가상 상품(환노출 미국채)이 들어 있습니다. 실제 국내 상품(TIGER 305080 / KODEX 308620 / ACE 453850)과 같은지 확인 전이라 ISA에서 그대로 살 수 없습니다.")
@@ -1776,6 +1776,8 @@ def search_reps(res: sr.SearchResults, row_of: dict[str, int]) -> None:
         except ValueError:
             rows.append(("c", -1))
     st.session_state["gs_rep_rows"] = rows
+    if any(i < 0 for _, i in rows):
+        st.caption("일부 대표 배분은 지금 결과 표에서 찾지 못해 눌러도 ④에 나오지 않습니다(대표 파일과 결과 파일의 실행이 다름).")
     labels = {"초과샤프": "초과 샤프", "회전": "연 회전율", "dd08": "2008 낙폭", "dd20": "2020 낙폭", "dd22": "2022 낙폭",
               "CAGR 08-": "CAGR 2008–", "MDD 08-": "MDD 2008–", "CAGR 10-": "CAGR 2010–", "M CAGR": "월 리밸런싱 CAGR",
               "M MDD": "월 리밸런싱 MDD", "A CAGR": "연 리밸런싱 CAGR", "A MDD": "연 리밸런싱 MDD", "20bp CAGR": "비용 20bp CAGR"}
@@ -1811,10 +1813,15 @@ def search_dials(res: sr.SearchResults) -> None:
 
 def search_page() -> None:
     try:
-        res, row_of = load_search_results(sr.RESULTS_DIR.joinpath("passing.csv.gz").stat().st_mtime)
+        stamp = sr.RESULTS_DIR.joinpath("passing.csv.gz").stat().st_mtime
+        res, row_of = load_search_results(stamp)
     except FileNotFoundError as exc:
         st.error(f"탐색 결과 파일이 없습니다: {exc}")
         return
+    if st.session_state.get("gs_stamp") != stamp:  # new result files: a stored row number may point at another allocation
+        for k in ("gs_pick", "gs_run"):
+            st.session_state.pop(k, None)
+        st.session_state["gs_stamp"] = stamp
     S = res.summary
     st.title("전역 탐색 결과 (1단계)")
     st.caption("국내 상장 ETF 28종 + 가상 상품 2종(환노출 미국채)으로 만든 고정 비중 배분을 한꺼번에 시험한 결과입니다(DECISIONS A31). "
