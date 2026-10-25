@@ -229,8 +229,12 @@ class SignalCache:
             if k[0] not in self.WINDOW_KEYS or (len(k) > 1 and k[1] != keep_window):
                 del self._memo[k]
 
+    PANEL_SPECIFIC = ("left_list",)  # blocks that read Panel.eligible: kept per cache, never shared
+
     def frame(self, key: str, value: float | None) -> pd.DataFrame:
         k = (key, None if value is None else float(value))
+        if key in self.PANEL_SPECIFIC:
+            return self.memo(("frame",) + k, lambda: ALL_BLOCKS[key].compute(self.panel, value).fillna(False).astype(bool))
         if k not in self._frames:
             block = ALL_BLOCKS[key]
             self._frames[k] = block.compute(self.panel, value).fillna(False).astype(bool)

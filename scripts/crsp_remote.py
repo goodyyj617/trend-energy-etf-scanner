@@ -26,7 +26,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-STUDIES = {"screens": "lab.screen_study", "families": "lab.crsp_study"}
+STUDIES = {"screens": "lab.screen_study", "families": "lab.crsp_study", "scores": "lab.score_study"}
 
 
 def copytree(src: Path, dst: Path) -> None:
@@ -61,7 +61,10 @@ def main(argv: list[str]) -> int:
     out = tmp / "out"
     python = sys.executable
     try:
-        if (panel_src / "meta.json").exists():
+        has_sic = (panel_src / "info.csv").exists() and "sic" in (panel_src / "info.csv").read_text(encoding="utf-8").splitlines()[0]
+        if (panel_src / "meta.json").exists() and not has_sic:
+            print("[1/3] panel on Drive has no industry codes (SIC): rebuilding it", flush=True)
+        if (panel_src / "meta.json").exists() and has_sic:
             print(f"[1/3] panel: copying {panel_src} -> temporary folder", flush=True)
             copytree(panel_src, panel)
         else:
