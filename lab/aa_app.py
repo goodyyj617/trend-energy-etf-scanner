@@ -18,6 +18,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lab import aa_notes as notes  # noqa: E402
+from lab import aa_real as real  # noqa: E402
 from lab import aa_rebalance as rebal  # noqa: E402
 from lab import aa_search_results as sr  # noqa: E402
 from lab import aa_signals as sig  # noqa: E402
@@ -79,7 +80,7 @@ def won(v) -> str:
 # =========================================================================== data
 
 @st.cache_resource(show_spinner="가격·환율 데이터를 불러오는 중… (처음 한 번은 1분 정도, 이후에는 저장된 파일 사용)")
-def load_data(day: str, hedge_bps: float) -> dict:
+def load_data(day: str, hedge_bps: float, source: str = real.DEFAULT_SOURCE) -> dict:
     try:
         usd, failed = download_panel(PROXY_SYMBOLS, day)
     except Exception as exc:  # offline: fall back to whatever is cached
@@ -92,22 +93,41 @@ def load_data(day: str, hedge_bps: float) -> dict:
         failed = list(failed) + [f"(오프라인: {exc})"]
     fx = splice(load_usdkrw(), fetch_usdkrw_tail())
     panel, unavailable = krw_panel(usd, fx, load_bok_rate(), KrwModel(hedge_extra_bps=hedge_bps))
+    panel, real_info, real_msg = real.apply_source(panel, source)
     return {"panel": panel, "failed": failed, "unavailable": unavailable, "fx_last": fx.index[-1].date(),
-            "usd_last": usd.last_date.date(), "fx": fx, "usd": usd}
+            "usd_last": usd.last_date.date(), "fx": fx, "usd": usd, "source": source, "real_info": real_info, "real_msg": real_msg}
+
+
+def price_source() -> str:
+    return str(st.session_state.get("m_source", real.DEFAULT_SOURCE))
 
 
 def data_or_stop() -> dict:
     try:
-        data = load_data(str(date.today()), float(st.session_state.get("m_hedge", 20.0)))
+        data = load_data(str(date.today()), float(st.session_state.get("m_hedge", 20.0)), price_source())
     except Exception as exc:
         st.error(f"가격 데이터를 불러오지 못했습니다: {exc}")
         st.stop()
     return data
 
 
+def real_start_table(data: dict) -> pd.DataFrame:
+    names = {c: p.name for c, p in sr.ALL_PRODUCTS.items()}
+    return real.splice_table(data["real_info"], names, data["panel"].last_date)[["상품", "실제 가격 시작", "실제 구간(년)", "실제 가격 상품"]]
+
+
 def sidebar(data: dict) -> None:
     with st.sidebar:
+        st.radio("가격 기준", list(real.SOURCES), format_func=real.SOURCES.get, key=init("m_source", real.DEFAULT_SOURCE),
+                 help="실제 가격 우선: 각 상품이 상장한 뒤(상장 5거래일 뒤부터)는 실제 국내 종가 + 분배금, 그 전은 미국 대용 모형을 이어 붙입니다. "
+                      "가상 상품(미국10년·30년 환노출)은 TIGER 미국채10년선물(305080)·ACE 미국30년국채액티브(453850)의 실제 가격을 씁니다. "
+                      "모형만: 모든 상품을 전 기간 미국 대용 × 원/달러로 계산합니다(DECISIONS A33). 바꾸면 모든 계산이 다시 됩니다.")
         st.caption(f"데이터: 미국 대용 ETF ~ {data['usd_last']} · 원/달러 ~ {data['fx_last']} · 원화 금리: 한국은행 기준금리")
+        st.caption(data.get("real_msg", ""))
+        if data.get("real_info"):
+            with st.expander("상품별 실제 가격 시작일"):
+                st.dataframe(real_start_table(data), hide_index=True, width="stretch")
+                st.caption("이 날짜 전은 모형입니다. 2008·2020 위기 낙폭은 대부분 상품에서 여전히 모형 값입니다.")
         if data["failed"]:
             st.caption("받지 못한 대용: " + ", ".join(map(str, data["failed"])))
         st.slider("헤지 추가 비용 (bp/년)", 0, 100, step=5, key=init("m_hedge", 20),
@@ -627,7 +647,7 @@ def compare_page() -> None:
         st.info("아직 실행한 전략이 없습니다. ‘전략 연구’에서 ▶ 백테스트 실행을 누르면 여기에 쌓입니다.")
         return
     cache = st.session_state.setdefault("cmp_cache", {})
-    version = (str(panel.last_date.date()), float(st.session_state.get("m_hedge", 20.0)), str(start), str(end))
+    version = (str(panel.last_date.date()), float(st.session_state.get("m_hedge", 20.0)), price_source(), str(start), str(end))
     results, errors = {}, []
     with st.spinner(f"{len(entries)}개 전략 계산 중…"):
         for i, e in enumerate(entries):
@@ -1037,8 +1057,20 @@ def glossary_page() -> None:
     st.subheader("국내 상장 ETF (ISA 매수 가능)")
     df = pd.DataFrame([{"분류": p.asset_class, "상품": p.name, "종목코드": c, "환": FX_LABELS[p.fx], "배수": p.leverage, "총보수(%)": p.ter,
                         "상장일": p.listed, "상장 전 대용": p.proxy_text, "메모": p.note} for c, p in PRODUCTS.items()])
+    rp = sr.load_real_products()
+    if rp is not None:
+        own = rp[rp["kind"] == "product"].set_index("model")
+        df.insert(7, "실제 가격 시작", df["종목코드"].map(own["start"]))
+        df.insert(8, "실제−모형 (%p/년)", df["종목코드"].map(own["diff_pp"]))
+        df.insert(9, "월수익률 상관", df["종목코드"].map(own["corr_monthly"]))
     st.dataframe(df, hide_index=True, width="stretch", column_config={"배수": st.column_config.NumberColumn(format="%.0fx"),
+                                                                      "실제−모형 (%p/년)": st.column_config.NumberColumn(format="%+.2f"),
+                                                                      "월수익률 상관": st.column_config.NumberColumn(format="%.2f"),
                                                                       "총보수(%)": st.column_config.NumberColumn(format="%.4g")})
+    if rp is not None:
+        st.caption("‘실제 가격 시작’은 사이드바 ‘가격 기준 = 실제 가격 우선’일 때 그 상품이 실제 국내 가격(네이버 종가 + Yahoo 분배금)으로 바뀌는 날입니다"
+                   "(상장 5거래일 뒤, 미국 날짜 기준). 그 전은 모형입니다. ‘실제−모형’과 ‘월수익률 상관’은 그날부터 2026-10-16까지 실제 가격과 모형을 비교한 값이고(DECISIONS A33), "
+                   "1–5년 표본이 많아 잡음이 큽니다. 가상 상품 두 종은 실제 상품 305080·453850의 가격을 씁니다. 메모: docs/research/allocation/2026-10-26_real_prices.md")
     st.caption("종목코드·총보수·상장일·환헤지 여부는 2026-10-24에 etfshopping.com, funetf.co.kr, 운용사 페이지에서 확인했습니다. 총보수 외 실부담비용은 더 클 수 있습니다.")
     st.subheader("원화 수익률을 만드는 방법")
     st.markdown(BR.join([
@@ -1481,9 +1513,10 @@ def load_stage2_results(stamp: float, stamp2: float) -> tuple[pd.DataFrame | Non
 
 
 @st.cache_resource(show_spinner="가상 상품까지 넣은 원화 패널을 만드는 중…")
-def load_search_panel(day: str, hedge_bps: float):
-    data = load_data(day, hedge_bps)
-    return krw_panel(data["usd"], data["fx"], load_bok_rate(), KrwModel(hedge_extra_bps=hedge_bps), products=sr.ALL_PRODUCTS)
+def load_search_panel(day: str, hedge_bps: float, source: str = real.DEFAULT_SOURCE):
+    data = load_data(day, hedge_bps, source)
+    panel, unavailable = krw_panel(data["usd"], data["fx"], load_bok_rate(), KrwModel(hedge_extra_bps=hedge_bps), products=sr.ALL_PRODUCTS)
+    return real.apply_source(panel, source)[0], unavailable
 
 
 def search_view(res: sr.SearchResults) -> np.ndarray:
@@ -1705,7 +1738,7 @@ def search_product_table(weights: dict[str, int]) -> None:
 def search_rerun(name: str, weights: dict[str, int], compare: str | None) -> None:
     data = data_or_stop()
     try:
-        panel, unavailable = load_search_panel(str(date.today()), float(st.session_state.get("m_hedge", 20.0)))
+        panel, unavailable = load_search_panel(str(date.today()), float(st.session_state.get("m_hedge", 20.0)), price_source())
     except Exception as exc:
         st.error(f"패널을 만들지 못했습니다: {exc}")
         return
@@ -1726,17 +1759,18 @@ def search_rerun(name: str, weights: dict[str, int], compare: str | None) -> Non
                 other = run_allocation(panel, pc)
     if sr.buyable(weights):
         notes.log_run(cfg.name, cfg.describe(), (str(res.period[0].date()), str(res.period[1].date())), m, config=cfg.to_dict())
-    st.session_state["gs_run"] = (sr.code_text(sr.to_vector(weights)), res, m, other, data["usd_last"])
+    st.session_state["gs_run"] = (sr.code_text(sr.to_vector(weights)), res, m, other, data["usd_last"], real.SOURCES[price_source()])
 
 
 def search_run_view(r: pd.Series, weights: dict[str, int]) -> None:
     stored = st.session_state.get("gs_run")
-    if stored is None or stored[0] != sr.code_text(sr.to_vector(weights)):
+    if stored is None or len(stored) != 6 or stored[0] != sr.code_text(sr.to_vector(weights)):
         return
-    _, res, m, other, usd_last = stored
+    _, res, m, other, usd_last, source_label = stored
     st.caption(f"엔진 재실행: {res.period[0].date()} → {res.period[1].date()} · 분기 리밸런싱 · 편도 10bp · 헤지 추가 비용 "
-               f"{st.session_state.get('m_hedge', 20):g}bp · 가격 데이터 ~ {usd_last}. 탐색 기록 CAGR {pct(r['cagr'], 2)} / MDD {pct(r['mdd'], 2)} → "
-               f"재실행 {pct(m['cagr'], 2)} / {pct(m['mdd'], 2)}. 차이는 가격 캐시를 받은 날짜(yfinance 수정주가가 조금씩 바뀜)와 헤지 비용 설정에서 옵니다.")
+               f"{st.session_state.get('m_hedge', 20):g}bp · 가격 기준: {source_label} · 가격 데이터 ~ {usd_last}. "
+               f"탐색 기록(모형) CAGR {pct(r['cagr'], 2)} / MDD {pct(r['mdd'], 2)} → 재실행 {pct(m['cagr'], 2)} / {pct(m['mdd'], 2)}. "
+               "차이는 가격 기준(실제 가격 우선이면 상장 후 구간이 실제 가격), 가격 캐시를 받은 날짜, 헤지 비용 설정에서 옵니다.")
     kpi_row(m)
     gates_line(m)
     fig = go.Figure()
@@ -1830,6 +1864,11 @@ def search_reps(res: sr.SearchResults, row_of: dict[str, int]) -> None:
 STAGE2_COLS = {
     "CAGR": st.column_config.NumberColumn("CAGR %", format="%.2f", help="1단계와 같은 설정(분기, 10bp, 2005-01-03 –)의 연평균 수익률"),
     "MDD": st.column_config.NumberColumn("MDD %", format="%.2f", help="같은 설정의 전체 기간 최대 낙폭"),
+    "실제 CAGR": st.column_config.NumberColumn("실제 가격 반영 CAGR %", format="%.2f",
+                                             help="상장 후 구간을 실제 국내 가격(네이버 종가 + 분배금)으로 바꾼 혼합 패널의 같은 계산(DECISIONS A33). 상장 전은 여전히 모형"),
+    "실제 MDD": st.column_config.NumberColumn("실제 가격 반영 MDD %", format="%.2f", help="같은 혼합 패널의 전체 기간 최대 낙폭"),
+    "실제 구간 시작": st.column_config.TextColumn("모든 상품 실제 가격", help="후보가 담은 모든 상품이 실제 가격인 첫날. 그 전은 일부 또는 전부 모형"),
+    "실제 구간(년)": st.column_config.NumberColumn("실제 구간(년)", format="%.1f", help="위 날짜부터 2026-10-16까지. 위기가 없는 짧은 기간이라 판정에 쓰지 않습니다"),
     "선 안 시험": st.column_config.TextColumn("−15% 안 시험", help="설정을 하나씩 바꾼 MDD 시험(기준·엔진 밴드 0/3/5·월간·연간·20bp·날짜 이동·헤지 40bp·2008/2010/2015 시작·가상 상품 교체) 중 "
                                                         "MDD가 −15% 안에 남은 수 / 시험 수. 가상 상품이 없는 후보는 교체 시험이 없어 분모가 작습니다."),
     "최악 MDD": st.column_config.NumberColumn("최악 MDD %", format="%.2f", help="위 시험 전부에서 가장 깊은 MDD"),
@@ -1851,10 +1890,13 @@ def search_stage2(s2: pd.DataFrame | None, picks: list[tuple[str, int]]) -> None
                "다시 돌렸습니다(DECISIONS A32): 리밸런싱 밴드 0·3·5%p, 월·연 리밸런싱, 비용 20bp, 리밸런싱 날짜 이동(최악), 헤지 비용 40bp, 2008·2010·2015년 시작, "
                "가상 상품을 (H) 상품이나 달러선물로 바꾸기. 판정이 아니라 ‘선 위 한 점’이 설정 하나에 얼마나 흔들리는지 보는 표입니다. "
                "숫자는 % 단위. 행을 누르면 ④에 나옵니다. 산점도의 자주색 별이 같은 후보인데, 겹친 점이 많아 별을 누르면 바로 옆 배분이 열릴 수 있으니 후보는 이 표에서 고르세요.")
-    card = sr.stage2_scorecard(s2)
+    card = sr.stage2_scorecard(s2, sr.load_real_candidates())
     st.session_state["gs_stage2_rows"] = picks
     st.dataframe(card, hide_index=True, width="stretch", key="tbl_gs_stage2", on_select=lambda: pick_from_table("tbl_gs_stage2", "gs_stage2_rows"),
                  selection_mode="single-row", column_config=STAGE2_COLS)
+    st.caption("‘실제 가격 반영’ 두 열(A33, 2026-10-26)은 각 상품이 상장한 뒤를 실제 국내 가격으로 바꾼 결과입니다. R(−15.37)과 B (−15,−14](−15.30)는 "
+               "실제 가격에서 −15% 밖으로 나가고, A·B2–B5·안정형 40은 0.0–0.3%p 안에서만 바뀝니다. 미국10년국채액티브(H)가 2025-08 상장이라 대부분 후보는 "
+               "모든 상품이 실제 가격인 구간이 1.1년뿐이고, 2008·2020 위기 낙폭은 여전히 모형 값입니다. 메모: docs/research/allocation/2026-10-26_real_prices.md")
     st.caption("읽는 법(2026-10-25 실행 기준): R(13.2%)은 14개 시험 중 7개, A는 3개, B (−15,−14]은 밴드 3·5%p에서 −15%를 넘고, R과 B (−15,−14]은 ±2%p 이웃의 절반 이상이 "
                "선 밖입니다(선에 붙여 고른 몫). B (−14,−13] 이하 네 B 후보는 모든 시험에서 선 안에 남았습니다. ‘내 AAA’는 기준부터 선 밖입니다.")
     with st.expander("2단계 전체 표 (시험마다 CAGR·MDD)"):
@@ -1865,6 +1907,11 @@ def search_stage2(s2: pd.DataFrame | None, picks: list[tuple[str, int]]) -> None
     with st.expander("2단계 메모 전문"):
         try:
             st.markdown(sr.STAGE2_MEMO.read_text(encoding="utf-8"))
+        except OSError:
+            st.caption("메모 파일을 읽지 못했습니다.")
+    with st.expander("실제 국내 가격 대조 메모 (A33)"):
+        try:
+            st.markdown(sr.REAL_MEMO.read_text(encoding="utf-8"))
         except OSError:
             st.caption("메모 파일을 읽지 못했습니다.")
 
@@ -1910,7 +1957,8 @@ def search_page() -> None:
     st.title("전역 탐색 결과")
     st.caption("국내 상장 ETF 28종 + 가상 상품 2종(환노출 미국채)으로 만든 고정 비중 배분을 한꺼번에 시험한 1단계(DECISIONS A31)와, 거기서 고른 후보를 "
                "설정을 바꿔 다시 돌린 2단계(A32, ⑥)입니다. 원화, 2005-01-03 – 2026-10-16, 분기 리밸런싱, 편도 10bp, 헤지 추가 비용 20bp. "
-               "가격 데이터 없이 기록된 결과를 바로 보여 주고, 고른 배분은 엔진으로 다시 돌릴 수 있습니다. "
+               "가격 데이터 없이 기록된 결과를 바로 보여 주고, 고른 배분은 엔진으로 다시 돌릴 수 있습니다. 기록된 1·2단계 숫자는 **모형**(전 기간 미국 대용 × 원/달러)이고, "
+               "⑥의 ‘실제 가격 반영’ 열과 엔진 재실행(사이드바 ‘가격 기준’)이 상장 후 실제 가격을 씁니다. "
                "메모: docs/research/allocation/2026-10-25_global_search.md, 2026-10-25_stage2.md")
     cols = st.columns(5)
     cols[0].metric("시험한 배분", f"{S.get('n_candidates', 0):,}")
