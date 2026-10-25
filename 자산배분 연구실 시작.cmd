@@ -6,7 +6,13 @@ if not exist ".venv\Scripts\python.exe" (
   py -3.13 -m venv .venv || python -m venv .venv
   ".venv\Scripts\python.exe" -m pip install -q -r requirements.txt -r requirements-lab.txt
 )
-echo Starting the asset-allocation lab on port 8511. Your browser opens automatically.
-echo To stop it, close this window or press Ctrl+C.
-".venv\Scripts\python.exe" -m streamlit run lab\aa_app.py --server.headless false --server.port 8511
-pause
+rem The update may rewrite this file. cmd reads a ( ... ) block whole before running it,
+rem so the update and the start below sit in one block that ends with exit.
+(
+  ".venv\Scripts\python.exe" scripts\lab_update.py
+  echo Starting the asset-allocation lab on port 8511. Your browser opens automatically.
+  echo To stop it, close this window or press Ctrl+C.
+  ".venv\Scripts\python.exe" -m streamlit run lab\aa_app.py --server.headless false --server.port 8511
+  pause
+  exit /b
+)

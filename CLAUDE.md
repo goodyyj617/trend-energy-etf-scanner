@@ -29,6 +29,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 .venv/Scripts/python.exe -m pytest -q tests/test_lab.py::test_gates_and_loyo  # 단일 테스트
 .venv/Scripts/python.exe -m pytest -q -W error::FutureWarning                 # 전체 (~1.5분, CI와 동일 플래그)
 
+# 런처 자동 업데이트 (두 런처와 두 북마크가 앱을 켜기 전에 실행. 직접 돌려도 됨)
+.venv/Scripts/python.exe scripts/lab_update.py
+
 # 레거시 파이프라인 (스캔은 GitHub Actions가 매일 실행, 백테스트는 Actions 탭에서 수동 실행만; 로컬 실행은 docs/data를 덮어쓰므로 하지 말 것)
 python -m src.run_daily_scan && python src/postprocess_groups.py
 python -m src.run_backtest_only
@@ -127,6 +130,8 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - 폭 지정은 `width="stretch"`를 쓴다(`use_container_width`는 지원 종료 예정).
 - `.streamlit/config.toml`: `magicEnabled = false`(단독 표현식이 화면에 출력되는 것 방지), `address = 127.0.0.1`(외부 노출 방지).
 - `.cmd` 런처의 echo 문구는 ASCII로만 쓴다. 한글 echo는 cmd 인코딩 문제로 깨진다(PR #44).
+- 런처(`추세추종 연구실 시작.cmd`, `자산배분 연구실 시작.cmd`)와 북마크 핸들러(`scripts/lab_link.py`, `scripts/aa_link.py`)는 앱을 켜기 전에 `scripts/lab_update.py`로 GitHub의 `main`을 받아 **현재 브랜치에 병합**한다(checkout 안 함). 충돌·겹치는 미저장 수정·오프라인·진행 중인 병합이면 아무것도 바꾸지 않고 그대로 켠다. requirements가 바뀌면 패키지를 다시 설치한다. 그래서 사용자는 PR을 병합한 뒤 수동 `git pull` 없이 연구실만 다시 켜면 된다.
+  업데이트가 실행 중인 `.cmd` 파일 자체를 바꿀 수 있으므로(cmd는 배치 파일을 줄 단위로 디스크에서 읽음) 업데이트와 앱 시작은 `exit /b`로 끝나는 `( … )` 블록 하나에 둔다. `tests/test_lab_update.py`가 이 구조를 검사한다.
 - 사용자 화면에 내부 구조 용어(StrategyRun, hash 등)를 노출하지 않는다. 모든 지표·옵션에 정의를 붙인다.
 
 ## 자산배분 연구실 (`lab/aa_*.py`)
