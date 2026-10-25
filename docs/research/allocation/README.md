@@ -115,4 +115,5 @@ ISA 계좌에서 살 수 있는 **국내 상장 ETF**를 단위로 쓰고, 모�
 - 데이터(커밋됨): `lab/aa_usdkrw.csv.gz`(원/달러), `lab/aa_bok_rate.csv`(기준금리).
 - 기록: `docs/research/allocation/NOTES.md`(발견·경고·캠페인), `DECISIONS.md`(방법론 결정 A1–), 날짜별 메모.
 - 이 컴퓨터에만 남는 것(Git 제외): 저장 결과 `lab_results/*_alloc_*/`, 실행 기록 `lab_results/aa_runs.csv`, 보유 내역 `lab_results/aa_holdings.json`.
-- 테스트: `tests/test_aa.py`, `tests/test_aa_korea.py`.
+- 전역 탐색(A31): `lab/aa_search.py`(빠른 정적 시뮬레이터·표본 추출·CSCV), `scripts/aa_global_search.py`(실행), 결과 `2026-10-25_global_search/`(bands.md · top300.csv · top300_refined.csv · top2000.csv · presets.csv · scatter.png · summary.json), 메모 `2026-10-25_global_search.md`. 전체 후보 표(`candidates_full.csv.gz`, 25만 행)는 저장소에 넣지 않고 프로젝트 파일 `allocation/global_search/`에 둔다.
+- 테스트: `tests/test_aa.py`, `tests/test_aa_korea.py`, `tests/test_aa_tactical.py`, `tests/test_aa_search.py`.
