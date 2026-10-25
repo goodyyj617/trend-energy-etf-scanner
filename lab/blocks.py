@@ -355,6 +355,10 @@ EXIT_BLOCKS: dict[str, Block] = {
         Block("take_profit_pct", "부분 익절 (보유의 50%)", "종가 ≥ 진입가 × (1 + X%)인 첫날 → 다음 날 시가에 보유의 50% 매도 (한 번만)",
               "수익의 일부를 확정합니다. 남은 절반은 다른 청산 조건으로 팝니다. 이 조건만으로는 전량 청산이 일어나지 않습니다.",
               Param("X (%)", 20, 5, 100, 5, "%", "진입가 대비 상승률"), None, "가격"),
+        Block("left_list", "선별 목록 이탈", "오늘 이 종목이 매수 가능 목록(스크린)에 없음",
+              "매월 선별 목록에서 빠진 종목을 다음 날 시가에 팝니다(교체형 매매). 스크린이 없는 데이터에서는 상장 유니버스에서 빠질 때만 켜집니다.",
+              None, lambda p, _: ~(p.eligible.reindex(index=p.close.index, columns=p.close.columns).astype(float)
+                                   .fillna(0.0).astype(bool)) if p.eligible is not None else p.close.isna(), "가격"),
         Block("atr_stop", "ATR 손절 (진입가 기준)", "오늘 종가 < 진입가 − k × ATR(14)   (ATR은 신호일 값으로 고정)",
               "손절 폭을 종목의 평소 변동폭에 맞춥니다(변동성이 큰 종목은 넓게, 작은 종목은 좁게). 이 폭이 '위험 기준' 포지션 크기의 "
               "기준 단위 R이 됩니다.",

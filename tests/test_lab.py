@@ -1120,3 +1120,23 @@ def test_every_selection_score_computes_and_points_the_right_way():
     # style tilts stay available as selection scores (small caps must remain testable)
     assert all(k in screens.SELECT_SCORES for k in screens.STYLE_TILTS)
     assert "h_cap" not in screens.HYGIENE_DEFAULT
+
+
+from lab.blocks import ALL_BLOCKS  # noqa: E402
+
+
+def test_left_list_exit_sells_the_day_after_a_stock_leaves_the_list():
+    """Replacement layer (DECISIONS 79): out of the monthly list at day t's close -> sold at t+1 open;
+    the frame is per cache, so a screened panel sharing another cache's block outputs keeps its own."""
+    n = 40
+    panel, dates = make_panel({"AAA": [10.0 + 0.1 * i for i in range(n)], "SPY": [10.0] * n})
+    panel.eligible = pd.DataFrame(True, index=dates, columns=panel.symbols)
+    panel.eligible["SPY"] = False
+    panel.eligible.loc[dates[30]:, "AAA"] = False
+    c = cfg(entries={"always": None}, exits={"left_list": None})
+    base = SignalCache(replace(panel, eligible=None))
+    base.frame("left_list", None)  # the unscreened frame must not leak into the screened run
+    res = run_backtest(panel, c, SignalCache(panel).share_from(base))
+    t = res.trades.iloc[0]
+    assert t["entry_date"] < dates[30] and t["exit_date"] == dates[31] and t["exit_reason"] == ALL_BLOCKS["left_list"].label
+    assert len(res.trades) == 1 and res.open_positions.empty  # not bought again while off the list

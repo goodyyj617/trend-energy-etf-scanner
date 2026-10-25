@@ -453,6 +453,20 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     2017-2023. Momentum selection passes no cell in either sample under the fixed trading layer.
     No holdout candidate. Trials 51,233 (lab-computer log merged), N_eff ~16,515.
     Record: docs/research/lab/2026-10-25_screen_comparison_top3000.md.
+79. Representative-filter comparison of the selection scores (screens v2, registered before any
+    run). Every selection score of lab/screens.py (42, tiers 1-3, each at its registered default
+    lookback; exact values are left to later robustness tests) is tested alone: hygiene defaults
+    always on (history 12 m, price >= $5, dollar volume >= $1M, Amihud bottom 20% out; no size
+    floor), exclusion {none, Minervini trend template 25} x top K {20, 50, 100} = a 2 x 3 grid per
+    score. Two entries (always, above_ma 100) x two trading layers: hold (trailing_pct 30 +
+    atr_stop 3) and replace (new exit block left_list: sold the day after the stock leaves the
+    monthly list, + atr_stop 3). Sizing risk 1% / cap 10%, max 20 positions, 20 bp per side,
+    samples of 71, CRSP top 3,000, account level. Verdict and family order as 77 (pass share,
+    largest region, median CAGR excess, median window share); scores ranked by rank sum across
+    samples per (entry, layer), with tier averages. 2,016 cells, every cell a trial. Runner:
+    lab/score_study.py through scripts/crsp_remote.py (study "scores"; a Drive panel without SIC
+    codes is rebuilt). Entry-timing filters are redesigned after this result.
+    Design: docs/research/lab/2026-10-25_screens_v2_design.md.
 
 ## Open decisions
 
