@@ -15,6 +15,7 @@ ISA 계좌에서 살 수 있는 **국내 상장 ETF**를 단위로 쓰고, 모�
 | `aalab://compare` | 전략 비교 (실행한 모든 전략) |
 | `aalab://scorecard` | 성적표 · 믹스 |
 | `aalab://tactical` | 전술 전략 · 검증 (HAA·BAA·VAA, 날짜 민감도·성역·부트스트랩·정직 vs 균등·위기 회피 스위치) |
+| `aalab://search` | 전역 탐색 결과 (A31: 249,934개 배분의 CAGR–MDD 지도, 구간별 경계선, 고른 배분 재실행) |
 | `aalab://rebalance` | 리밸런싱 계산기 |
 | `aalab://notes` | 발견 · 경고 · 캠페인 |
 | `aalab://saved` | 저장된 전략 |
@@ -39,6 +40,12 @@ ISA 계좌에서 살 수 있는 **국내 상장 ETF**를 단위로 쓰고, 모�
    ③ 정직 vs 균등: 여러 전략을 섞을 때 과거로 맞춘 비중이 같은 비율보다 나은지 252분할(CSCV)로 봅니다. 승률·PBO·자주 뽑힌 비중.
    ④ 위기 회피 스위치: 프리셋의 주식 상품을 신호(추세·카나리아·VIX·신용·금리 역전, 사후 정답) 켜진 달에만 안전 상품으로 옮겨 봅니다.
    재현 스크립트: `scripts/aa_gate_reset_study.py`, `scripts/aa_crisis_signal_study.py`. 메모: `2026-10-25_gate_reset_and_validation.md`.
+3¾. **전역 탐색 결과** (2026-10-25, A31) — 30종 상품의 고정 비중 배분 249,934개를 시험한 결과를 가격 데이터 없이 바로 봅니다(`2026-10-25_global_search/`의 파일을 읽음).
+   ① 보기 설정: 나스닥100 · 방어·경기 섹터 · 레버리지 상품 · 가상 상품을 빼고 보기, 그 밖의 상품 빼기, 표본(계층·희소·다듬음), 최대 상품 수, '⚠ 없는 것만'. 판정이 아니라 보기 설정입니다(필수 조건은 MDD −15% 하나).
+   ② CAGR–MDD 산점도: MDD −15% 안 40,992개 전부(색 = 주식 비중, 삼각형 = 레버리지 상품 포함), −15% 밖 12,000개 표본(회색), 등록 프리셋(주황 마름모), 구간별 최고(검은 선). 점을 누르면 ④에 나옵니다.
+   ③ MDD 1%p 구간별 경계선 표(같은 구간 최고 프리셋과 나란히)와 구간 하나의 상위 배분 표(정렬·개수 선택).
+   ④ 고른 배분: 구성 막대, 기간별(반기·2008·2010 이후·앞 85%·보류 구간) CAGR/MDD, 위기 구간 낙폭, 5년 창·이웃·날짜·CSCV, ⚠의 뜻, 상품 표. '엔진으로 다시 돌려 보기'는 같은 규칙(2005-01-03부터, 분기, 10bp)으로 엔진을 돌려 자산 곡선·낙폭·연도별 수익을 프리셋 하나와 겹쳐 보여 주고 실행 기록에 남깁니다(가상 상품이 든 배분은 기록하지 않음). '전략 연구로 보내기'는 상품·비중·규칙을 전략 연구 화면에 채우고 그 페이지로 갑니다(가상 상품이 있으면 꺼짐).
+   ⑤ 대표 배분과 민감도(사후 선택, 읽기 보조), ⑥ 보류 구간 대조·CSCV PBO·다듬기·나스닥 의존 등 믿을 만한 정도, 결과 메모 전문.
 4. **리밸런싱 계산기** — 목표 전략(프리셋·저장 전략·전략 연구 화면)을 고르고, 지금 ISA의 상품별 평가금액(원하면 현재가)과 이번 입금액을 넣으면 상품별 매수·매도 금액과 주 수를 계산합니다.
    '입금액만으로 맞추기(매도 없음)'가 기본이고, '전체 리밸런싱'은 밴드 안이면 팔지 않습니다. 보유 내역은 이 컴퓨터의 `lab_results/aa_holdings.json`에만 저장됩니다.
 5. **발견 · 경고 · 캠페인** — `docs/research/allocation/NOTES.md`의 세 절을 보여 주고 항목을 추가합니다. 아래에는 실행 기록(`lab_results/aa_runs.csv`)이 쌓입니다.
@@ -115,5 +122,5 @@ ISA 계좌에서 살 수 있는 **국내 상장 ETF**를 단위로 쓰고, 모�
 - 데이터(커밋됨): `lab/aa_usdkrw.csv.gz`(원/달러), `lab/aa_bok_rate.csv`(기준금리).
 - 기록: `docs/research/allocation/NOTES.md`(발견·경고·캠페인), `DECISIONS.md`(방법론 결정 A1–), 날짜별 메모.
 - 이 컴퓨터에만 남는 것(Git 제외): 저장 결과 `lab_results/*_alloc_*/`, 실행 기록 `lab_results/aa_runs.csv`, 보유 내역 `lab_results/aa_holdings.json`.
-- 전역 탐색(A31): `lab/aa_search.py`(빠른 정적 시뮬레이터·표본 추출·CSCV), `scripts/aa_global_search.py`(실행), 결과 `2026-10-25_global_search/`(bands.md · top300.csv · top300_refined.csv · top2000.csv · presets.csv · scatter.png · summary.json), 메모 `2026-10-25_global_search.md`. 전체 후보 표(`candidates_full.csv.gz`, 25만 행)는 저장소에 넣지 않고 프로젝트 파일 `allocation/global_search/`에 둔다.
-- 테스트: `tests/test_aa.py`, `tests/test_aa_korea.py`, `tests/test_aa_tactical.py`, `tests/test_aa_search.py`.
+- 전역 탐색(A31): `lab/aa_search.py`(빠른 정적 시뮬레이터·표본 추출·CSCV), `lab/aa_search_results.py`(탐색 유니버스 30종과 결과 읽기 · 필터 · 구간별 경계선, 앱 페이지가 씀), `scripts/aa_global_search.py`(실행), 결과 `2026-10-25_global_search/`(passing.csv.gz · cloud.csv.gz(앱용) · bands.md · frontier.md · top300.csv · top300_refined.csv · top2000.csv.gz · presets.csv · representatives.csv · scatter.png · summary.json), 메모 `2026-10-25_global_search.md`. 앱용 두 파일만 다시 만들 때: `scripts/aa_global_search.py --app-files <candidates_full.csv.gz>`. 전체 후보 표(`candidates_full.csv.gz`, 25만 행)는 저장소에 넣지 않고 프로젝트 파일 `allocation/global_search/`에 둔다.
+- 테스트: `tests/test_aa.py`, `tests/test_aa_korea.py`, `tests/test_aa_tactical.py`, `tests/test_aa_search.py`, `tests/test_aa_search_results.py`.

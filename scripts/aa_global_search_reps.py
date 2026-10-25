@@ -101,8 +101,9 @@ def main(argv: list[str]) -> None:
         row["비중"] = r["비중"]
         rows.append(row)
     table = pd.DataFrame(rows)
-    num = [c for c in table.columns if c not in ("후보", "비중", "상품 수")]
-    table[num] = (table[num] * 100).round(2)
+    num = [c for c in table.columns if c not in ("후보", "비중", "상품 수", "초과샤프")]
+    table[num] = (table[num] * 100).round(2)  # percent units; the Sharpe ratio stays a ratio
+    table["초과샤프"] = table["초과샤프"].round(2)
     out.mkdir(parents=True, exist_ok=True)
     table.to_csv(out / "representatives.csv", index=False)
     pd.set_option("display.width", 300)

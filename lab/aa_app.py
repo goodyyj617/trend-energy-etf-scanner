@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lab import aa_notes as notes  # noqa: E402
 from lab import aa_rebalance as rebal  # noqa: E402
+from lab import aa_search_results as sr  # noqa: E402
 from lab import aa_signals as sig  # noqa: E402
 from lab import aa_store as store  # noqa: E402
 from lab import aa_tactical as tac  # noqa: E402
@@ -92,7 +93,7 @@ def load_data(day: str, hedge_bps: float) -> dict:
     fx = splice(load_usdkrw(), fetch_usdkrw_tail())
     panel, unavailable = krw_panel(usd, fx, load_bok_rate(), KrwModel(hedge_extra_bps=hedge_bps))
     return {"panel": panel, "failed": failed, "unavailable": unavailable, "fx_last": fx.index[-1].date(),
-            "usd_last": usd.last_date.date(), "fx": fx}
+            "usd_last": usd.last_date.date(), "fx": fx, "usd": usd}
 
 
 def data_or_stop() -> dict:
@@ -1431,18 +1432,433 @@ def tactical_spec_from_state(last: date) -> tuple[tac.TacticalSpec, str]:
     return spec, holdings
 
 
+# =========================================================================== page: global search results (A31)
+
+SEQ_BLUES = [[0, "#c6dbf3"], [0.5, "#4f8fd8"], [1, "#0b3a78"]]  # one hue, light -> dark: equity share
+INK, MUTED = "#3d3d3a", "#c9c7c0"
+SEARCH_PERIODS = [("전체 2005-01 – 2026-10", "cagr", "mdd"), ("2005 – 2014", "cagr_h1", "mdd_h1"), ("2015 – 2026", "cagr_h2", "mdd_h2"),
+                  ("2008년 이후", "cagr_2008", "mdd_2008"), ("2010년 이후", "cagr_2010", "mdd_2010"),
+                  ("앞 85% (2005-01 – 2023-07)", "cagr_sel", "mdd_sel"), ("뒤 15% 보류 구간 (2023-07 이후)", "cagr_holdout", "mdd_holdout")]
+WINDOW_NAMES = {"2008": "금융위기 2007–09", "2011": "유럽 재정위기 2011", "2018": "2018년 4분기", "2020": "코로나 2020", "2022": "금리 급등 2022"}
+SEARCH_COLS = {
+    "cagr": st.column_config.NumberColumn("CAGR", format="percent", help="2005-01-03 – 2026-10-16 연평균 복리 수익률 (원화)"),
+    "mdd": st.column_config.NumberColumn("MDD", format="percent", help="전체 기간 최대 낙폭. 유일한 필수 조건: −15% 이내"),
+    "sharpe_excess": st.column_config.NumberColumn("초과 샤프", format="%.2f", help="mean(r − 원화 현금) / std × √252"),
+    "calmar": st.column_config.NumberColumn("칼마", format="%.2f", help="CAGR / |MDD|"),
+    "turnover": st.column_config.NumberColumn("연 회전율", format="percent", help="한쪽 기준 연간 매매 비중"),
+    "상품 수": st.column_config.NumberColumn("상품 수", format="%d"),
+    "주식": st.column_config.NumberColumn("주식", format="%d%%"), "채권": st.column_config.NumberColumn("채권", format="%d%%"),
+    "금·실물": st.column_config.NumberColumn("금·실물", format="%d%%"), "현금·달러": st.column_config.NumberColumn("현금·달러", format="%d%%"),
+    "레버리지": st.column_config.NumberColumn("레버리지", format="%d%%", help="2배 상품의 비중 합 (노출은 이 값의 두 배)"),
+    "환노출": st.column_config.NumberColumn("환노출", format="%d%%", help="원/달러에 그대로 노출된 상품의 비중 합"),
+    "mdd_h1": st.column_config.NumberColumn("MDD 05–14", format="percent"), "mdd_h2": st.column_config.NumberColumn("MDD 15–26", format="percent"),
+    "mdd_holdout": st.column_config.NumberColumn("보류 MDD", format="percent", help="마지막 15% 기간(2023-07 이후)만 떼어 본 MDD"),
+    "roll_share": st.column_config.NumberColumn("5년 창", format="percent", help="5년 롤링 창 중 MDD −15% 안에 든 비율 (CAGR 상위 2,000개만 계산)"),
+    "timing_worst": st.column_config.NumberColumn("날짜 최악", format="percent",
+                                                  help="리밸런싱 날짜를 0·1·5·10·15거래일 미룬 최악 MDD (상위 300개만 계산)"),
+    "⚠": st.column_config.TextColumn("⚠", help="정보용 표시. 아래 ‘⚠ 표시의 뜻’ 참고. 후보를 떨어뜨리는 데 쓰지 않습니다."),
+    "출처": st.column_config.TextColumn("표본", help="계층 = 자산군 비중 Sobol × 상품 무작위, 희소 = 3–10개 상품 무작위, 다듬음 = 5%p씩 옮겨 CAGR을 올린 것"),
+    "비중": st.column_config.TextColumn("비중 (%)", width="large"),
+}
+
+
+@st.cache_resource(show_spinner="전역 탐색 결과를 읽는 중…")
+def load_search_results(stamp: float) -> tuple[sr.SearchResults, dict[str, int]]:
+    res = sr.load_results()
+    row_of = {sr.code_text(w): i for i, w in enumerate(res.W) if res.cands.at[i, "출처"] != "다듬음"}
+    return res, row_of
+
+
+@st.cache_resource(show_spinner="가상 상품까지 넣은 원화 패널을 만드는 중…")
+def load_search_panel(day: str, hedge_bps: float):
+    data = load_data(day, hedge_bps)
+    return krw_panel(data["usd"], data["fx"], load_bok_rate(), KrwModel(hedge_extra_bps=hedge_bps), products=sr.ALL_PRODUCTS)
+
+
+def search_view(res: sr.SearchResults) -> np.ndarray:
+    """Filter widgets → boolean mask over res.cands."""
+    st.subheader("① 무엇을 볼지")
+    st.caption("필수 조건은 **전체 기간 MDD −15% 이내 하나**입니다. 아래 칸은 보고 싶은 것만 남기는 보기 설정이고, 판정이 아닙니다.")
+    cols = st.columns(len(sr.EXCLUDE_GROUPS))
+    absent: list[str] = []
+    for i, (g, codes) in enumerate(sr.EXCLUDE_GROUPS.items()):
+        if cols[i].checkbox(f"{g} 빼고 보기", key=init(f"gs_x{i}", False), help=sr.GROUP_HELP[g]):
+            absent += codes
+    c1, c2, c3, c4 = st.columns([2.4, 1.6, 1.2, 1.2])
+    absent += c1.multiselect("그 밖에 뺄 상품", sr.SYMBOLS, format_func=sr.name_of, key=init("gs_xp", []),
+                             help="고른 상품을 하나라도 담은 배분을 숨깁니다.")
+    sources = c2.multiselect("표본", ["계층", "희소", "다듬음"], key=init("gs_src", ["계층", "희소"]),
+                             help="다듬음 = 상위 300개에서 5%p씩 옮겨 CAGR을 올린 배분. 모두 −15% 선에 붙어 있어(−14.8 – −15.0%) 후보 목록이 아니라 "
+                                  "‘선 위에서 얼마나 더 짜낼 수 있나’를 보는 참고입니다.")
+    max_n = c3.slider("최대 상품 수", 3, 10, key=init("gs_maxn", 10))
+    clean = c4.checkbox("⚠ 없는 것만", key=init("gs_clean", False),
+                        help="정보용 표시(반기·위기·보류·창·이웃·날짜)가 하나도 없는 배분만 봅니다. 대부분의 배분이 2008년 위기 창에서 ⚠를 받으니 켜면 크게 줄어듭니다.")
+    df = res.cands
+    mask = df["출처"].isin(sources).to_numpy() & sr.exclude_mask(res.W, absent) & (df["상품 수"] <= max_n).to_numpy()
+    if clean:
+        mask &= (df["⚠"] == "").to_numpy()
+    return mask
+
+
+def pick_from_chart() -> None:
+    ev = st.session_state.get("chart_gs")
+    pts = (ev or {}).get("selection", {}).get("points", []) if isinstance(ev, dict) else getattr(getattr(ev, "selection", None), "points", [])
+    for p in pts:
+        cd = p.get("customdata")
+        if isinstance(cd, dict):  # some front-end versions send an indexed object
+            cd = [cd[k] for k in sorted(cd, key=int)] if all(str(k).isdigit() for k in cd) else None
+        if cd:
+            k = int(cd[0])
+            st.session_state["gs_pick"] = ("p", -k - 1) if k < 0 else ("c", k)
+            return
+
+
+def pick_from_table(key: str, rows_key: str) -> None:
+    ev = st.session_state.get(key)
+    sel = getattr(getattr(ev, "selection", None), "rows", None)
+    if sel is None and isinstance(ev, dict):
+        sel = ev.get("selection", {}).get("rows", [])
+    rows = st.session_state.get(rows_key, [])
+    if sel and sel[0] < len(rows):
+        st.session_state["gs_pick"] = rows[sel[0]]
+
+
+def view_key(df: pd.DataFrame) -> str:
+    idx = df.index.to_numpy()
+    return f"{len(idx)}_{int(idx.sum()) % 1_000_003}_{int(idx[:50].sum()) if len(idx) else 0}"
+
+
+def search_scatter(res: sr.SearchResults, view: pd.DataFrame, pick) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(go.Scattergl(x=res.cloud["mdd"], y=res.cloud["cagr"], mode="markers", name=f"−15% 밖 ({len(res.cloud):,}개 표본)",
+                               marker=dict(size=3, color=MUTED, opacity=0.45), hoverinfo="skip",
+                               unselected=dict(marker=dict(opacity=0.45))))
+    fields = ["주식", "채권", "금·실물", "현금·달러", "레버리지", "상품 수"]
+    for lev, (name, symbol) in enumerate([("레버리지 없음", "circle"), ("레버리지 상품 포함", "triangle-up")]):
+        part = view[(view["레버리지"] > 0) == bool(lev)]
+        if part.empty:
+            continue
+        cd = np.column_stack([part.index.to_numpy(), part[fields].to_numpy()]).astype(int).tolist()  # plain lists: the click event returns them as is
+        fig.add_trace(go.Scattergl(
+            x=part["mdd"], y=part["cagr"], mode="markers", name=f"{name} ({len(part):,}개)", customdata=cd,
+            marker=dict(size=5 if lev == 0 else 6, symbol=symbol, color=part["주식"], coloraxis="coloraxis", opacity=0.75),
+            unselected=dict(marker=dict(opacity=0.75)), selected=dict(marker=dict(opacity=1.0)),
+            hovertemplate="CAGR %{y:.1%} · MDD %{x:.1%}<br>주식 %{customdata[1]}% · 채권 %{customdata[2]}% · 금 %{customdata[3]}% · "
+                          "현금·달러 %{customdata[4]}% · 레버리지 %{customdata[5]}%<br>상품 %{customdata[6]}개 · 누르면 아래에 자세히<extra></extra>"))
+    fr = sr.band_frontier(view)
+    if len(fr):
+        best = view.loc[fr["행"]]
+        fig.add_trace(go.Scattergl(x=best["mdd"], y=best["cagr"], mode="lines+markers", name="구간별 최고 CAGR (보이는 배분 중)",
+                                 line=dict(color=INK, width=2), marker=dict(size=7, color=INK),
+                                 customdata=np.column_stack([fr["행"].to_numpy(), best[fields].to_numpy()]).astype(int).tolist(),
+                                 hovertemplate="구간 최고 · CAGR %{y:.1%} · MDD %{x:.1%}<extra></extra>", unselected=dict(marker=dict(opacity=1.0))))
+    pres = res.presets
+    fig.add_trace(go.Scattergl(x=pres["mdd"], y=pres["cagr"], mode="markers", name="등록 프리셋",
+                             marker=dict(size=11, symbol="diamond-open", color=ORANGE, line=dict(width=2)),
+                             customdata=np.column_stack([-(np.arange(len(pres)) + 1), np.zeros((len(pres), 6))]).astype(int).tolist(),
+                             text=pres["이름"], hovertemplate="%{text}<br>CAGR %{y:.1%} · MDD %{x:.1%}<extra></extra>",
+                             unselected=dict(marker=dict(opacity=1.0))))
+    if pick is not None:
+        kind, i = pick
+        r = res.cands.loc[i] if kind == "c" else pres.iloc[i]
+        fig.add_trace(go.Scattergl(x=[r["mdd"]], y=[r["cagr"]], mode="markers", name="고른 배분", hoverinfo="skip",
+                                 marker=dict(size=20, symbol="circle-open", color=INK, line=dict(width=3))))
+    fig.add_vline(x=sr.MDD_LINE, line=dict(color=GRAY, dash="dash", width=1))
+    fig.add_annotation(x=sr.MDD_LINE, y=1, yref="paper", text="MDD −15% (유일한 필수 조건)", showarrow=False, xanchor="left",
+                       yanchor="top", font=dict(size=11, color=GRAY))
+    fig.update_layout(height=560, margin=dict(l=10, r=10, t=30, b=10), dragmode="zoom", clickmode="event+select",
+                      xaxis=dict(title="전체 기간 MDD", tickformat=".0%", range=[-0.32, 0.0]),
+                      yaxis=dict(title="CAGR (원화)", tickformat=".0%", range=[0.0, 0.135]),
+                      coloraxis=dict(colorscale=SEQ_BLUES, cmin=0, cmax=100, colorbar=dict(title="주식 %", thickness=12, len=0.6)),
+                      legend=dict(orientation="h", y=-0.14))
+    return fig
+
+
+def search_bar(weights: dict[str, int]) -> go.Figure:
+    fig = go.Figure()
+    for code, w in weights.items():
+        p = sr.ALL_PRODUCTS[code]
+        fig.add_bar(y=[""], x=[w / 100], orientation="h", name=sr.name_of(code), marker_color=CLASS_COLORS.get(p.asset_class, GRAY),
+                    marker_line=dict(color="white", width=2), text=f"{sr.name_of(code)} {w}%", textposition="inside",
+                    insidetextanchor="middle", hovertemplate=f"{p.name} ({code}): {w}%<extra></extra>")
+    fig.update_layout(barmode="stack", height=90, margin=dict(l=0, r=0, t=0, b=0), showlegend=False,
+                      xaxis=dict(visible=False, range=[0, 1]), yaxis=dict(visible=False))
+    return fig
+
+
+def search_band_table(res: sr.SearchResults, view: pd.DataFrame) -> None:
+    st.subheader("③ MDD 구간별 경계선")
+    fr = sr.band_frontier(view)
+    if fr.empty:
+        st.info("보이는 배분이 없습니다. ①의 보기 설정을 넓혀 보세요.")
+        return
+    pres = res.presets[res.presets["mdd"] >= sr.MDD_LINE]
+    pb = np.maximum([sr.band_of(v) for v in pres["mdd"]], sr.band_of(sr.MDD_LINE) + 1) if len(pres) else np.array([])
+    rows = []
+    for _, f in fr.iterrows():
+        r = view.loc[f["행"]]
+        inband = pres[pb == f["상한"]] if len(pres) else pres
+        best_p = inband.loc[inband["cagr"].idxmax()] if len(inband) else None
+        rows.append({"구간": f["구간"].replace("-", "−"), "배분 수": int(f["후보 수"]), "최고 CAGR": f["최고 CAGR"], "그 배분 MDD": f["그 후보 MDD"],
+                     "같은 구간 최고 프리셋": "" if best_p is None else f"{best_p['이름']} {best_p['cagr'] * 100:.1f}%",
+                     "⚠": r["⚠"], "비중": r["비중"]})
+    st.session_state["gs_front_rows"] = [("c", int(i)) for i in fr["행"]]
+    st.caption("각 1%p MDD 구간 (하한, 상한]에서 CAGR이 가장 높은 배분입니다. 행을 누르면 ④에 자세히 나옵니다. 기록된 표: frontier.md, bands.md.")
+    fkey = f"tbl_gs_front_{view_key(view)}"  # a new table when the visible set changes, so an old row tick does not linger
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", key=fkey, on_select=lambda: pick_from_table(fkey, "gs_front_rows"),
+                 selection_mode="single-row", column_config={
+                     "최고 CAGR": st.column_config.NumberColumn(format="percent"), "그 배분 MDD": st.column_config.NumberColumn(format="percent"),
+                     "비중": st.column_config.TextColumn("비중 (%)", width="large")})
+    c1, c2, c3 = st.columns([1.2, 1.4, 1])
+    labels = fr["구간"].tolist()
+    if st.session_state.get("gs_band") not in labels:  # the filters removed the band picked before
+        st.session_state["gs_band"] = labels[0]
+    band = c1.selectbox("구간 하나 자세히", labels, key="gs_band", format_func=lambda s: s.replace("-", "−"))
+    order = c2.selectbox("정렬", ["CAGR 높은 순", "초과 샤프 높은 순", "칼마 높은 순", "회전율 낮은 순", "상품 수 적은 순"], key=init("gs_sort", "CAGR 높은 순"))
+    top = c3.slider("보일 개수", 10, 100, step=10, key=init("gs_top", 20))
+    hi = int(fr.loc[fr["구간"] == band, "상한"].iloc[0])
+    bands = np.maximum([sr.band_of(v) for v in view["mdd"]], sr.band_of(sr.MDD_LINE) + 1)
+    part = view[bands == hi]
+    by, asc = {"CAGR 높은 순": ("cagr", False), "초과 샤프 높은 순": ("sharpe_excess", False), "칼마 높은 순": ("calmar", False),
+               "회전율 낮은 순": ("turnover", True), "상품 수 적은 순": ("상품 수", True)}[order]
+    part = part.sort_values([by, "cagr"], ascending=[asc, False]).head(top)
+    st.session_state["gs_band_rows"] = [("c", int(i)) for i in part.index]
+    cols = ["cagr", "mdd", "sharpe_excess", "calmar", "turnover", "상품 수", "주식", "채권", "금·실물", "현금·달러", "레버리지", "환노출",
+            "mdd_h1", "mdd_h2", "mdd_holdout", "roll_share", "timing_worst", "⚠", "출처", "비중"]
+    bkey = f"tbl_gs_band_{view_key(part)}"
+    st.dataframe(part[cols], hide_index=True, width="stretch", key=bkey, on_select=lambda: pick_from_table(bkey, "gs_band_rows"),
+                 selection_mode="single-row", column_config=SEARCH_COLS)
+
+
+def search_detail_tables(r: pd.Series) -> None:
+    c1, c2 = st.columns([1.15, 1])
+    per = pd.DataFrame([{"기간": n, "CAGR": r.get(a), "MDD": r.get(b)} for n, a, b in SEARCH_PERIODS])
+    c1.markdown("**기간별 성적** (탐색 때 기록)")
+    c1.dataframe(per, hide_index=True, width="stretch", column_config={"CAGR": st.column_config.NumberColumn(format="percent"),
+                                                                       "MDD": st.column_config.NumberColumn(format="percent")})
+    crisis = pd.DataFrame([{"위기 구간": WINDOW_NAMES[k], "기간": f"{sr.WINDOWS[k][0]} – {sr.WINDOWS[k][1]}", "낙폭": r.get(f"dd_{k}")}
+                           for k in sr.WINDOWS])
+    c2.markdown("**위기 구간 낙폭**")
+    c2.dataframe(crisis, hide_index=True, width="stretch", column_config={"낙폭": st.column_config.NumberColumn(format="percent")})
+    info = [("초과 샤프", num(r.get("sharpe_excess"))), ("칼마", num(r.get("calmar"))), ("연 회전율", pct(r.get("turnover"), 0)),
+            ("5년 창 −15% 안 비율", pct(r.get("roll_share"), 0)), ("5년 창 CAGR 중앙값", pct(r.get("roll_med_cagr"))),
+            ("±5%p 이웃 최악 MDD", pct(r.get("nb_worst_mdd"))), ("날짜 최악 MDD", pct(r.get("timing_worst"))),
+            ("CSCV 표본 외 −15% 안 비율", pct(r.get("pbo_oos_within"), 0))]
+    st.markdown(" · ".join(f"{k} **{v}**" for k, v in info))
+    st.caption("‘–’는 계산하지 않은 값입니다: 5년 창은 CAGR 상위 2,000개, 이웃·날짜는 상위 300개와 다듬은 배분, 프리셋만 계산했습니다. "
+               "CSCV 비율은 252가지로 기간을 나눴을 때 이 배분이 표본 외 반쪽에서 −15% 안에 든 비율입니다.")
+    if r.get("⚠"):
+        st.markdown("**⚠ 표시의 뜻** (정보용, 후보를 떨어뜨리지 않음)  \n" + BR.join(f"- **{f}**: {sr.FLAG_TEXT[f]}" for f in str(r["⚠"]).split()))
+
+
+def search_product_table(weights: dict[str, int]) -> None:
+    rows = []
+    for code, w in weights.items():
+        p = sr.ALL_PRODUCTS[code]
+        rows.append({"상품": p.name, "종목코드": "" if code in sr.SYNTHETIC else code, "비중": w / 100, "환": FX_LABELS[p.fx],
+                     "배수": p.leverage, "총보수(%)": p.ter, "상장일": p.listed, "상장 전 대용": p.proxy_text, "메모": p.note})
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
+        "비중": st.column_config.NumberColumn(format="percent"), "배수": st.column_config.NumberColumn(format="%.0fx"),
+        "총보수(%)": st.column_config.NumberColumn(format="%.4g")})
+
+
+def search_rerun(name: str, weights: dict[str, int], compare: str | None) -> None:
+    data = data_or_stop()
+    try:
+        panel, unavailable = load_search_panel(str(date.today()), float(st.session_state.get("m_hedge", 20.0)))
+    except Exception as exc:
+        st.error(f"패널을 만들지 못했습니다: {exc}")
+        return
+    missing = [c for c in weights if c in unavailable or c not in panel.symbols]
+    if missing:
+        st.error("대용 데이터가 없어 다시 돌릴 수 없는 상품: " + ", ".join(f"{sr.name_of(c)} ({unavailable.get(c, '데이터 없음')})" for c in missing))
+        return
+    end = min(date.fromisoformat(sr.END), panel.last_date.date())
+    cfg = sr.candidate_config(name, weights, end=str(end))
+    with st.spinner("엔진으로 다시 계산하는 중… (리밸런싱 날짜 다섯 가지 포함)"):
+        res = run_allocation(panel, cfg)
+        m = raw_metrics(res)
+        m["timing_mdd_worst"] = timing_worst_mdd(lambda o: run_allocation(panel, with_rebalance_offset(cfg, o)), res)
+        other = None
+        if compare in PRESETS:
+            pc = sr.candidate_config(PRESETS[compare].name, PRESETS[compare].weights, end=str(end))
+            if all(s == CASH or s in panel.symbols for s in pc.weights):
+                other = run_allocation(panel, pc)
+    if sr.buyable(weights):
+        notes.log_run(cfg.name, cfg.describe(), (str(res.period[0].date()), str(res.period[1].date())), m, config=cfg.to_dict())
+    st.session_state["gs_run"] = (sr.code_text(sr.to_vector(weights)), res, m, other, data["usd_last"])
+
+
+def search_run_view(r: pd.Series, weights: dict[str, int]) -> None:
+    stored = st.session_state.get("gs_run")
+    if stored is None or stored[0] != sr.code_text(sr.to_vector(weights)):
+        return
+    _, res, m, other, usd_last = stored
+    st.caption(f"엔진 재실행: {res.period[0].date()} → {res.period[1].date()} · 분기 리밸런싱 · 편도 10bp · 헤지 추가 비용 "
+               f"{st.session_state.get('m_hedge', 20):g}bp · 가격 데이터 ~ {usd_last}. 탐색 기록 CAGR {pct(r['cagr'], 2)} / MDD {pct(r['mdd'], 2)} → "
+               f"재실행 {pct(m['cagr'], 2)} / {pct(m['mdd'], 2)}. 차이는 가격 캐시를 받은 날짜(yfinance 수정주가가 조금씩 바뀜)와 헤지 비용 설정에서 옵니다.")
+    kpi_row(m)
+    gates_line(m)
+    fig = go.Figure()
+    fig.add_scatter(x=res.equity.index, y=res.equity, name="고른 배분", line=dict(color=BLUE, width=2))
+    if other is not None:
+        fig.add_scatter(x=other.equity.index, y=other.equity, name=other.config.name, line=dict(color=AQUA, width=1.5))
+    fig.add_scatter(x=res.benchmark.index, y=res.benchmark, name=BENCH, line=dict(color=ORANGE, width=1.2))
+    fig.update_layout(height=380, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10), title="자산 곡선 (시작 = 1, 원화, 로그)",
+                      yaxis_type="log", legend=dict(orientation="h", y=-0.15))
+    st.plotly_chart(fig, width="stretch")
+    dd = go.Figure()
+    dd.add_scatter(x=res.equity.index, y=drawdown(res.equity), name="고른 배분", fill="tozeroy", line=dict(color=BLUE, width=1))
+    if other is not None:
+        dd.add_scatter(x=other.equity.index, y=drawdown(other.equity), name=other.config.name, line=dict(color=AQUA, width=1))
+    dd.add_scatter(x=res.benchmark.index, y=drawdown(res.benchmark), name=BENCH, line=dict(color=ORANGE, width=1))
+    dd.add_hline(y=sr.MDD_LINE, line=dict(color=GRAY, dash="dash", width=1))
+    dd.update_layout(height=260, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10), title="낙폭", yaxis_tickformat=".0%",
+                     legend=dict(orientation="h", y=-0.2))
+    st.plotly_chart(dd, width="stretch")
+    ann = annual_frame(res)
+    st.plotly_chart(annual_chart(ann), width="stretch")
+    if sr.buyable(weights):
+        st.caption("이 재실행은 ‘전략 비교’ 페이지의 실행 기록에도 쌓였습니다. 거기서 프리셋·다른 후보와 같은 기간으로 겹쳐 볼 수 있습니다.")
+    else:
+        st.caption("가상 상품이 들어 있어 실행 기록에는 남기지 않았습니다(‘전략 비교’는 실제 상품만 다시 돌립니다).")
+
+
+def search_detail(res: sr.SearchResults) -> None:
+    st.subheader("④ 고른 배분")
+    pick = st.session_state.get("gs_pick")
+    if pick is None:
+        st.info("②의 산점도에서 점을 누르거나 ③의 표에서 행을 고르면 여기에 구성·기간별 성적·위기 낙폭이 나오고, 엔진으로 다시 돌려 자산 곡선을 볼 수 있습니다.")
+        return
+    kind, i = pick
+    if kind == "c":
+        r, w = res.cands.loc[i], sr.weights_of(res.W[i])
+        title = f"탐색 배분 #{i + 1:,} ({r['출처']})"
+    else:
+        r, w = res.presets.iloc[i], sr.weights_of(res.preset_W[i])
+        title = f"프리셋 · {r['이름']}"
+    st.markdown(f"**{title}** · CAGR **{pct(r['cagr'])}** · MDD **{pct(r['mdd'])}** · 상품 {int(r['상품 수'])}개 · 주식 {int(r['주식'])}% · "
+                f"채권 {int(r['채권'])}% · 금·실물 {int(r['금·실물'])}% · 현금·달러 {int(r['현금·달러'])}% · 레버리지 {int(r['레버리지'])}% · 환노출 {int(r['환노출'])}%")
+    st.plotly_chart(search_bar(w), width="stretch", config={"displayModeBar": False})
+    if r["출처"] == "다듬음":
+        st.warning("다듬은 배분입니다. 상위 300개에서 5%p씩 옮겨 CAGR을 올리다 −15% 선에 닿은 것이라 이웃 배분 다수가 선을 넘습니다. 후보가 아니라 참고로만 보세요.")
+    if any(c in sr.SYNTHETIC for c in w):
+        st.warning("가상 상품(환노출 미국채)이 들어 있습니다. 실제 국내 상품(TIGER 305080 / KODEX 308620 / ACE 453850)과 같은지 확인 전이라 ISA에서 그대로 살 수 없습니다.")
+    search_detail_tables(r)
+    with st.expander("상품 구성 (ISA에서 살 상품)"):
+        search_product_table(w)
+    c1, c2, c3 = st.columns([1.1, 1.6, 1.4])
+    names = {k: p.name for k, p in PRESETS.items()}
+    compare = c2.selectbox("같이 볼 프리셋", [CUSTOM] + list(PRESETS), key=init("gs_cmp", "stable45_gold26" if "stable45_gold26" in PRESETS else CUSTOM),
+                           format_func=lambda k: "(없음)" if k == CUSTOM else names[k])
+    name = f"탐색 {r['cagr'] * 100:.1f}/{r['mdd'] * 100:.1f}" if kind == "c" else str(r["이름"])
+    if c1.button("▶ 엔진으로 다시 돌려 보기", type="primary", key="btn_gs_run"):
+        search_rerun(name, w, compare if compare != CUSTOM else None)
+    if c3.button("전략 연구로 보내기", key="btn_gs_send", disabled=not sr.buyable(w),
+                 help="이 배분을 ‘전략 연구’ 페이지의 상품·비중·규칙(2005-01-03부터, 분기, 10bp)에 채워 넣고 그 페이지로 갑니다. 가상 상품이 있으면 보낼 수 없습니다."):
+        data = data_or_stop()
+        st.session_state.update(sr.research_state("r", w, name, end=str(data["panel"].last_date.date())))
+        st.session_state["r_preset"] = CUSTOM
+        st.session_state.pop("aa_result", None)
+        st.switch_page(RESEARCH_PAGE)
+    search_run_view(r, w)
+
+
+def search_reps(res: sr.SearchResults, row_of: dict[str, int]) -> None:
+    st.subheader("⑤ 대표 배분과 민감도")
+    st.caption("구간마다 사후에 고른 읽기 보조입니다(선택 규칙이 아님). A = 전체 최고, B = 레버리지·가상 상품 없이, C = 나스닥100·섹터까지 빼고. "
+               "각 줄을 월·연 리밸런싱, 20bp, 리밸런싱 날짜 이동, ±5%p 이웃 전부, 5년 롤링 창으로 다시 돌렸습니다. 샤프를 뺀 숫자는 % 단위. 행을 누르면 ④에 나옵니다.")
+    reps = res.reps.copy()
+    rows = []
+    for t in reps["비중"]:
+        try:
+            rows.append(("c", row_of.get(sr.code_text(sr.to_vector(sr.parse_names(t))), -1)))
+        except ValueError:
+            rows.append(("c", -1))
+    st.session_state["gs_rep_rows"] = rows
+    labels = {"초과샤프": "초과 샤프", "회전": "연 회전율", "dd08": "2008 낙폭", "dd20": "2020 낙폭", "dd22": "2022 낙폭",
+              "CAGR 08-": "CAGR 2008–", "MDD 08-": "MDD 2008–", "CAGR 10-": "CAGR 2010–", "M CAGR": "월 리밸런싱 CAGR",
+              "M MDD": "월 리밸런싱 MDD", "A CAGR": "연 리밸런싱 CAGR", "A MDD": "연 리밸런싱 MDD", "20bp CAGR": "비용 20bp CAGR"}
+    config = {c: st.column_config.NumberColumn(labels.get(c, c), format="%.2f") for c in reps.columns if c not in ("후보", "비중", "상품 수")}
+    config["비중"] = st.column_config.TextColumn("비중 (%)", width="large")
+    st.dataframe(reps, hide_index=True, width="stretch", key="tbl_gs_reps", on_select=lambda: pick_from_table("tbl_gs_reps", "gs_rep_rows"),
+                 selection_mode="single-row", column_config=config)
+
+
+def search_dials(res: sr.SearchResults) -> None:
+    st.subheader("⑥ 이 결과를 얼마나 믿을 수 있나")
+    S = res.summary
+    h, p, rf = S.get("holdout_dial", {}), S.get("pbo", {}), S.get("refined", {})
+    lines = []
+    if h:
+        lines.append(f"**보류 구간 대조**: 앞 85%(2005-01 – 2023-07)만으로 순위를 매긴 상위 {h['top_n']}개와 전체 기간 상위 {h['top_n']}개는 "
+                     f"{h['overlap']}개가 겹칩니다. 앞 85% 상위의 보류 구간 MDD 중앙값은 {pct(h['sel_top_holdout_mdd_median'])}이고 "
+                     f"{h['sel_top_holdout_within_share'] * 100:.0f}%가 −15% 안입니다. 순위가 마지막 3년에 끌려가지는 않았습니다.")
+    if p:
+        lines.append(f"**CSCV (기간을 252가지로 반씩 나눔)**: ‘훈련 반쪽에서 MDD −15% 안 최고 CAGR’을 고르는 규칙의 PBO는 **{p['pbo']:.2f}**입니다. "
+                     f"고른 배분의 표본 외 MDD 중앙값은 {pct(p['pick_oos_mdd_median'])}이고 −15% 안에 든 비율은 {p['pick_oos_within_share'] * 100:.0f}%입니다. "
+                     "어떤 위기가 표본에 들어 있느냐에 따라 ‘최고’가 쉽게 바뀐다는 경고이고, 경계선 위 한 점을 고르는 방식은 믿기 어렵다는 뜻입니다.")
+    if rf:
+        lines.append(f"**다듬기**: 상위 {rf['seeds']}개를 5%p씩 옮기면 CAGR이 중앙값 {rf['median_gain_pp']:.1f}%p 오르지만 모두 −15% 선에 닿습니다. "
+                     "선 위에서 짜낸 몫이라 후보로 쓰지 않습니다.")
+    lines.append("**나스닥100**: 프리셋보다 1.2–2.7%p 높은 경계선의 재료는 거의 나스닥100(+ 방어 섹터, 2배 상품 소량)입니다. 나스닥·섹터·레버리지·가상 상품을 빼면 "
+                 "경계선이 안정형 프리셋과 0.1–0.8%p 차이로 내려옵니다. ①에서 그룹을 빼 보면 바로 확인됩니다.")
+    for ln in lines:
+        st.markdown("- " + ln)
+    st.caption("한계: 상장 전 기간은 미국 ETF + 원/달러 + 두 나라 금리로 만든 대용 데이터이고 괴리율·추적오차·국내 금 프리미엄·세금은 없습니다. "
+               "모든 숫자는 표본 내 결과이며 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
+
+
+def search_page() -> None:
+    try:
+        res, row_of = load_search_results(sr.RESULTS_DIR.joinpath("passing.csv.gz").stat().st_mtime)
+    except FileNotFoundError as exc:
+        st.error(f"탐색 결과 파일이 없습니다: {exc}")
+        return
+    S = res.summary
+    st.title("전역 탐색 결과 (1단계)")
+    st.caption("국내 상장 ETF 28종 + 가상 상품 2종(환노출 미국채)으로 만든 고정 비중 배분을 한꺼번에 시험한 결과입니다(DECISIONS A31). "
+               "원화, 2005-01-03 – 2026-10-16, 분기 리밸런싱, 편도 10bp, 헤지 추가 비용 20bp. 가격 데이터 없이 기록된 결과를 바로 보여 주고, "
+               "고른 배분은 엔진으로 다시 돌릴 수 있습니다. 메모: docs/research/allocation/2026-10-25_global_search.md")
+    cols = st.columns(5)
+    cols[0].metric("시험한 배분", f"{S.get('n_candidates', 0):,}")
+    cols[1].metric("MDD −15% 안", f"{S.get('n_pass', 0):,}", help="유일한 필수 조건. 나머지는 모두 정보용 열과 ⚠ 표시입니다.")
+    cols[2].metric("상품", f"{len(sr.SYMBOLS)}종", help="국내 상장 28종 + 가상 2종")
+    cols[3].metric("다듬은 배분", f"{int((res.cands['출처'] == '다듬음').sum()):,}", help="참고용, 모두 −15% 선에 붙어 있음")
+    err = S.get("self_check_max_rel_error")
+    cols[4].metric("엔진 대조 오차", f"{err:.0e}" if isinstance(err, float) else "–", help="등록 프리셋 13개를 빠른 시뮬레이터와 엔진으로 돌린 자산 곡선의 최대 상대 오차")
+    mask = search_view(res)
+    view = res.cands[mask]
+    st.subheader("② CAGR – MDD 산점도")
+    st.caption(f"보이는 배분 {len(view):,}개. 색이 진할수록 주식 비중이 큽니다(레버리지 상품은 삼각형). 회색은 −15% 밖 배분의 무작위 표본, 주황 마름모는 등록 프리셋, "
+               "검은 선은 구간별 최고입니다. 끌어서 확대하고, 점을 누르면 ④에 자세히 나옵니다.")
+    st.plotly_chart(search_scatter(res, view, st.session_state.get("gs_pick")), width="stretch", key="chart_gs", on_select=pick_from_chart,
+                    selection_mode="points")
+    search_band_table(res, view)
+    search_detail(res)
+    search_reps(res, row_of)
+    search_dials(res)
+    with st.expander("결과 메모 전문"):
+        try:
+            st.markdown(sr.MEMO_PATH.read_text(encoding="utf-8"))
+        except OSError:
+            st.caption("메모 파일을 읽지 못했습니다.")
+
+
 # =========================================================================== navigation
 
-PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_")
+PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_", "gs_")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES) and "_editor" not in str(_k):
         st.session_state[_k] = st.session_state[_k]
 
+RESEARCH_PAGE = st.Page(research_page, title="전략 연구", icon="🧺", default=True)
 nav = st.navigation([
-    st.Page(research_page, title="전략 연구", icon="🧺", default=True),
+    RESEARCH_PAGE,
     st.Page(compare_page, title="전략 비교", icon="📊"),
     st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
     st.Page(tactical_page, title="전술 전략 · 검증", icon="🧭"),
+    st.Page(search_page, title="전역 탐색 결과", icon="🔭"),
     st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
     st.Page(notes_page, title="발견 · 경고 · 캠페인", icon="📝"),
     st.Page(saved_page, title="저장된 전략", icon="💾"),
