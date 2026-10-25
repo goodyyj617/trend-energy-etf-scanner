@@ -95,3 +95,15 @@ def test_real_codes_cover_every_product_and_the_synthetic_stand_ins():
     from lab.aa_assets import PRODUCTS
     assert set(PRODUCTS) <= set(aa_real.REAL_CODES)
     assert set(aa_real.SYN_REAL.values()) <= set(aa_real.REAL_CODES)
+
+
+def test_hybrid_continues_with_model_returns_after_the_real_file_ends():
+    n = 60
+    model = 100 * 1.002 ** np.arange(n)
+    p, dates = model_panel({"379800": model})
+    seoul = dates[10:40] + pd.Timedelta(days=1)  # the real file stops 20 US days before the panel does
+    real = pd.Series(1.0 + 0.001 * np.arange(len(seoul)), index=seoul)
+    hyb, info = hybrid_panel(p, {"379800": real})
+    tail = hyb.close["379800"].loc[dates[40]:]
+    assert np.allclose(tail.pct_change().dropna(), 0.002)  # model returns, not a flat carried price
+    assert info["379800"]["real_last"] == seoul[-1]

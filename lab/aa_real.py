@@ -12,6 +12,7 @@ module swaps in the real price of each Korean-listed product after its listing a
   products (069500, 122630) and the CD-rate ETF (459580) take the last Seoul close on or before t.
 - Splice: each product switches to real prices from the first US date mapped to its 6th Seoul trading day
   (5 days after the first real close, past the listing-day noise), scaled to meet the model there.
+- After the last real close the model's returns carry the series on (an old price file never shows a flat line).
 - The two synthetic unhedged treasuries of A31 have no product of their own; they take the real prices of
   TIGER 미국채10년선물 (305080) and ACE 미국30년국채액티브 (453850).
 
@@ -130,8 +131,14 @@ def hybrid_panel(panel: Panel, real: dict[str, pd.Series], syn_real: dict[str, s
         if t0 is None or not np.isfinite(model0):
             info[col] = {"real": rc, "splice": None, "real_last": tr.index[-1]}
             continue
-        after = us >= t0
+        last = tr.index[-1]
+        covered = (us <= last) if rc in SAME_DAY else (us < last)  # US dates the real file can still answer
+        te = us[covered & (us >= t0)][-1]
+        after = (us >= t0) & (us <= te)
         close.loc[after, col] = model0 * vals[after] / vals.at[t0]
+        tail = us > te  # past the real file's end: carry on with model returns instead of a flat line
+        if tail.any():
+            close.loc[tail, col] = close.at[te, col] * panel.close.loc[tail, col] / panel.close.at[te, col]
         info[col] = {"real": rc, "splice": t0, "real_last": tr.index[-1]}
     out = copy.copy(panel)
     out.open = out.high = out.low = out.close = close
