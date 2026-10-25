@@ -1436,6 +1436,7 @@ def tactical_spec_from_state(last: date) -> tuple[tac.TacticalSpec, str]:
 
 SEQ_BLUES = [[0, "#c6dbf3"], [0.5, "#4f8fd8"], [1, "#0b3a78"]]  # one hue, light -> dark: equity share
 INK, MUTED = "#3d3d3a", "#c9c7c0"
+STAGE2_COLOR = "#b4306a"  # stage-2 candidates: a hue the scatter does not use elsewhere (blues, orange, black)
 SEARCH_PERIODS = [("전체 2005-01 – 2026-10", "cagr", "mdd"), ("2005 – 2014", "cagr_h1", "mdd_h1"), ("2015 – 2026", "cagr_h2", "mdd_h2"),
                   ("2008년 이후", "cagr_2008", "mdd_2008"), ("2010년 이후", "cagr_2010", "mdd_2010"),
                   ("앞 85% (2005-01 – 2023-07)", "cagr_sel", "mdd_sel"), ("뒤 15% 보류 구간 (2023-07 이후)", "cagr_holdout", "mdd_holdout")]
@@ -1469,6 +1470,16 @@ def load_search_results(stamp: float) -> tuple[sr.SearchResults, dict[str, int]]
     return res, row_of
 
 
+@st.cache_resource(show_spinner=False)
+def load_stage2_results(stamp: float, stamp2: float) -> tuple[pd.DataFrame | None, list[tuple[str, int]]]:
+    """The stage-2 table and, per row, the pick it opens in ④ (matching 41k weight rows takes ~0.3 s, so it is cached)."""
+    s2 = sr.load_stage2()
+    if s2 is None:
+        return None, []
+    res, _ = load_search_results(stamp)
+    return s2, sr.stage2_picks(s2, res)
+
+
 @st.cache_resource(show_spinner="가상 상품까지 넣은 원화 패널을 만드는 중…")
 def load_search_panel(day: str, hedge_bps: float):
     data = load_data(day, hedge_bps)
@@ -1500,6 +1511,9 @@ def search_view(res: sr.SearchResults) -> np.ndarray:
     return mask
 
 
+NO_ROW = -1_000_000  # customdata of a chart point that opens nothing in ④
+
+
 def pick_from_chart() -> None:
     ev = st.session_state.get("chart_gs")
     pts = (ev or {}).get("selection", {}).get("points", []) if isinstance(ev, dict) else getattr(getattr(ev, "selection", None), "points", [])
@@ -1509,6 +1523,8 @@ def pick_from_chart() -> None:
             cd = [cd[k] for k in sorted(cd, key=int)] if all(str(k).isdigit() for k in cd) else None
         if cd:
             k = int(cd[0])
+            if k == NO_ROW:
+                return
             st.session_state["gs_pick"] = ("p", -k - 1) if k < 0 else ("c", k)
             return
 
@@ -1528,7 +1544,23 @@ def view_key(df: pd.DataFrame) -> str:
     return f"{len(idx)}_{int(idx.sum()) % 1_000_003}_{int(idx[:50].sum()) if len(idx) else 0}"
 
 
-def search_scatter(res: sr.SearchResults, view: pd.DataFrame, pick) -> go.Figure:
+def stage2_points(s2: pd.DataFrame | None, picks: list[tuple[str, int]]) -> pd.DataFrame | None:
+    """Stage-2 candidates for the scatter: short label, CAGR/MDD as fractions, and the chart code that opens ④."""
+    if s2 is None or s2.empty:
+        return None
+    codes = [NO_ROW if i < 0 else (i if kind == "c" else -i - 1) for kind, i in picks]
+    return pd.DataFrame({"label": [stage2_short(x) for x in s2["후보"]], "cagr": s2["CAGR"] / 100, "mdd": s2["MDD"] / 100, "code": codes})
+
+
+def stage2_short(label: str) -> str:
+    label = str(label)
+    if label.startswith("비교: "):
+        return label[4:].split(" (")[0]
+    head, _, rest = label.partition(" ")
+    return f"{head} {rest[rest.index('('):]}" if head == "B" and "(" in rest else head
+
+
+def search_scatter(res: sr.SearchResults, view: pd.DataFrame, pick, stage2: pd.DataFrame | None = None) -> go.Figure:
     fig = go.Figure()
     fig.add_trace(go.Scattergl(x=res.cloud["mdd"], y=res.cloud["cagr"], mode="markers", name=f"−15% 밖 ({len(res.cloud):,}개 표본)",
                                marker=dict(size=3, color=MUTED, opacity=0.45), hoverinfo="skip",
@@ -1558,6 +1590,14 @@ def search_scatter(res: sr.SearchResults, view: pd.DataFrame, pick) -> go.Figure
                              customdata=np.column_stack([-(np.arange(len(pres)) + 1), np.zeros((len(pres), 6))]).astype(int).tolist(),
                              text=pres["이름"], hovertemplate="%{text}<br>CAGR %{y:.1%} · MDD %{x:.1%}<extra></extra>",
                              unselected=dict(marker=dict(opacity=1.0))))
+    if stage2 is not None:
+        pos = {"R": "middle left", "A": "bottom left", "B (-15,-14]": "top right"}  # the three near the line would overlap
+        fig.add_trace(go.Scattergl(x=stage2["mdd"], y=stage2["cagr"], mode="markers+text", name="2단계 후보 (⑥)", text=stage2["label"],
+                                 textposition=[pos.get(t, "top center") for t in stage2["label"]], textfont=dict(size=10, color=STAGE2_COLOR),
+                                 marker=dict(size=12, symbol="star", color=STAGE2_COLOR, line=dict(width=1, color="white")),
+                                 customdata=[[int(c)] for c in stage2["code"]],
+                                 hovertemplate="2단계 후보 %{text}<br>CAGR %{y:.1%} · MDD %{x:.1%}<extra></extra>",
+                                 unselected=dict(marker=dict(opacity=1.0))))
     if pick is not None:
         kind, i = pick
         r = res.cands.loc[i] if kind == "c" else pres.iloc[i]
@@ -1568,7 +1608,7 @@ def search_scatter(res: sr.SearchResults, view: pd.DataFrame, pick) -> go.Figure
                        yanchor="top", font=dict(size=11, color=GRAY))
     fig.update_layout(height=560, margin=dict(l=10, r=10, t=30, b=10), dragmode="zoom", clickmode="event+select",
                       xaxis=dict(title="전체 기간 MDD", tickformat=".0%", range=[-0.32, 0.0]),
-                      yaxis=dict(title="CAGR (원화)", tickformat=".0%", range=[0.0, 0.135]),
+                      yaxis=dict(title="CAGR (원화)", tickformat=".0%", range=[0.0, 0.14]),
                       coloraxis=dict(colorscale=SEQ_BLUES, cmin=0, cmax=100, colorbar=dict(title="주식 %", thickness=12, len=0.6)),
                       legend=dict(orientation="h", y=-0.14))
     return fig
@@ -1787,8 +1827,50 @@ def search_reps(res: sr.SearchResults, row_of: dict[str, int]) -> None:
                  selection_mode="single-row", column_config=config)
 
 
+STAGE2_COLS = {
+    "CAGR": st.column_config.NumberColumn("CAGR %", format="%.2f", help="1단계와 같은 설정(분기, 10bp, 2005-01-03 –)의 연평균 수익률"),
+    "MDD": st.column_config.NumberColumn("MDD %", format="%.2f", help="같은 설정의 전체 기간 최대 낙폭"),
+    "선 안 시험": st.column_config.TextColumn("−15% 안 시험", help="설정을 하나씩 바꾼 MDD 시험(기준·엔진 밴드 0/3/5·월간·연간·20bp·날짜 이동·헤지 40bp·2008/2010/2015 시작·가상 상품 교체) 중 "
+                                                        "MDD가 −15% 안에 남은 수 / 시험 수. 가상 상품이 없는 후보는 교체 시험이 없어 분모가 작습니다."),
+    "최악 MDD": st.column_config.NumberColumn("최악 MDD %", format="%.2f", help="위 시험 전부에서 가장 깊은 MDD"),
+    "선을 넘긴 시험": st.column_config.TextColumn("선을 넘긴 시험 (MDD %)", width="large"),
+    "이웃 ±2%p 선 안": st.column_config.NumberColumn("이웃 ±2%p", format="%.0f%%", help="두 상품 사이에서 비중 2%p를 옮긴 모든 배분 중 MDD −15% 안에 남은 비율. 수에 넣지 않고 따로 보입니다."),
+    "이웃 ±5%p 선 안": st.column_config.NumberColumn("이웃 ±5%p", format="%.0f%%", help="비중 5%p를 옮긴 모든 배분 중 −15% 안에 남은 비율"),
+    "상품 수": st.column_config.NumberColumn("상품 수", format="%d"),
+    "레버리지 %": st.column_config.NumberColumn("레버리지", format="%d%%"),
+    "비중": st.column_config.TextColumn("비중 (%)", width="large"),
+}
+
+
+def search_stage2(s2: pd.DataFrame | None, picks: list[tuple[str, int]]) -> None:
+    st.subheader("⑥ 2단계: 고른 후보 흔들어 보기")
+    if s2 is None:
+        st.caption("2단계 결과 파일이 없습니다 (docs/research/allocation/2026-10-25_stage2/stage2.csv).")
+        return
+    st.caption("1단계에서 고른 후보(R = 다듬은 최고, A = 전체 최고, B = 레버리지·가상 상품 없는 구간별 최고)와 비교용 프리셋 둘을 **실제 엔진과 바뀐 설정**으로 "
+               "다시 돌렸습니다(DECISIONS A32): 리밸런싱 밴드 0·3·5%p, 월·연 리밸런싱, 비용 20bp, 리밸런싱 날짜 이동(최악), 헤지 비용 40bp, 2008·2010·2015년 시작, "
+               "가상 상품을 (H) 상품이나 달러선물로 바꾸기. 판정이 아니라 ‘선 위 한 점’이 설정 하나에 얼마나 흔들리는지 보는 표입니다. "
+               "숫자는 % 단위. 행을 누르면 ④에 나옵니다. 산점도의 자주색 별이 같은 후보인데, 겹친 점이 많아 별을 누르면 바로 옆 배분이 열릴 수 있으니 후보는 이 표에서 고르세요.")
+    card = sr.stage2_scorecard(s2)
+    st.session_state["gs_stage2_rows"] = picks
+    st.dataframe(card, hide_index=True, width="stretch", key="tbl_gs_stage2", on_select=lambda: pick_from_table("tbl_gs_stage2", "gs_stage2_rows"),
+                 selection_mode="single-row", column_config=STAGE2_COLS)
+    st.caption("읽는 법(2026-10-25 실행 기준): R(13.2%)은 14개 시험 중 7개, A는 3개, B (−15,−14]은 밴드 3·5%p에서 −15%를 넘고, R과 B (−15,−14]은 ±2%p 이웃의 절반 이상이 "
+               "선 밖입니다(선에 붙여 고른 몫). B (−14,−13] 이하 네 B 후보는 모든 시험에서 선 안에 남았습니다. ‘내 AAA’는 기준부터 선 밖입니다.")
+    with st.expander("2단계 전체 표 (시험마다 CAGR·MDD)"):
+        full_cols = {c: st.column_config.NumberColumn(c, format="%.2f") for c in s2.columns
+                     if c not in ("후보", "비중", "가상 상품", "상품 수", "레버리지 %", "이웃±2 수", "이웃±5 수")}
+        full_cols["비중"] = st.column_config.TextColumn("비중 (%)", width="large")
+        st.dataframe(s2, hide_index=True, width="stretch", column_config=full_cols)
+    with st.expander("2단계 메모 전문"):
+        try:
+            st.markdown(sr.STAGE2_MEMO.read_text(encoding="utf-8"))
+        except OSError:
+            st.caption("메모 파일을 읽지 못했습니다.")
+
+
 def search_dials(res: sr.SearchResults) -> None:
-    st.subheader("⑥ 이 결과를 얼마나 믿을 수 있나")
+    st.subheader("⑦ 이 결과를 얼마나 믿을 수 있나")
     S = res.summary
     h, p, rf = S.get("holdout_dial", {}), S.get("pbo", {}), S.get("refined", {})
     lines = []
@@ -1823,10 +1905,13 @@ def search_page() -> None:
             st.session_state.pop(k, None)
         st.session_state["gs_stamp"] = stamp
     S = res.summary
-    st.title("전역 탐색 결과 (1단계)")
-    st.caption("국내 상장 ETF 28종 + 가상 상품 2종(환노출 미국채)으로 만든 고정 비중 배분을 한꺼번에 시험한 결과입니다(DECISIONS A31). "
-               "원화, 2005-01-03 – 2026-10-16, 분기 리밸런싱, 편도 10bp, 헤지 추가 비용 20bp. 가격 데이터 없이 기록된 결과를 바로 보여 주고, "
-               "고른 배분은 엔진으로 다시 돌릴 수 있습니다. 메모: docs/research/allocation/2026-10-25_global_search.md")
+    s2_file = sr.STAGE2_DIR / "stage2.csv"
+    s2, s2_picks = load_stage2_results(stamp, s2_file.stat().st_mtime if s2_file.exists() else 0.0)
+    st.title("전역 탐색 결과")
+    st.caption("국내 상장 ETF 28종 + 가상 상품 2종(환노출 미국채)으로 만든 고정 비중 배분을 한꺼번에 시험한 1단계(DECISIONS A31)와, 거기서 고른 후보를 "
+               "설정을 바꿔 다시 돌린 2단계(A32, ⑥)입니다. 원화, 2005-01-03 – 2026-10-16, 분기 리밸런싱, 편도 10bp, 헤지 추가 비용 20bp. "
+               "가격 데이터 없이 기록된 결과를 바로 보여 주고, 고른 배분은 엔진으로 다시 돌릴 수 있습니다. "
+               "메모: docs/research/allocation/2026-10-25_global_search.md, 2026-10-25_stage2.md")
     cols = st.columns(5)
     cols[0].metric("시험한 배분", f"{S.get('n_candidates', 0):,}")
     cols[1].metric("MDD −15% 안", f"{S.get('n_pass', 0):,}", help="유일한 필수 조건. 나머지는 모두 정보용 열과 ⚠ 표시입니다.")
@@ -1838,12 +1923,13 @@ def search_page() -> None:
     view = res.cands[mask]
     st.subheader("② CAGR – MDD 산점도")
     st.caption(f"보이는 배분 {len(view):,}개. 색이 진할수록 주식 비중이 큽니다(레버리지 상품은 삼각형). 회색은 −15% 밖 배분의 무작위 표본, 주황 마름모는 등록 프리셋, "
-               "검은 선은 구간별 최고입니다. 끌어서 확대하고, 점을 누르면 ④에 자세히 나옵니다.")
-    st.plotly_chart(search_scatter(res, view, st.session_state.get("gs_pick")), width="stretch", key="chart_gs", on_select=pick_from_chart,
-                    selection_mode="points")
+               "검은 선은 구간별 최고, 자주색 별은 2단계 후보(⑥)입니다. 끌어서 확대하고, 점을 누르면 ④에 자세히 나옵니다.")
+    st.plotly_chart(search_scatter(res, view, st.session_state.get("gs_pick"), stage2_points(s2, s2_picks)), width="stretch", key="chart_gs",
+                    on_select=pick_from_chart, selection_mode="points")
     search_band_table(res, view)
     search_detail(res)
     search_reps(res, row_of)
+    search_stage2(s2, s2_picks)
     search_dials(res)
     with st.expander("결과 메모 전문"):
         try:

@@ -143,3 +143,48 @@ def test_candidate_config_and_research_handoff():
     assert state["r_rebalance"] == "Q" and state["r_cost"] == 10.0 and state["r_ov_kind"] == "none" and state["r_lev"] == 1.0
     with pytest.raises(ValueError, match="가상"):
         sr.research_state("r", {"SYN_IEF_U": 40, "411060": 60}, "x", end="2026-10-23")
+
+
+# --------------------------------------------------------------------------- stage 2 (A32)
+
+def test_stage2_scorecard_counts_the_tests_within_the_line(tmp_path):
+    df = pd.DataFrame([
+        {"후보": "x", "CAGR": 10.0, "MDD": -14.0, "엔진 밴드3 MDD": -15.2, "M MDD": -14.5, "날짜 최악 MDD": -16.0,
+         "이웃±2 −15% 안": 50.0, "이웃±5 −15% 안": 20.0, "가상→(H) MDD": np.nan, "상품 수": 3, "레버리지 %": 0, "비중": "미국S&P500 100"},
+        {"후보": "y", "CAGR": 9.0, "MDD": -12.0, "엔진 밴드3 MDD": -12.5, "M MDD": -12.1, "날짜 최악 MDD": -12.3,
+         "이웃±2 −15% 안": 100.0, "이웃±5 −15% 안": 95.0, "가상→(H) MDD": -13.0, "상품 수": 4, "레버리지 %": 0, "비중": "ACE KRX금현물 100"},
+    ])
+    card = sr.stage2_scorecard(df)
+    assert list(card["후보"]) == ["x", "y"]
+    # x: 밴드3 and 날짜 break the line among its 4 MDD tests (기준, 밴드3, 월간, 날짜); (H) is NaN so not a test
+    assert card.loc[0, "선 안 시험"] == "2 / 4" and "밴드 3" in card.loc[0, "선을 넘긴 시험"] and "날짜" in card.loc[0, "선을 넘긴 시험"]
+    assert card.loc[1, "선 안 시험"] == "5 / 5" and card.loc[1, "선을 넘긴 시험"] == "—"
+    assert card.loc[0, "최악 MDD"] == -16.0 and card.loc[1, "최악 MDD"] == -13.0
+    assert card.loc[0, "이웃 ±2%p 선 안"] == 50.0 and card.loc[1, "이웃 ±5%p 선 안"] == 95.0  # shares are shown, not counted
+
+
+def test_load_stage2_reads_the_committed_table_and_names_its_weights():
+    s2 = sr.load_stage2()
+    assert s2 is not None and len(s2) >= 7
+    assert {"R 다듬음 최고 (−15,−14]", "A 전체 최고"} <= set(s2["후보"])
+    for t in s2["비중"]:
+        sr.parse_names(t)  # every row's weights resolve to universe products
+    card = sr.stage2_scorecard(s2)
+    r = card.set_index("후보")
+    assert r.loc["R 다듬음 최고 (−15,−14]", "최악 MDD"] < -15 and r.loc["B 레버·가상 없음 (-12,-11]", "선을 넘긴 시험"] == "—"
+    assert sr.load_stage2(sr.ROOT / "no_such_folder") is None
+
+
+def test_stage2_picks_point_at_search_rows_or_presets():
+    res = sr.load_results()
+    s2 = sr.load_stage2()
+    picks = sr.stage2_picks(s2, res)
+    by = dict(zip(s2["후보"], picks))
+    kind, i = by["R 다듬음 최고 (−15,−14]"]  # the refined best is a 다듬음 row of the results
+    assert kind == "c" and res.cands.at[i, "출처"] == "다듬음"
+    kind, i = by["A 전체 최고"]
+    assert kind == "c" and sr.describe(res.W[i]) == s2.set_index("후보").at["A 전체 최고", "비중"]
+    kind, i = by["비교: 안정형 40 (금·현금 분산)"]  # comparators are registered presets
+    assert kind == "p" and res.presets.at[i, "이름"] == "안정형 40 (금·현금 분산)"
+    unknown = pd.DataFrame([{"후보": "비교: 없는 프리셋", "비중": "미국S&P500 100"}, {"후보": "x", "비중": "없는상품 100"}])
+    assert sr.stage2_picks(unknown, res) == [("c", -1), ("c", -1)]

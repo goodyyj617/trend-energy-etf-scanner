@@ -31,6 +31,8 @@ from lab.aa_score import CRISIS_WINDOWS
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-25_global_search"
 MEMO_PATH = ROOT / "docs" / "research" / "allocation" / "2026-10-25_global_search.md"
+STAGE2_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-25_stage2"
+STAGE2_MEMO = ROOT / "docs" / "research" / "allocation" / "2026-10-25_stage2.md"
 
 START, END = "2005-01-03", "2026-10-16"
 REBALANCE, COST_BPS = "Q", 10.0
@@ -290,3 +292,69 @@ def research_state(prefix: str, weights: dict, name: str, end: str, start: str =
                   f"{prefix}_end": date.fromisoformat(end), f"{prefix}_rebalance": REBALANCE, f"{prefix}_band": 0.0,
                   f"{prefix}_cost": COST_BPS, f"{prefix}_ov_kind": "none", f"{prefix}_lev": 1.0})
     return state
+
+
+# --------------------------------------------------------------------------- stage 2 (A32): shaking the chosen candidates
+
+# (column, label): each test's MDD must stay within MDD_LINE. Columns missing from the table (or NaN in a row) are not
+# tests for that row. The neighbour shares are reported beside the count, not counted (a share is a distribution).
+STAGE2_TESTS = [
+    ("MDD", "기준"), ("엔진 밴드0 MDD", "엔진"), ("엔진 밴드3 MDD", "밴드 3%p"), ("엔진 밴드5 MDD", "밴드 5%p"),
+    ("M MDD", "월간"), ("A MDD", "연간"), ("20bp MDD", "20bp"), ("날짜 최악 MDD", "날짜 이동"), ("헤지40 MDD", "헤지 40bp"),
+    ("2008~ MDD", "2008 시작"), ("2010~ MDD", "2010 시작"), ("2015~ MDD", "2015 시작"),
+    ("가상→(H) MDD", "가상→(H)"), ("가상→달러선물 MDD", "가상→달러선물"),
+]
+STAGE2_SHARES = [("이웃±2 −15% 안", "이웃 ±2%p 선 안"), ("이웃±5 −15% 안", "이웃 ±5%p 선 안")]
+STAGE2_PCT_LINE = MDD_LINE * 100  # the stage-2 table is in percent units
+
+
+def load_stage2(folder: Path | str = STAGE2_DIR) -> pd.DataFrame | None:
+    """stage2.csv of scripts/aa_stage2.py (percent units), or None when the folder has no table."""
+    path = Path(folder) / "stage2.csv"
+    if not path.exists():
+        return None
+    return pd.read_csv(path)
+
+
+def stage2_scorecard(df: pd.DataFrame) -> pd.DataFrame:
+    """One row per candidate: how many of the stage-2 MDD tests kept the allocation within −15 %, which ones did not,
+    the worst MDD over every test, the neighbour shares, and the base CAGR / MDD."""
+    rows = []
+    for _, r in df.iterrows():
+        broke, n, worst = [], 0, float("inf")
+        for col, label in STAGE2_TESTS:
+            if col not in df.columns or pd.isna(r[col]):
+                continue
+            v = float(r[col])
+            n += 1
+            worst = min(worst, v)
+            if v < STAGE2_PCT_LINE:
+                broke.append(f"{label} ({v:.2f})")
+        row = {"후보": r["후보"], "CAGR": r["CAGR"], "MDD": r["MDD"], "선 안 시험": f"{n - len(broke)} / {n}",
+               "최악 MDD": worst if np.isfinite(worst) else np.nan, "선을 넘긴 시험": ", ".join(broke) if broke else "—"}
+        for col, label in STAGE2_SHARES:
+            row[label] = float(r[col]) if col in df.columns and not pd.isna(r[col]) else np.nan
+        row.update({"상품 수": r.get("상품 수"), "레버리지 %": r.get("레버리지 %"), "비중": r["비중"]})
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+
+def stage2_picks(df: pd.DataFrame, res: SearchResults) -> list[tuple[str, int]]:
+    """For each stage-2 row, the app pick it opens: ("c", row of res.cands) for an allocation found in the results (refined
+    rows included), ("p", row of res.presets) for a comparator preset, ("c", -1) when neither is found."""
+    rows_of: dict[str, int] = {}
+    for i, w in enumerate(res.W):  # later rows (the refined ones) do not overwrite a plain sample with the same weights
+        rows_of.setdefault(code_text(w), i)
+    preset_of = {n: i for i, n in enumerate(res.presets["이름"])}
+    out: list[tuple[str, int]] = []
+    for label, text in zip(df["후보"], df["비중"]):
+        name = str(label).removeprefix("비교: ").strip()
+        if name in preset_of:
+            out.append(("p", preset_of[name]))
+            continue
+        try:
+            out.append(("c", rows_of.get(code_text(to_vector(parse_names(text))), -1)))
+        except ValueError:
+            out.append(("c", -1))
+    return out
