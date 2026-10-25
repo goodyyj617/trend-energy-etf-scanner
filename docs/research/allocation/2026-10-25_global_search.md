@@ -2,6 +2,8 @@
 
 DECISIONS A31의 1단계 실행 결과. 설계와 허점 점검은 `2026-10-25_wider_search_design.md`, 실행은 `scripts/aa_global_search.py`(재현: 같은 seed 2026과 같은 가격 캐시. yfinance 수정 종가는 배당이 쌓이면 과거 값이 조금씩 바뀌므로, 캐시 날짜(2026-10-23)가 다르면 소수점 셋째 자리에서 달라질 수 있다), 대표 후보의 민감도는 `scripts/aa_global_search_reps.py`. 결과 파일은 `2026-10-25_global_search/`(bands.md · frontier.md · top300.csv · top300_refined.csv · top2000.csv.gz · presets.csv · representatives.csv · scatter.png · summary.json). 25만 행 전체 표(`candidates_full.csv.gz`, 27 MB)는 저장소 밖 프로젝트 파일 `allocation/global_search/`에 있다.
 
+앱에서 보기: 자산배분 연구실 ‘전역 탐색 결과’ 페이지(`aalab://search`). MDD −15% 안 40,992개 전부를 산점도·구간별 표로 보고, 상품 그룹을 빼 보고, 고른 배분을 엔진으로 다시 돌리거나 전략 연구 화면으로 보낼 수 있다(앱용 파일 `passing.csv.gz`·`cloud.csv.gz`). 2026-10-25 정정: `representatives.csv`의 초과 샤프 열이 100배로 적혀 있던 것을 고쳤다(다른 열은 같음).
+
 조건: 2005-01-03 – 2026-10-16, 원화, 국내 상장 ETF 28종 + 가상 상품 2종(환노출 미국채 10년·30년, 실제 상품 확인 전), 분기 리밸런싱, 편도 10 bp, 환헤지 추가 비용 20 bp, 상품 보수 차감. 필수 조건은 **전체 기간 MDD ≥ −15% 하나**이고 나머지(반기·위기 창·보류 구간·롤링 창·이웃·날짜·CSCV)는 열이나 ⚠ 표시로만 적었다(사용자 규칙, A31). 시뮬레이터는 등록 프리셋 13개에서 엔진과 3×10⁻¹⁴ 안에서 같았다.
 
 ## 1. 한 줄 요약

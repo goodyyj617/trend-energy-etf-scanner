@@ -3,6 +3,7 @@
     .venv/Scripts/python.exe scripts/aa_global_search.py                       # full run (~15 min, 4 cores)
     .venv/Scripts/python.exe scripts/aa_global_search.py --quick               # small smoke run (~1 min)
     .venv/Scripts/python.exe scripts/aa_global_search.py --out DIR --full-out DIR
+    .venv/Scripts/python.exe scripts/aa_global_search.py --app-files FULL.csv.gz  # only rebuild the app page's files
 
 The only mandatory cut is the full-period MDD line (−15 %). Everything else (half periods, crisis
 windows, holdout, rolling windows, neighbours, timing, PBO) is written as a column or a ⚠ flag so the
@@ -10,7 +11,8 @@ user can judge CAGR against MDD themselves.
 
 Reads the yfinance cache in lab_data/yf (downloads what is missing), lab/aa_usdkrw.csv.gz and
 lab/aa_bok_rate.csv. Writes tables, a scatter and a summary into --out (small files, meant for the
-repo) and the full candidate table into --full-out (large; project files or a local folder).
+repo) and the full candidate table into --full-out (large; project files or a local folder). The app page
+'전역 탐색 결과' reads passing.csv.gz (every allocation within the line) and cloud.csv.gz (a sample of the rest).
 Nothing is written to lab_results/ and nothing is added to the lab's run log.
 """
 from __future__ import annotations
@@ -27,64 +29,31 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lab import aa_search as srch  # noqa: E402
-from lab.aa_assets import CASH, PRESETS, PRODUCTS, PROXY_SYMBOLS, Product, _p, short  # noqa: E402
+from lab.aa_assets import CASH, PRESETS, PROXY_SYMBOLS  # noqa: E402
 from lab.aa_engine import AllocConfig, run_allocation  # noqa: E402
 from lab.aa_korea import krw_panel, load_bok_rate, load_usdkrw  # noqa: E402
-from lab.aa_score import CRISIS_WINDOWS  # noqa: E402
+from lab.aa_search_results import (  # noqa: E402  (the A31 universe, shared with the app page)
+    ALL_PRODUCTS, CLASSES, END, EQUITY_CLASSES, LEV_CLASS, MDD_LINE, START, SYMBOLS, WINDOWS, app_tables, class_shares,
+    describe, flags, name_of,
+)
 from lab.aa_validate import TIMING_OFFSETS  # noqa: E402
 from lab.data import download_panel  # noqa: E402
 
 # --------------------------------------------------------------------------- registered parameters (A31)
 
-START, END = "2005-01-03", "2026-10-16"  # the USD/KRW snapshot ends 2026-10-16
+# START, END = 2005-01-03, 2026-10-16 (lab.aa_search_results; the USD/KRW snapshot ends 2026-10-16)
 DATA_END = "2026-10-23"
 SEED = 2026
 REBALANCE, COST_BPS = "Q", 10.0
-MDD_LINE = -0.15
-TIMING_LINE = -0.20  # A30
 HALF = "2015-01-01"
 EXTRA_STARTS = ("2008-01-01", "2010-01-01")
 HOLDOUT_SHARE = 0.15
-ROLL_YEARS, ROLL_MIN_SHARE = 5, 0.80
+ROLL_YEARS = 5  # ROLL_MIN_SHARE 0.80, MDD_LINE −15%, TIMING_LINE −20% (A30) in lab.aa_search_results
 LEV_CAP = 0.20
 MIN_PCT, MAX_PRODUCTS = 3, 10
-WINDOWS = {"2008": CRISIS_WINDOWS["금융위기 2007–09"], "2011": CRISIS_WINDOWS["유럽 재정위기 2011"],
-           "2018": CRISIS_WINDOWS["2018년 4분기"], "2020": CRISIS_WINDOWS["코로나 2020"], "2022": CRISIS_WINDOWS["금리 급등 2022"]}
-
-# Two synthetic products (A31): unhedged plain US treasuries. Real products to verify before any preset:
-# 10년 → TIGER 미국채10년선물 305080 (2018-08) / KODEX 미국채10년선물 308620 (2018-10); 30년 → ACE 미국30년국채액티브 453850 (2023-03).
-SYNTHETIC: dict[str, Product] = {
-    "SYN_IEF_U": _p("SYN_IEF_U", "미국10년국채 환노출(가상)", "채권", [("IEF", 1)], "unhedged", 0.15, "2018-08-30",
-                    note="가상 상품: IEF × 원/달러. 실제 상품(TIGER 305080 / KODEX 308620)은 확인 전."),
-    "SYN_TLT_U": _p("SYN_TLT_U", "미국30년국채 환노출(가상)", "채권", [("TLT", 1)], "unhedged", 0.15, "2023-03-14",
-                    note="가상 상품: TLT × 원/달러. 실제 상품(ACE 453850)은 확인 전."),
-}
-SHORT_NAMES = {"SYN_IEF_U": "미국10년 환노출*", "SYN_TLT_U": "미국30년 환노출*"}
-CLASSES: dict[str, list[str]] = {
-    "미국 주식": ["379800", "449180", "379810", "245340", "463640", "453630", "453640", "218420"],
-    "그 밖 주식": ["251350", "291890", "069500", "280930"],
-    "환헤지 채권": ["0091C0", "484790"],
-    "환노출 채권": ["468370", "468630", "SYN_IEF_U", "SYN_TLT_U"],
-    "금·실물": ["411060", "132030", "352560", "182480"],
-    "현금·달러": ["459580", "261240"],
-    "레버리지": ["225040", "409820", "418660", "452250", "225130", "122630"],
-}
-EQUITY_CLASSES = ("미국 주식", "그 밖 주식")
-LEV_CLASS = "레버리지"
-SYMBOLS = [s for c in CLASSES.values() for s in c]
-CLASS_OF = {s: c for c, syms in CLASSES.items() for s in syms}
-ALL_PRODUCTS = {**PRODUCTS, **SYNTHETIC}
 
 FULL = dict(n_class=20_000, picks=10, n_sparse=50_000, top_refine=300, top_roll=2000, refine_rounds=3, chunk=8000)
 QUICK = dict(n_class=400, picks=4, n_sparse=1500, top_refine=30, top_roll=200, refine_rounds=2, chunk=4000)
-
-
-def name_of(code: str) -> str:
-    return SHORT_NAMES.get(code, short(code))
-
-
-def describe(w: np.ndarray) -> str:
-    return " · ".join(f"{name_of(s)} {int(v)}" for s, v in zip(SYMBOLS, w) if v > 0)
 
 
 def pct(x: float, digits: int = 1) -> str:
@@ -146,19 +115,6 @@ def to_fraction(W: np.ndarray) -> np.ndarray:
     return F
 
 
-def class_shares(W: np.ndarray) -> pd.DataFrame:
-    out = {}
-    for c, syms in CLASSES.items():
-        out[c] = W[:, [SYMBOLS.index(s) for s in syms]].sum(axis=1)
-    df = pd.DataFrame(out)
-    df["주식"] = df["미국 주식"] + df["그 밖 주식"]
-    df["채권"] = df["환헤지 채권"] + df["환노출 채권"]
-    unhedged = [i for i, s in enumerate(SYMBOLS) if ALL_PRODUCTS[s].fx == "unhedged"]
-    df["환노출"] = W[:, unhedged].sum(axis=1)
-    df["상품 수"] = (W > 0).sum(axis=1)
-    return df
-
-
 def evaluate(sim: srch.StaticSim, W: np.ndarray, chunk: int, label: str) -> tuple[pd.DataFrame, np.ndarray]:
     """Metrics for every row of W (whole percents) plus float32 monthly returns (rows × months)."""
     parts, monthly = [], []
@@ -179,27 +135,6 @@ def evaluate(sim: srch.StaticSim, W: np.ndarray, chunk: int, label: str) -> tupl
     df["통과"] = df["mdd"] >= MDD_LINE
     df["비중"] = [describe(w) for w in W]
     return df, np.vstack(monthly)
-
-
-def flags(df: pd.DataFrame) -> pd.Series:
-    """⚠ flags from the information columns (never used to drop a candidate)."""
-    out = []
-    for _, r in df.iterrows():
-        f = []
-        if r.get("mdd_h1", 0) < MDD_LINE or r.get("mdd_h2", 0) < MDD_LINE:
-            f.append("반기")
-        if any(r.get(f"dd_{k}", 0) < MDD_LINE for k in WINDOWS):
-            f.append("위기")
-        if r.get("mdd_holdout", 0) < MDD_LINE:
-            f.append("보류")
-        if r.get("roll_share", 1) < ROLL_MIN_SHARE:
-            f.append("창")
-        if r.get("nb_worst_mdd", 0) < MDD_LINE:
-            f.append("이웃")
-        if r.get("timing_worst", 0) < TIMING_LINE:
-            f.append("날짜")
-        out.append(" ".join(f))
-    return pd.Series(out, index=df.index)
 
 
 def refine(sim: srch.StaticSim, seeds: np.ndarray, rounds: int, chunk: int) -> tuple[np.ndarray, pd.DataFrame]:
@@ -437,6 +372,15 @@ def replot(out: Path, full_out: Path, font: Path | None) -> None:
 
 # --------------------------------------------------------------------------- main
 
+def write_app_files(full: pd.DataFrame, out: Path) -> None:
+    """passing.csv.gz and cloud.csv.gz for the app page '전역 탐색 결과' (lab.aa_search_results)."""
+    passing, cloud = app_tables(full, seed=SEED)
+    out.mkdir(parents=True, exist_ok=True)
+    passing.to_csv(out / "passing.csv.gz", index=False, compression={"method": "gzip", "mtime": 0})
+    cloud.to_csv(out / "cloud.csv.gz", index=False, compression={"method": "gzip", "mtime": 0})
+    print(f"앱 파일: {out}/passing.csv.gz ({len(passing):,}행), cloud.csv.gz ({len(cloud):,}행)")
+
+
 def main(argv: list[str]) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
@@ -445,12 +389,17 @@ def main(argv: list[str]) -> None:
     ap.add_argument("--font", default=None, help="TTF with Hangul for the scatter (optional)")
     ap.add_argument("--no-pbo", action="store_true")
     ap.add_argument("--replot", action="store_true", help="only rebuild bands.md, frontier.md and scatter.png from the saved tables")
+    ap.add_argument("--app-files", default=None, metavar="FULL_CSV",
+                    help="only rebuild passing.csv.gz and cloud.csv.gz in --out from a saved candidates_full.csv.gz")
     args = ap.parse_args(argv)
     P = QUICK if args.quick else FULL
     out = Path(args.out)
     full_out = Path(args.full_out) if args.full_out else out
     if args.replot:
         replot(out, full_out, Path(args.font) if args.font else None)
+        return
+    if args.app_files:
+        write_app_files(pd.read_csv(args.app_files), out)
         return
     out.mkdir(parents=True, exist_ok=True)
     full_out.mkdir(parents=True, exist_ok=True)
@@ -564,6 +513,7 @@ def main(argv: list[str]) -> None:
         refined_df["⚠"] = flags(refined_df)
     cols = [c for c in TABLE_COLS if c in df.columns]
     df[cols].to_csv(full_out / "candidates_full.csv.gz", index=False, float_format="%.6g", compression="gzip")
+    write_app_files(df[cols], out)
     df.loc[top_roll, cols].to_csv(out / "top2000.csv", index=False, float_format="%.6g")
     df.loc[top_ref, cols].to_csv(out / "top300.csv", index=False, float_format="%.6g")
     if len(refined_df):
