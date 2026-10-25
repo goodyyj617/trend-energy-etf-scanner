@@ -8,6 +8,7 @@
 rights). A Chrome bookmark to trendlab://saved then runs `open`: it starts the lab in a minimized
 window if it is not running yet, waits until it answers, and opens the page in the browser.
 Closing the minimized "Trend Lab" window stops the lab.
+Before starting the lab it brings merged code from GitHub (scripts/lab_update.py).
 """
 from __future__ import annotations
 
@@ -47,6 +48,8 @@ def open_link(link: str) -> None:
     name = link.split(":", 1)[-1].strip("/").lower()
     path = PAGES.get(name, "")
     if not listening():
+        import lab_update  # scripts/ is on sys.path when this file runs as a script
+        lab_update.main([str(ROOT)])  # first bring merged code from GitHub; never raises, never blocks the start
         start_lab()
         deadline = time.time() + 90
         while not listening() and time.time() < deadline:
