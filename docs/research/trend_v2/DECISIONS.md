@@ -496,6 +496,49 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     0.57-0.74 (2017-2023) at N 635-17,000. Read as index-like (large, liquid names), not a
     selection edge. No holdout candidate. Trials +2,304 (lab-computer log on Drive, not merged).
     Record: docs/research/lab/2026-10-26_stage_b_results.md.
+81. Stage C: entry strategies x exit strategies on a daily universe (user requests 2026-10-26,
+    registered before any run). Universe: each trading day the top 3,000 common stocks by the
+    21-session average market value up to that day (lab.crsp --daily; the engine reads the mask
+    on the signal day and buys at the next open), delisted names included with the forced
+    delisting exit; panel = every name ever in that set. Hygiene screens evaluated daily (12-month
+    history >= 90%, price >= $5, 21-day dollar volume >= $1M, Amihud top 20% out); no size floor,
+    no trend template, no month-end list. Entries (E1-E9 fire only on the first day the condition
+    is true; canonical value in brackets): E0 always (control); E1 close > prior N-day high, N
+    20/[55]/100; E2 SMA(fast) crosses above SMA200, fast 20/[50]/100; E3 close > prior 252-day
+    high and volume >= m x prior 50-day average, m 1.2/[1.5]/2.0; E4 yesterday's Bollinger(20, 2)
+    bandwidth in the lowest p% of 126 days and close > upper band, p 10/[20]/30; E5 close > SMA200
+    and RSI(2) < r, r 5/[10]/15; E6 MACD crosses above signal with MACD > 0, (8,17,9)/[(12,26,9)]/
+    (19,39,9); E7 +DI(14) crosses above -DI(14) with ADX(14) >= a, a 15/[20]/25; E8 L-month
+    return > T-bill return over the same span, L 3/6/[12]; E9 open >= prior high x (1 + g),
+    volume >= 3 x prior 50-day average, close > open, g 2/[4]/6%. Exits (full sale at the next
+    open; delisting exit common; no extra common stop): X1 close < peak close x (1 - x), x
+    15/[25]/35%; X2 chandelier close < peak close - k x ATR(22), k 2/[3]/4 (new path exit; the
+    existing atr_trail uses ATR(14)); X3 close < prior N-day low, N 10/[20]/50; X4 close < SMA(N),
+    N 20/[50]/100; X5 N-day return < 0, N 21/[63]/126; X6 Parabolic SAR (step a, max 0.2) flips
+    above the price, a 0.01/[0.02]/0.03 (fires on the flip day; a position bought in a downtrend
+    waits for the next flip); X7 close > SMA5 or RSI(2) > r, r 60/[70]/80; X8 SPY < SPY SMA(N),
+    N 100/150/[200]; X9 stop at entry - k x ATR(14) of the signal day, breakeven after +2R, time
+    stop after 60 sessions if close <= entry, k 1.5/[2]/3. 3 x 3 cells per pair (E0: 3), 756
+    cells per sample, samples as 71. C1 every signal (lab/single.py, trade lists kept); C2 a
+    20-slot account, 1/20 of equity at purchase, no rebalancing, signals while full dropped,
+    priority (a) 20-day dollar volume on every cell, and on each pair's canonical cell also (b)
+    mean percentile of trend efficiency (6 months) and market value among that day's eligible
+    names and (c) random (seed 81). Cost 20 bp per side, T-bill cash, no leverage. Gate as 79
+    (C2: CAGR > SPY, |MDD| < |SPY MDD|, >= 30 trades). Per-signal table (E1-E9): every signal
+    traded on its own with the same exits, bought at the next open, overlapping signals of one
+    symbol allowed, cost included (engine run_backtest(outcomes=True), reusing first_exit); per
+    cell: signals, expectancy, win rate, payoff, average holding days, share of big winners
+    (return >= +50%). Missed vs taken: C2(a) trades matched to that table by (symbol, signal day);
+    counts, per-signal expectancy and big-winner share of taken vs missed, signal-day
+    market-value rank quartiles. (Matching to C1 trades was dropped after the dry run: C1 holds
+    one position per symbol and ignores signals while held, so most account buys had no C1 twin.) Judging: entry rank = median
+    over every exit x cell, exit rank likewise, per sample; pass share and neighbours within 3 x
+    3; Spearman of ranks across samples; entries below E0 flagged; index check (beta, down
+    capture, excess by period) on the top pairs; PBO information only; DSR only for 1-3
+    finalists; holdout unused; nothing changed after results. Runs 1,512 C1 + 1,512 C2 + 360
+    priority (all 90 pairs incl. E0), each a trial. Runner lab/stage_c_study.py through
+    scripts/crsp_remote.py --study stagec (panel lab_crsp/panel_daily3000, results
+    lab_crsp/stagec_daily3000). Design: docs/research/lab/2026-10-26_stage_c_design.md.
 
 ## Open decisions
 

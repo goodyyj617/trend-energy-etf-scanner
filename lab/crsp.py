@@ -38,6 +38,7 @@ COLUMNS = ["PERMNO", "date", "SHRCD", "EXCHCD", "TICKER", "SICCD", "PRC", "VOL",
            "OPENPRC", "BIDLO", "ASKHI", "DLSTCD", "DLRET"]
 EXTRA = ("cap", "dividend")  # per-symbol series beyond OHLCV: market value ($M) and daily dividend yield
 TOP_N = 1000
+DAILY_CAP_WINDOW = 21  # sessions of market value averaged for the daily universe (DECISIONS 81)
 
 
 def source_files(src: Path) -> list[Path]:
@@ -133,17 +134,54 @@ def adjust(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def daily_caps(files: list[Path], years: tuple[int, int] | None = None) -> pd.DataFrame:
+    """Market value (|PRC| x SHROUT, $M) of every common stock on every trading day (dates x PERMNO)."""
+    parts = []
+    for f in files:
+        df = read_block(f, columns=["PERMNO", "date", "SHRCD", "EXCHCD", "PRC", "SHROUT"])
+        df = df[df["PERMNO"] != SPY_PERMNO]
+        if years:
+            df = df[(df["date"].dt.year >= years[0] - 1) & (df["date"].dt.year <= years[1])]
+        df["cap"] = (df["PRC"].abs() * df["SHROUT"] / 1000.0).astype("float32")
+        parts.append(df[["date", "PERMNO", "cap"]])
+    long = pd.concat(parts, ignore_index=True).dropna()
+    long = long.drop_duplicates(["date", "PERMNO"], keep="last")
+    return long.pivot(index="date", columns="PERMNO", values="cap").sort_index()
+
+
+def daily_membership(caps: pd.DataFrame, top_n: int, window: int = DAILY_CAP_WINDOW) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(member, rank): on each trading day t the top_n by the window-day average market value over
+    days up to t (DECISIONS 81). The engine reads the mask on the signal day t and buys at the t+1
+    open, so a purchase on day t+1 uses market values up to day t only. rank 1 = largest."""
+    avg = caps.rolling(window, min_periods=window).mean()
+    avg = avg.where(caps.notna())  # not listed today: not a member
+    rank = avg.rank(axis=1, ascending=False, method="first")
+    return (rank <= top_n), rank.astype("float32")
+
+
 def build_panel(src: Path, top_n: int = TOP_N, years: tuple[int, int] | None = None,
-                files: list[Path] | None = None, log=print) -> tuple[Panel, pd.DataFrame, dict]:
-    """Build the point-in-time panel. Returns (panel without cash, info, meta)."""
+                files: list[Path] | None = None, log=print, daily: bool = False) -> tuple[Panel, pd.DataFrame, dict]:
+    """Build the point-in-time panel. Returns (panel without cash, info, meta).
+    daily=False: members are the top_n of the previous year-end (DECISIONS 70).
+    daily=True: members are the top_n of each day by the 21-day average market value (DECISIONS 81);
+    the panel then also carries extra["cap_rank"]."""
     files = files or source_files(src)
-    log(f"[1/3] 연말 시가총액 계산: 파일 {len(files)}개")
-    caps = year_end_caps(files)
-    if years:
-        caps = caps[(caps["year"] >= years[0] - 1) & (caps["year"] <= years[1])]
-    members = membership(caps, top_n)
-    wanted = {p for ps in members.values() for p in ps} | {SPY_PERMNO}
-    log(f"[2/3] 가격 읽기: 누적 {len(wanted) - 1}개 종목 (연도별 상위 {top_n})")
+    rank = None
+    if daily:
+        log(f"[1/3] 일별 시가총액 계산: 파일 {len(files)}개")
+        caps = daily_caps(files, years)
+        member, rank = daily_membership(caps, top_n)
+        wanted = set(member.columns[member.any(axis=0).to_numpy()]) | {SPY_PERMNO}
+        del caps
+        log(f"[2/3] 가격 읽기: 누적 {len(wanted) - 1}개 종목 (일별 상위 {top_n})")
+    else:
+        log(f"[1/3] 연말 시가총액 계산: 파일 {len(files)}개")
+        caps = year_end_caps(files)
+        if years:
+            caps = caps[(caps["year"] >= years[0] - 1) & (caps["year"] <= years[1])]
+        members = membership(caps, top_n)
+        wanted = {p for ps in members.values() for p in ps} | {SPY_PERMNO}
+        log(f"[2/3] 가격 읽기: 누적 {len(wanted) - 1}개 종목 (연도별 상위 {top_n})")
     long = pd.concat([read_block(f, wanted) for f in files], ignore_index=True)
     if years:
         long = long[(long["date"].dt.year >= years[0]) & (long["date"].dt.year <= years[1])]
@@ -166,11 +204,16 @@ def build_panel(src: Path, top_n: int = TOP_N, years: tuple[int, int] | None = N
     extra = {f: adj.pivot(index="date", columns="symbol", values=f).sort_index().astype("float32") for f in EXTRA}
     symbols = list(tables["close"].columns)
     close = tables["close"]
-    eligible = pd.DataFrame(False, index=close.index, columns=symbols)
-    yrs = close.index.year
-    for year, ps in members.items():
-        cols = [p for p in ps if p in eligible.columns]
-        eligible.loc[yrs == year, cols] = True
+    if daily:
+        eligible = member.reindex(index=close.index, columns=symbols, fill_value=False).astype(bool)
+        extra["cap_rank"] = rank.reindex(index=close.index, columns=symbols).astype("float32")
+        del member, rank
+    else:
+        eligible = pd.DataFrame(False, index=close.index, columns=symbols)
+        yrs = close.index.year
+        for year, ps in members.items():
+            cols = [p for p in ps if p in eligible.columns]
+            eligible.loc[yrs == year, cols] = True
     eligible &= close.notna()
     # a symbol whose series ends before the data does: never buy on its last two bars (the
     # delisting bar and the day before it)
@@ -182,8 +225,11 @@ def build_panel(src: Path, top_n: int = TOP_N, years: tuple[int, int] | None = N
     info = pd.DataFrame({"symbol": symbols, "name": [tickers.get(s, "") for s in symbols], "asset_group": "주식",
                          "delist_code": [dl.get(s, np.nan) for s in symbols],
                          "sic": [pd.to_numeric(sic.get(s, np.nan), errors="coerce") for s in symbols]})
-    meta = {"top_n": top_n, "years": sorted(members), "files": [f.name for f in files], "symbols": len(symbols) - 1,
+    meta = {"top_n": top_n, "years": sorted(set(close.index.year.tolist())) if daily else sorted(members),
+            "files": [f.name for f in files], "symbols": len(symbols) - 1,
             "first": str(close.index[0].date()), "last": str(close.index[-1].date())}
+    if daily:
+        meta["universe"] = f"daily top {top_n} by {DAILY_CAP_WINDOW}-day average market value"
     panel = Panel(**tables, info=info, source=f"CRSP 시점별 시가총액 상위 {top_n} (보통주)", tradable=[s for s in symbols if s != SPY_PERMNO],
                   kind="crsp", eligible=eligible, delist_exit=True, extra=extra)
     panel = rename_benchmark(panel)
@@ -219,7 +265,8 @@ def load_panel(out: Path) -> Panel:
     info = pd.read_csv(out / "info.csv", dtype={"symbol": str, "name": str})
     meta = json.loads((out / "meta.json").read_text(encoding="utf-8"))
     symbols = list(tables["close"].columns)
-    extra = {k: pd.read_parquet(out / f"extra_{k}.parquet") for k in EXTRA if (out / f"extra_{k}.parquet").exists()}
+    extra = {k: pd.read_parquet(out / f"extra_{k}.parquet") for k in EXTRA + ("cap_rank",)
+             if (out / f"extra_{k}.parquet").exists()}
     return Panel(**tables, info=info, source=f"CRSP 시점별 시가총액 상위 {meta['top_n']} (보통주)",
                  tradable=[s for s in symbols if s != BENCHMARK], kind="crsp", eligible=eligible, delist_exit=True,
                  extra=extra)
@@ -231,8 +278,9 @@ def main(argv: list[str]) -> None:
     ap.add_argument("--out", required=True, help="패널을 저장할 폴더 (저장소 밖)")
     ap.add_argument("--top", type=int, default=TOP_N)
     ap.add_argument("--years", type=int, nargs=2, metavar=("FIRST", "LAST"), default=None)
+    ap.add_argument("--daily", action="store_true", help="일별 상위 N (21일 평균 시가총액, 결정 81)")
     a = ap.parse_args(argv)
-    panel, info, meta = build_panel(Path(a.src), a.top, tuple(a.years) if a.years else None)
+    panel, info, meta = build_panel(Path(a.src), a.top, tuple(a.years) if a.years else None, daily=a.daily)
     save_panel(panel, info, meta, Path(a.out))
     print(f"저장: {a.out} · 종목 {meta['symbols']} · {meta['first']} – {meta['last']}")
 

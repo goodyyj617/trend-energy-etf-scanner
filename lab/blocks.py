@@ -255,6 +255,183 @@ def _vix_high(p: Panel, x: float) -> pd.DataFrame:
     return _macro_cond(p, "VIXCLS", lambda v, _: v >= x)
 
 
+# --------------------------------------------------------------------------- Stage C (DECISIONS 81)
+# Entries that fire only on the first day their condition becomes true (an event, not a state),
+# so purchases follow each stock's own price path. Exits are states or position paths as usual.
+
+MACD_SETS = {8: (8, 17, 9), 12: (12, 26, 9), 19: (19, 39, 9)}  # fast EMA -> (fast, slow, signal)
+
+
+def first_day(cond: pd.DataFrame) -> pd.DataFrame:
+    """True only where the condition is true today and was not true on the previous row."""
+    cond = cond.astype("float64").fillna(0.0) > 0.5  # NaN (no data) counts as False
+    return cond & ~cond.shift(1, fill_value=False)
+
+
+def avg_volume_before(p: Panel, n: int) -> pd.DataFrame:
+    """Average volume of the n sessions before today (today excluded)."""
+    return p.volume.shift(1).rolling(n, min_periods=n).mean()
+
+
+def _c_donchian(p: Panel, n: float) -> pd.DataFrame:
+    return first_day(_breakout(p, n))
+
+
+def _c_golden(p: Panel, fast: float) -> pd.DataFrame:
+    return first_day(sma(p.close, int(fast)) > sma(p.close, 200))
+
+
+def _c_high_volume(p: Panel, m: float) -> pd.DataFrame:
+    hi = p.high.shift(1).rolling(252, min_periods=252).max()
+    return first_day((p.close > hi) & (p.volume >= m * avg_volume_before(p, 50)))
+
+
+def _c_squeeze(p: Panel, pct: float) -> pd.DataFrame:
+    """Yesterday's Bollinger(20, 2) bandwidth was in the lowest pct% of the last 126 days, and today
+    closes above the upper band."""
+    mid = sma(p.close, 20)
+    sd = p.close.rolling(20, min_periods=20).std(ddof=0)
+    width = 4 * sd / mid.replace(0, np.nan)
+    low = width.rolling(126, min_periods=126).quantile(pct / 100.0)
+    squeezed = (width <= low).shift(1, fill_value=False)
+    return first_day(squeezed & (p.close > mid + 2 * sd))
+
+
+def _c_rsi2_pullback(p: Panel, r: float) -> pd.DataFrame:
+    return first_day((p.close > sma(p.close, 200)) & (rsi(p.close, 2) < r))
+
+
+def macd(close: pd.DataFrame, fast: int, slow: int, signal: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    line = (close.ewm(span=fast, adjust=False, min_periods=fast).mean()
+            - close.ewm(span=slow, adjust=False, min_periods=slow).mean())
+    return line, line.ewm(span=signal, adjust=False, min_periods=signal).mean()
+
+
+def _c_macd(p: Panel, fast: float) -> pd.DataFrame:
+    line, sig = macd(p.close, *MACD_SETS[int(fast)])
+    above = line > sig
+    cross = above & ~above.shift(1, fill_value=True)  # crossed today; the first comparable day is not a cross
+    return first_day(cross & (line > 0))
+
+
+def _c_di_cross(p: Panel, a: float) -> pd.DataFrame:
+    adx, plus_di, minus_di = adx_di(p, 14)
+    above = plus_di > minus_di
+    cross = above & ~above.shift(1, fill_value=True)
+    return first_day(cross & (adx >= a))
+
+
+def _c_tsmom(p: Panel, months: float) -> pd.DataFrame:
+    """L-month return above the T-bill return over the same span (L x 21 sessions)."""
+    n = int(months) * 21
+    ret = p.close / p.close.shift(n) - 1.0
+    cash = p.cash.reindex(p.close.index).fillna(0.0) if p.cash is not None else pd.Series(0.0, index=p.close.index)
+    growth = (1.0 + cash).cumprod()
+    bill = growth / growth.shift(n) - 1.0
+    return first_day(ret.gt(bill, axis=0))
+
+
+def _c_gap_volume(p: Panel, g: float) -> pd.DataFrame:
+    gap = p.open >= p.high.shift(1) * (1 + g / 100.0)
+    return first_day(gap & (p.volume >= 3 * avg_volume_before(p, 50)) & (p.close > p.open))
+
+
+def psar_down(p: Panel, step: float, max_step: float = 0.2) -> pd.DataFrame:
+    """True on days the Parabolic SAR (Wilder) is above the price (downtrend). Columns run side by
+    side; a symbol starts long on its second bar with data, and a gap (no bar) holds its state."""
+    hi, lo = p.high.to_numpy(dtype=float), p.low.to_numpy(dtype=float)
+    n, m = hi.shape
+    out = np.zeros((n, m), dtype=bool)
+    sar = np.full(m, np.nan)
+    ep = np.full(m, np.nan)
+    af = np.full(m, step)
+    up = np.ones(m, dtype=bool)
+    prev_hi, prev_lo = np.full(m, np.nan), np.full(m, np.nan)  # last bar with data
+    prev2_hi, prev2_lo = np.full(m, np.nan), np.full(m, np.nan)  # the bar before it
+    for i in range(n):
+        h, l = hi[i], lo[i]
+        ok = (h == h) & (l == l)
+        start = ok & (sar != sar) & (prev_hi == prev_hi)  # second bar: start long from the previous low
+        run = ok & (sar == sar)
+        # today's SAR from yesterday's; a long SAR may not rise above the last two lows, a short one
+        # may not fall below the last two highs
+        nxt = sar + af * (ep - sar)
+        nxt = np.where(up, np.fmin(nxt, np.fmin(prev_lo, prev2_lo)), np.fmax(nxt, np.fmax(prev_hi, prev2_hi)))
+        flip_dn = run & up & (l < nxt)
+        flip_up = run & ~up & (h > nxt)
+        flip = flip_dn | flip_up
+        grew = (up & (h > ep)) | (~up & (l < ep))
+        new_af = np.where(flip, step, np.where(grew, np.minimum(af + step, max_step), af))
+        new_ep = np.where(flip_dn, l, np.where(flip_up, h, np.where(up, np.fmax(ep, h), np.fmin(ep, l))))
+        new_sar = np.where(flip, ep, nxt)  # on a reversal the SAR jumps to the old extreme point
+        new_up = np.where(flip_dn, False, np.where(flip_up, True, up))
+        sar = np.where(run, new_sar, np.where(start, prev_lo, sar))
+        ep = np.where(run, new_ep, np.where(start, np.fmax(prev_hi, h), ep))
+        af = np.where(run, new_af, np.where(start, step, af))
+        up = np.where(run, new_up, np.where(start, True, up))
+        out[i] = ok & (sar == sar) & ~up
+        prev2_hi = np.where(ok, prev_hi, prev2_hi)
+        prev2_lo = np.where(ok, prev_lo, prev2_lo)
+        prev_hi = np.where(ok, h, prev_hi)
+        prev_lo = np.where(ok, l, prev_lo)
+    return pd.DataFrame(out, index=p.close.index, columns=p.close.columns)
+
+
+def _x_psar(p: Panel, step: float) -> pd.DataFrame:
+    return first_day(psar_down(p, step))
+
+
+def _x_rsi2(p: Panel, r: float) -> pd.DataFrame:
+    return (p.close > sma(p.close, 5)) | (rsi(p.close, 2) > r)
+
+
+STAGE_C_ENTRIES = [
+    Block("c_donchian", "N일 신고가 돌파 (첫날)", "오늘 종가 > 직전 N거래일 고가의 최댓값, 그 조건이 처음 참이 된 날",
+          "돈치안 채널·터틀 돌파. 돌파한 첫날에만 신호가 납니다.",
+          Param("N (거래일)", 55, 20, 100, 5, "거래일", "비교할 과거 고가 구간의 길이"), _c_donchian, "가격"),
+    Block("c_golden", "골든크로스 (첫날)", "SMA(N)이 SMA(200)을 위로 교차한 날",
+          "단기 이동평균이 200일선을 상향 돌파하는 고전적인 추세 시작 신호.",
+          Param("N (거래일)", 50, 20, 100, 10, "거래일", "짧은 이동평균 기간"), _c_golden, "가격"),
+    Block("c_high_volume", "52주 신고가 + 거래량 (첫날)",
+          "오늘 종가 > 직전 252거래일 고가의 최댓값 그리고 오늘 거래량 ≥ m × 직전 50일 평균 거래량, 처음 참이 된 날",
+          "거래량이 실린 52주 신고가 돌파(O'Neil·IBD식).",
+          Param("m (배)", 1.5, 1.0, 3.0, 0.1, "배", "평균 거래량 대비 배수"), _c_high_volume, "거래량"),
+    Block("c_squeeze", "볼린저 수축 후 돌파 (첫날)",
+          "어제 볼린저(20, 2) 밴드폭이 최근 126일 중 하위 p% 이내, 오늘 종가 > 상단 밴드, 처음 참이 된 날",
+          "변동성이 줄어든 뒤 위로 터지는 순간을 잡습니다(Bollinger squeeze). 밴드폭 = 4 × 표준편차 ÷ 20일선.",
+          Param("p (%)", 20, 5, 40, 5, "%", "수축으로 볼 밴드폭 백분위"), _c_squeeze, "보조지표"),
+    Block("c_rsi2_pullback", "상승 추세 속 단기 눌림 (첫날)", "종가 > SMA200 그리고 RSI(2) < r, 처음 참이 된 날",
+          "200일선 위의 종목이 2일 RSI로 과매도가 된 날 삽니다(Connors 단기 눌림목).",
+          Param("r", 10, 2, 30, 1, "점", "RSI(2) 기준"), _c_rsi2_pullback, "보조지표"),
+    Block("c_macd", "MACD 골든크로스 (0선 위)", "MACD 선이 시그널 선을 위로 교차한 날 그리고 MACD > 0",
+          "MACD(빠른 EMA, 느린 EMA, 시그널)의 상향 교차. 파라미터는 빠른 EMA 기간이고 8 → (8, 17, 9), 12 → (12, 26, 9), "
+          "19 → (19, 39, 9)입니다.",
+          Param("빠른 EMA", 12, 8, 19, 1, "거래일", "MACD 묶음 선택"), _c_macd, "보조지표"),
+    Block("c_di_cross", "+DI 상향 교차 + ADX (첫날)", "+DI(14)가 −DI(14)를 위로 교차한 날 그리고 ADX(14) ≥ a",
+          "Wilder의 방향성 지표. 상승 방향이 하락 방향을 넘어서는 날, 추세 강도가 a 이상일 때만 삽니다.",
+          Param("a", 20, 10, 30, 5, "점", "ADX 하한"), _c_di_cross, "보조지표"),
+    Block("c_tsmom", "시계열 모멘텀 (첫날)", "L개월(L × 21거래일) 수익률 > 같은 기간 단기국채 수익률, 처음 참이 된 날",
+          "자기 과거 대비 모멘텀(Moskowitz·Ooi·Pedersen 2012). 현금보다 나아진 첫날 삽니다.",
+          Param("L (개월)", 12, 1, 12, 1, "개월", "수익률을 재는 기간"), _c_tsmom, "가격"),
+    Block("c_gap_volume", "갭 상승 + 거래량 폭발 (첫날)",
+          "오늘 시가 ≥ 어제 고가 × (1 + g%) 그리고 거래량 ≥ 3 × 직전 50일 평균 그리고 종가 > 시가",
+          "실적 발표 등으로 갭 상승한 뒤 밀리지 않은 날(에피소딕 피벗).",
+          Param("g (%)", 4, 1, 10, 1, "%", "어제 고가 대비 갭 크기"), _c_gap_volume, "거래량"),
+]
+
+STAGE_C_EXITS = [
+    Block("chandelier", "샹들리에 청산 (ATR 22)", "오늘 종가 < 진입 후 최고 종가 − k × ATR(22)",
+          "최고 종가에서 22일 평균 진폭의 k배 아래로 내려가면 팝니다(Chuck LeBeau). ATR 트레일링과 같고 ATR 기간만 22일입니다.",
+          Param("k (ATR 배수)", 3.0, 1.0, 6.0, 0.5, "ATR", "최고 종가에서 몇 ATR 아래에서 청산할지"), None, "보조지표"),
+    Block("psar_flip", "파라볼릭 SAR 반전", "파라볼릭 SAR(가속 a, 최대 0.2)이 가격 아래에서 위로 넘어간 날",
+          "Wilder의 SAR이 하락 추세로 돌아서는 날 팝니다. 이미 하락 추세일 때 산 종목은 다음 반전을 기다립니다.",
+          Param("a (가속)", 0.02, 0.01, 0.05, 0.01, "", "가속 계수의 시작값과 증가 폭"), _x_psar, "보조지표"),
+    Block("rsi2_exit", "단기 반등 청산 (SMA5 / RSI 2)", "오늘 종가 > SMA5 또는 RSI(2) > r",
+          "단기 눌림목 매매의 짝이 되는 청산(Connors). 반등하면 바로 팝니다.",
+          Param("r", 70, 50, 90, 5, "점", "RSI(2) 기준"), _x_rsi2, "보조지표"),
+]
+
+
 ENTRY_BLOCKS: dict[str, Block] = {
     b.key: b
     for b in [
@@ -386,6 +563,9 @@ EXIT_BLOCKS: dict[str, Block] = {
               Param("X", -0.1, -0.4, 0.2, 0.05, "", "CMF 기준 (0 미만 = 유출 우세)"), _cmf_below, "거래량"),
     ]
 }
+
+ENTRY_BLOCKS.update({b.key: b for b in STAGE_C_ENTRIES})
+EXIT_BLOCKS.update({b.key: b for b in STAGE_C_EXITS})
 
 REGIME_PAIRS: dict[str, str] = {  # regime entry filter -> its complement exit (regime switch)
     "market_trend": "market_off", "curve_ok": "curve_inverted", "credit_calm": "credit_stress", "vix_calm": "vix_high",

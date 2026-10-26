@@ -36,6 +36,7 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 - **열(heat) 상한**: 보유 중인 포지션의 초기 위험(주식 수 × 손절폭) 합이 총자산의 H%를 넘게 되는 매수는 하지 않습니다.
 - **손익분기 이동**: 종가가 진입가 + X × 손절폭 이상에 한 번 닿은 뒤에는, 종가가 진입가 아래로 내려오면 청산합니다.
 - **ATR 손절**: 오늘 종가 < 진입가 − k × ATR(14). ATR은 신호일(매수 전날) 값으로 고정합니다.
+- **샹들리에 청산**: 오늘 종가 < 진입 후 최고 종가 − k × ATR(22). ATR 트레일링과 같고 ATR 기간만 22일입니다.
 - **시간 손절**: 진입 후 N거래일이 지났는데 종가 ≤ 진입가이면 청산합니다.
 - **부분 익절**: 종가가 처음으로 진입가 × (1 + X%) 이상이 되면 다음 날 시가에 보유의 50%를 팝니다(한 번만).
   같은 날 전량 청산 신호가 나면 전량 청산이 우선합니다. 거래 목록에는 포지션당 한 줄로, 수익률은 두 번의 매도를 합친 값입니다.
@@ -217,7 +218,7 @@ class SignalCache:
         return self._memo[key]
 
     # memo entries that depend only on the panel and the window, not on the rules
-    WINDOW_KEYS = ("tradable", "close", "open", "open_np", "last_close", "last_close_np", "days", "rank", "atr", "vol",
+    WINDOW_KEYS = ("tradable", "close", "open", "open_np", "last_close", "last_close_np", "days", "rank", "atr", "atr22", "vol",
                    "last_bar")
 
     def drop_rule_data(self, keep_window: tuple | None = None) -> None:
@@ -260,7 +261,46 @@ class SignalCache:
         return self._atr
 
 
-def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None) -> BacktestResult:
+SIGNAL_COLUMNS = ["symbol", "signal_date", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days",
+                  "exit_reason", "closed"]
+
+
+def _signal_outcomes(panel, cache, w, dates, entry_key, make_mask, exit_for, risk_per_share, exit_at, c, n) -> pd.DataFrame:
+    """Every entry signal traded on its own with the rule's exits (overlapping signals of one symbol
+    allowed): bought at the next open, sold at the open after the exit signal, cost on both sides.
+    A position still open at the end is valued at the last close (closed = False)."""
+    mask = cache.memo(("entry_mask",) + entry_key, make_mask)
+    O = cache.memo(("open_np", w), lambda: panel.open.loc[dates].to_numpy(dtype=float))
+    LC = cache.memo(("last_close_np", w), lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float))
+    symbols = panel.symbols
+    rows = []
+    for i, j in zip(*np.nonzero(mask[:-1])):
+        e = int(i) + 1
+        j = int(j)
+        px = O[e, j]
+        if px != px or px <= 0:
+            continue  # no bar at the next open: the order is cancelled
+        px = float(px)
+        x = exit_at.get((j, e), exit_at)
+        if x is exit_at:
+            x = exit_at[(j, e)] = exit_for(j, e, px, risk_per_share(j, e, px))
+        sale, out_px, closed, reason = None, float("nan"), False, ""
+        if x is not None:
+            col = O[x[0] + 1:, j]
+            ok = np.flatnonzero(col == col)
+            if len(ok):
+                sale = x[0] + 1 + int(ok[0])
+                out_px, closed, reason = float(O[sale, j]), True, exit_label(x[1])
+        if not closed:
+            sale, out_px = n - 1, float(LC[n - 1, j])
+        ret = out_px * (1 - c) / (px * (1 + c)) - 1.0 if closed else out_px / (px * (1 + c)) - 1.0
+        rows.append((symbols[j], dates[e - 1], dates[e], dates[sale], px, out_px, ret, sale - e, reason, closed))
+    return pd.DataFrame(rows, columns=SIGNAL_COLUMNS)
+
+
+def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None, outcomes: bool = False):
+    """outcomes=True: instead of the account, a table of every entry signal traded on its own
+    (SIGNAL_COLUMNS); the exits and their memo are the same as the account's."""
     if not cfg.entries:
         raise ValueError("진입 조건을 하나 이상 선택하세요.")
     if not cfg.exits:
@@ -316,6 +356,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     atr_stop_k = cfg.exits.get("atr_stop")
     AT = (cache.memo(("atr", w), lambda: np.ascontiguousarray(cache.atr14.loc[dates].to_numpy(dtype=float).T))
           if (atr_k is not None or atr_stop_k is not None) else None)
+    ch_k = cfg.exits.get("chandelier")  # like atr_trail with ATR(22) (DECISIONS 81)
+    AT22 = (cache.memo(("atr22", w), lambda: np.ascontiguousarray(atr(panel, 22).loc[dates].to_numpy(dtype=float).T))
+            if ch_k is not None else None)
     CT = cache.memo(("close", w), lambda: np.ascontiguousarray(panel.close.loc[dates].to_numpy(dtype=float).T))
     # Plain Python lists: the daily loop touches single values, and Python floats are far
     # faster than numpy scalars for that. Results are bit-for-bit identical (both are doubles).
@@ -401,6 +444,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                 elif k == "atr_trail":
                     a = AT[j, start:end]
                     hits.append((a == a) & (cj < pk - atr_k * a))
+                elif k == "chandelier":
+                    a = AT22[j, start:end]
+                    hits.append((a == a) & (cj < pk - ch_k * a))
                 elif k == "stop_loss_pct":
                     hits.append(cj < entry_price * stop_mult)
                 elif k == "atr_stop":
@@ -446,6 +492,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
 
     nan_ = float("nan")
     day = cache.memo(("days", w), lambda: list(dates))  # indexing a DatetimeIndex one item at a time is slow
+    if outcomes:
+        return _signal_outcomes(panel, cache, w, dates, entry_key, make_mask, exit_for, risk_per_share, exit_at, c, n)
     cash = 1.0
     open_risk = 0.0  # sum of the initial risks (shares x stop distance) of open positions
     last_close = [float("nan")] * len(symbols)  # yesterday's LC row (all NaN before the first day)

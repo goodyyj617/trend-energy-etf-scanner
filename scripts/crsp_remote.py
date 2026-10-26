@@ -27,7 +27,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 STUDIES = {"screens": "lab.screen_study", "families": "lab.crsp_study", "scores": "lab.score_study",
-           "combos": "lab.combo_study"}
+           "combos": "lab.combo_study", "stagec": "lab.stage_c_study"}
+DAILY = {"stagec"}  # studies on the daily top-N universe (lab.crsp --daily, DECISIONS 81)
 
 
 def copytree(src: Path, dst: Path) -> None:
@@ -55,8 +56,10 @@ def main(argv: list[str]) -> int:
     if not drive.exists():
         print(f"Drive folder not found: {drive}")
         return 1
-    panel_src = drive / "lab_crsp" / f"panel_top{a.top}"
-    out_dst = drive / "lab_crsp" / f"{a.study}_top{a.top}"
+    daily = a.study in DAILY
+    kind = "daily" if daily else "top"
+    panel_src = drive / "lab_crsp" / f"panel_{kind}{a.top}"
+    out_dst = drive / "lab_crsp" / (f"{a.study}_{kind}{a.top}" + ("_dry" if "--dry" in a.extra.split() else ""))
     tmp = Path(tempfile.mkdtemp(prefix="crsp_run_"))
     panel = tmp / "panel"
     out = tmp / "out"
@@ -69,9 +72,9 @@ def main(argv: list[str]) -> int:
             print(f"[1/3] panel: copying {panel_src} -> temporary folder", flush=True)
             copytree(panel_src, panel)
         else:
-            print(f"[1/3] panel: building top {a.top} from {drive} (10-30 min, read from Drive)", flush=True)
+            print(f"[1/3] panel: building {kind} top {a.top} from {drive} (10-30 min, read from Drive)", flush=True)
             subprocess.run([python, "-m", "lab.crsp", "--src", str(drive), "--out", str(panel), "--top", str(a.top),
-                           "--years", "1991", "2024"], check=True, cwd=ROOT)
+                           "--years", "1991", "2024"] + (["--daily"] if daily else []), check=True, cwd=ROOT)
             copytree(panel, panel_src)  # the built panel is kept on Drive for the next run
         if out_dst.exists():
             print("[2/3] resuming: copying finished parts from Drive", flush=True)
