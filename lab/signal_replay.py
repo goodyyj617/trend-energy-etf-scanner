@@ -139,7 +139,8 @@ def keep_mask(panel: Panel, signals: pd.DataFrame, exclude: dict | None = None) 
     """True for signals that pass every exclusion screen in `exclude` ({key: value}) and were filled
     (not CANCELLED). Selection by score is a ranking among that day's names: build it with
     stage_c_study.daily_eligible and look it up with signal_values(frame=...)."""
-    keep = (signals["exit_reason"] != CANCELLED).to_numpy() if "exit_reason" in signals else np.ones(len(signals), bool)
+    # np.array copies: under pandas copy-on-write .to_numpy() can be a read-only view
+    keep = np.array(signals["exit_reason"] != CANCELLED, dtype=bool) if "exit_reason" in signals else np.ones(len(signals), bool)
     for key, value in (exclude or {}).items():
         keep &= ~(signal_values(panel, signals, key, value).fillna(0.0).to_numpy() > 0.5)
     return keep
