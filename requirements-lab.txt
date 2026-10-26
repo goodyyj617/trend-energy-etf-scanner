@@ -1,3 +1,4 @@
 streamlit>=1.50
 plotly>=5.20
+matplotlib>=3.8  # study figures (lab/figures.py)
 pyarrow>=15  # CRSP panel files (lab/crsp.py)
