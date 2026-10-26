@@ -1356,6 +1356,62 @@ def glossary_page() -> None:
     st.markdown(RULES_KO)
 
 
+VALUE_TEXT = {
+    "excess": ("SPY 대비 초과 CAGR", "전략의 연평균 수익률(CAGR)에서 같은 기간 SPY 보유의 CAGR을 뺀 값. 묶음 안 여러 칸의 중앙값입니다. "
+                                    "0보다 크면 SPY보다 수익이 높았다는 뜻입니다."),
+    "pass": ("통과 칸 비율", "시험한 칸 가운데 목표(CAGR ≥ SPY 그리고 |MDD| ≤ |SPY MDD|, 완료 거래 30회 이상)를 통과한 칸의 비율."),
+}
+
+
+def experiments_page() -> None:
+    from lab import experiments as xp
+    st.title("실험 기록")
+    st.markdown("지금까지 한 실험을 최신 순으로 보여 줍니다. 실험마다 **왜 했는지**, **핵심 결과**, **그림**을 남깁니다. "
+                "그림은 집계 결과만 담은 이미지이고, 드라이브의 결과 폴더가 연결되어 있으면 아래에 마우스로 볼 수 있는 그래프가 더 나옵니다.")
+    init("exp_drive", xp.default_drive())
+    drive = st.text_input("드라이브의 CRSP 폴더 (선택)", key="exp_drive",
+                          help="예: H:\\내 드라이브\\CRSP. 비워 두면 저장소에 있는 그림만 보여 줍니다.")
+    try:
+        rows = xp.load()
+    except (OSError, ValueError) as err:
+        st.error(f"실험 목록을 읽지 못했습니다: {err}")
+        return
+    for e in rows:
+        st.divider()
+        st.subheader(e["title"])
+        meta = [e["date"], e.get("status", "")]
+        if e.get("decision"):
+            meta.append(f"결정 {e['decision']}")
+        st.caption(" · ".join(m for m in meta if m))
+        st.markdown("**왜 했는지**")
+        st.markdown(e["why"])
+        st.markdown("**핵심 결과**")
+        st.markdown(" ".join(e["results"]))
+        figs = [f for f in e["figures"] if (xp.ROOT / f["path"]).exists()]
+        if figs:
+            st.markdown("**그림**")
+            cols = st.columns(2)
+            for i, f in enumerate(figs):
+                cols[i % 2].image(str(xp.ROOT / f["path"]), caption=f.get("caption", ""), width="stretch")
+        folder = xp.results_folder(e, drive)
+        made = xp.chart_frame(e, folder) if folder else None
+        if made:
+            frame, kind, title = made
+            name, meaning = VALUE_TEXT[kind]
+            order = (frame[frame["표본"] == frame["표본"].iloc[0]].sort_values("값")["이름"].tolist())
+            fig = go.Figure()
+            for smp, g in frame.groupby("표본", sort=False):
+                g = g.set_index("이름").reindex(order).reset_index()
+                fig.add_bar(y=g["이름"], x=g["값"], name=smp, orientation="h",
+                            hovertemplate="%{y}<br>" + name + " %{x:.1%}<extra>" + smp + "</extra>")
+            fig.update_layout(title=title, barmode="group", height=max(320, 22 * len(order) + 120),
+                              xaxis_tickformat=".0%", xaxis_title=name, margin=dict(l=10, r=10, t=40, b=10))
+            st.plotly_chart(fig, width="stretch")
+            st.caption(f"**{name}**: {meaning}")
+        if e.get("memo"):
+            st.caption(f"자세한 기록: `{e['memo']}`")
+
+
 def sidebar_status() -> None:
     n, _ = rlog.trial_stats()
     n_eff = rlog.effective_trials()[0]
@@ -1369,7 +1425,7 @@ def sidebar_status() -> None:
 
 
 PERSIST_PREFIXES = ("entry_", "exit_", "max_positions", "cost_bps", "min_price", "min_dv", "liq_days", "cash_yield",
-                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_", "sizing", "risk_")
+                    "uni_", "yf_tickers", "start", "end", "grid_", "gx_", "gy_", "gate_", "sizing", "risk_", "exp_")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES):
         st.session_state[_k] = st.session_state[_k]  # keeps settings when visiting another page
@@ -1378,6 +1434,7 @@ nav = st.navigation([
     st.Page(research_page, title="전략 연구", icon="📈", default=True),
     st.Page(holdout_page, title="최종 검증 (보류 구간)", icon="🔒"),
     st.Page(saved_page, title="저장된 결과", icon="💾"),
+    st.Page(experiments_page, title="실험 기록", icon="🧾"),
     st.Page(glossary_page, title="용어 설명", icon="📖"),
 ])
 nav.run()
