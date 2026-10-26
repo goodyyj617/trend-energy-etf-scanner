@@ -334,3 +334,27 @@ A32. Stage 2 of A31 (user's list, 2026-10-25 23:35 KST: "MDD −15%, CAGR 13.2%�
     but exceeds −15 % by 0.1–0.2 %p with a 3 %p band or date offsets. B2 (10.9 / −13.2) and B4 (9.5 / −11.7) stay
     within −15 % under every test. 내 AAA is outside the line in every test (−16.3 %, 3 % of ±2 %p neighbours inside).
     No preset registered; the user chooses.
+
+### Real Korean ETF prices after listing (2026-10-26)
+
+A33. User (2026-10-26 00:37 KST, on learning that every allocation backtest so far was the US-proxy model): "우선 데이터
+    받아와서 하자". Real daily prices of the 28 products and of 305080 / 308620 / 453850 (stand-ins for the two synthetic
+    unhedged treasuries) were downloaded on the lab PC (Naver closes + Yahoo distributions, to 2026-10-23) and compared
+    with the model; memo `2026-10-26_real_prices.md`, tables `2026-10-26_real_prices/` (products.csv, candidates.csv).
+    Rules (fixed before the comparison was read): real total return r = (close + distribution on its ex-date) / previous
+    close − 1; a product with a US underlying maps US date t to the first Seoul close strictly after t, 069500 / 122630 /
+    459580 to the last Seoul close on or before t; the hybrid panel switches each product to real prices from the US date
+    mapped to its 6th Seoul trading day (5 days after the first real close), scaled to meet the model there;
+    SYN_IEF_U → 305080, SYN_TLT_U → 453850; 2005-01-03 – 2026-10-16 (USD/KRW end), quarterly, 10 bp.
+    Result: candidates move CAGR ±0.25 %p and MDD 0–0.45 %p; R (−14.94 → −15.37) and B1 (−14.86 → −15.30) leave the
+    −15 % line; A (−14.68), B2 (−13.23), B4 (−11.65), B3, B5, U2–U4, 안정형 40 and 안정형 45 · 금 26 stay inside; 내 AAA is
+    outside on both (−16.25). Product monthly correlations 0.94–0.98 (gold spot 0.87); real single-product MDDs are often
+    1–7 %p deeper than the model; real unhedged 10-year treasuries returned 1.2–1.9 %p a year less than the synthetic one
+    with the same MDD. Most real windows are 1–5 years and contain no 2008 / 2020 crisis, so the crisis drawdowns are
+    still the model's.
+    Lab change: `lab/aa_real.py` (hybrid panel, `python -m lab.aa_real fetch` → `lab_data/kr/`, gitignored) and a sidebar
+    choice '가격 기준' = 실제 가격 우선 / 모형만, applied to every page and to the search page's engine re-run; per-product
+    real-price start dates in the sidebar and on '용어 · 상품 설명'; the stage-2 table on '전역 탐색 결과' gains
+    '실제 가격 반영 CAGR / MDD' and the date from which every holding is real (columns, not tests). The default stays
+    '모형만' (`DEFAULT_SOURCE`) until the user answers whether the hybrid becomes the default; if it does, stages 1–2
+    are re-run on it on the lab PC. The recorded A31 / A32 numbers remain model numbers.

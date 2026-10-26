@@ -188,3 +188,25 @@ def test_stage2_picks_point_at_search_rows_or_presets():
     assert kind == "p" and res.presets.at[i, "이름"] == "안정형 40 (금·현금 분산)"
     unknown = pd.DataFrame([{"후보": "비교: 없는 프리셋", "비중": "미국S&P500 100"}, {"후보": "x", "비중": "없는상품 100"}])
     assert sr.stage2_picks(unknown, res) == [("c", -1), ("c", -1)]
+
+
+def test_stage2_real_columns_match_the_committed_real_price_run_by_weights():
+    s2, real = sr.load_stage2(), sr.load_real_candidates()
+    assert s2 is not None and real is not None
+    cols = sr.stage2_real_columns(s2, real)
+    assert len(cols) == len(s2) and cols["실제 MDD"].notna().all()  # every stage-2 row was in the real-price run
+    a = s2.index[s2["후보"].str.startswith("A ")][0]
+    assert abs(cols.at[a, "실제 MDD"] - (-14.68)) < 0.01 and cols.at[a, "실제 구간 시작"] == "2025-08-25"
+    card = sr.stage2_scorecard(s2, real)
+    assert list(card.columns[:7]) == ["후보", "CAGR", "MDD", "실제 CAGR", "실제 MDD", "실제 구간 시작", "실제 구간(년)"]
+    assert "실제 CAGR" not in sr.stage2_scorecard(s2).columns
+    other = s2.copy()
+    other.loc[0, "비중"] = "미국나스닥100 100"  # not in the real-price run
+    assert sr.stage2_real_columns(other, real).iloc[0].isna().all()
+
+
+def test_real_products_table_has_a_start_date_for_every_product():
+    rp = sr.load_real_products()
+    own = rp[rp["kind"] == "product"]
+    assert set(own["model"]) == set(sr.PRODUCTS)
+    assert set(rp.loc[rp["kind"] == "synthetic", "model"]) == set(sr.SYNTHETIC)

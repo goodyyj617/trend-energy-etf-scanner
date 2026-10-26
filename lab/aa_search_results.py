@@ -33,6 +33,8 @@ RESULTS_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-25_global_sea
 MEMO_PATH = ROOT / "docs" / "research" / "allocation" / "2026-10-25_global_search.md"
 STAGE2_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-25_stage2"
 STAGE2_MEMO = ROOT / "docs" / "research" / "allocation" / "2026-10-25_stage2.md"
+REAL_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-26_real_prices"  # A33: candidates on real Korean prices
+REAL_MEMO = ROOT / "docs" / "research" / "allocation" / "2026-10-26_real_prices.md"
 
 START, END = "2005-01-03", "2026-10-16"
 REBALANCE, COST_BPS = "Q", 10.0
@@ -316,11 +318,13 @@ def load_stage2(folder: Path | str = STAGE2_DIR) -> pd.DataFrame | None:
     return pd.read_csv(path)
 
 
-def stage2_scorecard(df: pd.DataFrame) -> pd.DataFrame:
+def stage2_scorecard(df: pd.DataFrame, real: pd.DataFrame | None = None) -> pd.DataFrame:
     """One row per candidate: how many of the stage-2 MDD tests kept the allocation within −15 %, which ones did not,
-    the worst MDD over every test, the neighbour shares, and the base CAGR / MDD."""
+    the worst MDD over every test, the neighbour shares, and the base CAGR / MDD. With `real` (load_real_candidates),
+    the A33 result on real Korean prices after listing follows CAGR / MDD; it is a column, not one of the tests."""
     rows = []
-    for _, r in df.iterrows():
+    real_cols = stage2_real_columns(df, real) if real is not None else None
+    for i, (_, r) in enumerate(df.iterrows()):
         broke, n, worst = [], 0, float("inf")
         for col, label in STAGE2_TESTS:
             if col not in df.columns or pd.isna(r[col]):
@@ -330,14 +334,61 @@ def stage2_scorecard(df: pd.DataFrame) -> pd.DataFrame:
             worst = min(worst, v)
             if v < STAGE2_PCT_LINE:
                 broke.append(f"{label} ({v:.2f})")
-        row = {"후보": r["후보"], "CAGR": r["CAGR"], "MDD": r["MDD"], "선 안 시험": f"{n - len(broke)} / {n}",
-               "최악 MDD": worst if np.isfinite(worst) else np.nan, "선을 넘긴 시험": ", ".join(broke) if broke else "—"}
+        row = {"후보": r["후보"], "CAGR": r["CAGR"], "MDD": r["MDD"]}
+        if real_cols is not None:
+            row.update(real_cols.iloc[i].to_dict())
+        row.update({"선 안 시험": f"{n - len(broke)} / {n}",
+                    "최악 MDD": worst if np.isfinite(worst) else np.nan, "선을 넘긴 시험": ", ".join(broke) if broke else "—"})
         for col, label in STAGE2_SHARES:
             row[label] = float(r[col]) if col in df.columns and not pd.isna(r[col]) else np.nan
         row.update({"상품 수": r.get("상품 수"), "레버리지 %": r.get("레버리지 %"), "비중": r["비중"]})
         rows.append(row)
     return pd.DataFrame(rows)
 
+
+
+def load_real_candidates(folder: Path | str = REAL_DIR) -> pd.DataFrame | None:
+    """candidates.csv of the A33 real-price check (model vs hybrid panel, percent units), or None."""
+    path = Path(folder) / "candidates.csv"
+    if not path.exists():
+        return None
+    return pd.read_csv(path)
+
+
+def load_real_products(folder: Path | str = REAL_DIR) -> pd.DataFrame | None:
+    """products.csv of the A33 check: per product (and per synthetic → real pair) the real-price window and the
+    real vs model CAGR, monthly correlation, tracking error and MDD (percent units), or None."""
+    path = Path(folder) / "products.csv"
+    if not path.exists():
+        return None
+    return pd.read_csv(path, dtype={"model": str, "real": str})
+
+
+def _weights_key(weights: dict[str, int]) -> tuple:
+    return tuple(sorted((k, int(v)) for k, v in weights.items() if v))
+
+
+def stage2_real_columns(s2: pd.DataFrame, real: pd.DataFrame | None) -> pd.DataFrame:
+    """Per stage-2 row (same order): the A33 result with real Korean prices after listing, matched by weights.
+
+    Columns 실제 CAGR / 실제 MDD (full period, hybrid panel), 실제 구간 시작 (the date from which every holding is a real
+    price) and 실제 구간(년); NaN / None where the row was not in the real-price run."""
+    cols = ["실제 CAGR", "실제 MDD", "실제 구간 시작", "실제 구간(년)"]
+    if real is None:
+        return pd.DataFrame({c: [np.nan] * len(s2) for c in cols})
+    by_w = {}
+    for _, r in real.iterrows():
+        w = {k: int(float(v)) for k, v in (part.split(":") for part in str(r["weights"]).split())}
+        by_w[_weights_key(w)] = r
+    rows = []
+    for text in s2["비중"]:
+        try:
+            r = by_w.get(_weights_key(parse_names(text)))
+        except ValueError:
+            r = None
+        rows.append({"실제 CAGR": r["cagr_hybrid"], "실제 MDD": r["mdd_hybrid"], "실제 구간 시작": r["real_window_start"],
+                     "실제 구간(년)": r["real_years"]} if r is not None else dict.fromkeys(cols))
+    return pd.DataFrame(rows, columns=cols)
 
 
 def stage2_picks(df: pd.DataFrame, res: SearchResults) -> list[tuple[str, int]]:
