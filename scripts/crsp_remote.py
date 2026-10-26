@@ -50,7 +50,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--study", choices=list(STUDIES), default="screens")
     ap.add_argument("--top", type=int, default=3000)
     ap.add_argument("--workers", type=int, default=0, help="0 = by RAM (about 8 GB per worker)")
-    ap.add_argument("--extra", default="", help="extra arguments for the study, quoted")
+    ap.add_argument("--extra", default="", help="extra arguments for the study, quoted (e.g. --extra=--dry)")
+    ap.add_argument("--tag", default="", help="suffix of the results folder, e.g. a screened rerun: --tag ivol20")
     a = ap.parse_args(argv)
     drive = Path(a.drive)
     if not drive.exists():
@@ -59,7 +60,8 @@ def main(argv: list[str]) -> int:
     daily = a.study in DAILY
     kind = "daily" if daily else "top"
     panel_src = drive / "lab_crsp" / f"panel_{kind}{a.top}"
-    out_dst = drive / "lab_crsp" / (f"{a.study}_{kind}{a.top}" + ("_dry" if "--dry" in a.extra.split() else ""))
+    out_dst = drive / "lab_crsp" / (f"{a.study}_{kind}{a.top}" + (f"_{a.tag}" if a.tag else "")
+                                    + ("_dry" if "--dry" in a.extra.split() else ""))
     tmp = Path(tempfile.mkdtemp(prefix="crsp_run_"))
     panel = tmp / "panel"
     out = tmp / "out"

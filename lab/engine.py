@@ -262,13 +262,16 @@ class SignalCache:
 
 
 SIGNAL_COLUMNS = ["symbol", "signal_date", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days",
-                  "exit_reason", "closed"]
+                  "exit_reason", "closed", "exit_signal_date"]
+CANCELLED = "cancelled"  # exit_reason of a signal whose next open has no price: the order is not filled
 
 
 def _signal_outcomes(panel, cache, w, dates, entry_key, make_mask, exit_for, risk_per_share, exit_at, c, n) -> pd.DataFrame:
     """Every entry signal traded on its own with the rule's exits (overlapping signals of one symbol
     allowed): bought at the next open, sold at the open after the exit signal, cost on both sides.
-    A position still open at the end is valued at the last close (closed = False)."""
+    A position still open at the end is valued at the last close (closed = False). A signal whose next
+    open has no price is kept with exit_reason CANCELLED and no return (the account would skip it too).
+    exit_signal_date is the close on which the exit fired (the sale is at the next open with a price)."""
     mask = cache.memo(("entry_mask",) + entry_key, make_mask)
     O = cache.memo(("open_np", w), lambda: panel.open.loc[dates].to_numpy(dtype=float))
     LC = cache.memo(("last_close_np", w), lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float))
@@ -278,8 +281,10 @@ def _signal_outcomes(panel, cache, w, dates, entry_key, make_mask, exit_for, ris
         e = int(i) + 1
         j = int(j)
         px = O[e, j]
-        if px != px or px <= 0:
-            continue  # no bar at the next open: the order is cancelled
+        if px != px or px <= 0:  # no bar at the next open: the order is cancelled
+            rows.append((symbols[j], dates[e - 1], dates[e], pd.NaT, float("nan"), float("nan"), float("nan"), 0,
+                         CANCELLED, False, pd.NaT))
+            continue
         px = float(px)
         x = exit_at.get((j, e), exit_at)
         if x is exit_at:
@@ -294,7 +299,8 @@ def _signal_outcomes(panel, cache, w, dates, entry_key, make_mask, exit_for, ris
         if not closed:
             sale, out_px = n - 1, float(LC[n - 1, j])
         ret = out_px * (1 - c) / (px * (1 + c)) - 1.0 if closed else out_px / (px * (1 + c)) - 1.0
-        rows.append((symbols[j], dates[e - 1], dates[e], dates[sale], px, out_px, ret, sale - e, reason, closed))
+        rows.append((symbols[j], dates[e - 1], dates[e], dates[sale], px, out_px, ret, sale - e, reason, closed,
+                     dates[x[0]] if x is not None else pd.NaT))
     return pd.DataFrame(rows, columns=SIGNAL_COLUMNS)
 
 
