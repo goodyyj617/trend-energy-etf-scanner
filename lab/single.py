@@ -145,8 +145,9 @@ def _cagr_n(final: float, days: int) -> float:
     return float(final ** (252 / max(days, 1)) - 1.0) if final > 0 else -1.0
 
 
-def evaluate(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None) -> dict:
-    """Per-symbol and sleeve-portfolio results of one rule (DECISIONS 67)."""
+def evaluate(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None, with_result: bool = False) -> dict:
+    """Per-symbol and sleeve-portfolio results of one rule (DECISIONS 67). with_result=True also
+    returns the engine result (its trade list) under "result"."""
     scfg = single_config(cfg, panel)
     res = run_backtest(panel, scfg, cache)
     rets, held = symbol_returns(panel, scfg, res, with_held=True)
@@ -165,6 +166,7 @@ def evaluate(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None
     port = target_report(sleeve, panel.close[BENCHMARK], panel.cash if panel.cash is not None else pd.Series(0.0, index=dates),
                          n_trades=len(res.trades))
     return {
+        **({"result": res} if with_result else {}),
         "per_symbol": per,
         "symbols": len(per),
         "symbol_pass_share": float((per["excess"] >= 0).mean()) if len(per) else np.nan,

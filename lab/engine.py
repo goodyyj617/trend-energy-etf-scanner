@@ -36,6 +36,7 @@ RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, �
 - **열(heat) 상한**: 보유 중인 포지션의 초기 위험(주식 수 × 손절폭) 합이 총자산의 H%를 넘게 되는 매수는 하지 않습니다.
 - **손익분기 이동**: 종가가 진입가 + X × 손절폭 이상에 한 번 닿은 뒤에는, 종가가 진입가 아래로 내려오면 청산합니다.
 - **ATR 손절**: 오늘 종가 < 진입가 − k × ATR(14). ATR은 신호일(매수 전날) 값으로 고정합니다.
+- **샹들리에 청산**: 오늘 종가 < 진입 후 최고 종가 − k × ATR(22). ATR 트레일링과 같고 ATR 기간만 22일입니다.
 - **시간 손절**: 진입 후 N거래일이 지났는데 종가 ≤ 진입가이면 청산합니다.
 - **부분 익절**: 종가가 처음으로 진입가 × (1 + X%) 이상이 되면 다음 날 시가에 보유의 50%를 팝니다(한 번만).
   같은 날 전량 청산 신호가 나면 전량 청산이 우선합니다. 거래 목록에는 포지션당 한 줄로, 수익률은 두 번의 매도를 합친 값입니다.
@@ -217,7 +218,7 @@ class SignalCache:
         return self._memo[key]
 
     # memo entries that depend only on the panel and the window, not on the rules
-    WINDOW_KEYS = ("tradable", "close", "open", "open_np", "last_close", "last_close_np", "days", "rank", "atr", "vol",
+    WINDOW_KEYS = ("tradable", "close", "open", "open_np", "last_close", "last_close_np", "days", "rank", "atr", "atr22", "vol",
                    "last_bar")
 
     def drop_rule_data(self, keep_window: tuple | None = None) -> None:
@@ -316,6 +317,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
     atr_stop_k = cfg.exits.get("atr_stop")
     AT = (cache.memo(("atr", w), lambda: np.ascontiguousarray(cache.atr14.loc[dates].to_numpy(dtype=float).T))
           if (atr_k is not None or atr_stop_k is not None) else None)
+    ch_k = cfg.exits.get("chandelier")  # like atr_trail with ATR(22) (DECISIONS 81)
+    AT22 = (cache.memo(("atr22", w), lambda: np.ascontiguousarray(atr(panel, 22).loc[dates].to_numpy(dtype=float).T))
+            if ch_k is not None else None)
     CT = cache.memo(("close", w), lambda: np.ascontiguousarray(panel.close.loc[dates].to_numpy(dtype=float).T))
     # Plain Python lists: the daily loop touches single values, and Python floats are far
     # faster than numpy scalars for that. Results are bit-for-bit identical (both are doubles).
@@ -401,6 +405,9 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
                 elif k == "atr_trail":
                     a = AT[j, start:end]
                     hits.append((a == a) & (cj < pk - atr_k * a))
+                elif k == "chandelier":
+                    a = AT22[j, start:end]
+                    hits.append((a == a) & (cj < pk - ch_k * a))
                 elif k == "stop_loss_pct":
                     hits.append(cj < entry_price * stop_mult)
                 elif k == "atr_stop":
