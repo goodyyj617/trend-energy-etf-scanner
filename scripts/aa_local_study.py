@@ -50,7 +50,8 @@ COMPARE = ("stable40", "aaa_2026")  # presets shown beside the centres in ③
 # ④ also runs every other registered preset (gs_b2 / gs_b4 are B2 / B4); the first four were the comparisons fixed before
 # the run, the rest were added after it so that each preset's note can say whether it survives 2000–2002
 DOTCOM_COMPARE = ("stable40", "aaa_2026", "sixty_forty", "sp500",
-                  *[k for k in PRESETS if k not in ("stable40", "aaa_2026", "sixty_forty", "sp500", "gs_b2", "gs_b4")])
+                  *[k for k in PRESETS if k not in ("stable40", "aaa_2026", "sixty_forty", "sp500", "gs_b2", "gs_b4")
+                    and PRESETS[k].rule is None])  # static presets only (the A38 filter presets came later)
 
 FULL = dict(n_nb=5000, n_family=20_000, n_class=2000, picks=10, n_boot=1000, n_boot_rows=200, n_check=30, chunk=6000)
 QUICK = dict(n_nb=150, n_family=600, n_class=60, picks=10, n_boot=40, n_boot_rows=20, n_check=4, chunk=3000)

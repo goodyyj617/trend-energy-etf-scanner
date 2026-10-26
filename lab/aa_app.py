@@ -26,11 +26,11 @@ from lab import aa_signals as sig  # noqa: E402
 from lab import aa_store as store  # noqa: E402
 from lab import aa_tactical as tac  # noqa: E402
 from lab.aa_assets import (  # noqa: E402
-    CASH, CLASS_ORDER, DEFAULT_PRODUCTS, FX_LABELS, PRESETS, PRODUCTS, PROXY_SYMBOLS, label, short,
+    CASH, CLASS_ORDER, DEFAULT_PRODUCTS, FX_LABELS, PRESETS, PRODUCTS, PROXY_SYMBOLS, equity_codes, label, short,
 )
 from lab.aa_engine import (  # noqa: E402
     OVERLAY_LABELS, OVERLAY_PARAM, REBALANCE_LABELS, RULES_KO, AllocConfig, AllocResult, Leverage, MixConfig, Overlay,
-    current_targets, mix_parameter_count, run_allocation, run_mix, with_rebalance_offset,
+    current_targets, mix_parameter_count, preset_config, run_allocation, run_mix, with_rebalance_offset,
 )
 from lab.aa_korea import BOK_PATH, KrwModel, fetch_usdkrw_tail, krw_panel, load_bok_rate, load_usdkrw, splice  # noqa: E402
 from lab.aa_score import (  # noqa: E402
@@ -148,10 +148,20 @@ def _set_weights(prefix: str, weights: dict[str, float]) -> None:
 
 
 def apply_preset(prefix: str) -> None:
+    """Load a preset's weights and its registered rules: quarterly with no overlay for a static preset, the preset's
+    overlay with monthly decisions for one with a rule (A38). Band and cost stay as they are."""
     key = st.session_state.get(f"{prefix}_preset", CUSTOM)
     if key in PRESETS:
-        _set_weights(prefix, PRESETS[key].weights)
-        st.session_state[f"{prefix}_name"] = PRESETS[key].name
+        p = PRESETS[key]
+        _set_weights(prefix, p.weights)
+        st.session_state[f"{prefix}_name"] = p.name
+        r = p.rule
+        st.session_state[f"{prefix}_rebalance"] = "Q" if r is None else "M"
+        st.session_state[f"{prefix}_ov_kind"] = "none" if r is None else r.kind
+        if r is not None:
+            st.session_state[f"{prefix}_ov_{r.kind}"] = float(r.param)
+            st.session_state[f"{prefix}_ov_safe"] = r.safe
+            st.session_state[f"{prefix}_ov_only"] = "equity" if r.equity_only else "all"
 
 
 def _int_split(raw: dict[str, float], total: int = 100) -> dict[str, int]:
@@ -279,13 +289,22 @@ def rules_section(prefix: str, codes: list[str]) -> tuple[dict, Overlay, Leverag
                            help="매매 수수료 + 호가 차이. 10bp = 0.1%.")
     o1, o2, o3 = st.columns([2.2, 1, 1.4])
     kind = o1.selectbox("overlay (전술 규칙)", list(OVERLAY_LABELS), key=init(f"{prefix}_ov_kind", "none"), format_func=OVERLAY_LABELS.get)
-    param, safe = None, CASH
+    param, safe, only = None, CASH, ()
     if kind != "none":
         plabel, pdefault, pmin, pmax = OVERLAY_PARAM[kind]
         param = o2.number_input(plabel, float(pmin), float(pmax), step=1.0, key=init(f"{prefix}_ov_{kind}", float(pdefault)))
         if kind != "riskparity":
             options = [CASH, "459580", "261240", "0091C0", "484790", "411060"]
             safe = o3.selectbox("안전자산 (비운 비중이 가는 곳)", options, key=init(f"{prefix}_ov_safe", CASH), format_func=label)
+        if kind in ("sma", "absmom"):
+            scope = o1.radio("신호를 거는 상품", ["all", "equity"], key=init(f"{prefix}_ov_only", "all"), horizontal=True,
+                             format_func={"all": "모든 위험자산", "equity": "주식 상품만"}.get,
+                             help="‘주식 상품만’이면 금·채권·리츠·CD금리·달러선물은 신호와 관계없이 기본 비중을 지킵니다(A38).")
+            if scope == "equity":
+                only = equity_codes(codes)
+                if not only:
+                    st.caption("고른 상품에 주식이 없어 신호를 걸 상품이 없습니다. 정적 배분으로 돌립니다.")
+                    kind, param, safe = "none", None, CASH
     with st.expander("가상 레버리지 (연구용 · 실제로는 위 레버리지 상품으로 구현)"):
         st.caption("배분 전체에 일일 리셋 배수를 겁니다. 국내에 이런 상품은 없으니 ‘레버리지를 쓰면 어떻게 되나’를 볼 때만 쓰고, "
                    "실제 운용은 레버리지 ETF를 체크해 비중으로 구성하세요.")
@@ -294,7 +313,7 @@ def rules_section(prefix: str, codes: list[str]) -> tuple[dict, Overlay, Leverag
         spread = l2.number_input("조달 스프레드 (bp/년, 원화 금리 위)", 0.0, 500.0, step=10.0, key=init(f"{prefix}_spread", 100.0))
         ter = l3.number_input("레버리지 상품 추가 보수 (bp/년)", 0.0, 300.0, step=10.0, key=init(f"{prefix}_ter", 60.0))
     return (dict(rebalance=rebalance, band=float(band), cost_bps=float(cost)),
-            Overlay(kind, None if param is None else float(param), safe), Leverage(float(factor), float(spread), float(ter)))
+            Overlay(kind, None if param is None else float(param), safe, only=only), Leverage(float(factor), float(spread), float(ter)))
 
 
 def strategy_builder(prefix: str, data: dict) -> AllocConfig | None:
@@ -616,7 +635,7 @@ def tested_strategies(panel, include_presets: bool) -> tuple[list[dict], int]:
         entries.append({"이름": meta["name"], "출처": "저장", "시각": meta["saved_at"][:16].replace("T", " "), "obj": obj})
     if include_presets:
         for p in PRESETS.values():
-            obj = AllocConfig(p.name, p.weights, DEFAULT_START, str(panel.last_date.date()))
+            obj = preset_config(p, DEFAULT_START, str(panel.last_date.date()))
             k = config_key(obj)
             if k in seen or not usable(obj, panel):
                 continue
@@ -759,7 +778,7 @@ def candidates(panel) -> dict[str, object]:
     """name -> AllocConfig | MixConfig for everything the scorecard can compare."""
     out: dict[str, object] = {}
     for p in PRESETS.values():
-        out[f"프리셋 · {p.name}"] = AllocConfig(p.name, p.weights, DEFAULT_START, str(panel.last_date.date()))
+        out[f"프리셋 · {p.name}"] = preset_config(p, DEFAULT_START, str(panel.last_date.date()))
     for meta in store.list_saved():
         obj = store.config_of(meta)
         if usable(obj, panel):
@@ -909,7 +928,7 @@ def rebalance_page() -> None:
     st.title("리밸런싱 계산기")
     st.caption("지금 ISA에 들어 있는 금액과 이번에 넣을 돈을 적으면, 목표 전략에 맞추려면 무엇을 얼마나 사고팔지 계산합니다. "
                "입력한 보유 내역은 이 컴퓨터의 lab_results/aa_holdings.json에만 저장됩니다(Git 제외).")
-    targets_src: dict[str, object] = {f"프리셋 · {p.name}": AllocConfig(p.name, p.weights, DEFAULT_START, str(panel.last_date.date()))
+    targets_src: dict[str, object] = {f"프리셋 · {p.name}": preset_config(p, DEFAULT_START, str(panel.last_date.date()))
                                       for p in PRESETS.values()}
     for meta in store.list_saved():
         obj = store.config_of(meta)
@@ -1123,7 +1142,8 @@ def glossary_page() -> None:
     st.subheader("실행 규칙")
     st.markdown(RULES_KO)
     st.subheader("프리셋")
-    st.dataframe(pd.DataFrame([{"이름": p.name, "비중": " · ".join(f"{short(s)} {v:g}" for s, v in p.weights.items()), "설명": p.note}
+    st.dataframe(pd.DataFrame([{"이름": p.name, "비중": " · ".join(f"{short(s)} {v:g}" for s, v in p.weights.items()),
+                                "규칙": p.describe_rule(), "설명": p.note}
                                for p in PRESETS.values()]), hide_index=True, width="stretch")
 
 
@@ -1333,7 +1353,7 @@ def tactical_page() -> None:
                             if len(spec.parts) > 1 else None
                     else:
                         preset = next(p for p in PRESETS.values() if p.name == target)
-                        cfg = AllocConfig(preset.name, preset.weights, DEFAULT_START, str(last), rebalance="Q", cost_bps=10.0)
+                        cfg = preset_config(preset, DEFAULT_START, str(last), cost_bps=10.0)
                         base = run_allocation(data["panel"], cfg)
                         timing = timing_table(lambda o, d: run_allocation(data["panel"], replace(cfg, rebalance_offset=o)), delays=(0,))
                         lazy, loo = None, None
@@ -1388,7 +1408,7 @@ def tactical_page() -> None:
                         eqs[n] = run_tactical_ui(data, usd, sp, "krw").equity
                     else:
                         preset = next(p for p in PRESETS.values() if p.name == n)
-                        eqs[n] = run_allocation(data["panel"], AllocConfig(n, preset.weights, "2007-03-01", str(last), rebalance="Q", cost_bps=10.0)).equity
+                        eqs[n] = run_allocation(data["panel"], preset_config(preset, "2007-03-01", str(last), cost_bps=10.0)).equity
                 eq = pd.DataFrame(eqs).dropna()
                 cut = holdout_split(eq.index)
                 rets = eq.loc[:cut].pct_change(fill_method=None).dropna()
@@ -1407,7 +1427,8 @@ def tactical_page() -> None:
         st.markdown("정적 배분의 **주식 상품**을 신호가 켜진 달에만 안전 상품으로 옮깁니다(월말 판단, 다음 날 종가 매매, 나머지는 분기 리밸런싱). "
                     "‘사후 정답’은 위기 구간을 미리 안다고 가정한 상한선이라 전략이 아닙니다.")
         c1, c2, c3 = st.columns(3)
-        pname = c1.selectbox("배분", [p.name for p in PRESETS.values()], key=init("sw_preset", PRESETS["stable40"].name))
+        pname = c1.selectbox("배분", [p.name for p in PRESETS.values() if p.rule is None], key=init("sw_preset", PRESETS["stable40"].name),
+                             help="스위치는 정적 배분 위에만 겁니다. 이미 신호가 있는 프리셋(주식 추세 필터)은 목록에 없습니다.")
         safe = c2.selectbox("회피처", ["459580", "261240", "0091C0"], key=init("sw_safe", "459580"), format_func=short)
         sigs = c3.multiselect("신호", list(sig.SIGNALS), key=init("sw_sigs", list(sig.SIGNALS)), format_func=sig.SIGNALS.get)
         if st.button("▶ 스위치 비교", type="primary", key="btn_sw_run"):
@@ -1836,7 +1857,8 @@ def search_detail(res: sr.SearchResults) -> None:
         search_product_table(w)
     c1, c2, c3 = st.columns([1.1, 1.6, 1.4])
     names = {k: p.name for k, p in PRESETS.items()}
-    compare = c2.selectbox("같이 볼 프리셋", [CUSTOM] + list(PRESETS), key=init("gs_cmp", "stable45_gold26" if "stable45_gold26" in PRESETS else CUSTOM),
+    compare = c2.selectbox("같이 볼 프리셋", [CUSTOM] + [k for k, p in PRESETS.items() if p.rule is None],  # the search is static
+                           key=init("gs_cmp", "stable45_gold26" if "stable45_gold26" in PRESETS else CUSTOM),
                            format_func=lambda k: "(없음)" if k == CUSTOM else names[k])
     name = f"탐색 {r['cagr'] * 100:.1f}/{r['mdd'] * 100:.1f}" if kind == "c" else str(r["이름"])
     if c1.button("▶ 엔진으로 다시 돌려 보기", type="primary", key="btn_gs_run"):

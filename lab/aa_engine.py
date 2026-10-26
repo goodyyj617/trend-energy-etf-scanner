@@ -27,7 +27,7 @@ from dataclasses import asdict, dataclass, field, replace
 import numpy as np
 import pandas as pd
 
-from .aa_assets import CASH, short
+from .aa_assets import CASH, Preset, equity_codes, short
 from .data import BENCHMARK, Panel
 
 TRADING_DAYS = 252
@@ -444,6 +444,17 @@ def run_allocation(panel: Panel, cfg: AllocConfig) -> AllocResult:
     bench = bench / bench.iloc[0]
     exp_series = exposure if exposure is not None else pd.Series(1.0, index=dates)
     return AllocResult(cfg, eq, bench, cash, weights, exp_series, turnover, trades, warnings=warns)
+
+
+def preset_config(preset: Preset, start: str, end: str, **kw) -> AllocConfig:
+    """The AllocConfig of a registered preset. A static preset is what it always was (quarterly, no overlay, the
+    AllocConfig defaults); a preset with a rule (A38) carries its overlay and decides monthly. `kw` sets other fields."""
+    if preset.rule is None:
+        return AllocConfig(preset.name, preset.weights, start, end, **kw)
+    r = preset.rule
+    only = equity_codes(preset.weights) if r.equity_only else ()
+    fields = {"rebalance": "M", "overlay": Overlay(r.kind, float(r.param), r.safe, only=only), **kw}
+    return AllocConfig(preset.name, preset.weights, start, end, **fields)
 
 
 def current_targets(panel: Panel, cfg: AllocConfig) -> tuple[dict[str, float], str]:

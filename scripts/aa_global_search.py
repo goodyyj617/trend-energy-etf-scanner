@@ -86,6 +86,8 @@ def load(prices: str = "model"):
 def preset_matrix() -> tuple[np.ndarray, list[str]]:
     rows, names = [], []
     for p in PRESETS.values():
+        if p.rule is not None:  # the search is static; presets with a signal (A38) are not points on it
+            continue
         if any(s not in SYMBOLS for s in p.weights):  # a preset holding CASH or a product outside the universe is skipped
             print(f"프리셋 건너뜀(유니버스 밖 상품 또는 현금): {p.name}")
             continue

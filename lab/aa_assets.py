@@ -129,11 +129,35 @@ def short(code: str) -> str:
 
 
 @dataclass(frozen=True)
+class PresetRule:
+    """A preset's registered signal beyond its weights (allocation DECISIONS A38): an overlay of `kind` with `param`,
+    the product the switched-off weight goes to, and whether only the equity products are switched. A preset with a
+    rule decides monthly (the engine re-weights monthly whenever an overlay is set)."""
+    kind: str = "sma"
+    param: float = 10.0
+    safe: str = "459580"  # KODEX CD금리액티브(합성)
+    equity_only: bool = True
+
+    def describe(self) -> str:
+        what = "주식 상품만" if self.equity_only else "모든 위험자산"
+        return f"{what} {self.param:g}개월 이동평균 필터 → {short(self.safe)} · 매월 결정"
+
+
+@dataclass(frozen=True)
 class Preset:
     key: str
     name: str
     weights: dict[str, float]  # product code -> percent, sums to 100
     note: str
+    rule: PresetRule | None = None  # None = static, quarterly (every preset registered before A38)
+
+    def describe_rule(self) -> str:
+        return "정적 · 매분기 리밸런싱" if self.rule is None else self.rule.describe()
+
+
+def equity_codes(codes) -> tuple[str, ...]:
+    """The equity products among `codes`, in their order (the A38 '주식만' filter switches these)."""
+    return tuple(c for c in codes if c in PRODUCTS and PRODUCTS[c].asset_class == "주식")
 
 
 # Registered 2026-10-24 as the Korean-product versions of the presets in DECISIONS A10 (A14).
@@ -186,6 +210,28 @@ PRESETS: dict[str, Preset] = {p.key: p for p in [
            "실제 가격 우선 12.06% / −14.48%이지만 리밸런싱 밴드 3%p에서 −15.61%로 선을 넘고, ±5%p 이웃의 53%만 −15% 안이다. "
            "2배 상품 12% 포함. 세 탐색 프리셋 중 가장 덜 튼튼하다(결과를 본 뒤 등록). 2005년 이후에만 확인됨: 닷컴 시험(A37, 2000-09부터, "
            "2005년 이전은 모형)에서 MDD −21.6%(최저 2002-07)."),
+    # Registered after the A38 trend-filter test had been run (DECISIONS A38): the same weights as B2 · B3 · B4 with the
+    # equity products switched to CD by a 10-month moving-average filter. The static presets above stay as they are.
+    Preset("gs_b2_trend", "탐색 B2 + 주식 추세 필터",
+           {"379810": 19, "453630": 19, "453640": 6, "0091C0": 10, "484790": 6, "468630": 5, "132030": 35},
+           "탐색 B2와 같은 비중(나스닥100 19 · S&P500 필수소비재 19 · 헬스케어 6 · 미국10년(H) 10 · 미국30년(H) 6 · 투자등급회사채 5 · "
+           "골드선물(H) 35). 매월 말 세 주식 상품의 원화 종가가 최근 10개 월말 평균보다 낮으면 그 비중을 다음 한 달 CD금리로 옮긴다. "
+           "A38(실제 가격 우선, 편도 10bp): 2005–2026 8.9% / −13.0%, 2000-09–2026(2005년 이전 모형) 8.9% / −13.0%. 필터 8·12개월과 "
+           "결정일 이동에서도 −15% 안. 정적 탐색 B2보다 2005–2026 연 1.8%p 낮다. 2단계 흔들기(밴드·비용·시작 연도) 전(결과를 본 뒤 등록).",
+           PresetRule()),
+    Preset("gs_b3_trend", "탐색 B3 + 주식 추세 필터",
+           {"379810": 33, "251350": 12, "0091C0": 10, "468370": 7, "411060": 12, "459580": 20, "261240": 6},
+           "B3 비중(나스닥100 33 · MSCI선진국 12 · 미국10년(H) 10 · 물가채 7 · 금현물 12 · CD금리 20 · 달러선물 6, 정적 판은 등록하지 않음). "
+           "매월 말 나스닥100·MSCI선진국의 원화 종가가 최근 10개 월말 평균보다 낮으면 그 비중을 다음 한 달 CD금리로 옮긴다. "
+           "A38: 2005–2026 8.2% / −13.4%, 2000-09–2026 7.7% / −13.4%, 결정일을 옮기면 최악 −14.1%. 정적 B3보다 2005–2026 연 1.8%p 낮다. "
+           "2단계 흔들기 전(결과를 본 뒤 등록).",
+           PresetRule()),
+    Preset("gs_b4_trend", "탐색 B4 + 주식 추세 필터",
+           {"379810": 30, "453630": 11, "468630": 8, "411060": 15, "459580": 36},
+           "탐색 B4와 같은 비중(나스닥100 30 · S&P500 필수소비재 11 · 투자등급회사채 8 · 금현물 15 · CD금리 36). 매월 말 나스닥100·필수소비재의 "
+           "원화 종가가 최근 10개 월말 평균보다 낮으면 그 비중을 다음 한 달 CD금리로 옮긴다. A38: 2005–2026 8.0% / −11.4%, "
+           "2000-09–2026 7.7% / −11.4%. 정적 탐색 B4보다 2005–2026 연 1.6%p 낮다. 2단계 흔들기 전(결과를 본 뒤 등록).",
+           PresetRule()),
     Preset("sp500", "S&P500 보유", {"379800": 100}, "기준선. KODEX 미국S&P500 100% (환노출)."),
     Preset("sixty_forty", "60/40", {"379800": 60, "0091C0": 40}, "S&P500 60 · 미국10년국채(H) 40."),
     Preset("all_weather", "올웨더 (Dalio)", {"379800": 30, "484790": 40, "0091C0": 15, "411060": 15},

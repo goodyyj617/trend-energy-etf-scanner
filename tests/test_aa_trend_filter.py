@@ -68,3 +68,20 @@ def test_sample_rows_are_the_a37_members():
     rows = T.sample_rows(5)
     assert np.array_equal(rows["구조 가족"], loc.sample_family(20_000, seed=T.FAMILY_SEED)[:5])
     assert loc.rules(rows["구조 가족"])["all"].all()
+
+
+def test_the_filter_presets_are_the_a38_configurations():
+    from dataclasses import replace
+
+    from lab.aa_assets import PRESETS
+    from lab.aa_engine import AllocConfig, preset_config
+    for key, centre in (("gs_b2_trend", "B2"), ("gs_b3_trend", "B3"), ("gs_b4_trend", "B4")):
+        p = PRESETS[key]
+        assert p.weights == loc.CENTRES[centre] and p.rule is not None and "A38" in p.note
+        got = preset_config(p, "2005-01-03", T.sr.END)
+        want = T.config(loc.CENTRES[centre], "필터 10", "2005-01-03")
+        assert replace(got, name=want.name) == want  # so the preset is the run that was tested
+    b2 = PRESETS["gs_b2"]  # a static preset is the plain quarterly configuration it always was
+    assert preset_config(b2, "2005-01-03", "2026-10-16") == AllocConfig(b2.name, b2.weights, "2005-01-03", "2026-10-16")
+    assert preset_config(b2, "2005-01-03", "2026-10-16", cost_bps=20.0).cost_bps == 20.0
+    assert b2.describe_rule() == "정적 · 매분기 리밸런싱" and "주식 상품만 10개월" in PRESETS["gs_b4_trend"].describe_rule()
