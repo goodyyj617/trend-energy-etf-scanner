@@ -17,6 +17,7 @@ ISA 계좌에서 살 수 있는 **국내 상장 ETF**를 단위로 쓰고, 모�
 | `aalab://scorecard` | 성적표 · 믹스 |
 | `aalab://tactical` | 전술 전략 · 검증 (HAA·BAA·VAA, 날짜 민감도·성역·부트스트랩·정직 vs 균등·위기 회피 스위치) |
 | `aalab://search` | 전역 탐색 결과 (A31: 249,934개 배분의 CAGR–MDD 지도, 구간별 경계선, 고른 배분 재실행; A32: 2단계 후보 흔들기 표) |
+| `aalab://experiments` | 실험 기록 (실험마다 왜 했나 · 핵심 결과 · 그래프: A31 탐색, A32 2단계, A33 실제 가격 대조, A35 재실행, A36 프리셋 확인) |
 | `aalab://rebalance` | 리밸런싱 계산기 |
 | `aalab://notes` | 발견 · 경고 · 캠페인 |
 | `aalab://saved` | 저장된 전략 |

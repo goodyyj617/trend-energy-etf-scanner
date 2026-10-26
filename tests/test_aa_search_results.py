@@ -265,3 +265,15 @@ def test_real_price_stage2_on_the_new_representatives_opens_their_rows():
     picks = dict(zip(s2["후보"], sr.stage2_picks(s2, res)))
     kind, i = picks["A 전체 최고"]
     assert kind == "c" and i >= 0 and sr.describe(res.W[i]) == by.at["A 전체 최고", "비중"]
+
+
+def test_search_presets_are_the_stage2_allocations():
+    """A36: the three registered search presets are the A32 / A35 stage-2 rows (A with its synthetic share moved to the hedged product)."""
+    from lab.aa_assets import PRESETS
+    s2 = sr.load_stage2(sr.STAGE2_REAL_DIR).set_index("후보")
+    assert PRESETS["gs_b2"].weights == sr.parse_names(s2.at["B 레버·가상 없음 (-14,-13]", "비중"])
+    assert PRESETS["gs_b4"].weights == sr.parse_names(s2.at["B 레버·가상 없음 (-12,-11]", "비중"])
+    a = sr.parse_names(s2.at["A 전체 최고", "비중"])
+    a["0091C0"] += a.pop("SYN_IEF_U")  # the stage-2 '가상→(H)' substitution
+    assert PRESETS["gs_a"].weights == a
+    assert all(c in PRODUCTS for k in ("gs_b2", "gs_b4", "gs_a") for c in PRESETS[k].weights)  # buyable in the ISA

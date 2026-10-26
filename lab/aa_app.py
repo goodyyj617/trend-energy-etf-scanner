@@ -17,6 +17,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from lab import aa_experiments as exps  # noqa: E402
 from lab import aa_notes as notes  # noqa: E402
 from lab import aa_real as real  # noqa: E402
 from lab import aa_rebalance as rebal  # noqa: E402
@@ -2033,6 +2034,177 @@ def search_page() -> None:
             st.caption("메모 파일을 읽지 못했습니다.")
 
 
+# =========================================================================== experiment log
+
+RED = "#e34948"  # the negative arm of the diverging pair, and 'outside the −15 % line'
+FRONTIER_SUBSETS = {"전체": BLUE, "레버리지·가상 없음": AQUA, "… 나스닥100도 없음": ORANGE}
+
+
+def _line_15(fig: go.Figure, text: str = "MDD −15%") -> None:
+    fig.add_vline(x=sr.STAGE2_PCT_LINE, line=dict(color=GRAY, dash="dash", width=1))
+    fig.add_annotation(x=sr.STAGE2_PCT_LINE, y=1, yref="paper", text=text, showarrow=False, xanchor="left", yanchor="top",
+                       font=dict(size=11, color=GRAY))
+
+
+def chart_frontier_model() -> go.Figure:
+    ft = exps.frontier_table(sr.RESULTS_DIR)
+    fig = go.Figure()
+    for name, color in FRONTIER_SUBSETS.items():
+        part = ft[(ft["부분집합"] == name) & (ft["band_hi"] <= -5)]
+        fig.add_trace(go.Scatter(x=part["band_hi"] - 0.5, y=part["cagr"], mode="lines+markers", name=name,
+                                 line=dict(color=color, width=2), marker=dict(size=8, color=color),
+                                 hovertemplate=f"{name}<br>MDD 구간 (%{{x:.1f}} ± 0.5)%<br>최고 CAGR %{{y:.1f}}%<extra></extra>"))
+    pres = exps.preset_points(sr.RESULTS_DIR)
+    pres = pres[pres["mdd"] >= -15]
+    fig.add_trace(go.Scatter(x=pres["mdd"], y=pres["cagr"], mode="markers", name="등록 프리셋 (−15% 안)", text=pres["이름"],
+                             marker=dict(size=11, symbol="diamond-open", color=INK, line=dict(width=2)),
+                             hovertemplate="%{text}<br>CAGR %{y:.1f}% · MDD %{x:.1f}%<extra></extra>"))
+    _line_15(fig)
+    fig.update_layout(height=380, margin=dict(l=10, r=10, t=40, b=10), title="MDD 구간별 최고 CAGR (모형, 2005–2026)",
+                      xaxis=dict(title="전체 기간 MDD (%)", range=[-15.5, -4.5]), yaxis=dict(title="CAGR (%)"),
+                      legend=dict(orientation="h", y=-0.22))
+    return fig
+
+
+def chart_frontier_compare() -> go.Figure:
+    fig = go.Figure()
+    for folder, source, dash in ((sr.RESULTS_DIR, "모형", "dot"), (sr.RESULTS_REAL_DIR, "실제 가격 우선", "solid")):
+        ft = exps.frontier_table(folder)
+        for name in ("전체", "… 나스닥100도 없음"):
+            part = ft[(ft["부분집합"] == name) & (ft["band_hi"] <= -5)]
+            color = FRONTIER_SUBSETS[name]
+            fig.add_trace(go.Scatter(x=part["band_hi"] - 0.5, y=part["cagr"], mode="lines+markers", name=f"{name} · {source}",
+                                     line=dict(color=color, width=2, dash=dash), marker=dict(size=8, color=color, symbol="circle" if dash == "solid" else "circle-open"),
+                                     hovertemplate=f"{name} · {source}<br>MDD 구간 (%{{x:.1f}} ± 0.5)%<br>최고 CAGR %{{y:.1f}}%<extra></extra>"))
+    _line_15(fig)
+    fig.update_layout(height=380, margin=dict(l=10, r=10, t=40, b=10), title="경계선: 모형(점선) 대 실제 가격 우선(실선)",
+                      xaxis=dict(title="전체 기간 MDD (%)", range=[-15.5, -4.5]), yaxis=dict(title="CAGR (%)"),
+                      legend=dict(orientation="h", y=-0.22))
+    return fig
+
+
+def chart_stage2(folder: Path, title: str) -> go.Figure:
+    t = exps.stage2_tests(folder)
+    order = list(dict.fromkeys(t["후보"]))
+    fig = go.Figure()
+    for inside, name, color, symbol in ((True, "−15% 안", BLUE, "circle"), (False, "−15% 밖", RED, "x")):
+        part = t[t["선 안"] == inside]
+        fig.add_trace(go.Scatter(x=part["MDD"], y=part["후보"], mode="markers", name=f"시험 결과 ({name})", text=part["시험"],
+                                 marker=dict(size=9, color=color, symbol=symbol, opacity=0.8, line=dict(width=1, color="white")),
+                                 hovertemplate="%{y}<br>%{text}: MDD %{x:.2f}%<extra></extra>"))
+    base = t[t["시험"] == "기준"]
+    fig.add_trace(go.Scatter(x=base["MDD"], y=base["후보"], mode="markers", name="기준 설정", marker=dict(size=13, symbol="diamond-open", color=INK, line=dict(width=2)),
+                             hovertemplate="%{y}<br>기준: MDD %{x:.2f}%<extra></extra>"))
+    _line_15(fig)
+    height = 150 + 38 * len(order)
+    fig.update_layout(height=height, margin=dict(l=10, r=10, t=40, b=10), title=title,
+                      xaxis=dict(title="MDD (%) — 오른쪽일수록 얕음"), legend=dict(orientation="h", y=-105 / height),
+                      yaxis=dict(categoryorder="array", categoryarray=order[::-1], title=None))
+    return fig
+
+
+def chart_neighbours(folder: Path) -> go.Figure:
+    nb = exps.neighbour_shares(folder)
+    fig = go.Figure()
+    for step, color in (("±2%p", BLUE), ("±5%p", ORANGE)):
+        part = nb[nb["이웃"] == step]
+        fig.add_trace(go.Bar(x=part["후보"], y=part["선 안 비율"], name=f"이웃 {step}", marker_color=color,
+                             text=[f"{v:.0f}%" for v in part["선 안 비율"]], textposition="outside",
+                             hovertemplate="%{x}<br>" + f"이웃 {step}" + ": %{y:.1f}%가 −15% 안<extra></extra>"))
+    fig.update_layout(height=320, barmode="group", bargap=0.3, bargroupgap=0.08, margin=dict(l=10, r=10, t=40, b=10),
+                      title="비중을 조금 옮긴 이웃 배분 중 MDD −15% 안 비율", yaxis=dict(title="%", range=[0, 110]),
+                      legend=dict(orientation="h", y=-0.2))
+    return fig
+
+
+def chart_product_gap() -> go.Figure:
+    g = exps.product_gap()
+    colors = [BLUE if v >= 0 else RED for v in g["diff_pp"]]
+    fig = go.Figure(go.Bar(x=g["diff_pp"], y=g["name"], orientation="h", marker_color=colors,
+                           customdata=np.c_[g["start"], g["years"], g["corr_monthly"], g["cagr_real"], g["cagr_model"]],
+                           hovertemplate="%{y}<br>실제 − 모형 %{x:+.2f}%p/년<br>실제 구간 %{customdata[0]}부터 %{customdata[1]:.1f}년<br>"
+                                         "실제 %{customdata[3]:.2f}% · 모형 %{customdata[4]:.2f}% · 월수익률 상관 %{customdata[2]:.2f}<extra></extra>"))
+    fig.add_vline(x=0, line=dict(color=GRAY, width=1))
+    fig.update_layout(height=40 + 22 * len(g), margin=dict(l=10, r=10, t=40, b=10), showlegend=False,
+                      title="상품별 실제 − 모형 연 수익 (같은 실제 구간, 파랑 = 실제가 더 좋음)", xaxis=dict(title="%p / 년"),
+                      yaxis=dict(title=None, tickfont=dict(size=11)))
+    return fig
+
+
+def chart_candidate_shift() -> go.Figure:
+    c = exps.candidate_shift()
+    fig = go.Figure()
+    for _, r in c.iterrows():
+        fig.add_trace(go.Scatter(x=[r["모형 MDD"], r["실제 MDD"]], y=[r["후보"]] * 2, mode="lines", line=dict(color=MUTED, width=2),
+                                 hoverinfo="skip", showlegend=False))
+    fig.add_trace(go.Scatter(x=c["모형 MDD"], y=c["후보"], mode="markers", name="모형", marker=dict(size=10, symbol="circle-open", color=GRAY, line=dict(width=2)),
+                             customdata=c["모형 CAGR"], hovertemplate="%{y} · 모형<br>MDD %{x:.2f}% · CAGR %{customdata:.2f}%<extra></extra>"))
+    out = c["실제 MDD"] < sr.STAGE2_PCT_LINE
+    for mask, name, color in ((~out, "실제 가격 우선 (−15% 안)", BLUE), (out, "실제 가격 우선 (−15% 밖)", RED)):
+        part = c[mask]
+        fig.add_trace(go.Scatter(x=part["실제 MDD"], y=part["후보"], mode="markers", name=name, marker=dict(size=10, color=color),
+                                 customdata=part["실제 CAGR"], hovertemplate="%{y} · 실제 가격 우선<br>MDD %{x:.2f}% · CAGR %{customdata:.2f}%<extra></extra>"))
+    _line_15(fig)
+    fig.update_layout(height=120 + 30 * len(c), margin=dict(l=10, r=10, t=40, b=10), title="후보의 MDD: 모형 → 실제 가격 우선",
+                      xaxis=dict(title="전체 기간 MDD (%)"), yaxis=dict(categoryorder="array", categoryarray=list(c["후보"])[::-1], title=None),
+                      legend=dict(orientation="h", y=-0.12))
+    return fig
+
+
+def chart_kodex200_share() -> go.Figure:
+    rows = []
+    for folder, source in ((sr.RESULTS_DIR, "모형"), (sr.RESULTS_REAL_DIR, "실제 가격 우선")):
+        res, _ = load_search_results(folder.joinpath("passing.csv.gz").stat().st_mtime, str(folder))
+        share, mean_w = exps.holding_share(res, "069500")
+        rows.append((source, share, mean_w))
+    fig = go.Figure(go.Bar(x=[r[0] for r in rows], y=[r[1] for r in rows], marker_color=[GRAY, BLUE], width=0.5,
+                           text=[f"{r[1]:.0f}% (평균 비중 {r[2]:.1f}%)" for r in rows], textposition="outside",
+                           hovertemplate="%{x}: CAGR 상위 500개 중 %{y:.1f}%가 KODEX 200을 담음<extra></extra>"))
+    fig.update_layout(height=300, margin=dict(l=10, r=10, t=40, b=10), showlegend=False, title="CAGR 상위 500개 배분 중 KODEX 200을 담은 비율",
+                      yaxis=dict(title="%", range=[0, max(r[1] for r in rows) * 1.35]))
+    return fig
+
+
+EXPERIMENT_CHARTS = {
+    "frontier_model": chart_frontier_model,
+    "frontier_compare": chart_frontier_compare,
+    "stage2_model": lambda: chart_stage2(sr.STAGE2_DIR, "2단계 MDD 시험 (모형): 후보마다 설정을 하나씩 바꾼 결과"),
+    "stage2_real": lambda: chart_stage2(sr.STAGE2_REAL_DIR, "2단계 MDD 시험 (실제 가격 우선, A32와 같은 후보)"),
+    "stage2_presets": lambda: chart_stage2(exps.STAGE2_PRESETS_DIR, "등록할 세 배분의 2단계 MDD 시험 (실제 가격 우선)"),
+    "neighbour_presets": lambda: chart_neighbours(exps.STAGE2_PRESETS_DIR),
+    "product_gap": chart_product_gap,
+    "candidate_shift": chart_candidate_shift,
+    "kodex200_share": chart_kodex200_share,
+}
+
+
+def experiments_page() -> None:
+    st.title("실험 기록")
+    st.caption("자산배분 연구실에서 돌린 실험을 최신순으로 모았습니다. 실험마다 **왜 했는지**, **핵심 결과**, **그래프**가 있습니다. "
+               "그래프는 저장소에 기록된 결과 파일로 그리므로 가격 데이터 없이 열립니다. 점에 마우스를 올리면 값이 나옵니다. "
+               "모든 숫자는 2005–2026 원화 표본 내 결과이고 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
+    items = list(reversed(exps.EXPERIMENTS))
+    st.markdown("  \n".join(f"- {e.date} · {e.decision} · **{e.title}**" for e in items))
+    for e in items:
+        st.divider()
+        st.subheader(e.title)
+        st.caption(f"{e.date} · DECISIONS {e.decision} · 메모 `{e.memo.relative_to(sr.ROOT).as_posix()}`")
+        st.markdown(f"**왜 했나**  \n{e.why}")
+        st.markdown("**핵심 결과**\n" + "\n".join(f"- {r}" for r in e.results))
+        for key in e.charts:
+            try:
+                st.plotly_chart(EXPERIMENT_CHARTS[key](), width="stretch", key=f"chart_exp_{e.key}_{key}")
+            except (OSError, KeyError, ValueError) as exc:
+                st.caption(f"그래프를 그리지 못했습니다({key}): {exc}")
+        if e.where:
+            st.caption(f"더 보기: {e.where}")
+        with st.expander("메모 전문"):
+            try:
+                st.markdown(e.memo.read_text(encoding="utf-8"))
+            except OSError:
+                st.caption("메모 파일을 읽지 못했습니다.")
+
+
 # =========================================================================== navigation
 
 PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_", "gs_")
@@ -2047,6 +2219,7 @@ nav = st.navigation([
     st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
     st.Page(tactical_page, title="전술 전략 · 검증", icon="🧭"),
     st.Page(search_page, title="전역 탐색 결과", icon="🔭"),
+    st.Page(experiments_page, title="실험 기록", icon="🧪"),
     st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
     st.Page(notes_page, title="발견 · 경고 · 캠페인", icon="📝"),
     st.Page(saved_page, title="저장된 전략", icon="💾"),
