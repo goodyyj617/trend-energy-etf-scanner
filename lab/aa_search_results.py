@@ -3,7 +3,8 @@
 The A31 universe (30 products: 28 Korean-listed ETFs and two synthetic unhedged US treasuries) lives here so that
 `scripts/aa_global_search.py` (the run) and the app page '전역 탐색 결과' (the viewer) share one definition.
 
-Result files (docs/research/allocation/2026-10-25_global_search/):
+Result files (docs/research/allocation/2026-10-25_global_search/ = model, A31; 2026-10-26_global_search_real/ = real
+Korean prices after listing, A35; `RESULT_SETS` names both with their stage-2 folders):
     passing.csv.gz        every sampled allocation within the MDD line (weights as "code:pct;…")
     cloud.csv.gz          a random sample of the allocations outside the line (CAGR and MDD only, for the scatter)
     top300_refined.csv    the greedy-refined list (출처 = 다듬음; all walked to the line, not a candidate list)
@@ -35,6 +36,29 @@ STAGE2_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-25_stage2"
 STAGE2_MEMO = ROOT / "docs" / "research" / "allocation" / "2026-10-25_stage2.md"
 REAL_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-26_real_prices"  # A33: candidates on real Korean prices
 REAL_MEMO = ROOT / "docs" / "research" / "allocation" / "2026-10-26_real_prices.md"
+# A35: stages 1–2 re-run on the hybrid panel (real Korean prices after listing, model before), same seed / rules / candidates.
+RESULTS_REAL_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-26_global_search_real"
+STAGE2_REAL_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-26_stage2_real"  # the A32 candidates
+STAGE2_NEWREPS_DIR = ROOT / "docs" / "research" / "allocation" / "2026-10-26_stage2_real_newreps"  # the real run's own picks
+RERUN_MEMO = ROOT / "docs" / "research" / "allocation" / "2026-10-26_real_reruns.md"
+
+
+@dataclass(frozen=True)
+class ResultSet:
+    """One recorded run of stages 1–2, as the page '전역 탐색 결과' shows it."""
+    label: str
+    results: Path
+    stage2: Path
+    memo: Path
+    stage2_memo: Path
+    newreps: Path | None = None  # stage 2 on this run's own representatives (real run only)
+
+
+RESULT_SETS: dict[str, ResultSet] = {
+    "real": ResultSet("실제 가격 우선 (2026-10-26, A35)", RESULTS_REAL_DIR, STAGE2_REAL_DIR, RERUN_MEMO, RERUN_MEMO, STAGE2_NEWREPS_DIR),
+    "model": ResultSet("모형만 (2026-10-25, A31·A32, 참고)", RESULTS_DIR, STAGE2_DIR, MEMO_PATH, STAGE2_MEMO),
+}
+DEFAULT_RESULT_SET = "real"
 
 START, END = "2005-01-03", "2026-10-16"
 REBALANCE, COST_BPS = "Q", 10.0

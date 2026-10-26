@@ -366,3 +366,15 @@ A34. User's choice on the decision card (2026-10-26 12:34 KST, "바꾸기"): the
     `scripts/aa_global_search.py` and `scripts/aa_stage2.py` take `--prices real|model` (default model, the registered
     A31 / A32 runs); stages 1–2 are re-run with `--prices real` into new folders, same seed, rules and candidates, and the
     A31 / A32 records are kept as the model reference.
+
+A35. The A34 re-runs, done on the lab PC on 2026-10-26 with the A33 price files (same SHA-256), same seed 2026, sample
+    sizes, period, rules and universe; only `--prices real` differs. Outputs `2026-10-26_global_search_real/` (stage 1 +
+    representatives), `2026-10-26_stage2_real/` (stage 2 on the A32 candidates), `2026-10-26_stage2_real_newreps/` (stage 2
+    on this run's own representatives, read as optimistic: picked and tested on the same data), memo
+    `2026-10-26_real_reruns.md`; the 250k-row table stays off the repo (Drive lab_exchange/aa_real_20261026/). The
+    stage-2 base rows reproduce A33 to two decimals. The page '전역 탐색 결과' shows this run by default
+    (`aa_search_results.RESULT_SETS`, radio '기록된 결과'); the A31 / A32 model records stay selectable and unchanged.
+    `scripts/aa_global_search_reps.py` gains `--prices` (the run patched `load` to the same effect). Nothing is promoted:
+    the frontier moved 0–0.2 %p, B2 / B4 pass every stage-2 MDD test as before, A breaks the same three by 0.1–0.3 %p,
+    R and B1 are out from the base setting on. New representatives lean on KODEX 200, whose real total return beats the
+    model by 3.7 %p/yr (A33); no preset from them until that gap is understood.

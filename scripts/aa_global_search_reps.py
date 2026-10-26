@@ -1,6 +1,7 @@
 """Hand-picked representatives of the A31 global search, with their sensitivity (memo 2026-10-25_global_search.md §4).
 
     .venv/Scripts/python.exe scripts/aa_global_search_reps.py --out docs/research/allocation/2026-10-25_global_search --full-out <folder with candidates_full.csv.gz>
+    (A35 real-price run: add --prices real and --out docs/research/allocation/2026-10-26_global_search_real)
 
 The picks are a post-hoc reading aid, not a selection rule: for each 1 %p MDD band the best raw sample
 (A) overall, (B) without leverage and without the synthetic unhedged treasuries, (C) additionally without
@@ -61,12 +62,14 @@ def main(argv: list[str]) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="docs/research/allocation/2026-10-25_global_search")
     ap.add_argument("--full-out", default=None)
+    ap.add_argument("--prices", choices=("model", "real"), default="model",
+                    help="model = A31 as registered; real = real Korean prices after listing (A33–A35, needs lab_data/kr)")
     args = ap.parse_args(argv)
     out = Path(args.out)
     full_out = Path(args.full_out) if args.full_out else out
     full = pd.read_csv(full_out / "candidates_full.csv.gz", usecols=["cagr", "mdd", "레버리지", "비중"])
     reps = pick(full)
-    krw = G.load()
+    krw = G.load(args.prices)
     sims: dict = {}
 
     def sim(reb="Q", cost=10.0, off=0):
