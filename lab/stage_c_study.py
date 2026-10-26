@@ -11,7 +11,9 @@ C1 every signal: lab/single.py, each signal traded on its own (no slot limit). T
 C2 20-slot account: max 20 positions, 1/20 of equity at purchase, no rebalancing, signals while
 full are dropped. Priority (a) 20-day dollar volume on every cell; on the canonical cell of each
 pair also (b) mean percentile of trend efficiency (6 months) and market value, (c) random (seed 81).
-Missed vs taken: C2(a) trades matched to the same cell's C1 trades by (symbol, entry day).
+Per-signal table: every entry signal traded on its own with the same exits, overlapping signals of
+one symbol allowed (engine run_backtest(outcomes=True); not for E0, where every eligible stock-day is
+a signal). Missed vs taken: C2(a) trades matched to that table by (symbol, entry day).
 
 Output under `out`: c1/<sample>/<E>__<X>.csv (+ _trades.parquet, _sleeve.parquet) and
 c2/<sample>/<E>__<X>.csv (+ _equity.parquet), one pair at a time so an interrupted run resumes;
@@ -72,7 +74,8 @@ COMMON = dict(cost_bps=20.0, min_price=5.0, min_dollar_volume=1e6, sizing="equal
 SLOTS = 20
 PRIORITIES = ("dv", "eff_large", "random")  # (a) default, (b), (c)
 SEED = 81
-BIG_WINNER_Q = 0.9  # a C1 trade in the top decile of its cell's returns is a "big winner"
+BIG_WINNER = 0.5  # a signal that returns +50% or more is a "big winner"
+NO_SIGNAL_TABLE = {"E0"}  # 'always' is a state: every eligible stock-day would be a signal
 C1_KEEP = ["symbols", "symbol_pass_share", "symbol_median_excess", "n_trades", "sleeve_cagr", "sleeve_mdd",
            "sleeve_dd_cagr", "sleeve_mix_cagr", "sleeve_dd_excess", "sleeve_window_share"]
 _W: dict = {}
@@ -166,29 +169,43 @@ def trade_stats(trades: pd.DataFrame, years: float) -> dict:
             "avg_hold_days": float(trades["holding_days"].mean()) if len(r) else np.nan}
 
 
-def missed_vs_taken(c1: pd.DataFrame, c2: pd.DataFrame, cap_rank: pd.DataFrame | None) -> dict:
-    """C2 trades matched to C1 trades by (symbol, entry day); C1 returns of taken vs missed signals."""
-    if not len(c1):
-        return {"c1_trades": 0}
-    key1 = list(zip(c1["symbol"], c1["entry_date"]))
+def signal_stats(sig: pd.DataFrame) -> dict:
+    """Per-signal results (every signal traded on its own, overlaps allowed)."""
+    r = sig["return"].astype(float) if len(sig) else pd.Series(dtype=float)
+    win, loss = r[r > 0], r[r <= 0]
+    return {"signals": int(len(r)), "sig_expectancy": float(r.mean()) if len(r) else np.nan,
+            "sig_win_rate": float((r > 0).mean()) if len(r) else np.nan,
+            "sig_payoff": float(win.mean() / -loss.mean()) if len(win) and len(loss) and loss.mean() < 0 else np.nan,
+            "sig_avg_hold_days": float(sig["holding_days"].mean()) if len(r) else np.nan,
+            "sig_big_share": float((r >= BIG_WINNER).mean()) if len(r) else np.nan}
+
+
+def missed_vs_taken(sig: pd.DataFrame, c2: pd.DataFrame, cap_rank: pd.DataFrame | None) -> dict:
+    """C2 trades matched to the per-signal table by (symbol, entry day = the open after the signal day);
+    per-signal returns of the signals the account took vs those it could not take."""
+    if not len(sig):
+        return {"signals": 0}
+    key = list(zip(sig["symbol"], sig["entry_date"]))
     taken_keys = set(zip(c2["symbol"], c2["entry_date"]))
-    taken = np.array([k in taken_keys for k in key1])
-    r = c1["return"].to_numpy(dtype=float)
-    big = r >= np.quantile(r, BIG_WINNER_Q)
-    out = {"c1_trades": int(len(c1)), "taken": int(taken.sum()), "missed": int((~taken).sum()),
-           "c2_unmatched": int(len(taken_keys - set(key1))),
+    taken = np.array([k in taken_keys for k in key])
+    r = sig["return"].to_numpy(dtype=float)
+    big = r >= BIG_WINNER
+    out = {"taken": int(taken.sum()), "missed": int((~taken).sum()),
+           "c2_unmatched": int(len(taken_keys - set(key))),
            "taken_expectancy": float(r[taken].mean()) if taken.any() else np.nan,
            "missed_expectancy": float(r[~taken].mean()) if (~taken).any() else np.nan,
            "big_winners": int(big.sum()), "big_winners_taken_share": float(taken[big].mean()) if big.any() else np.nan}
     if cap_rank is not None:
-        idx = cap_rank.index
-        pos = idx.searchsorted(pd.DatetimeIndex(c1["entry_date"])) - 1  # signal day = the session before the entry
-        cols = cap_rank.columns.get_indexer(c1["symbol"])
+        pos = cap_rank.index.get_indexer(pd.DatetimeIndex(sig["signal_date"]))
+        cols = cap_rank.columns.get_indexer(sig["symbol"])
         ok = (pos >= 0) & (cols >= 0)
-        cr = np.full(len(c1), np.nan)
+        cr = np.full(len(sig), np.nan)
         cr[ok] = cap_rank.to_numpy()[pos[ok], cols[ok]]
-        out["taken_cap_rank_median"] = float(np.nanmedian(cr[taken])) if taken.any() else np.nan
-        out["missed_cap_rank_median"] = float(np.nanmedian(cr[~taken])) if (~taken).any() else np.nan
+        for name, m in (("taken", taken), ("missed", ~taken)):
+            v = cr[m]
+            v = v[v == v]
+            for q in (25, 50, 75):
+                out[f"{name}_cap_rank_p{q}"] = float(np.percentile(v, q)) if len(v) else np.nan
     return out
 
 
@@ -203,19 +220,25 @@ def _run_pair(job):
     years = (pd.Timestamp(end) - pd.Timestamp(s)).days / 365.25
     spy = _W["spy"][sample]
     cap_rank = panel.extra.get("cap_rank")
-    c1_rows, c2_rows, c1_trades, sleeves, c2_eq, logs = [], [], [], {}, {}, []
+    c1_rows, c2_rows, c1_trades, signals, sleeves, c2_eq, logs = [], [], [], [], {}, {}, []
     for xi, yi in cells(e, x):
         cfg = config(sample, e, x, xi, yi)
         o = single.evaluate(panel, cfg, cache, with_result=True)
         t1 = o["result"].trades
+        sig = (run_backtest(panel, cfg, cache, outcomes=True) if e not in NO_SIGNAL_TABLE
+               else pd.DataFrame(columns=["symbol", "signal_date", "entry_date", "return", "holding_days", "closed"]))
         row = {"xi": xi, "yi": yi, "entry_value": ENTRIES[e][1][xi], "exit_value": EXITS[x][1][yi],
-               **{k: o[k] for k in C1_KEEP}, **trade_stats(t1, years), **spy}
+               **{k: o[k] for k in C1_KEEP}, **trade_stats(t1, years), **spy,
+               **(signal_stats(sig) if e not in NO_SIGNAL_TABLE else {})}
         row["goal_excess"] = o["sleeve_cagr"] - spy["spy_cagr"]
         row["goal_pass"] = bool(o["sleeve_cagr"] >= spy["spy_cagr"] and abs(o["sleeve_mdd"]) <= abs(spy["spy_mdd"])
                                 and len(t1) >= 30)
         c1_rows.append(row)
         c1_trades.append(t1.assign(xi=xi, yi=yi)[["xi", "yi", "symbol", "entry_date", "exit_date", "return",
                                                    "holding_days", "exit_reason"]])
+        if len(sig):
+            signals.append(sig.assign(xi=xi, yi=yi)[["xi", "yi", "symbol", "signal_date", "entry_date", "return",
+                                                     "holding_days", "closed"]])
         sleeves[f"{xi}|{yi}"] = o["sleeve"].astype("float32")
         logs.append(("stagec_c1", cfg, o["sleeve"]))
         for how in PRIORITIES if (xi, yi) == canonical(e, x) else PRIORITIES[:1]:
@@ -234,22 +257,26 @@ def _run_pair(job):
                   "exposure": float(res.exposure.mean())}
             r2["goal_excess"] = cagr - spy["spy_cagr"]
             r2["goal_pass"] = bool(cagr > spy["spy_cagr"] and abs(mdd) < abs(spy["spy_mdd"]) and len(res.trades) >= 30)
-            if how == "dv":
-                r2.update(missed_vs_taken(t1, res.trades, cap_rank))
+            if how == "dv" and e not in NO_SIGNAL_TABLE:
+                r2.update(missed_vs_taken(sig, res.trades, cap_rank))
             c2_rows.append(r2)
             c2_eq[f"{xi}|{yi}|{how}"] = eq.astype("float32")
             logs.append(("stagec_c2", c2cfg, eq))
+    sig_all = pd.concat(signals, ignore_index=True) if signals else None
     return (sample, e, x), pd.DataFrame(c1_rows), pd.concat(c1_trades, ignore_index=True), pd.DataFrame(sleeves), \
-        pd.DataFrame(c2_rows), pd.DataFrame(c2_eq), logs
+        pd.DataFrame(c2_rows), pd.DataFrame(c2_eq), logs, sig_all
 
 
 # --------------------------------------------------------------------------- runs
 
 def write_pair(out: Path, result, panel_symbols: list[str]) -> None:
-    (sample, e, x), c1, trades, sleeves, c2, eq, logs = result
+    (sample, e, x), c1, trades, sleeves, c2, eq, logs, sig = result
     for stage in ("c1", "c2"):
         pair_file(out, stage, sample, e, x).parent.mkdir(parents=True, exist_ok=True)
     trades.to_parquet(pair_file(out, "c1", sample, e, x).with_name(f"{e}__{x}_trades.parquet"))
+    if sig is not None:
+        sig.astype({"return": "float32", "holding_days": "int32"}).to_parquet(
+            pair_file(out, "c1", sample, e, x).with_name(f"{e}__{x}_signals.parquet"), compression="zstd")
     sleeves.to_parquet(pair_file(out, "c1", sample, e, x).with_name(f"{e}__{x}_sleeve.parquet"))
     eq.to_parquet(pair_file(out, "c2", sample, e, x).with_name(f"{e}__{x}_equity.parquet"))
     for frame, stage in ((c1, "c1"), (c2, "c2")):
@@ -359,7 +386,7 @@ def summarize(out: Path) -> dict:
     summ["priority"] = {f"{p}|{s}": {"mean_excess": float(v["goal_excess"]), "pass_share": float(v["goal_pass"])}
                         for (p, s), v in pr.iterrows()}
     mt = c2a[["sample", "taken_expectancy", "missed_expectancy", "big_winners_taken_share",
-              "taken_cap_rank_median", "missed_cap_rank_median"]].groupby("sample").median()
+              "taken_cap_rank_p50", "missed_cap_rank_p50"]].groupby("sample").median()
     summ["missed_vs_taken_median"] = mt.to_dict(orient="index")
     summ["pbo"] = {"c1": pbo_all(out, "c1"), "c2": pbo_all(out, "c2")}
     (out / "stage_c_summary.json").write_text(json.dumps(summ, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
@@ -380,11 +407,11 @@ def write_figures(out: Path, c1: pd.DataFrame, c2a: pd.DataFrame) -> list[Path]:
             made.append(figures.paired_bars(labels, {names[s]: m[s].to_numpy() for s in m.columns if s in names},
                                             f"{'매수' if side == 'entry' else '매도'} 전략별 SPY 대비 초과 CAGR ({label}, 중앙값)",
                                             "SPY 대비 초과 CAGR (%p)", d / f"{side}_{stage}.png"))
-    mt = c2a.groupby("entry")[["taken_expectancy", "missed_expectancy"]].median()
+    mt = c2a.groupby("entry")[["taken_expectancy", "missed_expectancy"]].median().dropna()
     made.append(figures.paired_bars([f"{k} {ENTRIES[k][0]}" for k in mt.index],
                                     {"20종목 계좌가 산 신호": mt["taken_expectancy"].to_numpy(),
                                      "자리가 없어 놓친 신호": mt["missed_expectancy"].to_numpy()},
-                                    "산 신호와 놓친 신호의 거래당 평균 수익 (신호 전체 기준, 중앙값)", "거래당 평균 수익 (%)",
+                                    "산 신호와 놓친 신호의 신호당 평균 수익 (신호마다 따로 매매, 중앙값)", "신호당 평균 수익 (%)",
                                     d / "missed_vs_taken.png"))
     groups = {names[k]: g[["cagr", "mdd"]] for k, g in c2a.groupby("sample")}
     spy = {names[k]: (float(g["spy_cagr"].iloc[0]), float(g["spy_mdd"].iloc[0])) for k, g in c2a.groupby("sample")}

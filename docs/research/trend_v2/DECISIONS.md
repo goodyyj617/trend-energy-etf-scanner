@@ -524,9 +524,14 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     priority (a) 20-day dollar volume on every cell, and on each pair's canonical cell also (b)
     mean percentile of trend efficiency (6 months) and market value among that day's eligible
     names and (c) random (seed 81). Cost 20 bp per side, T-bill cash, no leverage. Gate as 79
-    (C2: CAGR > SPY, |MDD| < |SPY MDD|, >= 30 trades). Missed vs taken: C2(a) trades matched to
-    the same cell's C1 trades by (symbol, entry day); counts, C1 expectancy and big-winner (top
-    decile) share of taken vs missed, signal-day market-value rank. Judging: entry rank = median
+    (C2: CAGR > SPY, |MDD| < |SPY MDD|, >= 30 trades). Per-signal table (E1-E9): every signal
+    traded on its own with the same exits, bought at the next open, overlapping signals of one
+    symbol allowed, cost included (engine run_backtest(outcomes=True), reusing first_exit); per
+    cell: signals, expectancy, win rate, payoff, average holding days, share of big winners
+    (return >= +50%). Missed vs taken: C2(a) trades matched to that table by (symbol, signal day);
+    counts, per-signal expectancy and big-winner share of taken vs missed, signal-day
+    market-value rank quartiles. (Matching to C1 trades was dropped after the dry run: C1 holds
+    one position per symbol and ignores signals while held, so most account buys had no C1 twin.) Judging: entry rank = median
     over every exit x cell, exit rank likewise, per sample; pass share and neighbours within 3 x
     3; Spearman of ranks across samples; entries below E0 flagged; index check (beta, down
     capture, excess by period) on the top pairs; PBO information only; DSR only for 1-3

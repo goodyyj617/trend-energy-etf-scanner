@@ -261,7 +261,46 @@ class SignalCache:
         return self._atr
 
 
-def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None) -> BacktestResult:
+SIGNAL_COLUMNS = ["symbol", "signal_date", "entry_date", "exit_date", "entry_price", "exit_price", "return", "holding_days",
+                  "exit_reason", "closed"]
+
+
+def _signal_outcomes(panel, cache, w, dates, entry_key, make_mask, exit_for, risk_per_share, exit_at, c, n) -> pd.DataFrame:
+    """Every entry signal traded on its own with the rule's exits (overlapping signals of one symbol
+    allowed): bought at the next open, sold at the open after the exit signal, cost on both sides.
+    A position still open at the end is valued at the last close (closed = False)."""
+    mask = cache.memo(("entry_mask",) + entry_key, make_mask)
+    O = cache.memo(("open_np", w), lambda: panel.open.loc[dates].to_numpy(dtype=float))
+    LC = cache.memo(("last_close_np", w), lambda: panel.close.loc[dates].ffill().to_numpy(dtype=float))
+    symbols = panel.symbols
+    rows = []
+    for i, j in zip(*np.nonzero(mask[:-1])):
+        e = int(i) + 1
+        j = int(j)
+        px = O[e, j]
+        if px != px or px <= 0:
+            continue  # no bar at the next open: the order is cancelled
+        px = float(px)
+        x = exit_at.get((j, e), exit_at)
+        if x is exit_at:
+            x = exit_at[(j, e)] = exit_for(j, e, px, risk_per_share(j, e, px))
+        sale, out_px, closed, reason = None, float("nan"), False, ""
+        if x is not None:
+            col = O[x[0] + 1:, j]
+            ok = np.flatnonzero(col == col)
+            if len(ok):
+                sale = x[0] + 1 + int(ok[0])
+                out_px, closed, reason = float(O[sale, j]), True, exit_label(x[1])
+        if not closed:
+            sale, out_px = n - 1, float(LC[n - 1, j])
+        ret = out_px * (1 - c) / (px * (1 + c)) - 1.0 if closed else out_px / (px * (1 + c)) - 1.0
+        rows.append((symbols[j], dates[e - 1], dates[e], dates[sale], px, out_px, ret, sale - e, reason, closed))
+    return pd.DataFrame(rows, columns=SIGNAL_COLUMNS)
+
+
+def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = None, outcomes: bool = False):
+    """outcomes=True: instead of the account, a table of every entry signal traded on its own
+    (SIGNAL_COLUMNS); the exits and their memo are the same as the account's."""
     if not cfg.entries:
         raise ValueError("진입 조건을 하나 이상 선택하세요.")
     if not cfg.exits:
@@ -453,6 +492,8 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
 
     nan_ = float("nan")
     day = cache.memo(("days", w), lambda: list(dates))  # indexing a DatetimeIndex one item at a time is slow
+    if outcomes:
+        return _signal_outcomes(panel, cache, w, dates, entry_key, make_mask, exit_for, risk_per_share, exit_at, c, n)
     cash = 1.0
     open_risk = 0.0  # sum of the initial risks (shares x stop distance) of open positions
     last_close = [float("nan")] * len(symbols)  # yesterday's LC row (all NaN before the first day)

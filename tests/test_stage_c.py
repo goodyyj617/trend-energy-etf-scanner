@@ -277,8 +277,14 @@ def test_study_pair_runs_writes_and_resumes(tmp_path, monkeypatch):
     assert len(c1) == 9 and len(c2) == 9 + 2  # canonical cell also with the two other priorities
     assert set(c2["priority"]) == set(sc.PRIORITIES)
     assert {"expectancy", "win_rate", "payoff", "avg_hold_days", "signals_per_year", "sleeve_dd_excess"} <= set(c1.columns)
-    dv = c2[c2["priority"] == "dv"]
-    assert (dv["taken"] + dv["missed"] == dv["c1_trades"]).all()
+    dv = c2[c2["priority"] == "dv"].set_index(["xi", "yi"])
+    sig_n = c1.set_index(["xi", "yi"])["signals"]
+    assert (dv["taken"] + dv["missed"] == sig_n.reindex(dv.index)).all()
+    assert (dv["c2_unmatched"] == 0).all() and (dv["taken"] == dv["n_trades"]).all()  # every account buy is a signal
+    assert {"sig_expectancy", "sig_win_rate", "sig_payoff", "sig_avg_hold_days", "sig_big_share"} <= set(c1.columns)
+    sig = pd.read_parquet(tmp_path / "c1" / "a" / "E1__X9_signals.parquet")
+    assert len(sig) == sig_n.sum() and (sig["signal_date"] < sig["entry_date"]).all()
+    assert len(sig) >= c1["n_trades"].sum()  # overlapping signals of one symbol are all kept
     assert (pd.read_csv(tmp_path / "c1" / "a" / "E0__X1.csv")["xi"] == 0).all()
     trades = pd.read_parquet(tmp_path / "c1" / "a" / "E1__X9_trades.parquet")
     assert {"symbol", "entry_date", "return", "xi", "yi"} <= set(trades.columns)
@@ -296,11 +302,29 @@ def test_study_pair_runs_writes_and_resumes(tmp_path, monkeypatch):
 def test_missed_vs_taken_counts():
     from lab import stage_c_study as sc
     d = pd.bdate_range("2020-01-01", periods=10)
-    c1 = pd.DataFrame({"symbol": ["A", "B", "C", "D"], "entry_date": d[[2, 3, 4, 5]], "return": [0.5, -0.1, 0.0, 0.2]})
+    sig = pd.DataFrame({"symbol": ["A", "B", "C", "D"], "signal_date": d[[1, 2, 3, 4]], "entry_date": d[[2, 3, 4, 5]],
+                        "return": [0.6, -0.1, 0.0, 0.2]})
     c2 = pd.DataFrame({"symbol": ["A", "D", "E"], "entry_date": d[[2, 5, 6]]})
     rank = pd.DataFrame({"A": 1.0, "B": 2.0, "C": 3.0, "D": 4.0}, index=d)
-    o = sc.missed_vs_taken(c1, c2, rank)
+    o = sc.missed_vs_taken(sig, c2, rank)
     assert (o["taken"], o["missed"], o["c2_unmatched"]) == (2, 2, 1)
-    assert o["taken_expectancy"] == pytest.approx(0.35) and o["missed_expectancy"] == pytest.approx(-0.05)
-    assert o["big_winners_taken_share"] == 1.0  # the top decile (0.5) was bought
-    assert o["taken_cap_rank_median"] == 2.5 and o["missed_cap_rank_median"] == 2.5
+    assert o["taken_expectancy"] == pytest.approx(0.4) and o["missed_expectancy"] == pytest.approx(-0.05)
+    assert o["big_winners"] == 1 and o["big_winners_taken_share"] == 1.0  # +60% >= +50%, bought
+    assert o["taken_cap_rank_p50"] == 2.5 and o["missed_cap_rank_p50"] == 2.5  # ranks on the signal day
+
+
+def test_signal_outcomes_keep_overlapping_signals():
+    # two breakouts of the same stock while the first position is still open: the account holds one,
+    # the per-signal table trades both, each sold at the open after its own exit signal
+    c = [10.0] * 30 + [11.0, 11.0, 12.0, 12.0, 12.0, 9.0, 9.0, 9.0]  # 30 days: the 20-day dollar volume exists
+    p, dates = panel_of({"AAA": c, "SPY": [1.0] * len(c)})
+    cfg = StrategyConfig(entries={"c_donchian": 3}, exits={"trailing_pct": 20}, start=str(dates[0].date()),
+                         end=str(dates[-1].date()), max_positions=1, cost_bps=10.0, min_price=0.0, min_dollar_volume=0.0)
+    res = run_backtest(p, cfg)
+    sig = run_backtest(p, cfg, outcomes=True)
+    assert list(sig["signal_date"]) == [dates[30], dates[32]] and len(res.trades) == 1
+    # both exit on day 35 (9 < 12 x 0.8) and sell at the day-36 open
+    assert (sig["exit_date"] == dates[36]).all() and sig["closed"].all()
+    first = sig.iloc[0]
+    assert first["return"] == pytest.approx(9.0 * 0.999 / (11.0 * 1.001) - 1)
+    assert first["return"] == pytest.approx(res.trades.iloc[0]["return"]) and first["entry_date"] == res.trades.iloc[0]["entry_date"]
