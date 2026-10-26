@@ -424,3 +424,34 @@ A37. Structure check around B2 · B3 · B4, asked by the user (2026-10-26 23:22 
     of 2000–2004 is model (proxies × KRW, BOK 'memory' rates for the hedges), the bond substitutes ran 1.2–2.6 %p/yr
     below their ETFs in the overlap (so bond-heavy rows are if anything penalised), Mar–Aug 2000 is missing, and every
     number is in-sample. Same PR: experiment entry 'a37' on '실험 기록' with five charts.
+
+A38. 10-month trend filter on the equities of B2 · B3 · B4, picked by the user on the next-direction card after A37
+    ("추세 필터를 얹어 시험") and run as fixed in the design doc (https://claude.ai/artifact/3PkTmzQJdQESFNhWJvmPne,
+    approved "이대로 실행"). Weights unchanged. Filter: at each month end an equity product (nasdaq-100, S&P500 /
+    S&P500(H), Dow, the four sectors, MSCI World, EM futures(H), Russell 2000(H)) whose KRW month-end close is below the
+    mean of its last 10 month-end closes moves its base weight to KODEX CD금리액티브 (459580) for the month; gold, bonds,
+    REITs, CD and dollar futures are never switched; fewer than 10 month ends = invested; the signal reads history
+    before the start. Engine: `Overlay.only` (empty = every risky product, as before; saved runs read unchanged);
+    with an overlay the engine re-weights monthly, so '정적 월' is the like-for-like reference. Settings 정적 분기 /
+    정적 월 / 필터 8·10·12 (equities only) / Faber 원형 10 (every risky product, reference); periods 2005-01-03 and
+    2000-09-01 (A37 ④ panel, model before 2005) to 2026-10-16, real-price first, 10 bp, rebalance-date offsets as A30;
+    samples = the first 2,000 of A37 ②'s family and random draws. Code `scripts/aa_trend_filter_study.py`, tests
+    `tests/test_aa_trend_filter.py`; results `2026-10-27_trend_filter/`, memo `2026-10-27_trend_filter.md`.
+    Rules: point = B2 / B3 / B4 with 필터 10 inside −15 % in both periods; robust = also with 8 and 12; structure =
+    ≥ 50 % of the family sample inside in both periods with 필터 10; allocations passing point and robust are proposed
+    as '필터 판' presets, registration is the user's call, the static presets stay. CAGR shown, never judged.
+    Results: point and robust passed for all three. From 2000-09 MDD B2 −16.4 → −13.0, B3 −30.8 → −13.4, B4 −25.6 →
+    −11.4 % (dot-com window −4.7 / −5.3 / −3.7 %); with the filter the deepest drawdown is 2008 in both periods. 8 and
+    12 months stay inside (worst −13.4 %), date-offset worst −13.1 / −14.1 / −11.5 %. From 2005 MDD hardly moves
+    (−13.2 / −12.9 / −11.7 → −13.0 / −13.4 / −11.4); no help in 2008 (B3 deeper), 1.5–2.1 %p shallower in 2020.
+    Cost: CAGR 2005–2026 10.7 → 8.9, 10.0 → 8.2, 9.7 → 8.0 %; 2016–2026 −2.1 to −2.5 %p; 2000-09–2026 −0.6 / −0.1 /
+    −0.1 %p. About 20 % of the equity weight sat in CD on average; the switched-off set changed 95 / 58 / 68 times in
+    21 years; turnover 0.08–0.09 → 0.73–0.87 a year. Structure failed: family 45.85 % inside in both periods (static
+    0.3 %), random + filter 50.25 % (static 22.7 %); the family still buys CAGR (median 9.2 vs 6.3 % from 2005). After
+    the cost the filtered B's sit beside 안정형 40 static (8.7 / −11.8 from 2005, 8.0 / −13.7 from 2000-09, 9.3 % from
+    2016) rather than above it. S&P500 alone with the filter: −45.4 → −30.7 % from 2000-09 but −29.6 → −30.7 % from
+    2005, CAGR 12.2 → 7.3 %, date-offset worst −39.4 %. Consequence: B2 · B3 · B4 '필터 판' proposed as preset
+    candidates; nothing registered yet. Caveats: 10 months is Faber's value from a sample that contains 2000–02, so
+    the dot-com pass is not an independent test of the filter length; 2000–2004 is all model and Mar–Aug 2000 is
+    missing; the filtered versions have not had an A32-style stage-2 shake (band, cost, start year, neighbours);
+    in-sample. Same PR: experiment entry 'a38' on '실험 기록' with four charts and PNGs in `2026-10-27_trend_filter/figures/`.
