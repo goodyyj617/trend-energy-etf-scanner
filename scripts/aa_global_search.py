@@ -32,6 +32,7 @@ from lab import aa_search as srch  # noqa: E402
 from lab.aa_assets import CASH, PRESETS, PROXY_SYMBOLS  # noqa: E402
 from lab.aa_engine import AllocConfig, run_allocation  # noqa: E402
 from lab.aa_korea import krw_panel, load_bok_rate, load_usdkrw  # noqa: E402
+from lab.aa_real import apply_source  # noqa: E402
 from lab.aa_search_results import (  # noqa: E402  (the A31 universe, shared with the app page)
     ALL_PRODUCTS, CLASSES, END, EQUITY_CLASSES, LEV_CLASS, MDD_LINE, START, SYMBOLS, WINDOWS, app_tables, class_shares,
     describe, flags, name_of,
@@ -62,13 +63,19 @@ def pct(x: float, digits: int = 1) -> str:
 
 # --------------------------------------------------------------------------- data and self-check
 
-def load():
+def load(prices: str = "model"):
+    """The A31 KRW panel; prices="real" swaps in real Korean prices after listing (A33, lab/aa_real.py)."""
     usd, failed = download_panel(sorted(set(PROXY_SYMBOLS) | {"IEF", "TLT"}), end=DATA_END)
     if failed:
         print("받지 못한 종목:", failed)
     krw, unavailable = krw_panel(usd, load_usdkrw(), load_bok_rate(), products=ALL_PRODUCTS)
     if unavailable:
         raise SystemExit(f"대용 데이터가 없는 상품: {unavailable}")
+    if prices == "real":
+        krw, info, msg = apply_source(krw, "real")
+        if info is None:
+            raise SystemExit(msg)
+        print(msg)
     first = krw.close[SYMBOLS].apply(lambda s: s.first_valid_index())
     late = first[first > pd.Timestamp(START)]
     if len(late):
@@ -384,6 +391,8 @@ def write_app_files(full: pd.DataFrame, out: Path) -> None:
 def main(argv: list[str]) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--prices", choices=("model", "real"), default="model",
+                    help="model = A31 as registered; real = real Korean prices after listing (A33, needs lab_data/kr)")
     ap.add_argument("--out", default="docs/research/allocation/2026-10-25_global_search")
     ap.add_argument("--full-out", default=None, help="folder for the full candidate table (default: --out)")
     ap.add_argument("--font", default=None, help="TTF with Hangul for the scatter (optional)")
@@ -405,9 +414,9 @@ def main(argv: list[str]) -> None:
     full_out.mkdir(parents=True, exist_ok=True)
     t_all = time.time()
     summary: dict = {"params": {**P, "seed": SEED, "start": START, "end": END, "rebalance": REBALANCE, "cost_bps": COST_BPS,
-                                "mdd_line": MDD_LINE, "universe": SYMBOLS}}
+                                "mdd_line": MDD_LINE, "universe": SYMBOLS, "prices": args.prices}}
 
-    krw = load()
+    krw = load(args.prices)
     sim = srch.StaticSim(krw, SYMBOLS, START, END, rebalance=REBALANCE, cost_bps=COST_BPS)
     print(f"유니버스 {len(SYMBOLS)}종, 거래일 {sim.n_days:,}일 ({sim.dates[0].date()} – {sim.dates[-1].date()})")
     PW, pnames = preset_matrix()

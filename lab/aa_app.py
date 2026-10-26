@@ -93,7 +93,10 @@ def load_data(day: str, hedge_bps: float, source: str = real.DEFAULT_SOURCE) -> 
         failed = list(failed) + [f"(오프라인: {exc})"]
     fx = splice(load_usdkrw(), fetch_usdkrw_tail())
     panel, unavailable = krw_panel(usd, fx, load_bok_rate(), KrwModel(hedge_extra_bps=hedge_bps))
+    fetch_note = real.ensure_files() if source == "real" else None
     panel, real_info, real_msg = real.apply_source(panel, source)
+    if fetch_note:
+        real_msg = f"{real_msg} · {fetch_note}"
     return {"panel": panel, "failed": failed, "unavailable": unavailable, "fx_last": fx.index[-1].date(),
             "usd_last": usd.last_date.date(), "fx": fx, "usd": usd, "source": source, "real_info": real_info, "real_msg": real_msg}
 
