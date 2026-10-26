@@ -389,3 +389,38 @@ A36. Three search presets, registered after the results at the user's request (2
     Same PR: the page '실험 기록' (`lab/aa_experiments.py`, bookmark `aalab://experiments`) per the user's rule of the same
     day that every experiment shows why it was run, its key results and graphs; it covers A31, A32, A33, A35 and A36, and
     each later experiment adds an entry in its own PR.
+
+A37. Structure check around B2 · B3 · B4, asked by the user (2026-10-26 23:22 KST: raise the trust in their shared
+    structure, "a finer search near B2, B3, B4"); scope "①–④ 모두 (닷컴 포함)" picked on the decision card. Picking a
+    better point nearby was not done (A31's PBO 0.87 says that is the over-fitting step); the structure was tested
+    instead, with reading rules fixed in the design doc before the run. Universe = the A31 B subset minus KODEX 200
+    (21 products; its real−model gap is unexplained), whole percents, ≥ 3 %, ≤ 10 products, quarterly, 10 bp, real-price
+    first, 2005-01-03 – 2026-10-16, seed 2027; code `lab/aa_local.py`, `scripts/aa_local_study.py`, tests
+    `tests/test_aa_local.py`; results `2026-10-27_local_study/`, memo `2026-10-27_local_study.md`.
+    ① neighbour map (5,000 random L1 neighbours per centre up to 30, plus same-role swaps); rule: ≥ 80 % of L1 ≤ 10
+    neighbours within −15 %. Result 100 % for all three; passed. Four same-role swaps break the line (B2 gold futures(H)
+    → spot −17.10, staples → utilities −15.13; B3 CD → 10-yr(H) −15.83; B4 CD → dollar futures −15.52).
+    ② structure rules R1 equity 35–50 % with nasdaq ≥ 40 % of it, R2 gold 10–35 %, R3 30-yr(H) ≤ 6 % and no REITs;
+    20,000 family members vs 20,000 two-level random allocations of the same products; paired ablations X1 nasdaq →
+    S&P500, X2 gold → other safe holdings, X3 CD + 10-yr(H) → 30-yr(H), X4 defensive sectors → S&P500. Rule: family
+    share within −15 % ≥ 2 × random; a feature whose removal moves the share < 5 %p is 'coincidental'. Result 32.6 % vs
+    29.7 % (1.10 ×): failed. The family buys return (median CAGR 10.9 vs 7.4 %), not safety; X3 (40.3 → 9.0 %) and X4
+    (50.3 → 37.0 %) carry the safety, nasdaq lowers it (+4.8 %p when removed) and gold is coincidental (−1.8 %p); both
+    add CAGR (+1.6 / +1.7 %p).
+    ③ in-family CSCV PBO (rule < 0.5) 0.40 vs random 0.61; 2005–15 vs 2016–26 CAGR rank correlation (rule ≥ 0.5) 0.58:
+    passed. Shown beside it: MDD rank correlation 0.28; 252-day circular block bootstrap (1,000 draws) P(MDD < −15 %)
+    B2 17.8 %, B3 46.5 %, B4 10.7 %, 안정형 40 9.1 %, 내 AAA 85.4 %.
+    ④ dot-com: proxies that start after 2000-09 are spliced (close only) with the series fixed before the run, chosen by
+    the best monthly correlation over the proxy's first 36 months (IEF←VFITX, TLT←VUSTX, LQD←VFICX, TIP←VIPSX,
+    GLD←GC=F, EFA←VGTSX, EEM←VEIEX; FSIIX / VDMIX unavailable). Rule: B2 / B3 / B4 MDD from 2000-09 ≥ −15 %, plus the
+    family share; ④ weighs most. Result B2 −16.4 %, B3 −30.8 %, B4 −25.6 % (trough 2002-07-23); family 0.4 % within vs
+    random 24 %: failed. After the first run the comparison list was widened to every registered preset (information,
+    not part of the rule); within −15 % from 2000-09 are only 안정형 35 (−11.7), 영구 (−12.0), 안정형 40 (−13.7) and
+    골든 버터플라이 (−14.8); 탐색 A is −21.6. The re-run re-downloaded the mutual-fund histories, which moved the
+    drawdown / CAGR columns by ~1e-7; counts and shares are identical.
+    Consequence fixed by the rule: the notes of presets `gs_b2`, `gs_b4` and `gs_a` now say "2005년 이후에만 확인됨" with
+    their dot-com MDD (weights unchanged; presets stay frozen records). Nothing is promoted or demoted beyond that; the
+    next step (a pre-registered trend overlay, a nasdaq cap, or accepting the label) is the user's call. Caveats: all
+    of 2000–2004 is model (proxies × KRW, BOK 'memory' rates for the hedges), the bond substitutes ran 1.2–2.6 %p/yr
+    below their ETFs in the overlap (so bond-heavy rows are if anything penalised), Mar–Aug 2000 is missing, and every
+    number is in-sample. Same PR: experiment entry 'a37' on '실험 기록' with five charts.

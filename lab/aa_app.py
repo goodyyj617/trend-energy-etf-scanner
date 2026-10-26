@@ -2165,6 +2165,101 @@ def chart_kodex200_share() -> go.Figure:
     return fig
 
 
+LOCAL_COLORS = {"B2": BLUE, "B3": AQUA, "B4": PALETTE[2]}  # A37 centres, the same in every chart
+
+
+def chart_local_neighbours() -> go.Figure:
+    b = exps.local_neighbour_bins()
+    fig = go.Figure()
+    for name, color in LOCAL_COLORS.items():
+        part = b[b["중심"] == name]
+        fig.add_trace(go.Bar(x=part["거리"], y=part["선 안"], name=name, marker_color=color,
+                             text=[f"{v:.0f}%" for v in part["선 안"]], textposition="outside",
+                             customdata=np.c_[part["수"], part["CAGR 중앙"], part["MDD 최악"]],
+                             hovertemplate=f"{name}" + " · 거리 %{x}%p<br>이웃 %{customdata[0]:,}개 중 %{y:.1f}%가 −15% 안<br>"
+                                           "CAGR 중앙 %{customdata[1]:.2f}% · 가장 나쁜 MDD %{customdata[2]:.2f}%<extra></extra>"))
+    fig.update_layout(height=340, barmode="group", bargap=0.25, bargroupgap=0.06, margin=dict(l=10, r=10, t=40, b=10),
+                      title="비중을 옮긴 거리별, 이웃 배분 중 MDD −15% 안 비율 (2005–2026)",
+                      xaxis=dict(title="중심과의 거리 = 비중 차이 절댓값의 합 (%p, 한 상품에서 5%p를 옮기면 10)"),
+                      yaxis=dict(title="%", range=[0, 112]), legend=dict(orientation="h", y=-0.28))
+    return fig
+
+
+def chart_local_groups() -> go.Figure:
+    g = exps.local_groups()
+    fig = go.Figure()
+    for col, name, color in (("2005~ 선 안", "2005–2026", BLUE), ("2000-09~ 선 안", "2000-09–2026 (닷컴 포함, 2005년 이전은 모형)", ORANGE)):
+        fig.add_trace(go.Bar(y=g["묶음"], x=g[col], name=name, orientation="h", marker_color=color,
+                             text=[f"{v:.1f}%" for v in g[col]], textposition="outside",
+                             customdata=np.c_[g["수"], g["CAGR 중앙"], g["MDD 중앙"]],
+                             hovertemplate="%{y}<br>" + name + ": %{x:.1f}%가 −15% 안 (%{customdata[0]:,}개)<br>"
+                                           "2005–2026 CAGR 중앙 %{customdata[1]:.2f}% · MDD 중앙 %{customdata[2]:.2f}%<extra></extra>"))
+    fig.update_layout(height=420, barmode="group", bargap=0.25, margin=dict(l=10, r=10, t=40, b=10),
+                      title="묶음별 MDD −15% 안 비율: 구조를 지킨 배분 · 특징 하나를 뺀 배분 · 무작위",
+                      xaxis=dict(title="%", range=[0, max(g["2005~ 선 안"].max(), g["2000-09~ 선 안"].max()) * 1.25]),
+                      yaxis=dict(categoryorder="array", categoryarray=list(g["묶음"])[::-1], title=None),
+                      legend=dict(orientation="h", y=-0.16))
+    return fig
+
+
+def chart_local_bootstrap() -> go.Figure:
+    b = exps.bootstrap_mdds()
+    order = list(dict.fromkeys(b["이름"]))
+    fig = go.Figure()
+    for name in order:
+        v = b.loc[b["이름"] == name, "MDD"]
+        label = f"{name} · 선 넘을 확률 {(v < sr.STAGE2_PCT_LINE).mean() * 100:.0f}%"
+        fig.add_trace(go.Box(x=v, name=label, orientation="h", marker_color=LOCAL_COLORS.get(name, GRAY), boxpoints=False,
+                             hovertemplate=label + "<br>MDD %{x:.2f}%<extra></extra>", showlegend=False))
+    _line_15(fig)
+    fig.update_layout(height=120 + 50 * len(order), margin=dict(l=10, r=10, t=40, b=10),
+                      title="1년 덩어리를 섞어 만든 가상 역사 1,000개의 MDD (2005–2026 수익률로)",
+                      xaxis=dict(title="MDD (%) — 오른쪽일수록 얕음"),
+                      yaxis=dict(categoryorder="array", categoryarray=[f"{n} · 선 넘을 확률 {(b.loc[b['이름'] == n, 'MDD'] < sr.STAGE2_PCT_LINE).mean() * 100:.0f}%" for n in order][::-1]))
+    return fig
+
+
+def chart_dotcom_curves() -> go.Figure:
+    d = exps.dotcom_drawdowns()
+    style = {**{k: (c, "solid", 2) for k, c in LOCAL_COLORS.items()}, "안정형 40 (금·현금 분산)": (PALETTE[4], "solid", 2),
+             "60/40": (GRAY, "dash", 1.5), "S&P500 보유": (MUTED, "dot", 1.5)}
+    fig = go.Figure()
+    for name in dict.fromkeys(d["이름"]):
+        part = d[d["이름"] == name]
+        color, dash, width = style.get(name, (GRAY, "solid", 1.5))
+        fig.add_trace(go.Scatter(x=part["date"], y=part["낙폭"], mode="lines", name=name, line=dict(color=color, dash=dash, width=width),
+                                 hovertemplate=name + "<br>%{x|%Y-%m-%d}: 고점 대비 %{y:.1f}%<extra></extra>"))
+    fig.add_hline(y=sr.STAGE2_PCT_LINE, line=dict(color=GRAY, dash="dash", width=1))
+    fig.add_annotation(x=0, xref="paper", y=sr.STAGE2_PCT_LINE, text="−15%", showarrow=False, xanchor="left", yanchor="bottom",
+                       font=dict(size=11, color=GRAY))
+    fig.update_layout(height=400, margin=dict(l=10, r=10, t=40, b=10),
+                      title="2000-09부터의 고점 대비 낙폭 (2005년 이전은 미국 대용 × 원/달러 모형)",
+                      yaxis=dict(title="고점 대비 (%)"), xaxis=dict(title=None), legend=dict(orientation="h", y=-0.12))
+    return fig
+
+
+def chart_dotcom_named() -> go.Figure:
+    n = exps.dotcom_named().sort_values("2000-09~ MDD", ascending=False)
+    fig = go.Figure()
+    for _, r in n.iterrows():
+        fig.add_trace(go.Scatter(x=[r["2005~ MDD"], r["2000-09~ MDD"]], y=[r["이름"]] * 2, mode="lines", line=dict(color=MUTED, width=2),
+                                 hoverinfo="skip", showlegend=False))
+    fig.add_trace(go.Scatter(x=n["2005~ MDD"], y=n["이름"], mode="markers", name="2005–2026",
+                             marker=dict(size=10, symbol="circle-open", color=GRAY, line=dict(width=2)), customdata=n["2005~ CAGR"],
+                             hovertemplate="%{y} · 2005–2026<br>MDD %{x:.2f}% · CAGR %{customdata:.2f}%<extra></extra>"))
+    out = n["2000-09~ MDD"] < sr.STAGE2_PCT_LINE
+    for mask, name, color in ((~out, "2000-09–2026 (−15% 안)", BLUE), (out, "2000-09–2026 (−15% 밖)", RED)):
+        part = n[mask]
+        fig.add_trace(go.Scatter(x=part["2000-09~ MDD"], y=part["이름"], mode="markers", name=name, marker=dict(size=10, color=color),
+                                 customdata=np.c_[part["2000-09~ CAGR"], part["최저점"]],
+                                 hovertemplate="%{y} · 2000-09–2026<br>MDD %{x:.2f}% (최저점 %{customdata[1]}) · CAGR %{customdata[0]:.2f}%<extra></extra>"))
+    _line_15(fig)
+    fig.update_layout(height=140 + 30 * len(n), margin=dict(l=10, r=10, t=40, b=10), title="닷컴 붕괴를 넣으면 MDD가 얼마나 깊어지나 (2005년 시작 → 2000-09 시작)",
+                      xaxis=dict(title="전체 기간 MDD (%)"), yaxis=dict(categoryorder="array", categoryarray=list(n["이름"])[::-1], title=None),
+                      legend=dict(orientation="h", y=-60 / (140 + 30 * len(n))))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2175,6 +2270,11 @@ EXPERIMENT_CHARTS = {
     "product_gap": chart_product_gap,
     "candidate_shift": chart_candidate_shift,
     "kodex200_share": chart_kodex200_share,
+    "local_neighbours": chart_local_neighbours,
+    "local_groups": chart_local_groups,
+    "local_bootstrap": chart_local_bootstrap,
+    "dotcom_curves": chart_dotcom_curves,
+    "dotcom_named": chart_dotcom_named,
 }
 
 
