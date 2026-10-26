@@ -112,6 +112,23 @@ def test_sma_overlay_moves_falling_asset_to_safe():
     assert safe.weights.iloc[-1]["UP"] == pytest.approx(1.0)
 
 
+def test_sma_overlay_only_switches_the_listed_assets():
+    n = 24 * 21
+    panel, _ = make_panel({"UP": geometric(n, 0.001), "DOWN": geometric(n, -0.002), "FALL": geometric(n, -0.001),
+                           "SPY": geometric(n, 0.001)})
+    res = run_allocation(panel, cfg({"UP": 40, "DOWN": 30, "FALL": 30}, overlay=Overlay("sma", 3, only=("DOWN",))))
+    w = res.weights.iloc[-1]
+    assert w["DOWN"] == pytest.approx(0.0) and w[CASH] == pytest.approx(0.3, abs=0.01) and w["FALL"] > 0.25
+    every = run_allocation(panel, cfg({"UP": 40, "DOWN": 30, "FALL": 30}, overlay=Overlay("sma", 3)))
+    assert every.weights.iloc[-1]["FALL"] == pytest.approx(0.0)
+    # an empty list is the old behaviour, bit for bit, and is not written into the saved config
+    same = run_allocation(panel, cfg({"UP": 40, "DOWN": 30, "FALL": 30}, overlay=Overlay("sma", 3, only=())))
+    assert same.equity.equals(every.equity) and "only" not in cfg({"UP": 100}, overlay=Overlay("sma", 3)).to_dict()["overlay"]
+    c = cfg({"UP": 40, "DOWN": 60}, overlay=Overlay("sma", 3, "UP", only=["DOWN"]))
+    back = AllocConfig.from_dict(c.to_dict())
+    assert back == c and back.overlay.only == ("DOWN",) and "DOWN에만" in c.describe()
+
+
 def test_sma_overlay_safe_asset_in_base_is_never_switched_off():
     """Safe asset below its own moving average: its weight stays (it must not be doubled)."""
     n = 24 * 21

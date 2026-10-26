@@ -67,6 +67,11 @@ class Overlay:
     kind: str = "none"
     param: float | None = None
     safe: str = CASH  # where the weight of an "off" asset goes
+    # trend filter / absolute momentum: switch only these assets (empty = every risky asset; A38 filters equities only)
+    only: tuple[str, ...] = ()
+
+    def __post_init__(self):
+        object.__setattr__(self, "only", tuple(self.only))  # a list read back from JSON
 
     def describe(self) -> str:
         if self.kind == "none":
@@ -75,7 +80,8 @@ class Overlay:
         v = self.param if self.param is not None else p[1]
         name = OVERLAY_LABELS[self.kind].split(" · ")[0]
         safe = "" if self.safe == CASH else f", 안전자산 {short(self.safe)}"
-        return f"{name} {v:g}{safe}"
+        only = f", {'·'.join(short(s) for s in self.only)}에만" if self.only else ""
+        return f"{name} {v:g}{only}{safe}"
 
 
 @dataclass(frozen=True)
@@ -145,6 +151,10 @@ class AllocConfig:
     def to_dict(self) -> dict:
         d = asdict(self)
         d["overlay"] = asdict(self.overlay)
+        if not d["overlay"]["only"]:  # keep fingerprints of configs saved before the field existed
+            d["overlay"].pop("only")
+        else:
+            d["overlay"]["only"] = list(d["overlay"]["only"])
         d["leverage"] = asdict(self.leverage)
         if not d["rebalance_offset"]:  # keep fingerprints of configs saved before the field existed
             d.pop("rebalance_offset")
@@ -164,7 +174,7 @@ class AllocConfig:
         n += 1 if self.rebalance != "Q" else 0
         n += 1 if self.band else 0
         if self.overlay.kind != "none":
-            n += 1 + (1 if self.overlay.safe != CASH else 0)
+            n += 1 + (1 if self.overlay.safe != CASH else 0) + (1 if self.overlay.only else 0)
         n += 1 if self.leverage.factor != 1.0 else 0
         n += sum(1 for m in self.leverage.per_asset.values() if m != 1.0)
         return n
@@ -287,6 +297,8 @@ def target_weights(base: dict[str, float], overlay: Overlay, sig: _Signals, d: p
             if base.get(CASH):
                 w[CASH] = base[CASH]
         return w
+    if overlay.only:
+        off = [s for s in off if s in overlay.only]
     for s in off:
         if s == overlay.safe:  # the safe asset is where weight goes; it is never switched off itself
             continue
