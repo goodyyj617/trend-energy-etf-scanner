@@ -33,6 +33,7 @@ from lab import aa_search_results as sr  # noqa: E402
 from lab.aa_assets import PRESETS, PROXY_SYMBOLS  # noqa: E402
 from lab.aa_engine import run_allocation  # noqa: E402
 from lab.aa_korea import KrwModel, krw_panel, load_bok_rate, load_usdkrw  # noqa: E402
+from lab.aa_real import apply_source  # noqa: E402
 from lab.aa_validate import TIMING_OFFSETS  # noqa: E402
 from lab.data import download_panel  # noqa: E402
 
@@ -50,13 +51,18 @@ REP_LABELS = ("A 전체 최고", "B 레버·가상 없음 (-15,-14]", "B 레버�
 COMPARATORS = ("aaa_2026", "stable40")
 
 
-def load_panels():
+def load_panels(prices: str = "model"):
     usd, failed = download_panel(sorted(set(PROXY_SYMBOLS) | {"IEF", "TLT"}), end=G.DATA_END)
     if failed:
         print("받지 못한 종목:", failed)
     fx, bok = load_usdkrw(), load_bok_rate()
     p20, _ = krw_panel(usd, fx, bok, KrwModel(hedge_extra_bps=20.0), products=sr.ALL_PRODUCTS)
     p40, _ = krw_panel(usd, fx, bok, KrwModel(hedge_extra_bps=40.0), products=sr.ALL_PRODUCTS)
+    if prices == "real":  # A33: real Korean prices after listing; the hedge cost then only moves the model part
+        (p20, info, msg), (p40, _, _) = apply_source(p20, "real"), apply_source(p40, "real")
+        if info is None:
+            raise SystemExit(msg)
+        print(msg)
     return p20, p40
 
 
@@ -73,8 +79,8 @@ def substitute(w: dict[str, int], target: str) -> dict[str, int]:
     return out
 
 
-def candidates(out_dir: Path) -> list[tuple[str, dict[str, int]]]:
-    reps = pd.read_csv(out_dir.parent / "2026-10-25_global_search" / "representatives.csv")
+def candidates(out_dir: Path, reps_dir: Path | None = None) -> list[tuple[str, dict[str, int]]]:
+    reps = pd.read_csv((reps_dir or out_dir.parent / "2026-10-25_global_search") / "representatives.csv")
     by_label = dict(zip(reps["후보"], reps["비중"]))
     items = [(k, sr.parse_names(v)) for k, v in CANDIDATES.items()]
     items += [(lab, sr.parse_names(by_label[lab])) for lab in REP_LABELS]
@@ -85,11 +91,15 @@ def candidates(out_dir: Path) -> list[tuple[str, dict[str, int]]]:
 def main(argv: list[str]) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="docs/research/allocation/2026-10-25_stage2")
+    ap.add_argument("--prices", choices=("model", "real"), default="model",
+                    help="model = A32 as registered; real = real Korean prices after listing (A33, needs lab_data/kr)")
+    ap.add_argument("--candidates-from", default=None,
+                    help="folder with the stage-1 representatives.csv (default: 2026-10-25_global_search next to --out)")
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    items = candidates(out)
-    p20, p40 = load_panels()
+    items = candidates(out, Path(args.candidates_from) if args.candidates_from else None)
+    p20, p40 = load_panels(args.prices)
     sims: dict = {}
 
     def sim(panel=p20, start=sr.START, reb="Q", cost=10.0, off=0):

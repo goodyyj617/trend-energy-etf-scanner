@@ -18,8 +18,8 @@ module swaps in the real price of each Korean-listed product after its listing a
 
 Price files live in lab_data/kr/ (gitignored, like lab_data/yf): naver.csv.gz (code,date,open,high,low,close,
 volume) and yahoo.csv.gz (code,date,…,close,…,dividends). `python -m lab.aa_real fetch` downloads them (needs
-Naver and Yahoo; the cloud container cannot reach either). Without the files every function falls back to the
-model and says so.
+Naver and Yahoo; the cloud container cannot reach either), and the app does it by itself when they are missing or
+older than REFRESH_HOURS. Without the files every function falls back to the model and says so.
 """
 from __future__ import annotations
 
@@ -41,7 +41,8 @@ SYN_REAL = {"SYN_IEF_U": "305080", "SYN_TLT_U": "453850"}  # synthetic product -
 EXTRA_CODES = {"305080": "TIGER 미국채10년선물", "308620": "KODEX 미국채10년선물", "453850": "ACE 미국30년국채액티브"}
 REAL_CODES = sorted(set(PRODUCTS) | set(EXTRA_CODES))
 SOURCES = {"real": "실제 가격 우선 (상장 후 실제 · 상장 전 모형)", "model": "모형만 (미국 대용 × 원/달러)"}
-DEFAULT_SOURCE = "model"  # the user decides whether the hybrid becomes the default (decision card, 2026-10-26)
+DEFAULT_SOURCE = "real"  # user's choice on the decision card, 2026-10-26 12:34 KST (A33)
+REFRESH_HOURS = 20  # the app re-downloads the price files when they are older than this
 
 
 # --------------------------------------------------------------------------- real series
@@ -162,6 +163,19 @@ def splice_table(info: dict[str, dict], names: dict[str, str] | None = None, end
     return pd.DataFrame(rows).sort_values("실제 가격 시작", na_position="last", kind="stable").reset_index(drop=True)
 
 
+def ensure_files(folder: Path | str = REAL_DIR, max_age_hours: float = REFRESH_HOURS) -> str | None:
+    """Download the price files when they are missing or older than max_age_hours. Returns a note when a download
+    was tried and failed (offline, Naver or Yahoo changed); the old files, if any, stay in use."""
+    nav = Path(folder) / "naver.csv.gz"
+    if nav.exists() and (time.time() - nav.stat().st_mtime) < max_age_hours * 3600:
+        return None
+    try:
+        fetch(folder=folder)
+        return None
+    except Exception as exc:  # noqa: BLE001 - the lab must open offline
+        return f"실제 가격을 새로 받지 못했습니다 ({exc})."
+
+
 def apply_source(panel: Panel, source: str, folder: Path | str = REAL_DIR) -> tuple[Panel, dict[str, dict] | None, str]:
     """The panel for a price source ("real" or "model"), the splice info (None for the model) and a status line."""
     if source != "real":
@@ -235,11 +249,12 @@ def fetch(codes: list[str] = REAL_CODES, folder: Path | str = REAL_DIR) -> pd.Da
                         "naver_last": None if n is None else n["date"].max(), "yahoo_rows": 0 if y is None else len(y),
                         "distributions": 0 if y is None else int((y["dividends"] > 0).sum())})
         print(code, summary[-1], flush=True)
-    if not nav:
-        raise RuntimeError("네이버에서 가격을 하나도 받지 못했습니다.")
+    if len(nav) < 0.9 * len(codes):  # a partial download must not replace good files
+        raise RuntimeError(f"네이버에서 {len(nav)}/{len(codes)}종만 받았습니다.")
+    if len(yah) < 0.9 * len(codes):
+        raise RuntimeError(f"Yahoo 분배금을 {len(yah)}/{len(codes)}종만 받았습니다.")
     pd.concat(nav, ignore_index=True).to_csv(folder / "naver.csv.gz", index=False)
-    if yah:
-        pd.concat(yah, ignore_index=True).to_csv(folder / "yahoo.csv.gz", index=False)
+    pd.concat(yah, ignore_index=True).to_csv(folder / "yahoo.csv.gz", index=False)
     s = pd.DataFrame(summary)
     s.to_csv(folder / "summary.csv", index=False)
     return s

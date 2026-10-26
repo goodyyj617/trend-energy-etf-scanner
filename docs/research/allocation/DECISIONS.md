@@ -358,3 +358,11 @@ A33. User (2026-10-26 00:37 KST, on learning that every allocation backtest so f
     '실제 가격 반영 CAGR / MDD' and the date from which every holding is real (columns, not tests). The default stays
     '모형만' (`DEFAULT_SOURCE`) until the user answers whether the hybrid becomes the default; if it does, stages 1–2
     are re-run on it on the lab PC. The recorded A31 / A32 numbers remain model numbers.
+
+A34. User's choice on the decision card (2026-10-26 12:34 KST, "바꾸기"): the hybrid panel of A33 becomes the lab default
+    (`lab/aa_real.DEFAULT_SOURCE = "real"`); '모형만' stays available in the sidebar. The app downloads the price files
+    by itself when they are missing or older than 20 hours (`aa_real.ensure_files`; a download that covers fewer than 90 %
+    of the codes never replaces the files; offline it keeps the old files or falls back to the model and says so).
+    `scripts/aa_global_search.py` and `scripts/aa_stage2.py` take `--prices real|model` (default model, the registered
+    A31 / A32 runs); stages 1–2 are re-run with `--prices real` into new folders, same seed, rules and candidates, and the
+    A31 / A32 records are kept as the model reference.

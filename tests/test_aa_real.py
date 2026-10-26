@@ -107,3 +107,25 @@ def test_hybrid_continues_with_model_returns_after_the_real_file_ends():
     tail = hyb.close["379800"].loc[dates[40]:]
     assert np.allclose(tail.pct_change().dropna(), 0.002)  # model returns, not a flat carried price
     assert info["379800"]["real_last"] == seoul[-1]
+
+
+def test_ensure_files_keeps_fresh_files_and_reports_a_failed_download(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(aa_real, "fetch", lambda folder: calls.append(folder) or (_ for _ in ()).throw(RuntimeError("offline")))
+    assert "offline" in aa_real.ensure_files(tmp_path)  # missing: tries, fails, says so
+    (tmp_path / "naver.csv.gz").write_text("code,date,close\n")
+    assert aa_real.ensure_files(tmp_path) is None and len(calls) == 1  # fresh: no download
+    assert "offline" in aa_real.ensure_files(tmp_path, max_age_hours=0)  # stale: tries again
+
+
+def test_partial_download_does_not_replace_the_files(tmp_path, monkeypatch):
+    monkeypatch.setattr(aa_real, "_fetch_naver", lambda code, end: None)
+    monkeypatch.setattr(aa_real, "_fetch_yahoo", lambda code: None)
+    import pytest
+    with pytest.raises(RuntimeError):
+        aa_real.fetch(["379800", "379810"], tmp_path)
+    assert not (tmp_path / "naver.csv.gz").exists()
+
+
+def test_the_default_price_source_is_real_after_the_users_choice():
+    assert aa_real.DEFAULT_SOURCE == "real"
