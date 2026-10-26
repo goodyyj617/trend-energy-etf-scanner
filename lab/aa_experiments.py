@@ -23,12 +23,15 @@ ALLOC = sr.ROOT / "docs" / "research" / "allocation"
 STAGE2_PRESETS_DIR = ALLOC / "2026-10-26_stage2_presets"  # A36: the three registered search presets
 LOCAL_DIR = ALLOC / "2026-10-27_local_study"  # A37: the structure check around B2 · B3 · B4
 LOCAL_MEMO = ALLOC / "2026-10-27_local_study.md"
+FILTER_DIR = ALLOC / "2026-10-27_trend_filter"  # A38: a 10-month trend filter on the equities of B2 · B3 · B4
+FILTER_MEMO = ALLOC / "2026-10-27_trend_filter.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
 CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real", "stage2_presets", "neighbour_presets",
               "product_gap", "candidate_shift", "kodex200_share",
-              "local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named")
+              "local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named",
+              "filter_mdd", "filter_curves", "filter_groups", "filter_cagr")
 
 
 @dataclass(frozen=True)
@@ -114,7 +117,8 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "무작위는 24%입니다. 등록 프리셋 중 선 안에 남은 것은 안정형 35(−11.7%)·영구(−12.0%)·안정형 40(−13.7%)·골든 버터플라이(−14.8%)뿐입니다. "
          "그래서 탐색 B2·B4·A 프리셋 설명에 ‘2005년 이후에만 확인됨’을 붙였습니다.",
          "한계: 2005년 이전은 전부 모형(미국 ETF·뮤추얼펀드·금 선물 × 원/달러)이고, 2000년 3–8월은 빠져 있습니다. 결과는 표본 내 연구이며 승인이 아닙니다."),
-        ("local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named"), LOCAL_MEMO,
+        ("local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named",
+              "filter_mdd", "filter_curves", "filter_groups", "filter_cagr"), LOCAL_MEMO,
         "‘용어·상품 설명’의 프리셋 설명(탐색 B2·B4·A), ‘발견·경고·캠페인’"),
 )
 
@@ -245,3 +249,42 @@ def dotcom_named(folder: Path | str = LOCAL_DIR) -> pd.DataFrame:
     d = pd.read_csv(Path(folder) / "dotcom.csv")
     return pd.DataFrame({"이름": d["이름"], "2000-09~ CAGR": d["cagr"] * 100, "2000-09~ MDD": d["mdd"] * 100,
                          "2005~ CAGR": d["cagr_2005"] * 100, "2005~ MDD": d["mdd_2005"] * 100, "최저점": d["최저점"]})
+
+
+# --------------------------------------------------------------------------- A38 trend filter (percent units)
+
+FILTER_ERAS = {"2005": "2005–2026", "2000-09": "2000-09–2026"}  # the two start dates; before 2005 is the US-proxy model
+FILTER_SETTINGS = ("정적 분기", "정적 월", "필터 8", "필터 10", "필터 12", "Faber 원형 10")
+FILTER_STRUCTURE_SHARE = 50.0  # A38 structure verdict: ≥ 50 % of the family inside in both periods with 필터 10
+
+
+def filter_named(folder: Path | str = FILTER_DIR) -> pd.DataFrame:
+    """A38 per named allocation, period and setting: CAGR, MDD, CAGR from 2016, the worst MDD over the rebalance-date
+    offsets, the mean share of the equity weight the filter held in CD, and the number of month ends it switched (%)."""
+    n = pd.read_csv(Path(folder) / "named.csv", dtype={"기간": str})
+    return pd.DataFrame({"이름": n["이름"], "기간": n["기간"], "설정": n["설정"], "CAGR": n["cagr"] * 100, "MDD": n["mdd"] * 100,
+                         "2016~ CAGR": n["cagr_2016"] * 100, "날짜 최악 MDD": n["날짜 최악 MDD"] * 100,
+                         "꺼진 비중": n["꺼진 비중"] * 100, "꺼진 달": n["꺼진 달"] * 100, "전환": n["전환"].astype(int)})
+
+
+def filter_drawdowns(folder: Path | str = FILTER_DIR) -> pd.DataFrame:
+    """A38: drawdown from the running peak (%) from 2000-09 to 2006 with 정적 분기 and 필터 10, long rows (every fifth
+    trading day, so slightly shallower than the daily MDD)."""
+    p = pd.read_csv(Path(folder) / "curves.csv.gz", parse_dates=["date"]).set_index("date")
+    dd = (p / np.maximum(p.cummax(), 1.0) - 1) * 100
+    long = dd.reset_index().melt(id_vars="date", var_name="열", value_name="낙폭")
+    long[["이름", "설정"]] = long["열"].str.split(" · ", n=1, expand=True)
+    return long.drop(columns="열")
+
+
+def filter_groups(folder: Path | str = FILTER_DIR) -> pd.DataFrame:
+    """A38 per sample group (A37's structure family, random) and setting: the share within −15 % from each start and in
+    both, and the median CAGR / MDD (%)."""
+    g = pd.read_csv(Path(folder) / "groups.csv")
+    out = pd.DataFrame({"묶음": g["묶음"].map(group_label), "설정": g["설정"], "수": g["수"].astype(int),
+                        "두 기간 모두": g["두 기간 모두 선 안"] * 100})
+    for era in FILTER_ERAS:
+        out[f"{era} 선 안"] = g[f"{era} 선 안"] * 100
+        out[f"{era} CAGR 중앙"] = g[f"{era} cagr 중앙"] * 100
+        out[f"{era} MDD 중앙"] = g[f"{era} mdd 중앙"] * 100
+    return out
