@@ -486,6 +486,16 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     finalists if such a region exists. No holdout. Runner: lab/combo_study.py through
     scripts/crsp_remote.py (study "combos"); it writes the memo figures itself.
     Design: docs/research/lab/2026-10-26_stage_b_design.md.
+    Result (2026-10-26, run 19:51-22:18 KST): 197 / 203 of 1,152 runs pass (1993-2023 /
+    2017-2023); 34 of 36 combinations have a both-sample pass, 73 both-sample (combination,
+    point) passes, 67 of them in the hold layer. Top by rank sum: efficiency + large (pass share
+    53% / 56%, median excess +0.4 / +0.5 pp), dollar volume + efficiency + large (50% / 50%).
+    Replace layer passes 1-7% at every ATR setting; momentum alone never passes (the replace
+    layer without an ATR stop does not revive it). Rank correlation of combinations across
+    samples 0.30; PBO 30% / 60%; DSR of three representative points 0.85-0.97 (1993-2023) and
+    0.57-0.74 (2017-2023) at N 635-17,000. Read as index-like (large, liquid names), not a
+    selection edge. No holdout candidate. Trials +2,304 (lab-computer log on Drive, not merged).
+    Record: docs/research/lab/2026-10-26_stage_b_results.md.
 
 ## Open decisions
 

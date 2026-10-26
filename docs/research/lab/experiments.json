@@ -5,16 +5,25 @@
       "id": "combos_top3000",
       "title": "Stage B: 상위 선별 점수 조합 × 매매층 Sobol",
       "date": "2026-10-26",
-      "status": "실행 대기",
+      "status": "완료",
       "decision": "80",
-      "memo": "docs/research/lab/2026-10-26_stage_b_design.md",
+      "memo": "docs/research/lab/2026-10-26_stage_b_results.md",
       "results_dir": "lab_crsp/combos_top3000",
       "kind": "combos",
       "why": "결정 79에서 두 기간 모두 위에 있던 선별 점수들을 섞으면 나아지는지, 그리고 매매층(보유형·교체형, 손절 유무, 위험 비율, 종목 수)을 바꾸면 결론이 달라지는지를 본다. 특히 ATR 손절을 뺀 교체형에서 모멘텀이 살아나는지 다시 시험한다. 조합 36개 × 같은 Sobol 32점 × 표본 2개, 모두 2,304회를 결과를 보기 전에 등록했다.",
       "results": [
-        "아직 실행하지 않았다. 실행이 끝나면 이 칸에 핵심 결과를 적고 그림 4장을 붙인다."
+        "점수를 둘이나 셋 섞자 통과가 크게 넓어졌다. 조합 36개 중 34개가 두 표본 모두에서 통과한 점을 가졌고, 두 표본 모두 통과한 (조합, 점)은 73개다.",
+        "1위는 추세 효율 + 대형주로 32점 중 53% / 56%가 통과했고, 2위는 거래대금 + 추세 효율 + 대형주(50% / 50%)다. 다만 초과 CAGR은 연 0.5–3%p, MDD 중앙값은 1993–2023에서 −49%(SPY −55%)로, 지수에 가까운 결과일 가능성이 크다.",
+        "매매층은 보유형(트레일링)이 압도적이었다. 두 표본 통과 73점 중 67점이 보유형이고, 교체형은 어떤 ATR 설정에서도 통과 비율이 7% 이하였다.",
+        "모멘텀 단독은 ATR 손절을 뺀 교체형을 포함해 64회 중 한 번도 통과하지 못해, 모멘텀 가설은 지지되지 않았다.",
+        "조합 순위의 두 표본 상관은 0.30, 2017–2023 PBO는 60%라 상위권 안의 순서는 믿기 어렵다. 대표 점 DSR도 2017–2023에서 0.57–0.74에 그쳤다."
       ],
-      "figures": []
+      "figures": [
+        {"path": "docs/research/lab/figures/combos_top3000/combo_excess.png", "caption": "선별 조합별 SPY 대비 초과 CAGR, 두 표본 나란히"},
+        {"path": "docs/research/lab/figures/combos_top3000/combo_consistency.png", "caption": "두 표본의 조합 순위 일관성 (Spearman 0.30)"},
+        {"path": "docs/research/lab/figures/combos_top3000/layer_pass.png", "caption": "매매층 × ATR 손절별 통과 점 비율"},
+        {"path": "docs/research/lab/figures/combos_top3000/cagr_mdd.png", "caption": "모든 시험의 CAGR과 MDD, 별 = SPY"}
+      ]
     },
     {
       "id": "scores_top3000",
