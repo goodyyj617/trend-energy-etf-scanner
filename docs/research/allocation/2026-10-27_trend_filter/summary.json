@@ -1,0 +1,71 @@
+{
+  "prices": "real",
+  "quick": false,
+  "eras": {
+    "2005": "2005-01-03",
+    "2000-09": "2000-09-01"
+  },
+  "end": "2026-10-16",
+  "safe": "459580",
+  "settings": {
+    "정적 분기": {
+      "rebalance": "Q"
+    },
+    "정적 월": {
+      "rebalance": "M"
+    },
+    "필터 8": {
+      "rebalance": "M",
+      "sma": 8,
+      "only": "equity"
+    },
+    "필터 10": {
+      "rebalance": "M",
+      "sma": 10,
+      "only": "equity"
+    },
+    "필터 12": {
+      "rebalance": "M",
+      "sma": 12,
+      "only": "equity"
+    },
+    "Faber 원형 10": {
+      "rebalance": "M",
+      "sma": 10,
+      "only": "all"
+    }
+  },
+  "sample_settings": [
+    "정적 분기",
+    "정적 월",
+    "필터 10"
+  ],
+  "n_sample": 2000,
+  "offsets": [
+    0,
+    1,
+    5,
+    10,
+    15
+  ],
+  "verdict": {
+    "점 판정 (필터 10, 두 기간 −15% 안)": {
+      "B2": true,
+      "B3": true,
+      "B4": true
+    },
+    "필터 견고 (8·12도)": {
+      "B2": true,
+      "B3": true,
+      "B4": true
+    },
+    "구조 가족 두 기간 선 안 비율 (필터 10)": 0.4585,
+    "구조 판정 (≥ 50%)": false,
+    "제안할 필터 판 후보": [
+      "B2",
+      "B3",
+      "B4"
+    ]
+  },
+  "seconds": 225.8
+}
