@@ -210,3 +210,58 @@ def test_real_products_table_has_a_start_date_for_every_product():
     own = rp[rp["kind"] == "product"]
     assert set(own["model"]) == set(sr.PRODUCTS)
     assert set(rp.loc[rp["kind"] == "synthetic", "model"]) == set(sr.SYNTHETIC)
+
+
+# --------------------------------------------------------------------------- real-price reruns (A35)
+
+def test_result_sets_default_to_the_real_price_rerun_and_keep_the_model_record():
+    assert sr.DEFAULT_RESULT_SET == "real" and set(sr.RESULT_SETS) == {"real", "model"}
+    assert sr.RESULT_SETS["model"].results == sr.RESULTS_DIR and sr.RESULT_SETS["model"].newreps is None
+    for rs in sr.RESULT_SETS.values():
+        for name in ("passing.csv.gz", "cloud.csv.gz", "top300_refined.csv", "presets.csv", "representatives.csv", "summary.json"):
+            assert (rs.results / name).exists(), (rs.results, name)
+        assert (rs.stage2 / "stage2.csv").exists() and rs.memo.exists() and rs.stage2_memo.exists()
+    assert (sr.RESULT_SETS["real"].newreps / "stage2.csv").exists()
+    real = json.loads((sr.RESULTS_REAL_DIR / "summary.json").read_text(encoding="utf-8"))["params"]
+    model = json.loads((sr.RESULTS_DIR / "summary.json").read_text(encoding="utf-8"))["params"]
+    assert real.pop("prices") == "real" and model.pop("prices", "model") == "model"
+    assert real == model  # same seed, sample sizes, period, rules and universe: only the prices differ
+
+
+def test_frontier_of_the_real_price_rerun_matches_its_recorded_table():
+    res = sr.load_results(sr.RESULTS_REAL_DIR)
+    raw = (res.cands["출처"] != "다듬음").to_numpy()
+    assert int(raw.sum()) == res.summary["n_pass"] == 41_407
+    # frontier.md: 12.2 / 12.1 / 11.2 / 10.6 / 9.5. The 9.53 % row has MDD −10.995 % (top2000.csv.gz), stored as −0.1100 in passing.csv.gz
+    # (4 decimals), so on the page it sits one band lower and (−11,−10] shows 9.3.
+    assert sr.band_frontier(res.cands[raw])["최고 CAGR"].round(3).tolist()[:5] == [0.122, 0.121, 0.112, 0.106, 0.093]
+    absent = [c for k in ("레버리지 상품", "가상 상품", "방어·경기 섹터", "나스닥100") for c in sr.EXCLUDE_GROUPS[k]]
+    keep = raw & sr.exclude_mask(res.W, absent)
+    assert sr.band_frontier(res.cands[keep])["최고 CAGR"].round(3).tolist()[:5] == [0.103, 0.101, 0.093, 0.087, 0.081]
+
+
+def test_real_price_stage2_on_the_a32_candidates():
+    s2 = sr.load_stage2(sr.STAGE2_REAL_DIR)
+    assert list(s2["후보"]) == list(sr.load_stage2()["후보"])  # the same candidates as A32
+    r = sr.stage2_scorecard(s2).set_index("후보")
+    assert r.loc["R 다듬음 최고 (−15,−14]", "선 안 시험"] == "0 / 14"  # out of the line from the base setting on
+    assert r.loc["B 레버·가상 없음 (-15,-14]", "선 안 시험"] == "0 / 12"
+    for b in ("(-14,-13]", "(-13,-12]", "(-12,-11]", "(-11,-10]"):
+        assert r.loc[f"B 레버·가상 없음 {b}", "선을 넘긴 시험"] == "—"
+    a = r.loc["A 전체 최고"]
+    assert (a["CAGR"], a["MDD"]) == (12.10, -14.68)  # = the A33 real-price check
+    res = sr.load_results(sr.RESULTS_REAL_DIR)
+    picks = dict(zip(s2["후보"], sr.stage2_picks(s2, res)))
+    assert picks["비교: 안정형 40 (금·현금 분산)"][0] == "p"
+
+
+def test_real_price_stage2_on_the_new_representatives_opens_their_rows():
+    s2 = sr.load_stage2(sr.STAGE2_NEWREPS_DIR)
+    res = sr.load_results(sr.RESULTS_REAL_DIR)
+    reps = dict(zip(res.reps["후보"], res.reps["비중"]))
+    by = s2.set_index("후보")
+    for label in ("A 전체 최고", "B 레버·가상 없음 (-15,-14]", "B 레버·가상 없음 (-13,-12]"):
+        assert sr.parse_names(by.at[label, "비중"]) == sr.parse_names(reps[label])  # stage 2 used this run's representatives
+    picks = dict(zip(s2["후보"], sr.stage2_picks(s2, res)))
+    kind, i = picks["A 전체 최고"]
+    assert kind == "c" and i >= 0 and sr.describe(res.W[i]) == by.at["A 전체 최고", "비중"]

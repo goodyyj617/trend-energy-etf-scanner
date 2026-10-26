@@ -1499,20 +1499,29 @@ SEARCH_COLS = {
 
 
 @st.cache_resource(show_spinner="전역 탐색 결과를 읽는 중…")
-def load_search_results(stamp: float) -> tuple[sr.SearchResults, dict[str, int]]:
-    res = sr.load_results()
+def load_search_results(stamp: float, folder: str = str(sr.RESULTS_DIR)) -> tuple[sr.SearchResults, dict[str, int]]:
+    res = sr.load_results(folder)
     row_of = {sr.code_text(w): i for i, w in enumerate(res.W) if res.cands.at[i, "출처"] != "다듬음"}
     return res, row_of
 
 
 @st.cache_resource(show_spinner=False)
-def load_stage2_results(stamp: float, stamp2: float) -> tuple[pd.DataFrame | None, list[tuple[str, int]]]:
+def load_stage2_results(stamp: float, stamp2: float, folder: str = str(sr.RESULTS_DIR),
+                        s2_folder: str = str(sr.STAGE2_DIR)) -> tuple[pd.DataFrame | None, list[tuple[str, int]]]:
     """The stage-2 table and, per row, the pick it opens in ④ (matching 41k weight rows takes ~0.3 s, so it is cached)."""
-    s2 = sr.load_stage2()
+    s2 = sr.load_stage2(s2_folder)
     if s2 is None:
         return None, []
-    res, _ = load_search_results(stamp)
+    res, _ = load_search_results(stamp, folder)
     return s2, sr.stage2_picks(s2, res)
+
+
+def stage2_of(rs: sr.ResultSet, folder, stamp: float, which: str = "stage2") -> tuple[pd.DataFrame | None, list[tuple[str, int]]]:
+    s2_dir = getattr(rs, which)
+    if s2_dir is None:
+        return None, []
+    f = s2_dir / "stage2.csv"
+    return load_stage2_results(stamp, f.stat().st_mtime if f.exists() else 0.0, str(folder), str(s2_dir))
 
 
 @st.cache_resource(show_spinner="가상 상품까지 넣은 원화 패널을 만드는 중…")
@@ -1884,24 +1893,47 @@ STAGE2_COLS = {
 }
 
 
-def search_stage2(s2: pd.DataFrame | None, picks: list[tuple[str, int]]) -> None:
+def search_stage2(s2: pd.DataFrame | None, picks: list[tuple[str, int]], rs: sr.ResultSet,
+                  newreps: tuple[pd.DataFrame | None, list[tuple[str, int]]] = (None, [])) -> None:
     st.subheader("⑥ 2단계: 고른 후보 흔들어 보기")
     if s2 is None:
-        st.caption("2단계 결과 파일이 없습니다 (docs/research/allocation/2026-10-25_stage2/stage2.csv).")
+        st.caption(f"2단계 결과 파일이 없습니다 ({rs.stage2.relative_to(sr.ROOT).as_posix()}/stage2.csv).")
         return
+    is_real = rs.results == sr.RESULTS_REAL_DIR
     st.caption("1단계에서 고른 후보(R = 다듬은 최고, A = 전체 최고, B = 레버리지·가상 상품 없는 구간별 최고)와 비교용 프리셋 둘을 **실제 엔진과 바뀐 설정**으로 "
                "다시 돌렸습니다(DECISIONS A32): 리밸런싱 밴드 0·3·5%p, 월·연 리밸런싱, 비용 20bp, 리밸런싱 날짜 이동(최악), 헤지 비용 40bp, 2008·2010·2015년 시작, "
                "가상 상품을 (H) 상품이나 달러선물로 바꾸기. 판정이 아니라 ‘선 위 한 점’이 설정 하나에 얼마나 흔들리는지 보는 표입니다. "
                "숫자는 % 단위. 행을 누르면 ④에 나옵니다. 산점도의 자주색 별이 같은 후보인데, 겹친 점이 많아 별을 누르면 바로 옆 배분이 열릴 수 있으니 후보는 이 표에서 고르세요.")
-    card = sr.stage2_scorecard(s2, sr.load_real_candidates())
+    if is_real:
+        st.caption("이 표는 **실제 가격 우선** 패널(상장 후 실제 국내 가격, 상장 전 모형)로 A32와 **같은 후보·같은 시험**을 다시 돌린 것입니다(A35). "
+                   "모형 결과와 나란히 보려면 위 ‘기록된 결과’를 ‘모형만’으로 바꾸세요.")
+        card = sr.stage2_scorecard(s2)
+    else:
+        card = sr.stage2_scorecard(s2, sr.load_real_candidates())
     st.session_state["gs_stage2_rows"] = picks
-    st.dataframe(card, hide_index=True, width="stretch", key="tbl_gs_stage2", on_select=lambda: pick_from_table("tbl_gs_stage2", "gs_stage2_rows"),
+    st.dataframe(card, hide_index=True, width="stretch", key=f"tbl_gs_stage2_{'real' if is_real else 'model'}",
+                 on_select=lambda: pick_from_table(f"tbl_gs_stage2_{'real' if is_real else 'model'}", "gs_stage2_rows"),
                  selection_mode="single-row", column_config=STAGE2_COLS)
-    st.caption("‘실제 가격 반영’ 두 열(A33, 2026-10-26)은 각 상품이 상장한 뒤를 실제 국내 가격으로 바꾼 결과입니다. R(−15.37)과 B (−15,−14](−15.30)는 "
-               "실제 가격에서 −15% 밖으로 나가고, A·B2–B5·안정형 40은 0.0–0.3%p 안에서만 바뀝니다. 미국10년국채액티브(H)가 2025-08 상장이라 대부분 후보는 "
-               "모든 상품이 실제 가격인 구간이 1.1년뿐이고, 2008·2020 위기 낙폭은 여전히 모형 값입니다. 메모: docs/research/allocation/2026-10-26_real_prices.md")
-    st.caption("읽는 법(2026-10-25 실행 기준): R(13.2%)은 14개 시험 중 7개, A는 3개, B (−15,−14]은 밴드 3·5%p에서 −15%를 넘고, R과 B (−15,−14]은 ±2%p 이웃의 절반 이상이 "
-               "선 밖입니다(선에 붙여 고른 몫). B (−14,−13] 이하 네 B 후보는 모든 시험에서 선 안에 남았습니다. ‘내 AAA’는 기준부터 선 밖입니다.")
+    if is_real:
+        st.caption("읽는 법(2026-10-26 실행): R(12.95 / −15.37)과 B (−15,−14](11.73 / −15.30)는 실제 가격에서 기준 설정부터 −15% 밖이라 모든 시험에서 선 밖입니다. "
+                   "A는 밴드 3%p·연간·날짜 이동에서 0.1–0.3%p 넘습니다. B (−14,−13] 이하 네 B 후보와 안정형 40은 모형 때처럼 모든 시험에서 선 안에 남았습니다. "
+                   "‘내 AAA’는 기준부터 선 밖입니다. 메모: docs/research/allocation/2026-10-26_real_reruns.md")
+        s2n, picks_n = newreps
+        if s2n is not None:
+            st.markdown("**실제 가격 1단계가 새로 고른 대표 후보로 같은 시험**")
+            st.caption("후보를 실제 가격 탐색 결과에서 다시 고르면(사후에 고른 읽기 보조) 대표 배분이 바뀌고 KODEX 200이 자주 들어옵니다. "
+                       "KODEX 200은 2002년부터 실제 가격이 있어 거의 전 기간이 실제 값이고, 실제 총수익이 모형보다 연 3.7%p 높습니다(A33 표 1). "
+                       "같은 데이터로 고르고 같은 데이터로 시험한 것이라 위 표보다 낙관적으로 읽어야 합니다. R 행은 스크립트에 고정된 후보라 위와 같습니다.")
+            st.session_state["gs_stage2n_rows"] = picks_n
+            st.dataframe(sr.stage2_scorecard(s2n), hide_index=True, width="stretch", key="tbl_gs_stage2_newreps",
+                         on_select=lambda: pick_from_table("tbl_gs_stage2_newreps", "gs_stage2n_rows"),
+                         selection_mode="single-row", column_config=STAGE2_COLS)
+    else:
+        st.caption("‘실제 가격 반영’ 두 열(A33, 2026-10-26)은 각 상품이 상장한 뒤를 실제 국내 가격으로 바꾼 결과입니다. R(−15.37)과 B (−15,−14](−15.30)는 "
+                   "실제 가격에서 −15% 밖으로 나가고, A·B2–B5·안정형 40은 0.0–0.3%p 안에서만 바뀝니다. 미국10년국채액티브(H)가 2025-08 상장이라 대부분 후보는 "
+                   "모든 상품이 실제 가격인 구간이 1.1년뿐이고, 2008·2020 위기 낙폭은 여전히 모형 값입니다. 메모: docs/research/allocation/2026-10-26_real_prices.md")
+        st.caption("읽는 법(2026-10-25 실행 기준): R(13.2%)은 14개 시험 중 7개, A는 3개, B (−15,−14]은 밴드 3·5%p에서 −15%를 넘고, R과 B (−15,−14]은 ±2%p 이웃의 절반 이상이 "
+                   "선 밖입니다(선에 붙여 고른 몫). B (−14,−13] 이하 네 B 후보는 모든 시험에서 선 안에 남았습니다. ‘내 AAA’는 기준부터 선 밖입니다.")
     with st.expander("2단계 전체 표 (시험마다 CAGR·MDD)"):
         full_cols = {c: st.column_config.NumberColumn(c, format="%.2f") for c in s2.columns
                      if c not in ("후보", "비중", "가상 상품", "상품 수", "레버리지 %", "이웃±2 수", "이웃±5 수")}
@@ -1909,7 +1941,7 @@ def search_stage2(s2: pd.DataFrame | None, picks: list[tuple[str, int]]) -> None
         st.dataframe(s2, hide_index=True, width="stretch", column_config=full_cols)
     with st.expander("2단계 메모 전문"):
         try:
-            st.markdown(sr.STAGE2_MEMO.read_text(encoding="utf-8"))
+            st.markdown(rs.stage2_memo.read_text(encoding="utf-8"))
         except OSError:
             st.caption("메모 파일을 읽지 못했습니다.")
     with st.expander("실제 국내 가격 대조 메모 (A33)"):
@@ -1936,33 +1968,45 @@ def search_dials(res: sr.SearchResults) -> None:
         lines.append(f"**다듬기**: 상위 {rf['seeds']}개를 5%p씩 옮기면 CAGR이 중앙값 {rf['median_gain_pp']:.1f}%p 오르지만 모두 −15% 선에 닿습니다. "
                      "선 위에서 짜낸 몫이라 후보로 쓰지 않습니다.")
     lines.append("**나스닥100**: 프리셋보다 1.2–2.7%p 높은 경계선의 재료는 거의 나스닥100(+ 방어 섹터, 2배 상품 소량)입니다. 나스닥·섹터·레버리지·가상 상품을 빼면 "
-                 "경계선이 안정형 프리셋과 0.1–0.8%p 차이로 내려옵니다. ①에서 그룹을 빼 보면 바로 확인됩니다.")
+                 "경계선이 안정형 프리셋 가까이 내려옵니다(모형 기록 기준 0.1–0.8%p 차이). ①에서 그룹을 빼 보면 바로 확인됩니다.")
     for ln in lines:
         st.markdown("- " + ln)
-    st.caption("한계: 상장 전 기간은 미국 ETF + 원/달러 + 두 나라 금리로 만든 대용 데이터이고 괴리율·추적오차·국내 금 프리미엄·세금은 없습니다. "
+    st.caption("한계: 상장 전 기간(실제 가격 우선) 또는 전 기간(모형만)은 미국 ETF + 원/달러 + 두 나라 금리로 만든 대용 데이터이고, 그 구간에는 "
+               "괴리율·추적오차·국내 금 프리미엄이 없습니다. 세금은 어느 쪽에도 없습니다. "
                "모든 숫자는 표본 내 결과이며 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
 
 
 def search_page() -> None:
+    st.title("전역 탐색 결과")
+    key = st.radio("기록된 결과", list(sr.RESULT_SETS), format_func=lambda k: sr.RESULT_SETS[k].label, horizontal=True,
+                   key=init("gs_rset", sr.DEFAULT_RESULT_SET),
+                   help="실제 가격 우선 = 각 상품이 상장한 뒤는 실제 국내 가격, 그 전은 모형으로 1·2단계를 다시 돌린 결과(A35, 기본). "
+                        "모형만 = 전 기간 미국 대용 × 원/달러로 돌린 처음 기록(A31·A32). 같은 seed·규칙·후보입니다. "
+                        "이 선택은 기록된 표만 바꾸고, ④의 엔진 재실행은 사이드바 ‘가격 기준’을 따릅니다.")
+    rs = sr.RESULT_SETS.get(key, sr.RESULT_SETS[sr.DEFAULT_RESULT_SET])
     try:
-        stamp = sr.RESULTS_DIR.joinpath("passing.csv.gz").stat().st_mtime
-        res, row_of = load_search_results(stamp)
+        stamp = rs.results.joinpath("passing.csv.gz").stat().st_mtime
+        res, row_of = load_search_results(stamp, str(rs.results))
     except FileNotFoundError as exc:
         st.error(f"탐색 결과 파일이 없습니다: {exc}")
         return
-    if st.session_state.get("gs_stamp") != stamp:  # new result files: a stored row number may point at another allocation
+    if st.session_state.get("gs_stamp") != (key, stamp):  # other result files: a stored row number may point at another allocation
         for k in ("gs_pick", "gs_run"):
             st.session_state.pop(k, None)
-        st.session_state["gs_stamp"] = stamp
+        st.session_state["gs_stamp"] = (key, stamp)
     S = res.summary
-    s2_file = sr.STAGE2_DIR / "stage2.csv"
-    s2, s2_picks = load_stage2_results(stamp, s2_file.stat().st_mtime if s2_file.exists() else 0.0)
-    st.title("전역 탐색 결과")
+    s2, s2_picks = stage2_of(rs, rs.results, stamp)
+    newreps = stage2_of(rs, rs.results, stamp, "newreps")
+    is_real = rs.results == sr.RESULTS_REAL_DIR
     st.caption("국내 상장 ETF 28종 + 가상 상품 2종(환노출 미국채)으로 만든 고정 비중 배분을 한꺼번에 시험한 1단계(DECISIONS A31)와, 거기서 고른 후보를 "
                "설정을 바꿔 다시 돌린 2단계(A32, ⑥)입니다. 원화, 2005-01-03 – 2026-10-16, 분기 리밸런싱, 편도 10bp, 헤지 추가 비용 20bp. "
-               "가격 데이터 없이 기록된 결과를 바로 보여 주고, 고른 배분은 엔진으로 다시 돌릴 수 있습니다. 기록된 1·2단계 숫자는 **모형**(전 기간 미국 대용 × 원/달러)이고, "
-               "⑥의 ‘실제 가격 반영’ 열과 엔진 재실행(사이드바 ‘가격 기준’)이 상장 후 실제 가격을 씁니다. "
-               "메모: docs/research/allocation/2026-10-25_global_search.md, 2026-10-25_stage2.md")
+               "가격 데이터 없이 기록된 결과를 바로 보여 주고, 고른 배분은 엔진으로 다시 돌릴 수 있습니다. "
+               + ("지금 보는 숫자는 **실제 가격 우선**입니다: 각 상품이 상장한 뒤는 실제 국내 가격(네이버 종가 + 분배금), 그 전은 모형(A35). "
+                  "대부분 상품은 상장이 2016년 이후라 2008·2020 위기 낙폭은 여전히 모형 값입니다. "
+                  "메모: docs/research/allocation/2026-10-26_real_reruns.md (모형 기록은 2026-10-25_global_search.md, 2026-10-25_stage2.md)"
+                  if is_real else
+                  "지금 보는 숫자는 **모형**(전 기간 미국 대용 × 원/달러, 처음 기록)입니다. ⑥의 ‘실제 가격 반영’ 열과 엔진 재실행(사이드바 ‘가격 기준’)이 "
+                  "상장 후 실제 가격을 씁니다. 메모: docs/research/allocation/2026-10-25_global_search.md, 2026-10-25_stage2.md"))
     cols = st.columns(5)
     cols[0].metric("시험한 배분", f"{S.get('n_candidates', 0):,}")
     cols[1].metric("MDD −15% 안", f"{S.get('n_pass', 0):,}", help="유일한 필수 조건. 나머지는 모두 정보용 열과 ⚠ 표시입니다.")
@@ -1980,11 +2024,11 @@ def search_page() -> None:
     search_band_table(res, view)
     search_detail(res)
     search_reps(res, row_of)
-    search_stage2(s2, s2_picks)
+    search_stage2(s2, s2_picks, rs, newreps)
     search_dials(res)
     with st.expander("결과 메모 전문"):
         try:
-            st.markdown(sr.MEMO_PATH.read_text(encoding="utf-8"))
+            st.markdown(rs.memo.read_text(encoding="utf-8"))
         except OSError:
             st.caption("메모 파일을 읽지 못했습니다.")
 
