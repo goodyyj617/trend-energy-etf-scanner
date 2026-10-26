@@ -378,3 +378,14 @@ A35. The A34 re-runs, done on the lab PC on 2026-10-26 with the A33 price files 
     the frontier moved 0–0.2 %p, B2 / B4 pass every stage-2 MDD test as before, A breaks the same three by 0.1–0.3 %p,
     R and B1 are out from the base setting on. New representatives lean on KODEX 200, whose real total return beats the
     model by 3.7 %p/yr (A33); no preset from them until that gap is understood.
+
+A36. Three search presets, registered after the results at the user's request (2026-10-26 18:00 KST, "B2, B4, A 모두 등록"):
+    `gs_b2` 탐색 B2 (= stage-2 B (−14,−13]), `gs_b4` 탐색 B4 (= B (−12,−11]) and `gs_a` 탐색 A, whose synthetic
+    '미국10년 환노출' 8 % is merged into 미국10년국채액티브(H) 0091C0 (the stage-2 '가상→(H)' substitution) so every
+    holding is buyable in the ISA. Before registering, the three ran through the same stage-2 tests on the real-price
+    panel (lab PC, `2026-10-26_stage2_presets/`): B2 and B4 stay within −15 % in all 12 MDD tests (B4 also for every ±5 %p
+    neighbour); the substituted A is 12.06 % / −14.48 % but breaks the line at band 3 %p (−15.61 %) and keeps only 53 % of
+    its ±5 %p neighbours inside, so its preset note says it is the least robust of the three. Presets are frozen records.
+    Same PR: the page '실험 기록' (`lab/aa_experiments.py`, bookmark `aalab://experiments`) per the user's rule of the same
+    day that every experiment shows why it was run, its key results and graphs; it covers A31, A32, A33, A35 and A36, and
+    each later experiment adds an entry in its own PR.
