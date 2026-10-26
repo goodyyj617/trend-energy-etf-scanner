@@ -26,7 +26,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-STUDIES = {"screens": "lab.screen_study", "families": "lab.crsp_study", "scores": "lab.score_study"}
+STUDIES = {"screens": "lab.screen_study", "families": "lab.crsp_study", "scores": "lab.score_study",
+           "combos": "lab.combo_study"}
 
 
 def copytree(src: Path, dst: Path) -> None:

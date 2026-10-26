@@ -467,6 +467,25 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     lab/score_study.py through scripts/crsp_remote.py (study "scores"; a Drive panel without SIC
     codes is rebuilt). Entry-timing filters are redesigned after this result.
     Design: docs/research/lab/2026-10-25_screens_v2_design.md.
+80. Stage B: blends of the consistent top selection scores x a Sobol sample of the trading layer
+    (user approved 2026-10-26, registered before any run). Selection: every 2- and 3-combination
+    of {dollar volume, trend efficiency, large cap, smoothness, accumulation/distribution, OBV
+    slope} (15 + 20), each at its default lookback, combined by the mean percentile rank, plus
+    12-1 momentum alone (36). Trading layer: the same 32 Sobol points (lab.explore.sobol, 7
+    variables) for every combination and both samples: exclusion {hygiene, + tt_fail 25}, top K
+    {20, 50, 100}, layer {hold (trailing_pct 15-40), replace (left_list, no trailing)}, atr_stop
+    {off, 2, 3, 4}, risk_pct 0.5-2.0, max_positions {10, 15, 20, 30}. Fixed: entry always, cap
+    10%, 20 bp per side, hygiene defaults (no size floor), no leverage. Risk sizing needs an
+    initial stop; a point without an ATR stop would buy nothing, so it is sized with equal slots
+    (1 / max positions) and its risk % is unused. 36 x 32 x 2 = 2,304 runs, every run a trial.
+    Pass as 79 (CAGR >= SPY, |MDD| <= |SPY MDD|, >= 30 trades); dd_excess and window share kept.
+    Judging: per combination, pass share of the 32 points then median CAGR excess per sample;
+    rank = sum of the two sample ranks; a combination passing in one sample only is never
+    promoted. For the top combinations, where the both-sample passes sit in layer space (no
+    single-point regions). PBO (CSCV) over all runs is information only; DSR only for 1-3
+    finalists if such a region exists. No holdout. Runner: lab/combo_study.py through
+    scripts/crsp_remote.py (study "combos"); it writes the memo figures itself.
+    Design: docs/research/lab/2026-10-26_stage_b_design.md.
 
 ## Open decisions
 
