@@ -451,7 +451,7 @@ A38. 10-month trend filter on the equities of B2 · B3 · B4, picked by the user
     the cost the filtered B's sit beside 안정형 40 static (8.7 / −11.8 from 2005, 8.0 / −13.7 from 2000-09, 9.3 % from
     2016) rather than above it. S&P500 alone with the filter: −45.4 → −30.7 % from 2000-09 but −29.6 → −30.7 % from
     2005, CAGR 12.2 → 7.3 %, date-offset worst −39.4 %. Consequence: B2 · B3 · B4 '필터 판' proposed as preset
-    candidates; nothing registered yet. Caveats: 10 months is Faber's value from a sample that contains 2000–02, so
-    the dot-com pass is not an independent test of the filter length; 2000–2004 is all model and Mar–Aug 2000 is
+    candidates per the rule; the user decided on 2026-10-27 not to register them (static presets unchanged).
+    Caveats: 10 months is Faber's value from a sample that contains 2000–02, so the dot-com pass is not an independent test of the filter length; 2000–2004 is all model and Mar–Aug 2000 is
     missing; the filtered versions have not had an A32-style stage-2 shake (band, cost, start year, neighbours);
     in-sample. Same PR: experiment entry 'a38' on '실험 기록' with four charts and PNGs in `2026-10-27_trend_filter/figures/`.
