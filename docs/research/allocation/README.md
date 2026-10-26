@@ -17,7 +17,7 @@ ISA 계좌에서 살 수 있는 **국내 상장 ETF**를 단위로 쓰고, 모�
 | `aalab://scorecard` | 성적표 · 믹스 |
 | `aalab://tactical` | 전술 전략 · 검증 (HAA·BAA·VAA, 날짜 민감도·성역·부트스트랩·정직 vs 균등·위기 회피 스위치) |
 | `aalab://search` | 전역 탐색 결과 (A31: 249,934개 배분의 CAGR–MDD 지도, 구간별 경계선, 고른 배분 재실행; A32: 2단계 후보 흔들기 표) |
-| `aalab://experiments` | 실험 기록 (실험마다 왜 했나 · 핵심 결과 · 그래프: A31 탐색, A32 2단계, A33 실제 가격 대조, A35 재실행, A36 프리셋 확인) |
+| `aalab://experiments` | 실험 기록 (실험마다 왜 했나 · 핵심 결과 · 그래프: A31 탐색, A32 2단계, A33 실제 가격 대조, A35 재실행, A36 프리셋 확인, A37 B2·B3·B4 구조 검증과 닷컴 시험) |
 | `aalab://rebalance` | 리밸런싱 계산기 |
 | `aalab://notes` | 발견 · 경고 · 캠페인 |
 | `aalab://saved` | 저장된 전략 |
@@ -127,4 +127,5 @@ ISA 계좌에서 살 수 있는 **국내 상장 ETF**를 단위로 쓰고, 모�
 - 전역 탐색(A31): `lab/aa_search.py`(빠른 정적 시뮬레이터·표본 추출·CSCV), `lab/aa_search_results.py`(탐색 유니버스 30종과 결과 읽기 · 필터 · 구간별 경계선, 앱 페이지가 씀), `scripts/aa_global_search.py`(실행), 결과 `2026-10-25_global_search/`(passing.csv.gz · cloud.csv.gz(앱용) · bands.md · frontier.md · top300.csv · top300_refined.csv · top2000.csv.gz · presets.csv · representatives.csv · scatter.png · summary.json), 메모 `2026-10-25_global_search.md`. 앱용 두 파일만 다시 만들 때: `scripts/aa_global_search.py --app-files <candidates_full.csv.gz>`. 전체 후보 표(`candidates_full.csv.gz`, 25만 행)는 저장소에 넣지 않고 프로젝트 파일 `allocation/global_search/`에 둔다.
 - 실제 국내 가격(A33–A35): `lab/aa_real.py`(혼합 패널: 상장 후 실제, 상장 전 모형, 연구실 기본값), 대조 메모 `2026-10-26_real_prices.md`, 1·2단계 재실행 `2026-10-26_global_search_real/`·`2026-10-26_stage2_real/`·`2026-10-26_stage2_real_newreps/`와 메모 `2026-10-26_real_reruns.md`. 재현: `scripts/aa_global_search.py`·`aa_global_search_reps.py`·`aa_stage2.py`에 `--prices real`(가격 파일 `lab_data/kr/` 필요).
 - 2단계(A32): `scripts/aa_stage2.py`(후보 목록은 스크립트 안 `CANDIDATES`·`REP_LABELS`·`COMPARATORS`), 결과 `2026-10-25_stage2/`(stage2.csv · neighbours.csv.gz), 메모 `2026-10-25_stage2.md`.
+- 구조 검증(A37): `lab/aa_local.py`(구조 규칙 R1–R3 · 구조 가족 표본 · 특징 빼기 X1–X4 · 이웃 · 1년 블록 부트스트랩 · 2000-09까지 대용 이어 붙이기), `scripts/aa_local_study.py`(①–③, `--dotcom`이면 ④, `--quick` 점검), 테스트 `tests/test_aa_local.py`, 결과 `2026-10-27_local_study/`, 메모 `2026-10-27_local_study.md`(그림 `2026-10-27_local_study/figures/`).
 - 테스트: `tests/test_aa.py`, `tests/test_aa_korea.py`, `tests/test_aa_tactical.py`, `tests/test_aa_search.py`, `tests/test_aa_search_results.py`.

@@ -49,3 +49,30 @@ def test_real_price_chart_data():
     share_model, _ = ex.holding_share(sr.load_results(sr.RESULTS_DIR), "069500")
     share_real, _ = ex.holding_share(sr.load_results(sr.RESULTS_REAL_DIR), "069500")
     assert round(share_model) == 16 and round(share_real) == 32
+
+
+def test_local_study_chart_data():
+    b = ex.local_neighbour_bins()
+    assert set(b["중심"]) == {"B2", "B3", "B4"} and len(b) == 15
+    assert (b[b["거리"].isin(["0–5", "5–10"])]["선 안"] == 100).all()
+    g = ex.local_groups().set_index("묶음")
+    fam, rnd = g.loc[ex.group_label("구조 가족")], g.loc[ex.group_label("무작위")]
+    assert round(fam["2005~ 선 안"], 1) == 32.6 and round(rnd["2005~ 선 안"], 1) == 29.7
+    assert round(fam["2000-09~ 선 안"], 1) == 0.4 and round(rnd["2000-09~ 선 안"]) == 24
+    assert list(g.index) == [ex.group_label(k) for k in ex.LOCAL_GROUP_ORDER]
+    boot = ex.bootstrap_mdds()
+    p_out = (boot["MDD"] < sr.STAGE2_PCT_LINE).groupby(boot["이름"]).mean()
+    assert round(p_out["B2"], 3) == 0.178 and round(p_out["B4"], 3) == 0.107 and boot.groupby("이름").size().eq(1000).all()
+    n = ex.dotcom_named().set_index("이름")
+    assert round(n.at["B2", "2000-09~ MDD"], 1) == -16.4 and round(n.at["B4", "2000-09~ MDD"], 1) == -25.6
+    assert set(n.index[n["2000-09~ MDD"] >= sr.STAGE2_PCT_LINE]) == {"안정형 35 (금·현금 분산)", "안정형 40 (금·현금 분산)", "영구 포트폴리오", "골든 버터플라이"}
+    dd = ex.dotcom_drawdowns()
+    assert set(dd["이름"]) == set(ex.DOTCOM_CURVES)
+    worst = dd.groupby("이름")["낙폭"].min()
+    assert (worst >= n.loc[worst.index, "2000-09~ MDD"] - 1e-9).all()  # curves kept every 5th day are never deeper than the daily MDD
+
+
+def test_search_presets_say_they_are_confirmed_only_from_2005():
+    from lab.aa_assets import PRESETS
+    for key in ("gs_b2", "gs_b4", "gs_a"):
+        assert "2005년 이후에만 확인됨" in PRESETS[key].note, key
