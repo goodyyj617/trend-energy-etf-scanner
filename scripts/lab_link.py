@@ -23,7 +23,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEME = "trendlab"
 HOST, PORT = "127.0.0.1", 8501
 # trendlab://<name> -> page url path (st.navigation derives it from the page function name)
-PAGES = {"": "", "research": "", "holdout": "holdout_page", "saved": "saved_page", "glossary": "glossary_page"}
+PAGES = {"": "", "research": "", "holdout": "holdout_page", "saved": "saved_page", "experiments": "experiments_page",
+         "glossary": "glossary_page"}
 
 
 def listening() -> bool:

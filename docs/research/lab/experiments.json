@@ -1,0 +1,64 @@
+{
+  "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
+  "experiments": [
+    {
+      "id": "combos_top3000",
+      "title": "Stage B: 상위 선별 점수 조합 × 매매층 Sobol",
+      "date": "2026-10-26",
+      "status": "실행 대기",
+      "decision": "80",
+      "memo": "docs/research/lab/2026-10-26_stage_b_design.md",
+      "results_dir": "lab_crsp/combos_top3000",
+      "kind": "combos",
+      "why": "결정 79에서 두 기간 모두 위에 있던 선별 점수들을 섞으면 나아지는지, 그리고 매매층(보유형·교체형, 손절 유무, 위험 비율, 종목 수)을 바꾸면 결론이 달라지는지를 본다. 특히 ATR 손절을 뺀 교체형에서 모멘텀이 살아나는지 다시 시험한다. 조합 36개 × 같은 Sobol 32점 × 표본 2개, 모두 2,304회를 결과를 보기 전에 등록했다.",
+      "results": [
+        "아직 실행하지 않았다. 실행이 끝나면 이 칸에 핵심 결과를 적고 그림 4장을 붙인다."
+      ],
+      "figures": []
+    },
+    {
+      "id": "scores_top3000",
+      "title": "선별 점수 대표 필터 비교 (상위 3000)",
+      "date": "2026-10-26",
+      "status": "완료",
+      "decision": "79",
+      "memo": "docs/research/lab/2026-10-26_score_study_results.md",
+      "results_dir": "lab_crsp/scores_top3000",
+      "kind": "scores",
+      "why": "종목 스크린 v2의 선별 점수 41개 가운데 어떤 것이 추세추종 매매와 잘 맞는지 고르기 위해, 점수를 기본값으로 하나씩 같은 조건(제외 2 × 상위 K 3 × 진입 2 × 매매층 2)에서 비교했다. 여러 점수를 섞거나 매매층을 흔드는 다음 단계(Stage B)의 후보를 정하는 것이 목적이었다.",
+      "results": [
+        "통과 칸은 1993–2023에서 984칸 중 28칸, 2017–2023에서 984칸 중 34칸이었고, 두 표본 모두 통과 칸이 있는 조합은 세 개뿐이며 모두 격자 한 칸짜리였다.",
+        "점수별 순위는 두 표본 사이에서 꽤 일관됐다(Spearman 0.71). 거래대금·추세 효율·대형주·매끄러움이 위, 소형주·장기 반전·저베타·야간 수익이 아래였다.",
+        "위쪽 점수는 크고 유동성 높은 종목을 고르는 것이라 선별 효과보다 지수(초대형주) 근사에 가까울 가능성이 크다.",
+        "교체형은 1993–2023에서 보유형보다 나빴고(같은 점수·진입끼리 중앙 −3.0%p), 상위 점수도 MDD 중앙이 −50 ~ −70%라 선별만으로는 낙폭을 줄이지 못했다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/scores_top3000/score_excess.png", "caption": "선별 점수별 SPY 대비 초과 CAGR, 두 표본 나란히"},
+        {"path": "docs/research/lab/figures/scores_top3000/score_consistency.png", "caption": "두 표본의 점수 순위 일관성 (Spearman 0.71)"},
+        {"path": "docs/research/lab/figures/scores_top3000/hold_vs_replace.png", "caption": "교체형 − 보유형 초과 CAGR 차이 (점수별)"},
+        {"path": "docs/research/lab/figures/scores_top3000/cagr_mdd.png", "caption": "모든 칸의 CAGR과 MDD, 별 = SPY"}
+      ]
+    },
+    {
+      "id": "screens_top3000",
+      "title": "스크린 비교: 제외 × 선별 (Stage A, 상위 3000)",
+      "date": "2026-10-25",
+      "status": "완료",
+      "decision": "77",
+      "memo": "docs/research/lab/2026-10-25_screen_comparison_top3000.md",
+      "results_dir": "lab_crsp/screens_top3000",
+      "kind": "screens",
+      "why": "단순 진입·청산 규칙만으로는 개별 종목에서 목표를 통과하는 칸이 하나도 없었다(결정 76). 모든 종목에 규칙을 돌리는 대신, 매월 제외 필터와 선별 점수로 살 종목을 먼저 좁히면 나아지는지 보려고 제외 8가지 × 선별 10가지를 같은 매매층에서 비교했다.",
+      "results": [
+        "선별을 넣자 처음으로 통과 칸이 나왔다. 1993–2023 2,320칸 중 94칸, 2017–2023 2,320칸 중 106칸이다.",
+        "이기는 스타일이 기간마다 바뀌었다. 1993–2023에는 배당·소형·장기 반전이, 2017–2023에는 대형주 우선이 앞섰다.",
+        "두 표본 모두 통과한 칸은 4,640칸 중 2칸이고 이웃 칸이 받쳐 주지 않아 우연일 가능성을 배제할 수 없다. 보류 구간 후보로 올리지 않았다.",
+        "모멘텀 선별은 이 매매층(넓은 트레일링 + ATR 손절 + 위험 기준 크기)에서 한 칸도 통과하지 못했다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/screens_top3000/select_pass_share.png", "caption": "선별 점수별 통과 칸 비율, 두 표본 나란히"},
+        {"path": "docs/research/lab/figures/screens_top3000/cagr_mdd.png", "caption": "모든 칸의 CAGR과 MDD, 별 = SPY"}
+      ]
+    }
+  ]
+}
