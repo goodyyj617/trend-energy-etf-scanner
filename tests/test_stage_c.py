@@ -328,3 +328,33 @@ def test_signal_outcomes_keep_overlapping_signals():
     first = sig.iloc[0]
     assert first["return"] == pytest.approx(9.0 * 0.999 / (11.0 * 1.001) - 1)
     assert first["return"] == pytest.approx(res.trades.iloc[0]["return"]) and first["entry_date"] == res.trades.iloc[0]["entry_date"]
+
+
+def test_signals_only_tables_replay_like_the_account(tmp_path, monkeypatch):
+    from dataclasses import replace
+    from lab import signal_replay as sr, stage_c_study as sc
+    p, dates = _study_panel()
+    monkeypatch.setattr(sc, "SAMPLES", {"a": (str(dates[260].date()), str(dates[-1].date()), "A")})
+    monkeypatch.setattr(sc, "ENTRIES", {"E0": sc.ENTRIES["E0"], "E1": sc.ENTRIES["E1"]})
+    monkeypatch.setattr(sc, "EXITS", {"X1": sc.EXITS["X1"]})
+    monkeypatch.setattr(sc, "HYGIENE", {"h_price": 5})
+    elig = sc.daily_eligible(p)
+    sc._setup(p, elig)
+
+    class Serial:
+        def map(self, fn, jobs, chunksize=1):
+            return [fn(j) for j in jobs]
+
+    sc.run_signal_tables(Serial(), tmp_path, lambda m: None)
+    files = sorted((tmp_path / "signals").rglob("*.parquet"))
+    assert [f.name for f in files] == ["E1__X1_signals.parquet"]  # E0 has no table
+    sig = pd.read_parquet(files[0])
+    assert set(sig[["xi", "yi"]].itertuples(index=False, name=None)) == set(sc.cells("E1", "X1"))
+    assert {"exit_signal_date", "exit_reason", "closed"} <= set(sig.columns)
+    sc.run_signal_tables(Serial(), tmp_path, lambda m: None)  # resumes: nothing left to do
+    pe = replace(p, eligible=elig)
+    cfg = replace(sc.config("a", "E1", "X1", 1, 1), max_positions=2)
+    res = run_backtest(pe, cfg)
+    cell = sig[(sig["xi"] == 1) & (sig["yi"] == 1)]
+    eq, _ = sr.replay(pe, cfg, cell)
+    np.testing.assert_allclose(eq.to_numpy(), res.equity.to_numpy(), rtol=0, atol=1e-9)

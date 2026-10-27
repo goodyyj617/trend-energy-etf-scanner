@@ -553,6 +553,27 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     1993-2023, 32-40 in 2017-2023. PBO C2 6% / 52%, C1 26% / 72%. No holdout candidate.
     Trials +3,024 (lab-computer log on Drive, not merged). Record:
     docs/research/lab/2026-10-27_stage_c_results.md.
+82. Stage D: capture the signals the 20-slot account missed (user request 2026-10-27, accepting
+    more risk; registered before any run). Only the choice of signals changes; universe, hygiene,
+    entries E1-E9, exits X1-X9 (3 x 3 cells), 20 slots of 1/20 of equity, no rebalancing, held
+    names skipped, signals while full dropped, T-bill cash are as 81. Variants: band of the
+    signal-day market-value rank {1-3,000 (Stage C), 501-3,000, 1,001-3,000} (signals outside
+    are not candidates) x priority when signals exceed the free slots {20-day dollar volume
+    (Stage C), smallest first, random seed 81}; every variant at 20 and 40 bp per side. Accounts
+    are replayed from the regenerated per-signal tables (lab_crsp/stagec_signals_v2, with exit
+    signal day and cancelled signals) by lab/signal_replay.py (equal to the engine, PR #91). The
+    'all x dollar volume x 20 bp' variant must first reproduce Stage C's saved C2 equity within
+    1e-5 relative, else the run stops. Gate as 81 (CAGR > SPY, |MDD| < |SPY MDD|, >= 30 trades).
+    Candidate: a connected (>= 2 cells) passing region in both samples at 20 bp, and passing cells
+    in both samples for the same variant and pair at 40 bp. Information only: CAGR rank without
+    the MDD condition, DD-15% matched return, worst calendar year, volatility; taken vs missed
+    inside the band (per-signal return, signal-day cap-rank quartiles, share of +50% signals
+    bought); capacity for $100k and $1M accounts (order = 1/20 of equity at the previous close
+    over the name's 20-day average dollar volume on the signal day: median and share above 5%).
+    Index check (beta, down capture, excess 1993-98 / 1999-2003 / 2004-16 / 2017-23) and DSR
+    (trials of Stages B, C and D) only for candidates; PBO information only; holdout unused; no
+    change after results. Runner lab/missed_study.py (results lab_crsp/stagec_missed_daily3000).
+    Design: docs/research/lab/2026-10-27_stage_d_design.md.
 
 ## Open decisions
 
