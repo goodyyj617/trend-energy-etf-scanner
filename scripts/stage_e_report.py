@@ -6,7 +6,8 @@ Reads the Stage E output folder (20-slot equity curves, summary) and SPY / cash 
 Representative cell of a candidate = among its cells passing in both samples, the one whose smaller
 excess over SPY is the largest. DSR trial counts: Stages B-E logged runs (55,000) and a lower
 effective count (1,169, Stage C's effective N), with the variance of daily Sharpe ratios across
-all of the sample's Stage E accounts.
+all of the sample's Stage E accounts (dsr_*) and, as a robust alternative, that variance taken
+from the interquartile range (dsr_iqr_*).
 """
 from __future__ import annotations
 
@@ -54,7 +55,7 @@ def main(argv: list[str]) -> None:
     cand = pd.read_csv(out / "candidates.csv")
     ref, _ = download_panel([BENCHMARK], "2024-01-31")
     spy = ref.close[BENCHMARK]
-    sr_var = {}
+    sr_var, sr_var_iqr = {}, {}
     for smp in SAMPLES:
         srs = []
         for f in (out / smp).glob("*_equity.parquet"):
@@ -62,7 +63,12 @@ def main(argv: list[str]) -> None:
             r = e.astype(float).pct_change(fill_method=None)
             s = (r.mean() / r.std()).replace([np.inf, -np.inf], np.nan).dropna()
             srs.extend(s.tolist())
-        sr_var[smp] = float(np.var(srs))
+        a = np.asarray(srs)
+        sr_var[smp] = float(np.var(a))
+        # robust alternative: the spread of daily Sharpe ratios from the interquartile range (a normal's
+        # IQR = 1.349 sd), so a few collapsing accounts do not inflate it
+        q1, q3 = np.percentile(a, [25, 75])
+        sr_var_iqr[smp] = float(((q3 - q1) / 1.349) ** 2)
     rows = []
     for r in cand.itertuples():
         g = c[(c["screen"] == r.screen) & (c["entry"] == r.entry) & (c["exit"] == r.exit)]
@@ -78,6 +84,7 @@ def main(argv: list[str]) -> None:
                    **index_stats(eq, spy)}
             for k, n in N_TRIALS.items():
                 row[f"dsr_{k}"] = deflated_sharpe(eq.dropna(), n, sr_var[smp])
+                row[f"dsr_iqr_{k}"] = deflated_sharpe(eq.dropna(), n, sr_var_iqr[smp])
             rows.append(row)
     t = pd.DataFrame(rows)
     t.to_csv(out / "candidates_checked.csv", index=False)
