@@ -487,7 +487,7 @@ A39. Is the B2–B5 composition itself sound? User: "가장 보고 싶은 건, �
     B2 ranks 146 / 25,151 and 279 / 16,873, B3–B5 5,916–11,828 on 2005–15 but 114–282 on 2016–26. ⑤ 11 of 13 모형 경고
     (bonds real > model 3.0–4.4 %p/yr over 1.1–3.0 years, sectors +1.3–2.0, KODEX 200 +3.7, gold futures −1.4, KRX gold
     corr 0.87, CD and dollar futures by correlation); only nasdaq-100 (+0.48) and MSCI World (+0.14) 괜찮음.
-    Consequence: B 평균 proposed as a preset candidate per the rule and the user asked about A40 (decision pending);
+    Consequence: B 평균 proposed as a preset candidate per the rule and the user asked about A40; on 2026-10-27 the user chose '등록 없이 기록만' (not registered, not added to A40);
     skeletons are information only; presets `gs_b2` / `gs_b4` unchanged. Caveats: most of 2005–listing is model (⑤),
     2000–2004 all model with Mar–Aug 2000 missing, the ③ threshold is set by search-picked points, in-sample. Engine
     check 3.4e-14. Same PR: experiment entry 'a39' on '실험 기록' and PNGs in `2026-10-27_composition/figures/`.
@@ -528,7 +528,7 @@ A40. Canary signals on B2–B5, weights unchanged. User: "카나리아 자산군
     K1 31 trades a year 바로 매매). 1개월 금지 cuts signal trades to about a third (K2 24.0 → 7.7, K4 6.2 → 2.6, K5 4.5 →
     1.4 a year) with 13 vs 14 candidates. 20 bp: CAGR −0.05 to −0.86 %p, MDD within −13.7 %. KRW-read K4: 2000-09 MDD
     ~5 %p deeper on average (0.4–8.9), supporting USD canaries. Engine check 3.7e-14; look-ahead checked by truncated
-    inputs (tests). Consequence: the 27 rows proposed as preset candidates (decision pending); registering one needs
+    inputs (tests). Consequence: the 27 rows proposed as preset candidates; on 2026-10-27 the user chose '등록 없이 기록만' (nothing registered, no stage-2 shake of a signal row); registering one would need
     canary support in `aa_engine` / the app first, and an A32-style stage-2 shake of the chosen row should come before.
     Caveats: 208 combinations (candidates cluster in one idea and its neighbours pass); the trend rules were published
     on data containing 2000–02 and 2008, so the dot-com pass is not independent; most of 2005–2026 is model prices
