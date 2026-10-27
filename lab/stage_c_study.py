@@ -76,6 +76,8 @@ PRIORITIES = ("dv", "eff_large", "random")  # (a) default, (b), (c)
 SEED = 81
 BIG_WINNER = 0.5  # a signal that returns +50% or more is a "big winner"
 NO_SIGNAL_TABLE = {"E0"}  # 'always' is a state: every eligible stock-day would be a signal
+# saved per-signal columns: enough to replay a 20-slot account later (lab/signal_replay.py)
+SIGNAL_KEEP = ["symbol", "signal_date", "entry_date", "exit_signal_date", "return", "holding_days", "closed", "exit_reason"]
 C1_KEEP = ["symbols", "symbol_pass_share", "symbol_median_excess", "n_trades", "sleeve_cagr", "sleeve_mdd",
            "sleeve_dd_cagr", "sleeve_mix_cagr", "sleeve_dd_excess", "sleeve_window_share"]
 _W: dict = {}
@@ -114,13 +116,45 @@ def pair_file(out: Path, stage: str, sample: str, e: str, x: str) -> Path:
 
 # --------------------------------------------------------------------------- universe
 
-def daily_eligible(panel: Panel) -> pd.DataFrame:
-    """Daily top-3,000 membership minus every hygiene screen (True = may be bought that day)."""
-    ok = panel.eligible.reindex(index=panel.close.index, columns=panel.close.columns).fillna(False).astype(bool)
-    for key, value in HYGIENE.items():
-        ok &= ~screens.ALL_SCREENS[key].compute(panel, value).fillna(False).astype(bool)
+def parse_screens(text: str | None) -> dict[str, float | None]:
+    """'x_ivol=20,s_large' -> {'x_ivol': 20.0, 's_large': None}; the keys must be screens of lab/screens.py."""
+    out: dict[str, float | None] = {}
+    for part in (text or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        key, _, value = part.partition("=")
+        if key not in screens.ALL_SCREENS:
+            raise ValueError(f"알 수 없는 스크린: {key}")
+        out[key] = float(value) if value else None
+    return out
+
+
+def daily_eligible(panel: Panel, exclude: dict | None = None, select: dict | None = None, top_k: int = 0) -> pd.DataFrame:
+    """Daily top-3,000 membership minus every hygiene screen (True = may be bought that day).
+    Optional pre-buy screening, evaluated daily on the same day's data (no month-end list): `exclude`
+    screens remove names (True = do not buy); `select` scores are combined by mean percentile rank
+    among the names still eligible and only the top_k stay. Defaults: none (DECISIONS 81)."""
+    ok = panel.eligible.reindex(index=panel.close.index, columns=panel.close.columns, fill_value=False).astype(bool)
+    for key, value in {**HYGIENE, **(exclude or {})}.items():
+        ok &= ~(screens.ALL_SCREENS[key].compute(panel, value).astype("float64").fillna(0.0) > 0.5)
     ok[BENCHMARK] = False
+    if select and top_k:
+        parts = [screens.ALL_SCREENS[k].compute(panel, v).where(ok).rank(axis=1, pct=True) for k, v in select.items()]
+        score = sum(parts) / len(parts)
+        ok &= score.rank(axis=1, ascending=False, method="first") <= top_k
     return ok
+
+
+def screen_signals(signals: pd.DataFrame, eligible: pd.DataFrame) -> pd.DataFrame:
+    """The rows of a saved per-signal table whose (symbol, signal day) passes a screened eligible mask:
+    a pre-buy screen's effect on the signals without running the strategies again."""
+    pos = eligible.index.get_indexer(pd.DatetimeIndex(signals["signal_date"]))
+    cols = eligible.columns.get_indexer(signals["symbol"].astype(str))
+    ok = (pos >= 0) & (cols >= 0)
+    keep = np.zeros(len(signals), dtype=bool)
+    keep[ok] = eligible.to_numpy()[pos[ok], cols[ok]]
+    return signals[keep]
 
 
 def priority_rank(panel: Panel, how: str) -> pd.DataFrame | None:
@@ -170,7 +204,8 @@ def trade_stats(trades: pd.DataFrame, years: float) -> dict:
 
 
 def signal_stats(sig: pd.DataFrame) -> dict:
-    """Per-signal results (every signal traded on its own, overlaps allowed)."""
+    """Per-signal results (every signal traded on its own, overlaps allowed; cancelled orders left out)."""
+    sig = sig[sig["return"].notna()] if len(sig) else sig
     r = sig["return"].astype(float) if len(sig) else pd.Series(dtype=float)
     win, loss = r[r > 0], r[r <= 0]
     return {"signals": int(len(r)), "sig_expectancy": float(r.mean()) if len(r) else np.nan,
@@ -182,7 +217,8 @@ def signal_stats(sig: pd.DataFrame) -> dict:
 
 def missed_vs_taken(sig: pd.DataFrame, c2: pd.DataFrame, cap_rank: pd.DataFrame | None) -> dict:
     """C2 trades matched to the per-signal table by (symbol, entry day = the open after the signal day);
-    per-signal returns of the signals the account took vs those it could not take."""
+    per-signal returns of the signals the account took vs those it could not take (cancelled orders left out)."""
+    sig = sig[sig["return"].notna()] if len(sig) else sig
     if not len(sig):
         return {"signals": 0}
     key = list(zip(sig["symbol"], sig["entry_date"]))
@@ -226,7 +262,7 @@ def _run_pair(job):
         o = single.evaluate(panel, cfg, cache, with_result=True)
         t1 = o["result"].trades
         sig = (run_backtest(panel, cfg, cache, outcomes=True) if e not in NO_SIGNAL_TABLE
-               else pd.DataFrame(columns=["symbol", "signal_date", "entry_date", "return", "holding_days", "closed"]))
+               else pd.DataFrame(columns=SIGNAL_KEEP))
         row = {"xi": xi, "yi": yi, "entry_value": ENTRIES[e][1][xi], "exit_value": EXITS[x][1][yi],
                **{k: o[k] for k in C1_KEEP}, **trade_stats(t1, years), **spy,
                **(signal_stats(sig) if e not in NO_SIGNAL_TABLE else {})}
@@ -237,8 +273,7 @@ def _run_pair(job):
         c1_trades.append(t1.assign(xi=xi, yi=yi)[["xi", "yi", "symbol", "entry_date", "exit_date", "return",
                                                    "holding_days", "exit_reason"]])
         if len(sig):
-            signals.append(sig.assign(xi=xi, yi=yi)[["xi", "yi", "symbol", "signal_date", "entry_date", "return",
-                                                     "holding_days", "closed"]])
+            signals.append(sig.assign(xi=xi, yi=yi)[["xi", "yi"] + SIGNAL_KEEP])
         sleeves[f"{xi}|{yi}"] = o["sleeve"].astype("float32")
         logs.append(("stagec_c1", cfg, o["sleeve"]))
         for how in PRIORITIES if (xi, yi) == canonical(e, x) else PRIORITIES[:1]:
@@ -435,7 +470,13 @@ def main(argv: list[str]) -> None:
     ap.add_argument("--results", default=None)
     ap.add_argument("--workers", type=int, default=1)
     ap.add_argument("--dry", action="store_true", help="E0, E1 x X1, X9: checks the pipeline and times it")
+    ap.add_argument("--exclude", default="", help="매수 전 제외 스크린, 예: x_ivol=20,x_lottery=20 (기본: 없음)")
+    ap.add_argument("--select", default="", help="매수 전 선별 점수, 예: s_efficiency=6,s_large (평균 백분위 순위)")
+    ap.add_argument("--top-k", type=int, default=0, help="선별 점수로 매일 남길 종목 수 (0 = 선별 안 함)")
     a = ap.parse_args(argv)
+    exclude, select = parse_screens(a.exclude), parse_screens(a.select)
+    if select and not a.top_k:
+        raise SystemExit("--select에는 --top-k가 필요합니다.")
     if a.dry:
         _dry_menu()
     out, panel_dir = Path(a.out), Path(a.panel)
@@ -451,11 +492,12 @@ def main(argv: list[str]) -> None:
     elig_path = out / "eligible_daily.parquet"
     if not elig_path.exists():
         t = time.time()
-        daily_eligible(panel).to_parquet(elig_path)
-        log(f"일별 매수 가능 목록(상위 3000 − 위생 필터) 계산: {time.time() - t:.0f}s")
+        daily_eligible(panel, exclude, select, a.top_k).to_parquet(elig_path)
+        log(f"일별 매수 가능 목록(상위 3000 − 위생 필터{' − 스크린' if exclude or select else ''}) 계산: {time.time() - t:.0f}s")
     (out / "menu.json").write_text(json.dumps({"entries": ENTRIES, "exits": EXITS, "entry_canon": ENTRY_CANON,
                                                "exit_canon": EXIT_CANON, "x9_extra": X9_EXTRA, "x9_breakeven_r": X9_BREAKEVEN_R,
-                                               "hygiene": HYGIENE, "common": COMMON, "slots": SLOTS,
+                                               "hygiene": HYGIENE, "screen": {"exclude": exclude, "select": select, "top_k": a.top_k},
+                                               "common": COMMON, "slots": SLOTS,
                                                "priorities": PRIORITIES, "seed": SEED},
                                               ensure_ascii=False, default=str), encoding="utf-8")
     workers = a.workers
