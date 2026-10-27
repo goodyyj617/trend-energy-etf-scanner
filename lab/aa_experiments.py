@@ -25,13 +25,19 @@ LOCAL_DIR = ALLOC / "2026-10-27_local_study"  # A37: the structure check around 
 LOCAL_MEMO = ALLOC / "2026-10-27_local_study.md"
 FILTER_DIR = ALLOC / "2026-10-27_trend_filter"  # A38: a 10-month trend filter on the equities of B2 · B3 · B4
 FILTER_MEMO = ALLOC / "2026-10-27_trend_filter.md"
+COMP_DIR = ALLOC / "2026-10-27_composition"  # A39: is the B2–B5 composition itself sound
+COMP_MEMO = ALLOC / "2026-10-27_composition.md"
+CANARY_DIR = ALLOC / "2026-10-27_canary"  # A40: canary signals on B2–B5
+CANARY_MEMO = ALLOC / "2026-10-27_canary.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
 CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real", "stage2_presets", "neighbour_presets",
               "product_gap", "candidate_shift", "kodex200_share",
               "local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named",
-              "filter_mdd", "filter_curves", "filter_groups", "filter_cagr")
+              "filter_mdd", "filter_curves", "filter_groups", "filter_cagr",
+              "comp_loo", "comp_swap", "comp_simple", "comp_reselect", "comp_model_gap",
+              "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency")
 
 
 @dataclass(frozen=True)
@@ -147,6 +153,64 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 10개월은 닷컴이 들어 있는 표본에서 알려진 값이라 이 통과는 독립 시험이 아니고, 2005년 이전은 전부 모형이며, 결과는 표본 내 연구입니다."),
         ("filter_mdd", "filter_curves", "filter_cagr", "filter_groups"), FILTER_MEMO,
         "‘전략 연구’ 페이지 overlay의 ‘추세 필터’는 모든 위험자산에 겁니다(주식만 고르는 선택은 아직 화면에 없음)"),
+    Experiment(
+        "a39", "2026-10-27", "A39", "B2–B5의 종목 구성은 정말 괜찮은가",
+        "“가장 보고 싶은 건, 현재 B2~B5의 종목 구성이 정말로 괜찮은 것인가야. 나스닥은 다 들어있는데 나머지는 꽤 달라서 그래.” "
+        "네 배분은 A31이 비슷한 기록의 수만 개 중에서 고른 것이라, 나스닥100을 뺀 나머지가 실제 선택인지 우연인지를 다섯 가지로 시험했습니다. "
+        "① 상품 하나씩 빼기(그 비중을 나머지에 비례 배분), ② 나스닥 비중은 두고 나머지를 다른 배분 것으로 바꾸기(4×4), ③ 더 단순한 배분"
+        "(네 배분 비중의 평균 ‘B 평균’, 나스닥100 · KRX금현물 · CD금리 세 상품 뼈대 24개), ④ 2005–2015 / 2016–2026 한 반기에서 고른 상위 100개가 "
+        "B 구성을 다시 뽑는지, ⑤ 상품별 모형 가격이 상장 후 실제 가격과 맞는지입니다. 판정 규칙은 실행 전에 설계 문서에 고정했습니다. "
+        "네 배분은 신호 없는 고정 비중이고, 분기 말 종가로 판단해 다음 거래일 종가에 원래 비중으로 되돌리며(밴드 없음, 편도 10bp), 실제 가격 우선"
+        "(상장 후 실제 국내 가격, 상장 전 미국 대용 × 원/달러 모형)입니다. "
+        "B2 = 나스닥100 19 · 필수소비재 19 · 헬스케어 6 · 미국10년(H) 10 · 미국30년(H) 6 · 투자등급회사채 5 · 골드선물(H) 35. "
+        "B3 = 나스닥100 33 · MSCI선진국 12 · 미국10년(H) 10 · 물가채 7 · KRX금현물 12 · CD금리 20 · 달러선물 6. "
+        "B4 = 나스닥100 30 · 필수소비재 11 · 투자등급회사채 8 · KRX금현물 15 · CD금리 36. "
+        "B5 = 나스닥100 32 · KODEX 200 4 · 골드선물(H) 17 · CD금리 35 · 달러선물 12.",
+        ("한 줄 답: 공통 재료는 나스닥100 · 금 · 현금성(CD금리·달러선물·중기채)이고, 그 밖의 차이는 2005–2026 기록을 거의 바꾸지 않습니다. "
+         "나머지 상품은 수익과 낙폭 사이에서 어디에 앉을지 정하는 다이얼에 가깝습니다.",
+         "① 나스닥100은 넷 모두에서 ‘제 몫’입니다(빼면 CAGR −1.6 / −3.6 / −3.4 / −3.8%p). ‘빼면 나아짐’은 작은 조각 셋뿐이고 폭도 작습니다"
+         "(B2 헬스케어 6: CAGR −0.17%p, MDD 그대로 / B3 물가채 7, B4 회사채 8: CAGR +0.3–0.4%p, MDD 0.35–0.4%p 깊어짐). "
+         "B2의 골드선물(H) 35는 2005년부터는 빼도 비슷하지만, 2000-09부터는 빼면 MDD가 −16.4 → −32.0%입니다.",
+         "② 나머지를 바꾼 12개는 2005–2026에서 모두 −15% 안이지만 5개는 원래보다 CAGR이 0.5%p 넘게 낮아 ‘나머지에 의미 있음’입니다. "
+         "B2의 나머지(방어 섹터·골드선물·채권)는 어떤 나스닥 비중과도 11.6–11.9% / −14.4 – −14.9%로 수익 쪽, B5의 나머지(CD·골드선물·달러)는 가장 얕고 낮은 쪽입니다.",
+         "③ ‘같은 일을 한다’: B 평균(13종) 10.01% / −11.91%, 세 상품 뼈대 24개 중 8개(예: 나스닥100 30 · KRX금 30 · CD 40 = 10.00% / −12.75%, "
+         "35 · 30 · 35 = 10.72% / −13.48%로 B2와 같은 점). 2000-09부터는 나스닥 25% 이상 뼈대와 B 평균(−24.2%)이 모두 −15%를 넘습니다.",
+         "④ 2016–2026에서 고르면 B 구성(나스닥 중앙 20.5%, 금 32%)이 다시 뽑히지만, 2005–2015에서 고르면 나스닥 0%·방어 섹터 46.5%가 뽑힙니다. "
+         "두 반기 모두 상위 2% 안인 것은 B2뿐(146위 · 279위)이고, B3–B5는 2016년 이후에만 상위입니다(2005–15에서 5,916–11,828위).",
+         "⑤ 13종 중 11종이 ‘모형 경고’입니다. 채권은 실제가 모형보다 연 3.0–4.4%p 높고(겹친 기간 1–3년), 섹터 +1.3–2.0, KODEX 200 +3.7, "
+         "골드선물(H) −1.4%p, KRX금현물은 월 상관 0.87입니다. 괜찮은 것은 나스닥100과 MSCI선진국뿐입니다.",
+         "규칙에 따라 B 평균을 프리셋 후보로 제안하고, A40에 넣을지 여쭙니다(등록은 사용자가 정함). 뼈대는 정보로만 보입니다. "
+         "한계: 2005년부터 상장일까지는 대부분 모형 값이고, 2000-09 시험은 2005년 이전이 전부 모형입니다. 표본 내 결과입니다."),
+        ("comp_loo", "comp_swap", "comp_simple", "comp_reselect", "comp_model_gap"), COMP_MEMO,
+        "뼈대나 B 평균의 비중은 ‘전략 연구’ 페이지에서 상품과 비중을 직접 골라 다시 돌려 볼 수 있습니다"),
+    Experiment(
+        "a40", "2026-10-27", "A40", "B2–B5에 카나리아 신호로 동적 배분 얹기 (신호 14개)",
+        "“해당 종목 구성과 비율에 대해 카나리아 자산군 도입으로 동적 자산배분을 해보는 거야. … 최소 8가지 이상에 대해 테스트할 수 있도록 구성해봐.” "
+        "“매매는 정기 리밸런싱에 더하지 말고, 신호가 바뀐 순간 기준으로 … 추후에 다시 1개월 재매매 금지 규칙 같은 걸 넣어서 다시 해줘.” "
+        "B2–B5의 비중은 그대로 두고, 퀀트에서 알려진 위험 신호 14개가 위험을 알리면 나스닥100을 방어 주식(필수소비재·헬스케어) 또는 그 배분의 안전 묶음"
+        "(채권·금·CD금리·달러선물, 비례)으로 옮겼습니다. 신호는 사지 않는 카나리아 11개(미국 ETF 달러 가격·FRED·원/달러: DAA, VAA·BAA, HAA, "
+        "S&P500 200일선, 12개월 절대 모멘텀, 신용 스프레드, 장단기 금리차, VIX, 섹터 폭, 금융 불안 지수, 원/달러 추세)와 보유 상품 원화 가격 3개"
+        "(나스닥100 자기 200일선, 나스닥 대 방어 주식, 주식 대 안전 묶음 12개월 수익)입니다. 매일 종가로 상태를 읽고 바뀐 다음 거래일 종가에 매매하는 "
+        "‘바로 매매’와, 신호 매매 뒤 21거래일은 따르지 않는 ‘1개월 금지’ 두 판을 돌렸습니다. 분기 말 리밸런싱은 그때 들고 있는 상태의 목표로 맞춥니다. "
+        "기간은 2005–2026과 닷컴을 넣은 2000-09–2026이고 편도 10bp, 실제 가격 우선입니다. 판정 1–5(두 기간 MDD −15% 안, 이웃·날짜 견고, "
+        "같은 수익의 정적 배분보다 1%p 얕음, 날짜를 밀어 낸 가짜 신호 200개의 90% 이상보다 얕음)는 실행 전에 고정했습니다.",
+        ("한 줄 답: ‘미국 주식 추세가 꺾이면 나스닥을 안전 묶음으로’가 B3·B4·B5에서 다섯 판정을 모두 넘었습니다. S&P500 200일선, S&P500 12개월 절대 모멘텀, "
+         "VAA·BAA 네 카나리아, 나스닥100 자기 200일선입니다. B2와 매크로 신호에는 통과한 것이 없습니다.",
+         "208개 조합(배분 4 × 신호·행동 26 × 판 2) 중 27개가 후보입니다. 판정별 통과는 200 / 53 / 39 / 60 / 66개입니다.",
+         "후보의 MDD는 2005– −7.9 – −13.3%, 2000-09– −8.2 – −13.6%입니다(정적 B3 / B4 / B5는 2000-09부터 −30.8 / −25.6 / −26.2%). "
+         "같은 수익의 정적 배분보다 2000-09 MDD가 1.4–11.1%p(중앙 5.7) 얕고, 가짜 신호의 97–100%보다 얕습니다. 나스닥을 덜 든 효과가 아니라 시점이 맞았다는 뜻입니다.",
+         "대가: 2005–2026 CAGR 연 0.8–2.0%p(중앙 1.2, A38 필터 1.6–1.8보다 조금 작음), 2016–2026 중앙 1.3%p. 2000-09–2026 CAGR은 정적과 거의 같습니다(−0.6 – +0.4%p). "
+         "예: B4 + 12개월 절대 모멘텀 → 안전 묶음, 1개월 금지 = 8.90% / −10.25%(2005–), 7.91% / −11.72%(2000-09–), 신호 매매 연 1.4번. "
+         "비용을 치른 수익은 신호 없는 안정형 40(8.67% / −11.8%, 2000-09– 8.02% / −13.7%)과 비슷하고 MDD는 조금 얕습니다.",
+         "2005년 이후의 짧은 위기에서는 효과가 작습니다(중앙: 2008 1.4, 2020 3.3, 2022 1.7%p 얕음). 주된 효과는 닷컴처럼 1–2년 이어진 하락장입니다.",
+         "통과 못 한 신호: 신용 스프레드·장단기 금리차(2000-09 MDD −22 – −25%), VIX(가짜 대부분보다도 나쁨), 섹터 폭, 금융 불안 지수, 원/달러, "
+         "DAA(바로 매매 연 31번), HAA. B2는 같은 수익의 정적 배분이 신호와 같거나 더 얕습니다.",
+         "1개월 금지는 신호 매매를 1/3로 줄이고(VAA·BAA 24.0 → 7.7, 200일선 6.2 → 2.6, 절대 모멘텀 4.5 → 1.4번/년) 후보는 14 → 13개로 거의 그대로입니다. "
+         "신호를 원화 환산 가격으로 읽으면 S&P500 200일선의 2000-09 MDD가 평균 5%p 깊어져, 달러 가격으로 읽는 편이 맞았습니다.",
+         "규칙에 따라 후보 27행을 프리셋 후보로 제안합니다(등록은 사용자가 정함). 지금 프리셋은 정적 비중만 담으므로 등록하려면 연구실에 카나리아 기능을 먼저 넣어야 합니다. "
+         "한계: 추세 규칙들은 닷컴·2008이 든 자료로 알려져 독립 시험이 아니고, 208개를 시험했고(후보는 한 생각과 그 이웃에 몰림), 2005–2026의 상당 부분이 모형 가격이며, 표본 내 결과입니다."),
+        ("canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency"), CANARY_MEMO,
+        "신호 판은 아직 연구실 화면에서 돌릴 수 없습니다(실행기 scripts/aa_canary_study.py)"),
 )
 
 
@@ -315,3 +379,119 @@ def filter_groups(folder: Path | str = FILTER_DIR) -> pd.DataFrame:
         out[f"{era} CAGR 중앙"] = g[f"{era} cagr 중앙"] * 100
         out[f"{era} MDD 중앙"] = g[f"{era} mdd 중앙"] * 100
     return out
+
+
+# --------------------------------------------------------------------------- A39 composition check (percent units)
+
+COMP_NAMES = ("B2", "B3", "B4", "B5")
+COMP_REFERENCE = "안정형 40 (금·현금 분산)"
+PRODUCT_LABELS = {"200": "KODEX 200"}  # the short names of the result files that read badly alone
+
+
+def comp_leave_one_out(folder: Path | str = COMP_DIR) -> pd.DataFrame:
+    """A39 ① with the taken-out weight spread pro rata (the summary reading): per allocation and product, the change
+    (without − with, %p) of CAGR / MDD over the whole period and each half, the 2000-09 MDD change, and the verdict."""
+    lo = pd.read_csv(Path(folder) / "loo.csv")
+    lo = lo[lo["방식"] == "pro"]
+    out = pd.DataFrame({"배분": lo["배분"], "상품": lo["상품"].replace(PRODUCT_LABELS), "판정": lo["판정"]})
+    for c in ("Δcagr", "Δmdd", "Δcagr_h1", "Δmdd_h1", "Δcagr_h2", "Δmdd_h2", "Δmdd_2000"):
+        out[c] = lo[c] * 100
+    return out.reset_index(drop=True)
+
+
+def comp_swap(folder: Path | str = COMP_DIR) -> pd.DataFrame:
+    """A39 ②: the row allocation's nasdaq weight with the column allocation's other products, CAGR / MDD (%) from 2005
+    and from 2000-09; the diagonal is the allocation itself."""
+    s = pd.read_csv(Path(folder) / "swap.csv")
+    return pd.DataFrame({"행": s["행"], "열": s["열"], "CAGR": s["cagr"] * 100, "MDD": s["mdd"] * 100,
+                         "2000-09 CAGR": s["cagr_2000"] * 100, "2000-09 MDD": s["mdd_2000"] * 100})
+
+
+def comp_simple(folder: Path | str = COMP_DIR) -> pd.DataFrame:
+    """A39 ③ and its references: B2–B5 and 안정형 40 as registered, B 평균 and the 24 skeletons, CAGR / MDD (%) from 2005
+    and from 2000-09 with the ③ verdict (blank for the references)."""
+    n = pd.read_csv(Path(folder) / "named.csv")
+    ref = n[n["변형"].isin(["등록 비중 그대로", "프리셋"])]
+    s = pd.read_csv(Path(folder) / "simple.csv")
+    rows = pd.concat([ref.assign(판정=""), s], ignore_index=True)
+    return pd.DataFrame({"묶음": rows["배분"], "이름": np.where(rows["배분"] == "뼈대", rows["변형"], rows["배분"]),
+                         "CAGR": rows["cagr"] * 100, "MDD": rows["mdd"] * 100, "2000-09 CAGR": rows["cagr_2000"] * 100,
+                         "2000-09 MDD": rows["mdd_2000"] * 100, "판정": rows["판정"].fillna("")})
+
+
+def comp_reselect(folder: Path | str = COMP_DIR) -> pd.DataFrame:
+    """A39 ④: role shares (%) of the top 100 chosen on each half, long rows (고른 기간, 역할, 비중), plus B2–B5 as
+    고른 기간 = the allocation's name."""
+    from lab import aa_composition as comp
+
+    t = pd.read_csv(Path(folder) / "reselect_top.csv.gz")
+    long = t.melt(id_vars="고른 기간", value_vars=list(comp.ROLES), var_name="역할", value_name="%")
+    b = comp.role_shares(np.array([comp.vector(comp.CENTRES[k]) for k in COMP_NAMES]))[list(comp.ROLES)]
+    b.insert(0, "고른 기간", list(COMP_NAMES))
+    out = pd.concat([long, b.melt(id_vars="고른 기간", var_name="역할", value_name="%")], ignore_index=True)
+    return out.rename(columns={"%": "비중"})
+
+
+def comp_ranks(folder: Path | str = COMP_DIR) -> pd.DataFrame:
+    """A39 ④: where B2–B5 and 안정형 40 rank by CAGR among the samples inside −15 % on each half."""
+    return pd.read_csv(Path(folder) / "reselect_ranks.csv")
+
+
+def comp_model_gap(folder: Path | str = COMP_DIR) -> pd.DataFrame:
+    """A39 ⑤: per product of B2–B5, real − model CAGR (%p/yr) after listing, its standard error, the overlap and the flag."""
+    m = pd.read_csv(Path(folder) / "model_flags.csv", dtype={"코드": str})
+    m["상품"] = m["상품"].replace(PRODUCT_LABELS)
+    return m[["코드", "상품", "상장", "겹친 해", "실제 CAGR", "모형 CAGR", "차이 %p", "차이 표준오차 %p", "월 상관", "판정"]]
+
+
+# --------------------------------------------------------------------------- A40 canary signals (percent units)
+
+CANARY_ERAS = {"2005": "2005–2026", "2000-09": "2000-09–2026"}
+CANARY_VERSIONS = ("바로 매매", "1개월 금지")
+CANARY_VERDICTS = ("1 2005 −15% 안", "2 2000-09 −15% 안", "3 이웃·날짜 견고", "4 같은 비용보다 1%p 얕음", "5 가짜 90% 이상")
+
+
+def canary_rows(folder: Path | str = CANARY_DIR) -> pd.DataFrame:
+    """A40 one row per allocation × signal × action × version: CAGR / MDD (%) in both periods (MDD from the signal start),
+    signal trades a year, the comparisons behind verdicts 3–5, the five verdicts, the pass count and 후보 / 탈락."""
+    v = pd.read_csv(Path(folder) / "verdicts.csv")
+    out = v[["배분", "신호", "신호 이름", "행동", "행동 이름", "판", *CANARY_VERDICTS, "통과 수", "판정", "2000-09 늦게 시작",
+             "2000-09 측정 시작"]].copy()
+    for era in CANARY_ERAS:
+        out[f"{era} CAGR"] = v[f"cagr_{era}"] * 100
+        out[f"{era} MDD"] = v[f"mdd_meas_{era}"] * 100
+        out[f"{era} 연 신호 매매"] = v[f"연 신호 매매_{era}"]
+    out["날짜 이동 최악 MDD"] = v["날짜 이동 최악 MDD"] * 100
+    out["같은 비용 2000-09 MDD"] = v["같은 비용 mdd_2000-09"] * 100
+    out["가짜보다 얕은 비율"] = v["가짜보다 얕은 비율"] * 100
+    out["21일 안 되돌림"] = v["21일 안 되돌림_2005"]
+    return out
+
+
+def canary_static(folder: Path | str = CANARY_DIR) -> pd.DataFrame:
+    """A40 comparators: static B2–B5 and 안정형 40 (quarterly) and A38's equity 10-month filter, CAGR / MDD (%) per period."""
+    c = pd.read_csv(Path(folder) / "comparators.csv", dtype={"기간": str})
+    return pd.DataFrame({"종류": c["종류"], "기간": c["기간"], "배분": c["배분"], "CAGR": c["cagr"] * 100, "MDD": c["mdd_meas"] * 100})
+
+
+def canary_placebo(folder: Path | str = CANARY_DIR) -> pd.DataFrame:
+    """A40: per period, allocation, signal and action (바로 매매), the real MDD against the 200 placebos' 5 % / median / 95 %
+    (%), and the share of placebos deeper than the real signal (%)."""
+    p = pd.read_csv(Path(folder) / "placebo_summary.csv", dtype={"기간": str})
+    names = pd.read_csv(Path(folder) / "rules.csv").drop_duplicates("신호").set_index("신호")["이름"]
+    out = pd.DataFrame({"기간": p["기간"], "배분": p["배분"], "신호": p["신호"], "신호 이름": p["신호"].map(names), "행동": p["행동"]})
+    for c in ("가짜 5%", "가짜 중앙", "가짜 95%", "진짜 MDD", "가짜보다 얕은 비율"):
+        out[c] = p[c] * 100
+    return out
+
+
+def canary_currency(folder: Path | str = CANARY_DIR) -> pd.DataFrame:
+    """A40 currency check: K1 · K3 · K4 read on US-dollar prices (as run) and on KRW-converted prices, centre setting,
+    바로 매매: CAGR / MDD (%) of both per period, allocation and action."""
+    r = pd.read_csv(Path(folder) / "runs.csv.gz", dtype={"기간": str})
+    key = ["기간", "배분", "신호", "행동", "판", "설정", "비용", "날짜 이동"]
+    krw = r[r["통화"] == "krw"]
+    m = krw.merge(r[r["통화"] == "usd"], on=key, suffixes=("_krw", "_usd"))
+    return pd.DataFrame({"기간": m["기간"], "배분": m["배분"], "신호": m["신호"], "행동": m["행동"],
+                         "달러 CAGR": m["cagr_meas_usd"] * 100, "달러 MDD": m["mdd_meas_usd"] * 100,
+                         "원화 CAGR": m["cagr_meas_krw"] * 100, "원화 MDD": m["mdd_meas_krw"] * 100})

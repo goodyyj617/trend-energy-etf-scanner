@@ -455,3 +455,82 @@ A38. 10-month trend filter on the equities of B2 · B3 · B4, picked by the user
     Caveats: 10 months is Faber's value from a sample that contains 2000–02, so the dot-com pass is not an independent test of the filter length; 2000–2004 is all model and Mar–Aug 2000 is
     missing; the filtered versions have not had an A32-style stage-2 shake (band, cost, start year, neighbours);
     in-sample. Same PR: experiment entry 'a38' on '실험 기록' with four charts and PNGs in `2026-10-27_trend_filter/figures/`.
+
+### B2–B5 composition and canary signals (2026-10-27, user request 10:04 KST; design https://claude.ai/artifact/7AyPtvA6372TwXaSJFYxPq, approved "둘 다 이대로 진행" 11:09 KST)
+
+A39. Is the B2–B5 composition itself sound? User: "가장 보고 싶은 건, 현재 B2~B5 의 종목 구성이 정말로 괜찮은 것인가야.
+    나스닥은 다 들어있는데 나머지는 꽤 달라서 그래." B2–B4 as A37 (B5 = stage-2 row `B 레버·가상 없음 (-11,-10]`: nasdaq-100
+    32 · KODEX 200 4 · gold futures(H) 17 · CD 35 · dollar futures 12); static, quarterly, 10 bp, real-price first,
+    2005-01-03 – 2026-10-16, ①–③ also from 2000-09-01 on the A37 ④ proxies. Code `lab/aa_composition.py`, runner
+    `scripts/aa_composition_study.py`, tests `tests/test_aa_composition.py`; results `2026-10-27_composition/`, memo
+    `2026-10-27_composition.md`. Rules fixed before the run: ① leave one out (pro rata / to CD; summary = pro rata),
+    per half 2005–15 / 2016–26: 제 몫 = both halves MDD ≥ 0.5 %p deeper or CAGR ≥ 0.3 %p lower, 있으나 마나 = both
+    move less, 빼면 나아짐 = no half worse by those and one better, else 기간 따라 다름; ② swap the rest (row nasdaq
+    weight + column's other products, 4×4): 바꿔 써도 됨 = all 12 off-diagonal cells inside −15 % and none > 0.5 %p
+    below its row (2005–2026; 2000-09 information); ③ B 평균 (mean of the four, whole percents by largest remainder)
+    and a skeleton grid nasdaq-100 {20,25,30,35} × KRX gold {10,…,35} × CD rest: 같은 일을 한다 = inside −15 % and CAGR
+    ≥ min of B2–B5 (9.28 %); if B 평균 passes it is proposed as a preset candidate and the user is asked whether to add
+    it to A40; ④ the A31 real-price sample without leverage / synthetic (71,031) re-scored per half, top 100 by CAGR
+    inside −15 % on one half: 다시 뽑힘 = median nasdaq and gold shares within the B2–B5 span (19–33, 12–35); ⑤ A33
+    products table: 모형 경고 = |real − model| ≥ 1 %p/yr or monthly corr < 0.95.
+    Results: ① nasdaq-100 is 제 몫 in all four (out → CAGR −1.6 / −3.6 / −3.4 / −3.8 %p); 빼면 나아짐 only for small
+    slices (B2 health care 6: CAGR −0.17, MDD unchanged; B3 TIPS 7 and B4 IG corporates 8: CAGR +0.3–0.4, MDD
+    0.35–0.4 %p deeper); B2's gold futures 35 is 기간 따라 다름 in 2005–2026 but out of it the 2000-09 MDD goes −16.4 →
+    −32.0 %. ② 나머지에 의미 있음: 0 of 12 swaps outside −15 % but 5 lose > 0.5 %p; read by column the rest is a dial
+    (B2's rest 11.6–11.9 % / −14.4 to −14.9 %, B5's rest −8.2 to −11.2 % with the lowest CAGR); from 2000-09 11 of 12
+    are outside. ③ B 평균 = nasdaq-100 29 · staples 8 · health 1 · MSCI World 3 · KODEX 200 1 · 10y(H) 5 · 30y(H) 1 ·
+    TIPS 2 · IG 3 · KRX gold 7 · gold futures(H) 13 · CD 23 · dollar 4 → 10.01 / −11.91 (2000-09: 8.23 / −24.2):
+    같은 일을 한다; 8 of 24 skeletons too (nasdaq 25–35 · gold 20–35, e.g. 30 · 30 · 40 = 10.00 / −12.75, 35 · 30 · 35 =
+    10.72 / −13.48); from 2000-09 every skeleton with nasdaq ≥ 25 is outside (−17.5 to −29.8), the nasdaq-20 ones inside
+    (−12.8 to −14.0) but at 6.6–9.0 % from 2005. ④ chosen on 2005–15: 다른 구성 (nasdaq 0, defensive 46.5, gold 6; on
+    2016–26 MDD median −18.8 %, 5 % inside); chosen on 2016–26: 다시 뽑힘 (nasdaq 20.5, gold 32; on 2005–15 24 % inside);
+    B2 ranks 146 / 25,151 and 279 / 16,873, B3–B5 5,916–11,828 on 2005–15 but 114–282 on 2016–26. ⑤ 11 of 13 모형 경고
+    (bonds real > model 3.0–4.4 %p/yr over 1.1–3.0 years, sectors +1.3–2.0, KODEX 200 +3.7, gold futures −1.4, KRX gold
+    corr 0.87, CD and dollar futures by correlation); only nasdaq-100 (+0.48) and MSCI World (+0.14) 괜찮음.
+    Consequence: B 평균 proposed as a preset candidate per the rule and the user asked about A40 (decision pending);
+    skeletons are information only; presets `gs_b2` / `gs_b4` unchanged. Caveats: most of 2005–listing is model (⑤),
+    2000–2004 all model with Mar–Aug 2000 missing, the ③ threshold is set by search-picked points, in-sample. Engine
+    check 3.4e-14. Same PR: experiment entry 'a39' on '실험 기록' and PNGs in `2026-10-27_composition/figures/`.
+
+A40. Canary signals on B2–B5, weights unchanged. User: "카나리아 자산군 도입으로 동적 자산배분 … 최소 8가지 이상", and "매매는
+    정기 리밸런싱에 더하지 말고, 신호가 바뀐 순간 기준으로 … 추후에 다시 1개월 재매매 금지 규칙". Sleeves: N nasdaq-100,
+    D staples · health care (half each when neither is held), O MSCI World / KODEX 200 (never moved), S everything
+    else (bonds, gold, CD, dollar). Actions: nasdaq → D in its held ratio ('defensive'), nasdaq → S pro rata ('safe');
+    K1 moves half / all for one / both canaries negative; D2 / D3 tilt 10 %p from the weaker to the stronger sleeve.
+    Signals (centre, two neighbours): K1 DAA (VWO · BND 13612W), K2 VAA · BAA (SPY · EFA · EEM · AGG 13612W), K3 HAA
+    (TIP 13612U), K4 SPY < 200-day mean, K5 SPY 12-month total return < T-bill, K6 BAA10Y > 200-obs mean, K7 T10Y3M <
+    0, K8 VIX ≥ 25, K9 ≥ 5 of 9 US sectors below 200-day, K10 Kritzman–Li turbulence of SPY · EFA · EEM · AGG > 3-year
+    80th pct, K11 USD/KRW > 200-day; D1 nasdaq-100 KRW < 200-day, D2 nasdaq vs D 12-month KRW, D3 equity vs S 12-month
+    KRW. Canaries in USD (US ETFs, FRED one day late via `macro.on_dates`); late ETFs chained to same-index funds
+    (VWO / EEM ← VEIEX, BND / AGG ← VBMFX, EFA ← FSPSX ← VGTSX, TIP ← VIPSX; FSIIX failed to download). Trading: state
+    at the close of t, a change trades at the t+1 close (바로 매매), or with no new signal trade for 21 rows after one
+    (1개월 금지); the quarter-end rebalance stays and goes to the held state's target (reading of "정기 리밸런싱에 더하지
+    말고" = do not wait for the quarter; stated in the design). Periods 2005-01-03 and 2000-09-01 to 2026-10-16,
+    real-price first, 10 bp. Operational readings: D rules read the 2000-09 KRW panel in both periods; MDD is
+    measured from the signal start when it is later than the period start (K3 2001-06-29, K10 2002-01-29, D3
+    2001-08-30); placebos (200 circular shifts ≥ 252 rows) follow 바로 매매 and also judge the 1개월 금지 rows; the
+    equal-cost static moves x of the full action for good with x matching the row's 2005 CAGR; date offsets
+    0/1/5/10/15 run for rows passing 1 and 2, worst over both periods. Code `lab/aa_canary.py`, runner
+    `scripts/aa_canary_study.py`, tests `tests/test_aa_canary.py`; results `2026-10-27_canary/`, memo
+    `2026-10-27_canary.md`. Verdicts fixed before the run: 1 2005 MDD ≥ −15 %; 2 2000-09 MDD ≥ −15 %; 3 both
+    neighbours pass 1 · 2 and offset worst ≥ −20 %; 4 2000-09 MDD ≥ 1 %p shallower than the equal-cost static; 5
+    shallower than ≥ 90 % of placebos. Rows passing 1–5 are proposed as preset candidates; registration is the user's.
+    Results (208 rows = 4 allocations × 26 signal-actions × 2 versions): passes 200 / 53 / 39 / 60 / 66, all five 27,
+    all on B3 · B4 · B5. 23 are US-equity trend → safe sleeve (K2 · K4 · K5 · D1 × B3–B5 × both versions, less B3 · D1
+    바로 매매), 2 B5 → defensive (D1, K5 바로 매매), 2 B5 D3 (late start, weak on verdict 2). Candidates: MDD −7.9 to
+    −13.3 % from 2005 and −8.2 to −13.6 % from 2000-09 (static B3 / B4 / B5 −30.8 / −25.6 / −26.2); 2000-09 CAGR vs
+    static −0.6 to +0.4 %p; 2005 CAGR −0.8 to −2.0 %p (median −1.2, D3 excluded), 2016–26 median −1.3 %p with MDD 1.3
+    %p shallower, crises 2008 / 2020 / 2022 shallower by a median 1.4 / 3.3 / 1.7 %p; equal-cost static 1.4–11.1 %p
+    deeper (median 5.7); placebos 97–100 % deeper; vs A38 same allocation CAGR +0.4 %p median from 2005, MDD 1.1 %p
+    shallower; vs 안정형 40 static CAGR −0.2 / −0.3 %p median, MDD 2.5 %p shallower from 2000-09. E.g. B4 · K5 → safe ·
+    1개월 금지 8.90 / −10.25 (2005), 7.91 / −11.72 (2000-09), 1.4 signal trades a year. B2: none (the equal-cost static
+    matches or beats the signals, placebo shares 86–94 %). K1, K3, K6–K11 and D2: none (K8 deeper than most placebos;
+    K1 31 trades a year 바로 매매). 1개월 금지 cuts signal trades to about a third (K2 24.0 → 7.7, K4 6.2 → 2.6, K5 4.5 →
+    1.4 a year) with 13 vs 14 candidates. 20 bp: CAGR −0.05 to −0.86 %p, MDD within −13.7 %. KRW-read K4: 2000-09 MDD
+    ~5 %p deeper on average (0.4–8.9), supporting USD canaries. Engine check 3.7e-14; look-ahead checked by truncated
+    inputs (tests). Consequence: the 27 rows proposed as preset candidates (decision pending); registering one needs
+    canary support in `aa_engine` / the app first, and an A32-style stage-2 shake of the chosen row should come before.
+    Caveats: 208 combinations (candidates cluster in one idea and its neighbours pass); the trend rules were published
+    on data containing 2000–02 and 2008, so the dot-com pass is not independent; most of 2005–2026 is model prices
+    (A39 ⑤) and 2000–2004 is all model; post-2005 crisis help is 1–3 %p; in-sample. Same PR: experiment entry 'a40' on
+    '실험 기록' and PNGs in `2026-10-27_canary/figures/`.

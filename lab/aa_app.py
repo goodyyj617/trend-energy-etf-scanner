@@ -2372,6 +2372,278 @@ def chart_filter_groups() -> go.Figure:
                       legend=dict(orientation="h", y=-0.14, traceorder="reversed"))
     return fig
 
+B_COLORS = {**LOCAL_COLORS, "B5": PALETTE[3]}  # A39 · A40: B5 joins the A37 colours
+COMP_REFERENCE_COLOR = PALETTE[4]
+
+
+def chart_comp_loo() -> go.Figure:
+    d = exps.comp_leave_one_out()
+    d = d.assign(행=d["배분"] + " · " + d["상품"] + " (" + d["판정"] + ")")
+    fig = go.Figure()
+    hover = np.c_[d["Δcagr_h1"], d["Δcagr_h2"], d["Δmdd_h1"], d["Δmdd_h2"], d["Δmdd_2000"]]
+    tmpl = ("%{y}<br>CAGR 2005–15 %{customdata[0]:+.2f} · 2016–26 %{customdata[1]:+.2f}%p"
+            "<br>MDD 2005–15 %{customdata[2]:+.2f} · 2016–26 %{customdata[3]:+.2f}%p (+ = 얕아짐)"
+            "<br>2000-09부터 MDD %{customdata[4]:+.2f}%p<extra></extra>")
+    for col, name, color in (("Δmdd", "MDD 변화 (%p, + = 얕아짐)", ORANGE), ("Δcagr", "CAGR 변화 (%p/년)", BLUE)):
+        fig.add_trace(go.Bar(y=d["행"], x=d[col], name=name, orientation="h", marker_color=color, customdata=hover,
+                             hovertemplate=name + ": %{x:+.2f}<br>" + tmpl))
+    fig.add_vline(x=0, line=dict(color=INK, width=1))
+    height = 160 + 26 * len(d)
+    fig.update_layout(height=height, barmode="group", bargap=0.3, margin=dict(l=10, r=10, t=40, b=10),
+                      title="① 상품 하나를 빼고 그 비중을 나머지에 비례 배분하면 (2005–2026 전체, 괄호 = 실행 전에 고정한 판정)",
+                      xaxis=dict(title="뺀 배분 − 원래 배분 (%p)"),
+                      yaxis=dict(categoryorder="array", categoryarray=list(d["행"])[::-1], title=None),
+                      legend=dict(orientation="h", y=-60 / height, traceorder="reversed"))
+    return fig
+
+
+def chart_comp_swap() -> go.Figure:
+    from plotly.subplots import make_subplots
+
+    s = exps.comp_swap()
+    names = list(exps.COMP_NAMES)
+    fig = make_subplots(rows=1, cols=2, horizontal_spacing=0.12,
+                        subplot_titles=("2005–2026", "2000-09–2026 (닷컴 포함, 2005년 이전은 모형)"))
+    for i, (c_col, m_col) in enumerate((("CAGR", "MDD"), ("2000-09 CAGR", "2000-09 MDD")), start=1):
+        z = s.pivot(index="행", columns="열", values=c_col).loc[names, names]
+        m = s.pivot(index="행", columns="열", values=m_col).loc[names, names]
+        fig.add_trace(go.Heatmap(z=z.to_numpy(), x=[f"나머지 {n}" for n in names], y=[f"나스닥 {n}" for n in names],
+                                 colorscale="Blues", showscale=False, customdata=m.to_numpy(),
+                                 hovertemplate="%{y} 비중 + %{x} 상품<br>CAGR %{z:.2f}% · MDD %{customdata:.2f}%<extra></extra>"),
+                      row=1, col=i)
+        mid = (z.to_numpy().min() + z.to_numpy().max()) / 2
+        for r in names:
+            for c in names:
+                mdd, dark = m.at[r, c], z.at[r, c] > mid
+                out = mdd < sr.STAGE2_PCT_LINE
+                color = ("#ffc9c9" if dark else RED) if out else ("white" if dark else INK)
+                fig.add_annotation(x=f"나머지 {c}", y=f"나스닥 {r}", xref=f"x{i}", yref=f"y{i}", showarrow=False,
+                                   text=("<b>" if r == c else "") + f"{z.at[r, c]:.1f}%<br>{mdd:.1f}%" + ("</b>" if r == c else ""),
+                                   font=dict(size=11, color=color))
+    fig.update_yaxes(autorange="reversed")
+    fig.update_layout(height=380, margin=dict(l=10, r=10, t=60, b=10),
+                      title="② 행 배분의 나스닥 비중 + 열 배분의 나머지 상품: 위 CAGR, 아래 MDD (빨강 = −15% 밖, 굵게 = 원래 배분)")
+    return fig
+
+
+def chart_comp_simple() -> go.Figure:
+    d = exps.comp_simple()
+    fig = go.Figure()
+    sk = d[d["묶음"] == "뼈대"]
+    short = sk["이름"].str.extract(r"나스닥100 (\d+) · KRX금 (\d+)").agg("/".join, axis=1)
+    for passed, name, sym in ((False, "뼈대: 나스닥100 × KRX금현물 × CD금리 (못 미침)", "circle-open"),
+                              (True, "뼈대 (같은 일을 한다)", "circle")):
+        part = sk[(sk["판정"] == "같은 일을 한다") == passed]
+        fig.add_trace(go.Scatter(x=part["MDD"], y=part["CAGR"], mode="markers+text", name=name, text=short[part.index],
+                                 textposition="top right", textfont=dict(size=9, color=GRAY),
+                                 marker=dict(size=9, symbol=sym, color=GRAY, line=dict(width=1.5)),
+                                 customdata=np.c_[part["이름"], part["2000-09 CAGR"], part["2000-09 MDD"]],
+                                 hovertemplate="%{customdata[0]}<br>2005–2026 %{y:.2f}% / %{x:.2f}%"
+                                               "<br>2000-09–2026 %{customdata[1]:.2f}% / %{customdata[2]:.2f}%<extra></extra>"))
+    others = [(n, B_COLORS[n], "star", 16) for n in exps.COMP_NAMES] + [("B 평균", PALETTE[5], "cross", 14),
+                                                                        (exps.COMP_REFERENCE, COMP_REFERENCE_COLOR, "diamond", 13)]
+    for n, color, sym, size in others:
+        part = d[d["이름"] == n]
+        fig.add_trace(go.Scatter(x=part["MDD"], y=part["CAGR"], mode="markers", name=n, marker=dict(size=size, symbol=sym, color=color),
+                                 customdata=np.c_[part["2000-09 CAGR"], part["2000-09 MDD"], part["판정"]],
+                                 hovertemplate=n + "<br>2005–2026 %{y:.2f}% / %{x:.2f}%"
+                                               "<br>2000-09–2026 %{customdata[0]:.2f}% / %{customdata[1]:.2f}%<extra></extra>"))
+    _line_15(fig)
+    fig.update_layout(height=480, margin=dict(l=10, r=10, t=40, b=10),
+                      title="③ 더 단순한 배분 (뼈대 점 이름 = 나스닥/금 %, 나머지는 CD금리) — 2005–2026",
+                      xaxis=dict(title="MDD 2005–2026 (%)"),
+                      yaxis=dict(title="CAGR 2005–2026 (%/년)", range=[float(d["CAGR"].min()) - 0.3, float(d["CAGR"].max()) + 0.6]),
+                      legend=dict(orientation="h", y=-0.18))
+    return fig
+
+
+def chart_comp_reselect() -> go.Figure:
+    from lab import aa_composition as comp
+
+    d = exps.comp_reselect()
+    fig = go.Figure()
+    for period, color in (("2005–2015에서 고름", BLUE), ("2016–2026에서 고름", ORANGE)):
+        part = d[d["고른 기간"] == period]
+        fig.add_trace(go.Box(x=part["역할"], y=part["비중"], name=f"{period} 상위 100개", marker_color=color, boxpoints=False,
+                             hovertemplate=period + " · %{x}<br>비중 %{y:.0f}%<extra></extra>"))
+    for n in exps.COMP_NAMES:
+        part = d[d["고른 기간"] == n]
+        fig.add_trace(go.Scatter(x=part["역할"], y=part["비중"], mode="markers", name=n,
+                                 marker=dict(size=12, symbol="star", color=B_COLORS[n], line=dict(width=1, color="white")),
+                                 hovertemplate=n + " · %{x} %{y:.0f}%<extra></extra>"))
+    ranks = exps.comp_ranks().set_index("배분")
+    note = " · ".join(f"{n} {int(ranks.at[n, 'h1 순위']):,}위 / {int(ranks.at[n, 'h2 순위']):,}위" for n in exps.COMP_NAMES)
+    fig.update_layout(height=440, boxmode="group", margin=dict(l=10, r=10, t=60, b=10),
+                      title=dict(text="④ 한 반기에서 CAGR 상위 100개(그 반기 MDD −15% 안)를 고르면 어떤 구성인가<br>"
+                                      f"<sup>B 순위 (2005–15 선 안 {int(ranks['h1 선 안 수'].iloc[0]):,}개 중 / 2016–26 선 안 "
+                                      f"{int(ranks['h2 선 안 수'].iloc[0]):,}개 중): {note}</sup>"),
+                      xaxis=dict(title=None, categoryorder="array", categoryarray=list(comp.ROLES)),
+                      yaxis=dict(title="비중 (%)"), legend=dict(orientation="h", y=-0.12))
+    return fig
+
+
+def chart_comp_model_gap() -> go.Figure:
+    m = exps.comp_model_gap().sort_values("차이 %p")
+    label = m["상품"] + " (" + m["겹친 해"].round(1).astype(str) + "년, 상관 " + m["월 상관"].round(2).astype(str) + ")"
+    fig = go.Figure()
+    for flag, color in (("모형 경고", RED), ("괜찮음", AQUA)):
+        part = m[m["판정"] == flag]
+        fig.add_trace(go.Bar(y=label[part.index], x=part["차이 %p"], orientation="h", name=flag, marker_color=color,
+                             error_x=dict(type="data", array=2 * part["차이 표준오차 %p"], color=INK, thickness=1),
+                             customdata=np.c_[part["실제 CAGR"], part["모형 CAGR"], part["상장"], part["차이 표준오차 %p"]],
+                             hovertemplate="%{y}<br>상장 %{customdata[2]} 이후 실제 %{customdata[0]:.2f}% · 모형 %{customdata[1]:.2f}%/년"
+                                           "<br>차이 %{x:+.2f}%p (표준오차 %{customdata[3]:.2f})<extra></extra>"))
+    fig.add_vline(x=0, line=dict(color=INK, width=1))
+    fig.update_layout(height=520, margin=dict(l=10, r=10, t=40, b=10),
+                      title="⑤ 상장 후 실제 가격 − 모형(미국 대용 × 원/달러), 연 수익률 (가로선 = ±2 표준오차)",
+                      xaxis=dict(title="%p/년 — 오른쪽일수록 모형이 실제를 낮게 잡음"),
+                      yaxis=dict(categoryorder="array", categoryarray=list(label), title=None), legend=dict(orientation="h", y=-0.12))
+    return fig
+
+
+def _canary_hover(d: pd.DataFrame) -> tuple[np.ndarray, str]:
+    data = np.c_[d["신호 이름"], d["행동 이름"], d["판"], d["2005 CAGR"], d["2005 MDD"], d["2000-09 CAGR"], d["2000-09 MDD"],
+                 d["2005 연 신호 매매"], d["통과 수"], d["가짜보다 얕은 비율"], d["같은 비용 2000-09 MDD"]]
+    tmpl = ("%{customdata[0]} · %{customdata[1]} · %{customdata[2]}"
+            "<br>2005–2026 %{customdata[3]:.2f}% / %{customdata[4]:.2f}%"
+            "<br>2000-09–2026 %{customdata[5]:.2f}% / %{customdata[6]:.2f}% (같은 비용 정적 %{customdata[10]:.1f}%)"
+            "<br>신호 매매 연 %{customdata[7]:.1f}번 · 가짜보다 얕음 %{customdata[9]:.0f}% · 판정 %{customdata[8]}/5 통과<extra></extra>")
+    return data, tmpl
+
+
+def chart_canary_scatter() -> go.Figure:
+    d = exps.canary_rows()
+    st_ = exps.canary_static()
+    fig = go.Figure()
+    for n in exps.COMP_NAMES:
+        for cand in (False, True):
+            part = d[(d["배분"] == n) & ((d["판정"] == "후보") == cand)]
+            sym = np.where(part["판"] == "바로 매매", "circle", "square")
+            if not cand:
+                sym = np.char.add(sym.astype(str), "-open")
+            data, tmpl = _canary_hover(part)
+            fig.add_trace(go.Scatter(x=part["2000-09 MDD"], y=part["2005 CAGR"], mode="markers", name=f"{n} · {'후보 (판정 1–5 통과)' if cand else '탈락'}",
+                                     marker=dict(size=10 if cand else 7, symbol=list(sym), color=B_COLORS[n], line=dict(width=1.5)),
+                                     customdata=data, hovertemplate=n + " · " + tmpl, legendgroup=n))
+    for kind, sym, label in (("정적 분기", "star", "원래 배분 (정적)"), ("A38 주식 10개월선", "triangle-up", "A38 주식 10개월선")):
+        for n in exps.COMP_NAMES:
+            a = st_[(st_["종류"] == kind) & (st_["배분"] == n)].set_index("기간")
+            if a.empty:
+                continue
+            fig.add_trace(go.Scatter(x=[a.at["2000-09", "MDD"]], y=[a.at["2005", "CAGR"]], mode="markers", name=f"{n} · {label}",
+                                     marker=dict(size=15 if sym == "star" else 11, symbol=sym, color=B_COLORS[n], line=dict(width=1, color=INK)),
+                                     legendgroup=n, showlegend=False,
+                                     hovertemplate=f"{n} · {label}<br>2005–2026 {a.at['2005', 'CAGR']:.2f}% / {a.at['2005', 'MDD']:.2f}%"
+                                                   f"<br>2000-09–2026 {a.at['2000-09', 'CAGR']:.2f}% / {a.at['2000-09', 'MDD']:.2f}%<extra></extra>"))
+    ref = st_[(st_["종류"] == "정적 분기") & (st_["배분"] == exps.COMP_REFERENCE)].set_index("기간")
+    fig.add_trace(go.Scatter(x=[ref.at["2000-09", "MDD"]], y=[ref.at["2005", "CAGR"]], mode="markers", name="안정형 40 (정적)",
+                             marker=dict(size=13, symbol="diamond", color=COMP_REFERENCE_COLOR),
+                             hovertemplate=f"안정형 40 (정적)<br>2005–2026 {ref.at['2005', 'CAGR']:.2f}% / {ref.at['2005', 'MDD']:.2f}%"
+                                           f"<br>2000-09–2026 {ref.at['2000-09', 'CAGR']:.2f}% / {ref.at['2000-09', 'MDD']:.2f}%<extra></extra>"))
+    _line_15(fig)
+    fig.update_layout(height=560, margin=dict(l=10, r=10, t=60, b=10),
+                      title=dict(text="카나리아 신호 208개: 닷컴을 넣은 MDD(가로)와 2005–2026 수익(세로)<br>"
+                                      "<sup>원 = 바로 매매, 네모 = 1개월 금지, 채움 = 후보, 별 = 신호 없는 원래 배분, 세모 = A38 필터, 마름모 = 안정형 40</sup>"),
+                      xaxis=dict(title="MDD 2000-09–2026 (%, 신호가 늦게 시작하면 그날부터) — 오른쪽일수록 얕음"),
+                      yaxis=dict(title="CAGR 2005–2026 (%/년)"), legend=dict(orientation="h", y=-0.16))
+    return fig
+
+
+def chart_canary_verdicts() -> go.Figure:
+    d = exps.canary_rows()
+    d = d.assign(행=d["신호 이름"] + " · " + d["행동 이름"], 열=d["배분"] + "<br>" + d["판"])
+    rows = list(dict.fromkeys(d.sort_values(["신호", "행동"], key=lambda s: s.map(_signal_order) if s.name == "신호" else s)["행"]))
+    cols = [f"{n}<br>{v}" for n in exps.COMP_NAMES for v in exps.CANARY_VERSIONS]
+    z = d.pivot(index="행", columns="열", values="통과 수").reindex(index=rows, columns=cols)
+    failed = d.assign(못넘음=d[list(exps.CANARY_VERDICTS)].apply(lambda r: " ".join(k.split()[0] for k, ok in r.items() if not ok) or "없음", axis=1))
+    miss = failed.pivot(index="행", columns="열", values="못넘음").reindex(index=rows, columns=cols)
+    mdd = d.pivot(index="행", columns="열", values="2000-09 MDD").reindex(index=rows, columns=cols)
+    text = np.where(z.to_numpy() == 5, "★", z.to_numpy().astype(int).astype(str))
+    fig = go.Figure(go.Heatmap(z=z.to_numpy(), x=cols, y=rows, zmin=0, zmax=5, colorscale="Blues", text=text, texttemplate="%{text}",
+                               customdata=np.dstack([miss.to_numpy(), mdd.round(1).to_numpy()]),
+                               colorbar=dict(title="통과 수", tickvals=[0, 1, 2, 3, 4, 5]),
+                               hovertemplate="%{y}<br>%{x}<br>판정 %{z}/5 통과 · 못 넘은 판정 %{customdata[0]}"
+                                             "<br>2000-09부터 MDD %{customdata[1]}%<extra></extra>"))
+    fig.update_layout(height=180 + 24 * len(rows), margin=dict(l=10, r=10, t=60, b=10),
+                      title=dict(text="판정 1–5 중 몇 개를 넘었나 (★ = 다섯 개 모두, 후보)<br><sup>1 2005 −15% 안 · 2 2000-09 −15% 안 · "
+                                      "3 이웃·날짜 견고 · 4 같은 비용 정적보다 1%p 얕음 · 5 가짜 신호 90% 이상보다 얕음</sup>"),
+                      xaxis=dict(side="bottom", title=None, tickangle=0), yaxis=dict(autorange="reversed", title=None))
+    return fig
+
+
+def _signal_order(code: str) -> int:
+    return (0 if code.startswith("k") else 100) + int(code[1:])
+
+
+def chart_canary_placebo() -> go.Figure:
+    p = exps.canary_placebo()
+    p = p[p["기간"] == "2000-09"]
+    names = pd.read_csv(exps.CANARY_DIR / "verdicts.csv").drop_duplicates("행동").set_index("행동")["행동 이름"]
+    fig = go.Figure()
+    for n in exps.COMP_NAMES:
+        for strong in (False, True):
+            part = p[(p["배분"] == n) & ((p["가짜보다 얕은 비율"] >= 90) == strong)]
+            fig.add_trace(go.Scatter(x=part["가짜 중앙"], y=part["진짜 MDD"], mode="markers", legendgroup=n,
+                                     name=f"{n} · {'가짜 90% 이상보다 얕음' if strong else '그 밖'}",
+                                     marker=dict(size=9, symbol="circle" if strong else "circle-open", color=B_COLORS[n], line=dict(width=1.5)),
+                                     error_x=dict(type="data", symmetric=False, array=part["가짜 95%"] - part["가짜 중앙"],
+                                                  arrayminus=part["가짜 중앙"] - part["가짜 5%"], color=MUTED, thickness=1, width=0),
+                                     customdata=np.c_[part["신호 이름"], part["행동"].map(names), part["가짜 5%"], part["가짜 95%"], part["가짜보다 얕은 비율"]],
+                                     hovertemplate=n + " · %{customdata[0]} · %{customdata[1]}<br>진짜 신호 MDD %{y:.2f}%"
+                                                   "<br>가짜 신호 200개: 중앙 %{x:.2f}%, 5–95% %{customdata[2]:.1f} – %{customdata[3]:.1f}%"
+                                                   "<br>진짜보다 깊은 가짜 %{customdata[4]:.0f}%<extra></extra>"))
+    lo = float(min(p["가짜 5%"].min(), p["진짜 MDD"].min())) - 1
+    fig.add_trace(go.Scatter(x=[lo, 0], y=[lo, 0], mode="lines", line=dict(color=GRAY, dash="dot", width=1), hoverinfo="skip", showlegend=False))
+    fig.update_layout(height=520, margin=dict(l=10, r=10, t=60, b=10),
+                      title=dict(text="진짜 신호 대 날짜를 밀어 낸 가짜 신호 200개 (2000-09–2026 MDD, 바로 매매)<br>"
+                                      "<sup>대각선 위 = 가짜 중앙보다 얕음. 가로선 = 가짜 5–95%. 같은 날 수만큼 켜져 있으니, 위로 멀수록 '덜 든 효과'가 아니라 시점이 맞았다는 뜻</sup>"),
+                      xaxis=dict(title="가짜 신호 MDD 중앙값 (%)"), yaxis=dict(title="진짜 신호 MDD (%)"), legend=dict(orientation="h", y=-0.16))
+    return fig
+
+
+def chart_canary_trades() -> go.Figure:
+    d = exps.canary_rows()
+    g = d.groupby(["신호", "신호 이름", "판"], as_index=False).agg(매매=("2005 연 신호 매매", "mean"), 되돌림=("21일 안 되돌림", "mean"),
+                                                                  후보=("판정", lambda s: int((s == "후보").sum())))
+    g = g.assign(_o=g["신호"].map(_signal_order)).sort_values("_o")
+    fig = go.Figure()
+    for version, color in (("1개월 금지", AQUA), ("바로 매매", ORANGE)):
+        part = g[g["판"] == version]
+        fig.add_trace(go.Bar(y=part["신호 이름"], x=part["매매"], name=version, orientation="h", marker_color=color,
+                             text=[f"{v:.1f}" for v in part["매매"]], textposition="outside",
+                             customdata=np.c_[part["되돌림"], part["후보"]],
+                             hovertemplate="%{y} · " + version + "<br>신호 매매 연 %{x:.1f}번 (2005–2026, 배분 평균)"
+                                           "<br>21일 안에 되돌린 매매 21년간 %{customdata[0]:.0f}번 · 후보 %{customdata[1]}개<extra></extra>"))
+    fig.update_layout(height=520, barmode="group", bargap=0.25, margin=dict(l=10, r=10, t=40, b=10),
+                      title="신호가 바뀔 때마다 매매하면 1년에 몇 번인가: 바로 매매 대 1개월 재매매 금지",
+                      xaxis=dict(title="연 신호 매매 (번, 분기 리밸런싱 제외)"),
+                      yaxis=dict(categoryorder="array", categoryarray=list(dict.fromkeys(g["신호 이름"]))[::-1], title=None),
+                      legend=dict(orientation="h", y=-0.12, traceorder="reversed"))
+    return fig
+
+
+def chart_canary_currency() -> go.Figure:
+    c = exps.canary_currency()
+    names = {"k1": "K1 DAA", "k3": "K3 HAA", "k4": "K4 S&P500 200일선"}
+    acts = {"defensive": "나스닥 → 방어 주식", "safe": "나스닥 → 안전 묶음"}
+    fig = go.Figure()
+    for (code, label), color in zip(names.items(), (PALETTE[4], PALETTE[2], BLUE)):
+        for era, sym in (("2005", "circle-open"), ("2000-09", "circle")):
+            part = c[(c["신호"] == code) & (c["기간"] == era)]
+            fig.add_trace(go.Scatter(x=part["달러 MDD"], y=part["원화 MDD"], mode="markers", name=f"{label} · {exps.CANARY_ERAS[era]}",
+                                     marker=dict(size=10, symbol=sym, color=color, line=dict(width=1.5)),
+                                     customdata=np.c_[part["배분"], part["행동"].map(acts), part["달러 CAGR"], part["원화 CAGR"]],
+                                     hovertemplate=label + " · %{customdata[0]} · %{customdata[1]} · " + exps.CANARY_ERAS[era] +
+                                                   "<br>달러 가격 신호 %{customdata[2]:.2f}% / %{x:.2f}%<br>원화 환산 신호 %{customdata[3]:.2f}% / %{y:.2f}%<extra></extra>"))
+    lo = float(min(c["달러 MDD"].min(), c["원화 MDD"].min())) - 1
+    fig.add_trace(go.Scatter(x=[lo, 0], y=[lo, 0], mode="lines", line=dict(color=GRAY, dash="dot", width=1), hoverinfo="skip", showlegend=False))
+    fig.update_layout(height=480, margin=dict(l=10, r=10, t=60, b=10),
+                      title=dict(text="신호를 달러 가격으로 읽을 때 대 원화로 환산해 읽을 때의 MDD (중심 설정, 바로 매매)<br>"
+                                      "<sup>대각선 아래 = 원화로 읽으면 더 깊음. 채운 원 = 2000-09–2026, 빈 원 = 2005–2026</sup>"),
+                      xaxis=dict(title="달러 가격 신호 MDD (%)"), yaxis=dict(title="원화 환산 신호 MDD (%)"), legend=dict(orientation="h", y=-0.16))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2391,6 +2663,16 @@ EXPERIMENT_CHARTS = {
     "filter_curves": chart_filter_curves,
     "filter_groups": chart_filter_groups,
     "filter_cagr": chart_filter_cagr,
+    "comp_loo": chart_comp_loo,
+    "comp_swap": chart_comp_swap,
+    "comp_simple": chart_comp_simple,
+    "comp_reselect": chart_comp_reselect,
+    "comp_model_gap": chart_comp_model_gap,
+    "canary_scatter": chart_canary_scatter,
+    "canary_verdicts": chart_canary_verdicts,
+    "canary_placebo": chart_canary_placebo,
+    "canary_trades": chart_canary_trades,
+    "canary_currency": chart_canary_currency,
 }
 
 

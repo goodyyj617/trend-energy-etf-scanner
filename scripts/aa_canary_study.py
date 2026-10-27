@@ -1,6 +1,6 @@
-"""Canary signals on B2–B5: move nasdaq-100 when a signal warns (allocation DECISIONS A40; memo 2026-10-28_canary.md).
+"""Canary signals on B2–B5: move nasdaq-100 when a signal warns (allocation DECISIONS A40; memo 2026-10-27_canary.md).
 
-    .venv/Scripts/python.exe scripts/aa_canary_study.py --out docs/research/allocation/2026-10-28_canary
+    .venv/Scripts/python.exe scripts/aa_canary_study.py --out docs/research/allocation/2026-10-27_canary
     .venv/Scripts/python.exe scripts/aa_canary_study.py --quick --out %TEMP%\\aa_canary_quick     # ~1 min check
 
 Design (fixed before the run): https://claude.ai/artifact/7AyPtvA6372TwXaSJFYxPq, lab/aa_canary.py.

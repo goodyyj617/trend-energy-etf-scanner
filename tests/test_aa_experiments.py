@@ -98,3 +98,43 @@ def test_trend_filter_chart_data():
     assert worst[("B3", "정적 분기")] < -25 < -10 < worst[("B3", "필터 10")]
     v = __import__("json").loads((ex.FILTER_DIR / "summary.json").read_text(encoding="utf-8"))["verdict"]
     assert v["제안할 필터 판 후보"] == ["B2", "B3", "B4"] and v["구조 판정 (≥ 50%)"] is False
+
+
+def test_composition_chart_data():
+    lo = ex.comp_leave_one_out()
+    assert len(lo) == 24 and (lo[lo["상품"] == "미국나스닥100"]["판정"] == "제 몫").all()
+    assert set(lo.loc[lo["판정"] == "빼면 나아짐", "상품"]) == {"미국S&P500헬스케어", "iShares미국인플레이션국채액티브", "iShares미국투자등급회사채액티브"}
+    s = ex.comp_swap()
+    assert len(s) == 16 and (s["MDD"] >= sr.STAGE2_PCT_LINE).all() and (s["2000-09 MDD"] < sr.STAGE2_PCT_LINE).sum() == 11 + 4
+    simple = ex.comp_simple().set_index("이름")
+    assert round(simple.at["B 평균", "CAGR"], 2) == 10.01 and round(simple.at["B 평균", "MDD"], 2) == -11.91
+    assert (simple["판정"] == "같은 일을 한다").sum() == 9 and round(simple.at["B2", "MDD"], 2) == -13.23  # B 평균 + 8 skeletons
+    r = ex.comp_reselect()
+    assert set(r["고른 기간"]) == {"2005–2015에서 고름", "2016–2026에서 고름", *ex.COMP_NAMES}
+    med = r[r["고른 기간"] == "2016–2026에서 고름"].groupby("역할")["비중"].median()
+    assert med["나스닥"] == 20.5 and med["금"] == 32
+    b = r[r["고른 기간"].isin(ex.COMP_NAMES)].groupby("고른 기간")["비중"].sum()
+    assert (b == 100).all()
+    m = ex.comp_model_gap()
+    assert len(m) == 13 and set(m.loc[m["판정"] == "괜찮음", "상품"]) == {"미국나스닥100", "MSCI선진국"}
+
+
+def test_canary_chart_data():
+    d = ex.canary_rows()
+    assert len(d) == 208 and (d["판정"] == "후보").sum() == 27
+    cand = d[d["판정"] == "후보"]
+    assert set(cand["배분"]) == {"B3", "B4", "B5"} and cand[list(ex.CANARY_VERDICTS)].all().all()
+    assert (cand["2005 MDD"] >= sr.STAGE2_PCT_LINE).all() and (cand["2000-09 MDD"] >= sr.STAGE2_PCT_LINE).all()
+    assert (cand["가짜보다 얕은 비율"] >= 90).all() and (cand["2000-09 MDD"] >= cand["같은 비용 2000-09 MDD"] + 1 - 1e-9).all()
+    assert set(cand.loc[cand["행동"] == "safe", "신호"]) == {"k2", "k4", "k5", "d1"}
+    st = ex.canary_static().set_index(["종류", "기간", "배분"])["MDD"]
+    for name, mdd00 in (("B2", -16.4), ("B3", -30.8), ("B4", -25.6), ("B5", -26.2)):  # A37 / A39 static values
+        assert round(st[("정적 분기", "2000-09", name)], 1) == mdd00
+    p = ex.canary_placebo()
+    assert len(p) == 208 and (p["가짜 5%"] <= p["가짜 중앙"]).all() and (p["가짜 중앙"] <= p["가짜 95%"]).all()
+    c = ex.canary_currency()
+    assert len(c) == 48 and set(c["신호"]) == {"k1", "k3", "k4"}
+    k4 = c[(c["신호"] == "k4") & (c["기간"] == "2000-09")]
+    assert (k4["원화 MDD"] < k4["달러 MDD"]).all()
+    trades = d.groupby(["신호", "판"])["2005 연 신호 매매"].mean().unstack()
+    assert (trades["1개월 금지"] < trades["바로 매매"]).all()
