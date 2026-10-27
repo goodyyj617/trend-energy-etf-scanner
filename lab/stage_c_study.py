@@ -463,6 +463,41 @@ def _dry_menu() -> None:
         del EXITS[k]
 
 
+def signals_file(out: Path, sample: str, e: str, x: str) -> Path:
+    return out / "signals" / sample / f"{e}__{x}_signals.parquet"
+
+
+def _run_signals(job):
+    """Only the per-signal tables (SIGNAL_KEEP, every cell) of one (sample, entry, exit) pair: no
+    accounts, no trials. For replays (lab/signal_replay.py) on a screened signal set."""
+    sample, e, x = job
+    panel, cache = _W["panel"], _W["cache"]
+    if _W["pair"] != (sample, e):
+        cache.drop_rule_data()
+        _W["pair"] = (sample, e)
+    parts = []
+    for xi, yi in cells(e, x):
+        sig = run_backtest(panel, config(sample, e, x, xi, yi), cache, outcomes=True)
+        parts.append(sig.assign(xi=xi, yi=yi)[["xi", "yi"] + SIGNAL_KEEP])
+    return job, pd.concat(parts, ignore_index=True)
+
+
+def run_signal_tables(ex, out: Path, log) -> None:
+    jobs = [(s, e, x) for s in SAMPLES for e, x in pairs() if e not in NO_SIGNAL_TABLE
+            and not signals_file(out, s, e, x).exists()]
+    log(f"신호표만 다시 만들기: {len(jobs)}개 쌍 남음")
+    t0 = time.time()
+    for n, (job, sig) in enumerate(ex.map(_run_signals, jobs, chunksize=1)):
+        f = signals_file(out, *job)
+        f.parent.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_suffix(".tmp")
+        sig.astype({"return": "float32", "holding_days": "int32"}).to_parquet(tmp, compression="zstd")
+        tmp.replace(f)  # a finished file only, so an interrupted run never leaves a partial table
+        per = (time.time() - t0) / (n + 1)
+        log(f"  [{n + 1}/{len(jobs)}] {SAMPLES[job[0]][2]} {job[1]}×{job[2]}: 신호 {len(sig):,} · "
+            f"남은 예상 {(len(jobs) - n - 1) * per / 3600:.1f}h{memory_note()}")
+
+
 def main(argv: list[str]) -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--panel", required=True)
@@ -473,6 +508,8 @@ def main(argv: list[str]) -> None:
     ap.add_argument("--exclude", default="", help="매수 전 제외 스크린, 예: x_ivol=20,x_lottery=20 (기본: 없음)")
     ap.add_argument("--select", default="", help="매수 전 선별 점수, 예: s_efficiency=6,s_large (평균 백분위 순위)")
     ap.add_argument("--top-k", type=int, default=0, help="선별 점수로 매일 남길 종목 수 (0 = 선별 안 함)")
+    ap.add_argument("--signals-only", action="store_true",
+                    help="신호표(signals/<표본>/<매수>__<매도>_signals.parquet)만 만듭니다. 계좌·시험 기록 없음")
     a = ap.parse_args(argv)
     exclude, select = parse_screens(a.exclude), parse_screens(a.select)
     if select and not a.top_k:
@@ -504,13 +541,19 @@ def main(argv: list[str]) -> None:
     while True:
         try:
             with ProcessPoolExecutor(max_workers=workers, initializer=_init, initargs=(str(panel_dir), str(elig_path), a.dry)) as ex:
-                run_pairs(ex, out, panel, log)
+                if a.signals_only:
+                    run_signal_tables(ex, out, log)
+                else:
+                    run_pairs(ex, out, panel, log)
             break
         except (BrokenProcessPool, MemoryError):
             if workers <= 1:
                 raise
             workers = max(1, workers * 3 // 4)
             log(f"메모리가 부족했습니다. 작업 {workers}개로 줄여 이어서 실행합니다(끝난 부분은 건너뜀).")
+    if a.signals_only:
+        log(f"완료 · 신호표: {out / 'signals'}")
+        return
     summ = summarize(out)
     n, _ = rlog.trial_stats()
     n_eff, rho, _ = rlog.effective_trials()
