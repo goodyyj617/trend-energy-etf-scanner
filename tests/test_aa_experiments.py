@@ -76,3 +76,25 @@ def test_search_presets_say_they_are_confirmed_only_from_2005():
     from lab.aa_assets import PRESETS
     for key in ("gs_b2", "gs_b4", "gs_a"):
         assert "2005년 이후에만 확인됨" in PRESETS[key].note, key
+
+
+def test_trend_filter_chart_data():
+    n = ex.filter_named().set_index(["이름", "기간", "설정"])
+    assert len(n) == 5 * 2 * len(ex.FILTER_SETTINGS) and set(n.index.get_level_values("설정")) == set(ex.FILTER_SETTINGS)
+    for name, mdd05, mdd00 in (("B2", -13.2, -16.4), ("B3", -12.9, -30.8), ("B4", -11.7, -25.6)):  # A37's static values
+        assert round(n.at[(name, "2005", "정적 분기"), "MDD"], 1) == mdd05 and round(n.at[(name, "2000-09", "정적 분기"), "MDD"], 1) == mdd00
+        for setting in ("필터 8", "필터 10", "필터 12"):  # the pre-registered point and robustness reading
+            assert n.at[(name, "2005", setting), "MDD"] >= sr.STAGE2_PCT_LINE and n.at[(name, "2000-09", setting), "MDD"] >= sr.STAGE2_PCT_LINE
+    assert (n.xs("정적 분기", level="설정")["꺼진 비중"] == 0).all() and (n["날짜 최악 MDD"] <= n["MDD"] + 1e-9).all()
+    assert round(n.at[("B2", "2005", "필터 10"), "CAGR"], 2) == 8.89 and round(n.at[("B2", "2005", "정적 분기"), "CAGR"], 2) == 10.69
+    g = ex.filter_groups().set_index(["묶음", "설정"])
+    fam, rnd = ex.group_label("구조 가족"), ex.group_label("무작위")
+    assert round(g.at[(fam, "필터 10"), "두 기간 모두"], 2) == 45.85 < ex.FILTER_STRUCTURE_SHARE
+    assert round(g.at[(rnd, "필터 10"), "두 기간 모두"], 2) == 50.25 and round(g.at[(fam, "정적 분기"), "2000-09 선 안"], 1) == 0.3
+    assert (g["수"] == 2000).all()
+    dd = ex.filter_drawdowns()
+    assert set(dd["설정"]) == {"정적 분기", "필터 10"} and dd["date"].max() <= __import__("pandas").Timestamp("2006-12-31")
+    worst = dd.groupby(["이름", "설정"])["낙폭"].min()
+    assert worst[("B3", "정적 분기")] < -25 < -10 < worst[("B3", "필터 10")]
+    v = __import__("json").loads((ex.FILTER_DIR / "summary.json").read_text(encoding="utf-8"))["verdict"]
+    assert v["제안할 필터 판 후보"] == ["B2", "B3", "B4"] and v["구조 판정 (≥ 50%)"] is False

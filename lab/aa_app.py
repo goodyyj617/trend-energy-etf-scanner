@@ -2260,6 +2260,118 @@ def chart_dotcom_named() -> go.Figure:
     return fig
 
 
+
+FILTER_NAMES = ("B2", "B3", "B4", "안정형 40", "S&P500 보유")  # A38 rows, top to bottom
+PRIMARY_FILTER = "필터 10"
+
+
+def _filter_rows(n: pd.DataFrame, windows: dict[str, tuple[str, str]]) -> pd.DataFrame:
+    """One row per named allocation and window with `value` under every setting as columns, in FILTER_NAMES order."""
+    rows = []
+    for name in FILTER_NAMES:
+        for label, (era, col) in windows.items():
+            part = n[(n["이름"] == name) & (n["기간"] == era)].set_index("설정")
+            if part.empty:
+                continue
+            rows.append({"행": f"{name} · {label}", "이름": name, **{k: part.at[k, col] for k in exps.FILTER_SETTINGS if k in part.index},
+                         "꺼진 비중": part.at[PRIMARY_FILTER, "꺼진 비중"], "전환": part.at[PRIMARY_FILTER, "전환"]})
+    return pd.DataFrame(rows)
+
+
+def _filter_dumbbell(r: pd.DataFrame, unit: str, judge: bool) -> go.Figure:
+    fig = go.Figure()
+    for _, x in r.iterrows():
+        fig.add_trace(go.Scatter(x=[x["정적 분기"], x[PRIMARY_FILTER]], y=[x["행"]] * 2, mode="lines", line=dict(color=MUTED, width=2),
+                                 hoverinfo="skip", showlegend=False))
+    hover = np.c_[r["정적 월"], r["필터 8"], r["필터 12"], r["Faber 원형 10"], r["꺼진 비중"], r["전환"]]
+    tmpl = ("%{y}<br>정적 분기 %{customdata[6]:.2f}" + unit + " · 정적 월 %{customdata[0]:.2f}" + unit +
+            "<br>필터 8 %{customdata[1]:.2f} · 필터 10 %{customdata[7]:.2f} · 필터 12 %{customdata[2]:.2f}" + unit +
+            "<br>Faber 원형 10 %{customdata[3]:.2f}" + unit + "<br>필터 10이 주식을 CD로 옮긴 비중 평균 %{customdata[4]:.0f}% · 전환 %{customdata[5]:.0f}번<extra></extra>")
+    full = np.c_[hover, r["정적 분기"], r[PRIMARY_FILTER]]
+    fig.add_trace(go.Scatter(x=r["정적 분기"], y=r["행"], mode="markers", name="정적 분기 (등록한 그대로)", customdata=full,
+                             marker=dict(size=10, symbol="circle-open", color=GRAY, line=dict(width=2)), hovertemplate=tmpl))
+    fig.add_trace(go.Scatter(x=pd.concat([r["필터 8"], r["필터 12"]]), y=pd.concat([r["행"], r["행"]]), mode="markers",
+                             name="필터 8 · 12개월", marker=dict(size=7, symbol="line-ns-open", color=INK, line=dict(width=2)),
+                             customdata=np.r_[full, full], hovertemplate=tmpl))
+    fig.add_trace(go.Scatter(x=r["Faber 원형 10"], y=r["행"], mode="markers", name="Faber 원형 10 (주식 외 상품에도)", customdata=full,
+                             marker=dict(size=8, symbol="diamond-open", color=PALETTE[4], line=dict(width=1.5)), hovertemplate=tmpl))
+    if judge:
+        out = r[PRIMARY_FILTER] < sr.STAGE2_PCT_LINE
+        for mask, name, color in ((~out, "필터 10 (−15% 안)", BLUE), (out, "필터 10 (−15% 밖)", RED)):
+            fig.add_trace(go.Scatter(x=r.loc[mask, PRIMARY_FILTER], y=r.loc[mask, "행"], mode="markers", name=name,
+                                     marker=dict(size=11, color=color), customdata=full[mask.to_numpy()], hovertemplate=tmpl))
+    else:
+        fig.add_trace(go.Scatter(x=r[PRIMARY_FILTER], y=r["행"], mode="markers", name="필터 10", marker=dict(size=11, color=BLUE),
+                                 customdata=full, hovertemplate=tmpl))
+    height = 150 + 30 * len(r)
+    fig.update_layout(height=height, margin=dict(l=10, r=10, t=40, b=10),
+                      yaxis=dict(categoryorder="array", categoryarray=list(r["행"])[::-1], title=None),
+                      legend=dict(orientation="h", y=-70 / height))
+    return fig
+
+
+def chart_filter_mdd() -> go.Figure:
+    n = exps.filter_named()
+    r = _filter_rows(n, {v: (k, "MDD") for k, v in exps.FILTER_ERAS.items()})
+    fig = _filter_dumbbell(r, "%", judge=True)
+    _line_15(fig)
+    fig.update_layout(title="주식에 10개월 이동평균 필터를 걸면 MDD가 어떻게 바뀌나 (2005년 이전은 모형)",
+                      xaxis=dict(title="전체 기간 MDD (%) — 오른쪽일수록 얕음"))
+    return fig
+
+
+def chart_filter_cagr() -> go.Figure:
+    n = exps.filter_named()
+    windows = {"2000-09–2026": ("2000-09", "CAGR"), "2005–2026": ("2005", "CAGR"), "2016–2026": ("2005", "2016~ CAGR")}
+    fig = _filter_dumbbell(_filter_rows(n, windows), "%", judge=False)
+    fig.update_layout(title="필터의 수익 비용: 연 복리 수익률 (CAGR)", xaxis=dict(title="CAGR (%/년)"))
+    return fig
+
+
+def chart_filter_curves() -> go.Figure:
+    d = exps.filter_drawdowns()
+    fig = go.Figure()
+    for name in ("B2", "B3", "B4", "S&P500 보유"):
+        color = LOCAL_COLORS.get(name, GRAY)
+        for setting, dash, width in (("정적 분기", "dot", 1.5), (PRIMARY_FILTER, "solid", 2)):
+            part = d[(d["이름"] == name) & (d["설정"] == setting)]
+            if part.empty:
+                continue
+            label = f"{name} · {setting}"
+            fig.add_trace(go.Scatter(x=part["date"], y=part["낙폭"], mode="lines", name=label, line=dict(color=color, dash=dash, width=width),
+                                     hovertemplate=label + "<br>%{x|%Y-%m-%d}: 고점 대비 %{y:.1f}%<extra></extra>"))
+    fig.add_hline(y=sr.STAGE2_PCT_LINE, line=dict(color=GRAY, dash="dash", width=1))
+    fig.add_annotation(x=0, xref="paper", y=sr.STAGE2_PCT_LINE, text="−15%", showarrow=False, xanchor="left", yanchor="bottom",
+                       font=dict(size=11, color=GRAY))
+    fig.update_layout(height=420, margin=dict(l=10, r=10, t=40, b=10),
+                      title="닷컴 붕괴 구간의 고점 대비 낙폭: 정적(점선) 대 필터 10(실선), 2000-09–2006, 모형 가격",
+                      yaxis=dict(title="고점 대비 (%)"), xaxis=dict(title=None), legend=dict(orientation="h", y=-0.14))
+    return fig
+
+
+def chart_filter_groups() -> go.Figure:
+    g = exps.filter_groups()
+    g = g.assign(행=g["묶음"] + " · " + g["설정"], _g=g["묶음"].str.startswith("무작위"),
+                 _s=g["설정"].map({k: i for i, k in enumerate(exps.FILTER_SETTINGS)})).sort_values(["_g", "_s"])
+    fig = go.Figure()
+    # added bottom-up so that each group reads 2005, 2000-09, both from the top (the legend is reversed to match)
+    for col, name, color in (("두 기간 모두", "두 기간 모두", INK), ("2000-09 선 안", "2000-09–2026 (닷컴 포함)", ORANGE),
+                             ("2005 선 안", "2005–2026", BLUE)):
+        fig.add_trace(go.Bar(y=g["행"], x=g[col], name=name, orientation="h", marker_color=color,
+                             text=[f"{v:.1f}%" for v in g[col]], textposition="outside",
+                             customdata=np.c_[g["수"], g["2005 CAGR 중앙"], g["2000-09 CAGR 중앙"]],
+                             hovertemplate="%{y}<br>" + name + ": %{x:.1f}%가 −15% 안 (%{customdata[0]:,}개)<br>"
+                                           "CAGR 중앙 2005–2026 %{customdata[1]:.2f}% · 2000-09–2026 %{customdata[2]:.2f}%<extra></extra>"))
+    fig.add_vline(x=exps.FILTER_STRUCTURE_SHARE, line=dict(color=GRAY, dash="dash", width=1))
+    fig.add_annotation(x=exps.FILTER_STRUCTURE_SHARE, y=1, yref="paper", text="구조 판정 기준 50% (구조 가족 · 필터 10)", showarrow=False,
+                       xanchor="left", yanchor="top", font=dict(size=11, color=GRAY))
+    fig.update_layout(height=460, barmode="group", bargap=0.25, margin=dict(l=10, r=10, t=40, b=10),
+                      title="표본 배분 중 MDD −15% 안 비율: A37 구조 가족 2,000개와 무작위 2,000개, 정적 대 필터 10",
+                      xaxis=dict(title="%", range=[0, 112]),
+                      yaxis=dict(categoryorder="array", categoryarray=list(g["행"])[::-1], title=None),
+                      legend=dict(orientation="h", y=-0.14, traceorder="reversed"))
+    return fig
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2275,6 +2387,10 @@ EXPERIMENT_CHARTS = {
     "local_bootstrap": chart_local_bootstrap,
     "dotcom_curves": chart_dotcom_curves,
     "dotcom_named": chart_dotcom_named,
+    "filter_mdd": chart_filter_mdd,
+    "filter_curves": chart_filter_curves,
+    "filter_groups": chart_filter_groups,
+    "filter_cagr": chart_filter_cagr,
 }
 
 

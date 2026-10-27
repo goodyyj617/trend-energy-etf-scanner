@@ -23,12 +23,15 @@ ALLOC = sr.ROOT / "docs" / "research" / "allocation"
 STAGE2_PRESETS_DIR = ALLOC / "2026-10-26_stage2_presets"  # A36: the three registered search presets
 LOCAL_DIR = ALLOC / "2026-10-27_local_study"  # A37: the structure check around B2 · B3 · B4
 LOCAL_MEMO = ALLOC / "2026-10-27_local_study.md"
+FILTER_DIR = ALLOC / "2026-10-27_trend_filter"  # A38: a 10-month trend filter on the equities of B2 · B3 · B4
+FILTER_MEMO = ALLOC / "2026-10-27_trend_filter.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
 CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real", "stage2_presets", "neighbour_presets",
               "product_gap", "candidate_shift", "kodex200_share",
-              "local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named")
+              "local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named",
+              "filter_mdd", "filter_curves", "filter_groups", "filter_cagr")
 
 
 @dataclass(frozen=True)
@@ -115,7 +118,35 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "그래서 탐색 B2·B4·A 프리셋 설명에 ‘2005년 이후에만 확인됨’을 붙였습니다.",
          "한계: 2005년 이전은 전부 모형(미국 ETF·뮤추얼펀드·금 선물 × 원/달러)이고, 2000년 3–8월은 빠져 있습니다. 결과는 표본 내 연구이며 승인이 아닙니다."),
         ("local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named"), LOCAL_MEMO,
-        "‘용어·상품 설명’의 프리셋 설명(탐색 B2·B4·A), ‘발견·경고·캠페인’"),
+        "‘용어·상품 설명’의 프리셋 설명(탐색 B2·B4·A), ‘발견·경고·캠페인’"),    Experiment(
+        "a38", "2026-10-27", "A38", "B2·B3·B4의 주식에 10개월 추세 필터 얹기",
+        "A37에서 B2·B3·B4는 2005–2026에는 튼튼했지만, 2000-09부터 돌리면 닷컴 하락장에서 MDD가 −16~−31%로 −15%를 넘었습니다. "
+        "그래서 다음 방향으로 ‘추세 필터를 얹어 시험’을 고르셨고, 설계 문서의 규칙대로 실행했습니다. 비중은 그대로 두고 주식 상품에만 "
+        "Faber(2007)의 10개월 이동평균 필터를 겁니다. 매월 말, 주식 상품의 원화 월말 종가가 최근 10개 월말 종가 평균보다 낮으면 그 상품의 "
+        "비중을 다음 한 달 동안 KODEX CD금리액티브로 옮기고, 다시 위로 올라오면 돌려놓습니다. 금·채권·CD금리·달러선물은 그대로 둡니다. "
+        "필터를 쓰면 매월 목표 비중으로 맞추므로 ‘정적 매월’도 같이 봤습니다. 다음 거래일 종가 체결, 편도 10bp, 실제 가격 우선(2005년 이전은 "
+        "미국 대용 × 원/달러 모형)입니다. 판정은 실행 전에 고정했습니다. 필터 10에서 두 기간 모두 MDD −15% 안이면 통과, 8·12개월에서도 "
+        "안이면 견고, 구조 가족 2,000개의 50% 이상이 두 기간 모두 안이면 ‘구조 + 필터가 넓게 통함’입니다. "
+        "B2 = 나스닥100 19 · 필수소비재 19 · 헬스케어 6 · 미국10년(H) 10 · 미국30년(H) 6 · 투자등급회사채 5 · 골드선물(H) 35 (필터 대상은 앞의 세 주식). "
+        "B3 = 나스닥100 33 · MSCI선진국 12 · 미국10년(H) 10 · 물가채 7 · KRX금현물 12 · CD금리 20 · 달러선물 6 (나스닥·선진국). "
+        "B4 = 나스닥100 30 · 필수소비재 11 · 투자등급회사채 8 · KRX금현물 15 · CD금리 36 (나스닥·필수소비재).",
+        ("점 판정·견고 통과: 필터 10을 얹으면 2000-09부터 MDD가 B2 −16.4 → −13.0%, B3 −30.8 → −13.4%, B4 −25.6 → −11.4%입니다. 닷컴 구간"
+         "(2000-09–2003) 낙폭은 −4.7 / −5.3 / −3.7%로 줄었습니다. 필터 8·12개월도 두 기간 모두 −15% 안이고, 결정일을 1–15거래일 옮긴 최악 MDD도 "
+         "−13.1 / −14.1 / −11.5%입니다.",
+         "2005년부터만 보면 MDD는 거의 그대로입니다(정적 −13.2 / −12.9 / −11.7% → 필터 −13.0 / −13.4 / −11.4%). 필터 판의 MDD는 2008이 정하고, "
+         "2008에는 필터가 돕지 못했습니다(B3는 −12.4 → −13.4%로 오히려 깊어짐). 2020 낙폭은 1.5–2.1%p 얕아졌습니다.",
+         "비용: CAGR이 2005–2026에 연 1.6–1.8%p(10.7 → 8.9, 10.0 → 8.2, 9.7 → 8.0%), 2016–2026에 2.1–2.5%p 줄었습니다. 2000-09–2026은 "
+         "거의 같습니다(9.5 → 8.9, 7.8 → 7.7, 7.8 → 7.7%). 주식 비중의 평균 약 20%가 CD금리에 가 있었고, 21년 동안 필터가 58–95번 바뀌었습니다.",
+         "구조 판정 실패: A37 구조 가족 2,000개 중 필터 10에서 두 기간 모두 −15% 안은 45.9%로 기준 50%에 못 미칩니다. 같은 상품의 무작위 배분에 "
+         "필터를 얹으면 50.2%입니다. 필터를 얹고 나면 구조가 주는 것은 낙폭이 아니라 수익뿐입니다(2005– CAGR 중앙 9.2% 대 6.3%).",
+         "비교: 필터 비용을 치른 뒤의 수익은 신호 없는 안정형 40(S&P500 25 · 선진국 8 · EM 6 · 30년(H) 12 · 10년(H) 13 · 금현물 20 · CD금리 16, "
+         "분기)과 비슷합니다. 안정형 40은 2005– 8.7% / −11.8%, 2000-09– 8.0% / −13.7%이고, B2 필터 판은 두 기간 모두 8.9% / −13.0%입니다.",
+         "점검용 S&P500 보유에 필터를 걸면 2000-09부터는 −45.4 → −30.7%지만 2005부터는 −29.6 → −30.7%로 나빠지고, 결정일을 옮기면 −39.4%까지 "
+         "갑니다. 상품 하나에서는 결정일 운이 큽니다.",
+         "규칙에 따라 B2·B3·B4의 ‘필터 판’을 프리셋 후보로 제안했고, 사용자가 등록하지 않기로 정했습니다(2026-10-27). 정적 프리셋(탐색 B2·B4)은 그대로 둡니다. "
+         "한계: 10개월은 닷컴이 들어 있는 표본에서 알려진 값이라 이 통과는 독립 시험이 아니고, 2005년 이전은 전부 모형이며, 결과는 표본 내 연구입니다."),
+        ("filter_mdd", "filter_curves", "filter_cagr", "filter_groups"), FILTER_MEMO,
+        "‘전략 연구’ 페이지 overlay의 ‘추세 필터’는 모든 위험자산에 겁니다(주식만 고르는 선택은 아직 화면에 없음)"),
 )
 
 
@@ -245,3 +276,42 @@ def dotcom_named(folder: Path | str = LOCAL_DIR) -> pd.DataFrame:
     d = pd.read_csv(Path(folder) / "dotcom.csv")
     return pd.DataFrame({"이름": d["이름"], "2000-09~ CAGR": d["cagr"] * 100, "2000-09~ MDD": d["mdd"] * 100,
                          "2005~ CAGR": d["cagr_2005"] * 100, "2005~ MDD": d["mdd_2005"] * 100, "최저점": d["최저점"]})
+
+
+# --------------------------------------------------------------------------- A38 trend filter (percent units)
+
+FILTER_ERAS = {"2005": "2005–2026", "2000-09": "2000-09–2026"}  # the two start dates; before 2005 is the US-proxy model
+FILTER_SETTINGS = ("정적 분기", "정적 월", "필터 8", "필터 10", "필터 12", "Faber 원형 10")
+FILTER_STRUCTURE_SHARE = 50.0  # A38 structure verdict: ≥ 50 % of the family inside in both periods with 필터 10
+
+
+def filter_named(folder: Path | str = FILTER_DIR) -> pd.DataFrame:
+    """A38 per named allocation, period and setting: CAGR, MDD, CAGR from 2016, the worst MDD over the rebalance-date
+    offsets, the mean share of the equity weight the filter held in CD, and the number of month ends it switched (%)."""
+    n = pd.read_csv(Path(folder) / "named.csv", dtype={"기간": str})
+    return pd.DataFrame({"이름": n["이름"], "기간": n["기간"], "설정": n["설정"], "CAGR": n["cagr"] * 100, "MDD": n["mdd"] * 100,
+                         "2016~ CAGR": n["cagr_2016"] * 100, "날짜 최악 MDD": n["날짜 최악 MDD"] * 100,
+                         "꺼진 비중": n["꺼진 비중"] * 100, "꺼진 달": n["꺼진 달"] * 100, "전환": n["전환"].astype(int)})
+
+
+def filter_drawdowns(folder: Path | str = FILTER_DIR) -> pd.DataFrame:
+    """A38: drawdown from the running peak (%) from 2000-09 to 2006 with 정적 분기 and 필터 10, long rows (every fifth
+    trading day, so slightly shallower than the daily MDD)."""
+    p = pd.read_csv(Path(folder) / "curves.csv.gz", parse_dates=["date"]).set_index("date")
+    dd = (p / np.maximum(p.cummax(), 1.0) - 1) * 100
+    long = dd.reset_index().melt(id_vars="date", var_name="열", value_name="낙폭")
+    long[["이름", "설정"]] = long["열"].str.split(" · ", n=1, expand=True)
+    return long.drop(columns="열")
+
+
+def filter_groups(folder: Path | str = FILTER_DIR) -> pd.DataFrame:
+    """A38 per sample group (A37's structure family, random) and setting: the share within −15 % from each start and in
+    both, and the median CAGR / MDD (%)."""
+    g = pd.read_csv(Path(folder) / "groups.csv")
+    out = pd.DataFrame({"묶음": g["묶음"].map(group_label), "설정": g["설정"], "수": g["수"].astype(int),
+                        "두 기간 모두": g["두 기간 모두 선 안"] * 100})
+    for era in FILTER_ERAS:
+        out[f"{era} 선 안"] = g[f"{era} 선 안"] * 100
+        out[f"{era} CAGR 중앙"] = g[f"{era} cagr 중앙"] * 100
+        out[f"{era} MDD 중앙"] = g[f"{era} mdd 중앙"] * 100
+    return out
