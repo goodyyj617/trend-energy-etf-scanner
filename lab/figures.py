@@ -84,6 +84,36 @@ def scatter_labeled(x: np.ndarray, y: np.ndarray, labels: list[str], title: str,
     return _save(fig, path)
 
 
+def heatmap(frames: dict[str, pd.DataFrame], title: str, path: Path, fmt: str = "{:+.1f}", scale: float = 100.0,
+            center: float = 0.0, cbar: str = "") -> Path:
+    """One panel per frame (rows x columns), diverging colours around `center`, values written in cells."""
+    plt = _plt()
+    from matplotlib.colors import TwoSlopeNorm
+    fig, axes = plt.subplots(1, len(frames), figsize=(6.2 * len(frames), 0.42 * max(len(f) for f in frames.values()) + 2.2),
+                             squeeze=False)
+    vals = np.concatenate([f.to_numpy(dtype=float).ravel() * scale for f in frames.values()])
+    vals = vals[np.isfinite(vals)]
+    lo, hi = (min(vals.min(), center - 1e-9), max(vals.max(), center + 1e-9)) if len(vals) else (-1.0, 1.0)
+    norm = TwoSlopeNorm(vcenter=center, vmin=lo, vmax=hi)
+    im = None
+    for k, (ax, (name, f)) in enumerate(zip(axes[0], frames.items())):
+        v = f.to_numpy(dtype=float) * scale
+        im = ax.imshow(v, cmap="RdBu", norm=norm, aspect="auto")
+        ax.set_xticks(range(f.shape[1]), [str(c) for c in f.columns], rotation=45, ha="right", fontsize=8)
+        ax.set_yticks(range(f.shape[0]), [str(r) for r in f.index] if k == 0 else [], fontsize=8)
+        for r in range(v.shape[0]):
+            for c in range(v.shape[1]):
+                if np.isfinite(v[r, c]):
+                    ax.text(c, r, fmt.format(v[r, c]), ha="center", va="center", fontsize=7)
+        ax.set_title(name)
+    fig.colorbar(im, ax=axes[0].tolist(), shrink=0.8, label=cbar)
+    fig.suptitle(title)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
 def cagr_mdd(groups: dict[str, pd.DataFrame], spy: dict[str, tuple[float, float]], title: str, path: Path) -> Path:
     """One panel per sample: CAGR vs MDD of every run, SPY as a star. groups[name] has columns cagr, mdd
     (and optionally 'group' to colour by); spy[name] = (cagr, mdd)."""

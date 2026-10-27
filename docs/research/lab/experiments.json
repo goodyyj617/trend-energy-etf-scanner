@@ -5,16 +5,26 @@
       "id": "stagec_daily3000",
       "title": "Stage C: 매수 전략 × 매도 전략 (일별 상위 3000)",
       "date": "2026-10-27",
-      "status": "실행 대기",
+      "status": "완료",
       "decision": "81",
-      "memo": "docs/research/lab/2026-10-26_stage_c_design.md",
+      "memo": "docs/research/lab/2026-10-27_stage_c_results.md",
       "results_dir": "lab_crsp/stagec_daily3000",
       "kind": "",
       "why": "Stage B는 매수 조건 없이 '목록에 있으면 산다'로 시험해 판정이 흐려졌다. 잘 알려진 매수 전략 9개(+조건 없음)와 성격이 다른 매도 전략 9개를 일별 상위 3000 유니버스(위생 필터만, 추세 템플릿 없음)에서 시험한다. 신호 전체를 보는 시험과 20종목 계좌 시험을 나란히 돌려, 20종목 제한 때문에 놓치는 신호가 무엇인지도 본다.",
       "results": [
-        "아직 실행하지 않았다. 실행이 끝나면 이 칸에 핵심 결과를 적고 그림을 붙인다."
+        "20종목 계좌는 거의 모든 조합에서 SPY에 졌다. 756칸 중 통과는 1993–2023 17칸, 2017–2023 22칸이고, 두 표본 모두에서 이웃이 받쳐 주는 통과 영역은 없어 최종 후보가 없다.",
+        "매도 전략 순위는 두 기간에서 거의 같았다(Spearman 0.97). 고점 대비 % 트레일링과 초기 손절 묶음이 위, 단기 반등 청산과 시장 국면 이탈이 아래였다.",
+        "매수 전략 순위는 기간마다 달랐다(0.20). 상승 추세 속 눌림목만 두 기간 모두 1위였고, 가장 나은 '눌림목 × % 트레일링'도 초과 수익 대부분을 1999–2003 하락장에서 벌었다.",
+        "20종목 계좌는 신호의 대부분 1–4%만, 큰 종목 쪽만 샀다. 놓친 신호의 신호당 수익이 모든 매수 전략에서 산 신호보다 높았다. 매수 전 스크리닝(다음 단계)이 다룰 지점이다."
       ],
-      "figures": []
+      "figures": [
+        {"path": "docs/research/lab/figures/stagec_daily3000/heatmap_c2_excess.png", "caption": "20종목 계좌: 매수 × 매도별 초과 CAGR (두 표본)"},
+        {"path": "docs/research/lab/figures/stagec_daily3000/heatmap_c2_pass.png", "caption": "20종목 계좌: 매수 × 매도별 통과 칸 수"},
+        {"path": "docs/research/lab/figures/stagec_daily3000/rank_scatter.png", "caption": "매수·매도 전략 순위, 1993–2023 대 2017–2023"},
+        {"path": "docs/research/lab/figures/stagec_daily3000/taken_vs_missed.png", "caption": "산 신호와 놓친 신호의 신호당 평균 수익"},
+        {"path": "docs/research/lab/figures/stagec_daily3000/taken_vs_missed_caprank.png", "caption": "산 신호와 놓친 신호의 시총 순위"},
+        {"path": "docs/research/lab/figures/stagec_daily3000/priority.png", "caption": "매수 우선순위 비교 (거래대금 / 추세 효율+시총 / 무작위)"}
+      ]
     },
     {
       "id": "combos_top3000",

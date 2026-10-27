@@ -539,6 +539,20 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     priority (all 90 pairs incl. E0), each a trial. Runner lab/stage_c_study.py through
     scripts/crsp_remote.py --study stagec (panel lab_crsp/panel_daily3000, results
     lab_crsp/stagec_daily3000). Design: docs/research/lab/2026-10-26_stage_c_design.md.
+    Result (2026-10-27, run 00:21-05:11 KST; workers cut 6 -> 5 -> 4 for memory, one pair
+    recomputed after a checkpoint file was emptied by a sync): C2 passes 17 / 22 of 756 cells
+    (1993-2023 / 2017-2023); median C2 CAGR 2.9% / 3.2% with MDD -79% / -43% against SPY 9.9% /
+    -55%, 12.7% / -34%. No pair has a connected (>= 2 cells) passing region in both samples, so
+    no finalist and no DSR. Exit ranks agree across samples (Spearman 0.97: X1 % trailing and X9
+    stop bundle top, X7 bounce exit and X8 market exit bottom); entry ranks do not (0.20; E5
+    pullback first in both). Best pair E5 x X1: 5-cell region in 1993-2023, 1 cell in 2017-2023,
+    excess mostly from 1999-2003. C1: about 1% net expectancy per signal, win rate about 40%,
+    payoff about 2. C2 bought mostly 1-4% of the signals, the larger names (signal-day cap rank
+    median 170-670 vs 1,000-1,500 missed), and the missed signals had the higher per-signal
+    return for every entry. Priority (b) and (c) beat dollar volume on 58-59 of 90 pairs in
+    1993-2023, 32-40 in 2017-2023. PBO C2 6% / 52%, C1 26% / 72%. No holdout candidate.
+    Trials +3,024 (lab-computer log on Drive, not merged). Record:
+    docs/research/lab/2026-10-27_stage_c_results.md.
 
 ## Open decisions
 
