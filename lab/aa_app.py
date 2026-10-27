@@ -17,6 +17,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from lab import aa_b_tests as bt  # noqa: E402
 from lab import aa_experiments as exps  # noqa: E402
 from lab import aa_notes as notes  # noqa: E402
 from lab import aa_real as real  # noqa: E402
@@ -2421,9 +2422,153 @@ def experiments_page() -> None:
                 st.caption("메모 파일을 읽지 못했습니다.")
 
 
+# =========================================================================== B2–B5 tests
+
+B_COLORS = {**LOCAL_COLORS, "B5": PALETTE[3]}  # the A37 colours, B5 takes the next hue in the fixed order
+# marker per kind of test: named settings get shapes, the neighbour clouds small dots
+FAMILY_MARKS = {"centre": ("star", 20), "stage2": ("triangle-up", 9), "start": ("triangle-down-open", 9), "nb2": ("circle", 5),
+                "nb5": ("circle", 5), "local": ("circle", 3), "swap": ("x-thin-open", 9), "filter": ("square-open", 9)}
+CLOUDS = {"local": 0.16, "nb5": 0.45, "nb2": 0.55}  # neighbour clouds and their opacity: the 15,000 wide neighbours stay faint
+
+
+@st.cache_data(show_spinner=False)
+def load_b_tests(stamp: tuple) -> tuple[pd.DataFrame, pd.DataFrame]:
+    return bt.points(), bt.background()
+
+
+def b_tests_stamp() -> tuple:
+    files = [bt.STAGE2_DIR / "stage2.csv", bt.STAGE2_DIR / "neighbours.csv.gz", bt.LOCAL_DIR / "neighbours.csv.gz",
+             bt.LOCAL_DIR / "substitutions.csv", bt.FILTER_DIR / "named.csv", bt.SEARCH_DIR / "passing.csv.gz"]
+    return tuple(f.stat().st_mtime if f.exists() else 0.0 for f in files)
+
+
+def b_scatter(pts: pd.DataFrame, bg: pd.DataFrame | None, period: str, names: list[str], fams: list[str]) -> go.Figure:
+    fig = go.Figure()
+    if bg is not None and len(bg):
+        fig.add_trace(go.Scattergl(x=bg["mdd"], y=bg["cagr"], mode="markers", name=f"전역 탐색 배분 ({len(bg):,}개)", hoverinfo="skip",
+                                   marker=dict(size=3, color=MUTED, opacity=0.35)))
+    p = pts[(pts["기간"] == period) & pts["배분"].isin(names + [bt.REFERENCE])]
+    order = [f for f in bt.FAMILIES if f in fams]
+    # drawing order: wide cloud, near clouds, named settings, then the registered weights on top
+    order = [f for f in CLOUDS if f in order] + [f for f in order if f not in CLOUDS and f != "centre"] + (["centre"] if "centre" in order else [])
+    for fam in order:
+        symbol, size = FAMILY_MARKS[fam]
+        for name in names:
+            part = p[(p["배분"] == name) & (p["묶음"] == fam)]
+            if part.empty:
+                continue
+            cloud = fam in CLOUDS
+            text = [f"<b>{name}</b> · {bt.FAMILIES[fam].label}<br>{v}" + (f"<br>{w}" if cloud and w else "")
+                    for v, w in zip(part["변형"], part["비중"])]
+            fig.add_trace(go.Scattergl(
+                x=part["mdd"], y=part["cagr"], mode="markers", showlegend=False,
+                text=text, hovertemplate="%{text}<br>CAGR %{y:.2%} · MDD %{x:.2%}<extra></extra>",
+                marker=dict(symbol=symbol, size=size, color=B_COLORS[name], opacity=CLOUDS.get(fam, 0.95),
+                            line=dict(width=1.5, color=INK) if fam == "centre" else dict(width=1.5, color=B_COLORS[name]))))
+            if fam == "centre":  # labels as annotations: drawn above every WebGL layer
+                r = part.iloc[0]
+                fig.add_annotation(x=r["mdd"], y=r["cagr"], text=f"<b>{name}</b>", showarrow=False, yshift=17,
+                                   font=dict(size=13, color=INK), bgcolor="rgba(255,255,255,0.85)", borderpad=1)
+    ref = p[(p["배분"] == bt.REFERENCE) & (p["묶음"] == "centre")]
+    if len(ref):
+        fig.add_trace(go.Scattergl(x=ref["mdd"], y=ref["cagr"], mode="markers+text", name="안정형 40 (비교, 신호 없음)", text=["안정형 40"],
+                                   textposition="bottom center", textfont=dict(size=11, color=INK),
+                                   marker=dict(symbol="diamond-open", size=12, color=INK, line=dict(width=2)),
+                                   hovertemplate="안정형 40 · 정적 분기<br>CAGR %{y:.2%} · MDD %{x:.2%}<extra></extra>"))
+    # legend: one entry per allocation (colour) and per test (shape), drawn off-canvas so they do not move the axes
+    shown = p[p["묶음"].isin(order) & p["배분"].isin(names)]
+    for name in [n for n in names if n in set(shown["배분"])]:
+        fig.add_trace(go.Scatter(x=[None], y=[None], mode="markers", name=name, legendgroup="b", legendgrouptitle_text="색 = 배분",
+                                 marker=dict(symbol="circle", size=10, color=B_COLORS[name])))
+    for fam in [f for f in bt.FAMILIES if f in set(shown["묶음"])]:
+        symbol, size = FAMILY_MARKS[fam]
+        fig.add_trace(go.Scatter(x=[None], y=[None], mode="markers", name=bt.FAMILIES[fam].label, legendgroup="f",
+                                 legendgrouptitle_text="모양 = 시험",
+                                 marker=dict(symbol=symbol, size=min(max(size, 8), 13), color=GRAY, opacity=max(CLOUDS.get(fam, 1.0), 0.35),
+                                             line=dict(width=1.5, color=GRAY))))
+    if len(shown):
+        x0, x1 = min(shown["mdd"].min(), sr.MDD_LINE), shown["mdd"].max()
+        y0, y1 = shown["cagr"].min(), shown["cagr"].max()
+        pad_x, pad_y = max(0.01, 0.06 * (x1 - x0)), max(0.004, 0.08 * (y1 - y0))
+        fig.update_xaxes(range=[x0 - pad_x, min(0.0, x1 + pad_x)])
+        fig.update_yaxes(range=[y0 - pad_y, y1 + pad_y])
+    fig.add_vline(x=sr.MDD_LINE, line=dict(color=RED, dash="dash", width=1))
+    fig.add_annotation(x=sr.MDD_LINE, y=1, yref="paper", text="MDD −15% (유일한 필수 조건)", showarrow=False, xanchor="left", yanchor="top",
+                       font=dict(size=11, color=RED))
+    fig.update_layout(height=600, margin=dict(l=10, r=10, t=30, b=10), dragmode="zoom",
+                      xaxis=dict(title="MDD (원화)", tickformat=".0%"), yaxis=dict(title="CAGR (원화)", tickformat=".1%"),
+                      legend=dict(orientation="v", x=1.01, y=1.0, yanchor="top", tracegroupgap=14))
+    return fig
+
+
+def b_summary_table(pts: pd.DataFrame, period: str, names: list[str], fams: list[str]) -> None:
+    s = bt.summary(pts[pts["묶음"].isin(fams)], period)
+    s = s[s["배분"].isin(names)]
+    if s.empty:
+        st.caption("고른 배분·시험에 이 기간의 결과가 없습니다.")
+        return
+    st.dataframe(s, hide_index=True, width="stretch",
+                 column_config={"−15% 안 (%)": st.column_config.NumberColumn("−15% 안 (%)", format="%.0f%%",
+                                                                             help="이 시험의 점 중 MDD가 −15% 안인 비율"),
+                                **{c: st.column_config.NumberColumn(c, format="%.2f") for c in
+                                   ("최악 MDD (%)", "CAGR 최저 (%)", "CAGR 중앙 (%)", "CAGR 최고 (%)")}})
+
+
+def btests_page() -> None:
+    st.title("B2–B5 시험 모음")
+    st.caption("전역 탐색(A31)에서 고른 정적 배분 B2–B5와 그 주변을 다시 돌린 결과를 모두 한 산점도에 모았습니다. 새로 계산하지 않고 저장소에 "
+               "기록된 결과 파일만 읽으므로 가격 데이터 없이 열립니다. 모든 숫자는 국내 상장 ETF의 원화 수익률이며, 상장 전은 미국 대용 × 원/달러 "
+               "모형입니다. 표본 안 결과이고 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
+    try:
+        pts, bg = load_b_tests(b_tests_stamp())
+    except (OSError, KeyError, ValueError) as exc:
+        st.error(f"결과 파일을 읽지 못했습니다: {exc}")
+        return
+    def cell(r, col: str) -> str:
+        return "아직 시험 안 함" if r is None else f"{100 * r[col]:.1f}%"
+
+    rows = []
+    for name in bt.NAMES:
+        c5, c0 = bt.centre(pts, name, "2005"), bt.centre(pts, name, "2000-09")
+        rows.append({"배분": name, "상품과 비중 (%)": bt.WEIGHTS[name], "2005– CAGR": cell(c5, "cagr"), "2005– MDD": cell(c5, "mdd"),
+                     "2000-09– CAGR": cell(c0, "cagr"), "2000-09– MDD": cell(c0, "mdd")})
+    st.markdown(f"**네 배분의 규칙**: {bt.RULES}. 신호는 없습니다(아래 ‘추세 필터 얹기’만 신호를 더한 시험).")
+    st.table(pd.DataFrame(rows).set_index("배분"))  # st.table wraps the long weights text; st.dataframe cuts it
+    st.caption("2000-09– 열은 닷컴 하락을 넣으려고 2000-09부터 돌린 결과(A37 ④)이고, 2005년 이전은 전부 모형입니다.")
+    c1, c2, c3 = st.columns([2, 3, 3])
+    period = c1.radio("기간", list(bt.PERIODS), format_func=lambda k: {"2005": "2005–2026", "2000-09": "2000-09–2026 (닷컴 포함)"}[k],
+                      key=init("bt_period", "2005"), help="\n\n".join(f"{k}: {v}" for k, v in bt.PERIODS.items()))
+    names = c2.multiselect("배분", list(bt.NAMES), key=init("bt_names", list(bt.NAMES)))
+    show_bg = c3.toggle("전역 탐색 배분을 회색 배경으로", key=init("bt_bg", True), disabled=period != "2005",
+                        help="A31 1단계를 실제 가격으로 다시 돌린 배분(−15% 안 전부 + 밖 표본). 2005–2026 기간에만 있습니다.")
+    fams = st.multiselect("시험", list(bt.FAMILIES), format_func=lambda k: bt.FAMILIES[k].label, key=init("bt_fams", list(bt.FAMILIES)),
+                          help="기간에 따라 결과가 없는 시험은 그냥 비어 있습니다. 2000-09 기간에는 등록 비중·월간 리밸런싱·추세 필터만 있습니다. "
+                               "‘시작 연도 바꾸기’는 기간이 짧아(2008·2010·2015년부터) 다른 점과 같은 잣대로 비교하면 안 됩니다.")
+    if not names:
+        st.info("배분을 하나 이상 고르세요.")
+        return
+    shown = pts[(pts["기간"] == period) & pts["배분"].isin(names) & pts["묶음"].isin(fams)]
+    st.caption(f"점 {len(shown):,}개 중 MDD −15% 안 {int(shown['−15% 안'].sum()):,}개. 색 = 배분, 모양 = 시험. 별은 등록 비중 그대로, "
+               "작은 점은 비중을 옮긴 이웃 배분입니다. 끌어서 확대하고, 두 번 누르면 처음 화면으로 돌아갑니다. 점에 마우스를 올리면 무엇을 바꿨는지 나옵니다.")
+    st.plotly_chart(b_scatter(pts, bg if show_bg and period == "2005" else None, period, names, fams), width="stretch", key="chart_bt")
+    st.subheader("시험별 요약")
+    b_summary_table(pts, period, names, fams)
+    if period == "2005":
+        st.markdown("**CAGR이 짝으로 없는 2단계 숫자** (리밸런싱 날짜를 0·1·5·10·15거래일 미룬 최악 MDD, 이웃의 −15% 안 비율)")
+        st.dataframe(bt.stage2_extra().loc[[n for n in bt.NAMES if n in names]], width="stretch",
+                     column_config={c: st.column_config.NumberColumn(c, format="%.2f") for c in bt.stage2_extra().columns})
+    with st.expander("각 시험이 바꾼 것과 기록 위치"):
+        st.markdown("\n".join(f"- **{f.label}** ({', '.join(f.periods)}): {f.what}. 기록: {f.source}" for f in bt.FAMILIES.values()))
+    with st.expander("이름 있는 점 목록 (이웃 배분 제외)"):
+        named = shown[~shown["묶음"].isin(list(CLOUDS))].assign(시험=lambda d: d["묶음"].map(lambda k: bt.FAMILIES[k].label),
+                                                         CAGR=lambda d: 100 * d["cagr"], MDD=lambda d: 100 * d["mdd"])
+        st.dataframe(named[["배분", "시험", "변형", "CAGR", "MDD"]], hide_index=True, width="stretch",
+                     column_config={c: st.column_config.NumberColumn(c, format="%.2f%%") for c in ("CAGR", "MDD")})
+
+
 # =========================================================================== navigation
 
-PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_", "gs_")
+PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_", "gs_", "bt_")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES) and "_editor" not in str(_k):
         st.session_state[_k] = st.session_state[_k]
@@ -2435,6 +2580,7 @@ nav = st.navigation([
     st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
     st.Page(tactical_page, title="전술 전략 · 검증", icon="🧭"),
     st.Page(search_page, title="전역 탐색 결과", icon="🔭"),
+    st.Page(btests_page, title="B2–B5 시험 모음", icon="🎯"),
     st.Page(experiments_page, title="실험 기록", icon="🧪"),
     st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
     st.Page(notes_page, title="발견 · 경고 · 캠페인", icon="📝"),
