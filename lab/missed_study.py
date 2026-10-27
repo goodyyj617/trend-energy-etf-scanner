@@ -324,7 +324,7 @@ def main(argv: list[str]) -> None:
     elig = Path(a.eligible) if a.eligible else Path(a.stagec) / "eligible_daily.parquet"
     panel = load_panel_with_cash(Path(a.panel))
     (out / "menu.json").write_text(json.dumps({"bands": BANDS, "priorities": PRIORITIES, "slots": sc.SLOTS,
-                                               "common": sc.COMMON, "check_cost_bps": CHECK_COST_BPS},
+                                               "common": sc.COMMON, "costs_bps": COSTS, "accounts": ACCOUNTS},
                                               ensure_ascii=False), encoding="utf-8")
     workers = a.workers
     while True:

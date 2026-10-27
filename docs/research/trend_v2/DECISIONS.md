@@ -574,6 +574,18 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     (trials of Stages B, C and D) only for candidates; PBO information only; holdout unused; no
     change after results. Runner lab/missed_study.py (results lab_crsp/stagec_missed_daily3000).
     Design: docs/research/lab/2026-10-27_stage_d_design.md.
+    Result (2026-10-27, run 11:22-15:04 KST): reproduction of Stage C's C2 within 1e-5 on 1,443 of
+    1,458 cells (median 1e-6); the other 15, all E8 (time-series momentum vs T-bills) with X7/X8,
+    differ by up to 0.9% because the T-bill series fetched for the v2 tables differs slightly from
+    Stage C's (E8 is the only entry reading it); no effect on the verdict, so the run was not
+    stopped. No candidate: no variant has a connected passing region in both samples at 20 bp.
+    Pass cells (20 bp, 1993-2023 / 2017-2023): all x dollar volume (Stage C) 17 / 22 is the most;
+    smallest-first 5-6 / 0-2 with negative median CAGR in 2017-2023 and higher volatility.
+    Bought signals' per-signal return stays below the missed ones in every variant even when the
+    bought names move to cap rank ~2,200 (0.5% vs 1.0-1.3%, 1993-2023): the gap is not a size
+    effect (hypothesis: timing of free slots). At $1M, smallest-first orders exceed 5% of 20-day
+    dollar volume in ~20% of 1993-2023 trades. Trials +26,244 (Drive log, not merged). Record:
+    docs/research/lab/2026-10-27_stage_d_results.md.
 
 ## Open decisions
 

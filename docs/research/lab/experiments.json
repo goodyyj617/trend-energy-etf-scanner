@@ -5,16 +5,24 @@
       "id": "stagec_missed_daily3000",
       "title": "Stage D: 20종목 계좌가 놓친 중소형 신호 가져오기",
       "date": "2026-10-27",
-      "status": "실행 대기",
+      "status": "완료",
       "decision": "82",
-      "memo": "docs/research/lab/2026-10-27_stage_d_design.md",
+      "memo": "docs/research/lab/2026-10-27_stage_d_results.md",
       "results_dir": "lab_crsp/stagec_missed_daily3000",
       "kind": "",
       "why": "Stage C에서 20종목 계좌는 거래대금 큰 순으로 사서 큰 종목 신호만 샀고, 놓친 중소형 신호의 신호당 수익이 더 높았다. 사용자는 위험을 감수하고 이 신호를 가져오는 쪽으로 다시 돌려 보자고 했다. 매수·매도 규칙은 그대로 두고, 신호일 시총 순위 범위(전체 / 대형 500 제외 / 대형 1000 제외)와 사는 순서(거래대금 / 작은 종목 먼저 / 무작위)만 바꾼 9가지를 편도 20bp와 40bp에서 비교한다.",
       "results": [
-        "아직 실행하지 않았다. 실행이 끝나면 이 칸에 핵심 결과를 적고 그림을 붙인다."
+        "중소형 쪽으로 옮겨도 나아지지 않았다. 9가지 변형 어디에도 두 기간 모두 이웃이 받쳐 주는 통과 영역(40bp 포함)이 없었고, 통과 칸은 Stage C 그대로인 '전체 · 거래대금 순'(17 / 22칸)이 가장 많았다.",
+        "'작은 종목 먼저'는 2017–2023 CAGR 중앙값이 마이너스로 떨어지고 변동성(연 23–26%)과 최악의 해가 나빠졌다.",
+        "산 신호의 시총 크기는 규칙대로 바뀌었지만(중앙 390 → 2,200위대), 산 신호의 신호당 수익은 어느 변형에서나 놓친 신호보다 낮았다. '놓친 신호가 더 좋은' 이유는 크기가 아니라 자리가 나는 시점일 가능성이 크다(가설).",
+        "100만 달러 계좌에서 작은 종목 먼저 사면 1993–2023 거래의 약 20%가 하루 거래대금의 5%를 넘는 주문이었다."
       ],
-      "figures": []
+      "figures": [
+        {"path": "docs/research/lab/figures/stagec_missed_daily3000/variants_goal_pass.png", "caption": "변형별 통과 칸 수 (20bp)"},
+        {"path": "docs/research/lab/figures/stagec_missed_daily3000/variants_goal_excess.png", "caption": "변형별 SPY 대비 초과 CAGR"},
+        {"path": "docs/research/lab/figures/stagec_missed_daily3000/heatmap_best_variant.png", "caption": "가장 많이 통과한 변형의 매수 × 매도 히트맵"},
+        {"path": "docs/research/lab/figures/stagec_missed_daily3000/cagr_mdd.png", "caption": "CAGR과 MDD: Stage C 대 중소형 쪽"}
+      ]
     },
     {
       "id": "stagec_daily3000",
