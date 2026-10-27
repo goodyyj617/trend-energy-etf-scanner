@@ -90,3 +90,19 @@ def test_signal_values_read_the_signal_day_only():
     assert set(h.dropna().unique()) <= {0.0, 1.0}
     keep = sr.keep_mask(p, sig.assign(exit_reason=["", "cancelled", ""]), {"h_price": 1e9})
     assert not keep[0] and not keep[1] and keep[2]  # A excluded by price, B cancelled, Z has no value
+
+
+def test_replay_log_classifies_every_signal():
+    p, dates = _study_panel()
+    cfg = _cfg(dates, {"c_donchian": 20}, {"trailing_pct": 15}, 2)
+    sig = run_backtest(p, cfg, outcomes=True)
+    log = {}
+    eq, trades = sr.replay(p, cfg, sig, log=log)
+    eq2, _ = sr.replay(p, cfg, sig)
+    np.testing.assert_array_equal(eq.to_numpy(), eq2.to_numpy())  # logging changes nothing
+    st = pd.Series(log["status"])
+    assert set(st.unique()) <= {"held", "queued", "full"} and {"held", "full"} & set(st.unique())
+    assert (st == "queued").sum() >= len(trades)  # every buy was queued (the last day's queue is never filled)
+    free = np.asarray(log["free"])
+    full_days = {i for (i, j), v in log["status"].items() if v == "full"}
+    assert all(free[i] < sum(1 for (k, _), v in log["status"].items() if k == i and v != "held") for i in full_days)

@@ -29,8 +29,11 @@ def _window(panel: Panel, cfg: StrategyConfig) -> pd.DatetimeIndex:
 
 
 def replay(panel: Panel, cfg: StrategyConfig, signals: pd.DataFrame, keep=None,
-           cache: SignalCache | None = None) -> tuple[pd.Series, pd.DataFrame]:
+           cache: SignalCache | None = None, log: dict | None = None) -> tuple[pd.Series, pd.DataFrame]:
     """(equity, trades) of the engine's account on the signals of `signals` (rows where keep is True).
+    With `log` (a dict), it is filled with log["free"][i] = free slots at the close of day i and
+    log["status"][(i, j)] = "held" (symbol already in the account), "queued" (in the free slots) or
+    "full" (no free slot left for it) for every signal of day i on symbol column j.
 
     signals: symbol, signal_date, exit_signal_date (NaT = no exit in the window), exit_reason
     (CANCELLED = no price at the next open). Older tables without exit_signal_date fall back to the
@@ -113,6 +116,12 @@ def replay(panel: Panel, cfg: StrategyConfig, signals: pd.DataFrame, keep=None,
         free = K - (len(pos) - len(pending_exit))
         if free > 0 and i in ordered:
             pending_entry = [j for j in ordered[i] if j not in pos][:free]
+        if log is not None:
+            log.setdefault("free", [0] * n)[i] = free
+            st = log.setdefault("status", {})
+            queued = set(pending_entry) if (free > 0 and i in ordered) else set()
+            for j in ordered.get(i, ()):
+                st[(i, j)] = "held" if j in pos else ("queued" if j in queued else "full")
     return pd.Series(equity, index=dates, name="strategy", dtype=float), pd.DataFrame(trades, columns=TRADE_COLUMNS)
 
 
