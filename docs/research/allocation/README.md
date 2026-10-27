@@ -18,7 +18,7 @@ ISA 계좌에서 살 수 있는 **국내 상장 ETF**를 단위로 쓰고, 모�
 | `aalab://tactical` | 전술 전략 · 검증 (HAA·BAA·VAA, 날짜 민감도·성역·부트스트랩·정직 vs 균등·위기 회피 스위치) |
 | `aalab://search` | 전역 탐색 결과 (A31: 249,934개 배분의 CAGR–MDD 지도, 구간별 경계선, 고른 배분 재실행; A32: 2단계 후보 흔들기 표) |
 | `aalab://btests` | B2–B5 시험 모음 (B2–B5와 그 주변을 다시 돌린 결과 전부를 CAGR–MDD 산점도 하나로: 2단계 설정·시작 연도, ±2·±5%p 이웃, A37 넓은 이웃·같은 역할 바꾸기, A38 추세 필터, 2000-09 닷컴 기간) |
-| `aalab://experiments` | 실험 기록 (실험마다 왜 했나 · 핵심 결과 · 그래프: A31 탐색, A32 2단계, A33 실제 가격 대조, A35 재실행, A36 프리셋 확인, A37 B2·B3·B4 구조 검증과 닷컴 시험, A38 주식에 10개월 추세 필터) |
+| `aalab://experiments` | 실험 기록 (실험마다 왜 했나 · 핵심 결과 · 그래프: A31 탐색, A32 2단계, A33 실제 가격 대조, A35 재실행, A36 프리셋 확인, A37 B2·B3·B4 구조 검증과 닷컴 시험, A38 주식에 10개월 추세 필터, A39 B2–B5 구성 검증, A40 카나리아 신호 14개) |
 | `aalab://rebalance` | 리밸런싱 계산기 |
 | `aalab://notes` | 발견 · 경고 · 캠페인 |
 | `aalab://saved` | 저장된 전략 |
@@ -131,4 +131,6 @@ ISA 계좌에서 살 수 있는 **국내 상장 ETF**를 단위로 쓰고, 모�
 - 2단계(A32): `scripts/aa_stage2.py`(후보 목록은 스크립트 안 `CANDIDATES`·`REP_LABELS`·`COMPARATORS`), 결과 `2026-10-25_stage2/`(stage2.csv · neighbours.csv.gz), 메모 `2026-10-25_stage2.md`.
 - 구조 검증(A37): `lab/aa_local.py`(구조 규칙 R1–R3 · 구조 가족 표본 · 특징 빼기 X1–X4 · 이웃 · 1년 블록 부트스트랩 · 2000-09까지 대용 이어 붙이기), `scripts/aa_local_study.py`(①–③, `--dotcom`이면 ④, `--quick` 점검), 테스트 `tests/test_aa_local.py`, 결과 `2026-10-27_local_study/`, 메모 `2026-10-27_local_study.md`(그림 `2026-10-27_local_study/figures/`).
 - 추세 필터(A38): 엔진 `Overlay.only`(필터를 걸 상품, 비우면 모든 위험자산), `scripts/aa_trend_filter_study.py`(B2·B3·B4·안정형 40·S&P500 × 정적 분기·정적 월·필터 8/10/12·Faber 원형 × 2005·2000-09 시작, A37 표본 각 2,000개, `--quick` 점검), 테스트 `tests/test_aa_trend_filter.py`, 결과 `2026-10-27_trend_filter/`, 메모 `2026-10-27_trend_filter.md`(그림 `2026-10-27_trend_filter/figures/`).
+- 구성 검증(A39): `lab/aa_composition.py`(① 하나씩 빼기 ② 나머지 바꾸기 ③ B 평균·나스닥100 × KRX금 × CD금리 뼈대 ④ 반기에서 다시 고르기 ⑤ 모형 대 실제), `scripts/aa_composition_study.py`(`--quick` 점검), 테스트 `tests/test_aa_composition.py`, 결과 `2026-10-27_composition/`, 메모 `2026-10-27_composition.md`(그림 `2026-10-27_composition/figures/`).
+- 카나리아 동적 배분(A40): `lab/aa_canary.py`(신호 K1–K11 · D1–D3, 이어 붙인 펀드, 바로 매매 / 1개월 금지 일정, 경로 시뮬레이터, 가짜 신호, 같은 비용 정적), `scripts/aa_canary_study.py`(판정 1–5, `--quick` 점검), 테스트 `tests/test_aa_canary.py`, 결과 `2026-10-27_canary/`, 메모 `2026-10-27_canary.md`(그림 `2026-10-27_canary/figures/`). 신호 판은 아직 앱 화면에서 돌릴 수 없다.
 - 테스트: `tests/test_aa.py`, `tests/test_aa_korea.py`, `tests/test_aa_tactical.py`, `tests/test_aa_search.py`, `tests/test_aa_search_results.py`.
