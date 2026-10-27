@@ -2,6 +2,21 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stagec_screens_daily3000",
+      "title": "Stage E: 매수 전 스크리닝 (종목 수 제한 없음 / 20종목)",
+      "date": "2026-10-27",
+      "status": "실행 대기",
+      "decision": "83",
+      "memo": "docs/research/lab/2026-10-27_stage_e_design.md",
+      "results_dir": "lab_crsp/stagec_screens_daily3000",
+      "kind": "",
+      "why": "Stage C·D에서 20종목 계좌가 SPY에 진 이유는 신호 자체의 기대값이 작아서로 보였다. 매수 신호가 난 종목을 사기 전에 스크린 하나(제외 7가지, 선별 상위 30% 8가지)로 한 번 더 거르면 신호의 질과 계좌 성적이 나아지는지, 종목 수 제한 없음과 20종목 두 가지로 '스크린 없음'과 같은 칸끼리 비교한다.",
+      "results": [
+        "아직 실행하지 않았다. 실행이 끝나면 이 칸에 핵심 결과를 적고 그림을 붙인다."
+      ],
+      "figures": []
+    },
+    {
       "id": "stage_d_timing",
       "title": "Stage D 시점 진단: 놓친 신호는 정말 더 좋았나",
       "date": "2026-10-27",
