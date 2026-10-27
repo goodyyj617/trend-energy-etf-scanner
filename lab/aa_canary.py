@@ -49,7 +49,8 @@ CHAINS: dict[str, tuple[str, ...]] = {
     "BND": ("BND", "AGG", "VBMFX"),  # Vanguard Total Bond Market Index (1986)
     "AGG": ("AGG", "VBMFX"),
     "EEM": ("EEM", "VEIEX"),
-    "EFA": ("EFA", "FSIIX", "VGTSX"),  # Fidelity International Index (EAFE, 1997), then Vanguard Total Intl
+    # Fidelity International Index (EAFE, 1997; Yahoo lists it as FSPSX, formerly FSIIX), then Vanguard Total Intl
+    "EFA": ("EFA", "FSPSX", "FSIIX", "VGTSX"),
     "TIP": ("TIP", "VIPSX"),  # Vanguard Inflation-Protected Securities (2000-06)
 }
 CANARY_TICKERS = sorted({"SPY", *SECTORS, *[s for v in CHAINS.values() for s in v]})
