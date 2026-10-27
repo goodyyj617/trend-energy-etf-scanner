@@ -5,16 +5,25 @@
       "id": "stagec_screens_daily3000",
       "title": "Stage E: 매수 전 스크리닝 (종목 수 제한 없음 / 20종목)",
       "date": "2026-10-27",
-      "status": "실행 대기",
+      "status": "완료",
       "decision": "83",
-      "memo": "docs/research/lab/2026-10-27_stage_e_design.md",
+      "memo": "docs/research/lab/2026-10-27_stage_e_results.md",
       "results_dir": "lab_crsp/stagec_screens_daily3000",
       "kind": "",
       "why": "Stage C·D에서 20종목 계좌가 SPY에 진 이유는 신호 자체의 기대값이 작아서로 보였다. 매수 신호가 난 종목을 사기 전에 스크린 하나(제외 7가지, 선별 상위 30% 8가지)로 한 번 더 거르면 신호의 질과 계좌 성적이 나아지는지, 종목 수 제한 없음과 20종목 두 가지로 '스크린 없음'과 같은 칸끼리 비교한다.",
       "results": [
-        "아직 실행하지 않았다. 실행이 끝나면 이 칸에 핵심 결과를 적고 그림을 붙인다."
+        "미리 정한 기준(두 기간 모두 같은 칸 비교 60% 이상 개선, 차이 중앙값 > 0)을 통과한 스크린: 제한 없음은 고유 변동성·변동성 상위 제외, 약한 업종 제외, 36개월 과열 제외. 20종목은 추세 효율 선별, 약한 업종 제외, 36개월 과열 제외.",
+        "개선 폭은 작았다(신호당 +0.04–0.16%p, 20종목 CAGR +0.7–1.5%p). 20종목 계좌 CAGR 중앙값은 여전히 3–5%로 SPY보다 크게 낮다. 저변동성·낙폭 얕음 선별은 낙폭을 크게 줄였지만 수익은 거의 늘지 않았다.",
+        "두 기간 모두 통과 영역이 생긴 후보 4개(모두 상승 추세 속 눌림목 매수, 40bp에서도 통과)가 나왔지만, 시험 수를 반영한 DSR이 0–0.17이라 보류 구간 후보로 올리지 않았다.",
+        "제한 없음(그날 열린 포지션 전부 같은 비중)은 보유 종목이 250–930개로 따라 하기 어려운 규모였고 CAGR도 1–6%였다."
       ],
-      "figures": []
+      "figures": [
+        {"path": "docs/research/lab/figures/stagec_screens_daily3000/share_better_expectancy.png", "caption": "제한 없음: 신호당 수익이 나아진 칸 비율"},
+        {"path": "docs/research/lab/figures/stagec_screens_daily3000/share_better_cagr.png", "caption": "20종목: CAGR이 나아진 칸 비율"},
+        {"path": "docs/research/lab/figures/stagec_screens_daily3000/median_d_cagr.png", "caption": "20종목: 스크린이 바꾼 CAGR (칸별 차이 중앙값)"},
+        {"path": "docs/research/lab/figures/stagec_screens_daily3000/pass_cells.png", "caption": "20종목: 스크린별 통과 칸 수"},
+        {"path": "docs/research/lab/figures/stagec_screens_daily3000/cal_median_cagr.png", "caption": "제한 없음: 달력 시간 포트폴리오 CAGR"}
+      ]
     },
     {
       "id": "stage_d_timing",
