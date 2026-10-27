@@ -1,0 +1,39 @@
+{
+  "prices": "real",
+  "quick": false,
+  "placebos": 200,
+  "offsets": [
+    0,
+    1,
+    5,
+    10,
+    15
+  ],
+  "paths": {
+    "신호": 1712,
+    "날짜 이동": 424,
+    "같은 비용": 416,
+    "가짜": 41600,
+    "정적": 10
+  },
+  "engine_check_max_rel": 3.68594044175552e-14,
+  "combos": 208,
+  "candidates": 27,
+  "pass_counts": {
+    "1 2005 −15% 안": 200,
+    "2 2000-09 −15% 안": 53,
+    "3 이웃·날짜 견고": 39,
+    "4 같은 비용보다 1%p 얕음": 60,
+    "5 가짜 90% 이상": 66
+  },
+  "failed_tickers": [
+    "FSIIX"
+  ],
+  "figures": [
+    "1_signals.png",
+    "2_placebo.png",
+    "3_signal_bands.png",
+    "4_currency.png"
+  ],
+  "minutes": 1.6
+}
