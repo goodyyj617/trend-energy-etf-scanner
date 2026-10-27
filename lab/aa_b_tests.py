@@ -3,7 +3,8 @@ CAGR / MDD points for the page 'B2–B5 시험 모음' (user request, 2026-10-27
 다시 정리해서 한 눈에 MDD와 CAGR을 볼 수 있도록").
 
 Nothing here runs a backtest: it only reads the result files of the studies that tested B2–B5
-(A32 stage 2 re-run on real prices = A35, A37 local study, A38 trend filter). Values are fractions (0.107 = 10.7 %).
+(A32 stage 2 re-run on real prices = A35, A37 local study, A38 trend filter, A39 composition, A40 canary signals).
+Values are fractions (0.107 = 10.7 %).
 A study that adds B2–B5 results later registers a reader in ``FAMILIES`` and ``points``.
 """
 from __future__ import annotations
@@ -18,10 +19,13 @@ ALLOC = sr.ROOT / "docs" / "research" / "allocation"
 STAGE2_DIR = ALLOC / "2026-10-26_stage2_real"  # A32 stage 2 on real prices (A35)
 LOCAL_DIR = ALLOC / "2026-10-27_local_study"  # A37
 FILTER_DIR = ALLOC / "2026-10-27_trend_filter"  # A38
+COMP_DIR = ALLOC / "2026-10-27_composition"  # A39
+CANARY_DIR = ALLOC / "2026-10-27_canary"  # A40
 SEARCH_DIR = sr.RESULTS_REAL_DIR  # A31 stage 1 on real prices (A35), the grey background
 
 NAMES = ("B2", "B3", "B4", "B5")
 REFERENCE = "안정형 40"
+OTHERS = ("B 평균", "뼈대")  # A39 ③: allocations built from B2–B5 rather than B2–B5 themselves (drawn grey)
 # stage-2 row label of each B (the band the search picked it from)
 STAGE2_LABELS = {"B2": "B 레버·가상 없음 (-14,-13]", "B3": "B 레버·가상 없음 (-13,-12]",
                  "B4": "B 레버·가상 없음 (-12,-11]", "B5": "B 레버·가상 없음 (-11,-10]"}
@@ -64,7 +68,23 @@ FAMILIES: dict[str, Family] = {
     "swap": Family("같은 역할 상품 바꾸기", "한 상품의 비중 전부를 같은 역할의 다른 상품으로(금선물↔금현물, CD↔달러선물·10년(H), 섹터끼리, 나스닥→S&P500 등)",
                    "A37 ① (2026-10-27_local_study/substitutions.csv)", ("2005",)),
     "filter": Family("추세 필터 얹기", "비중은 그대로, 월말에 주식 상품의 원화 종가가 N개월 평균 아래면 그 달은 그 비중을 CD금리로"
-                     "(필터 8·10·12 = 주식 상품만, Faber 원형 10 = 금·채권을 포함한 모든 위험자산)", "A38 (2026-10-27_trend_filter/named.csv)", ("2005", "2000-09")),
+                     "(필터 8·10·12 = 주식 상품만, Faber 원형 10 = 금·채권을 포함한 모든 위험자산)", "A38 (2026-10-27_trend_filter/named.csv), B5의 필터 10은 A40 비교용 (2026-10-27_canary/comparators.csv)", ("2005", "2000-09")),
+    "loo": Family("상품 하나씩 빼기", "한 상품을 빼고 그 비중을 나머지 상품에 비례해 나누거나(비례 배분) 전부 CD금리로. 점 설명 끝의 판정은 "
+                  "2005–2015·2016–2026 두 반기로 본 것(제 몫 = 빼면 두 반기 모두 MDD 0.5 %p 이상 깊어지거나 CAGR 0.3 %p 이상 낮아짐, "
+                  "빼면 나아짐 = 어느 반기도 그만큼 나빠지지 않고 하나 이상 좋아짐, 나머지는 기간 따라 다름)",
+                  "A39 ① (2026-10-27_composition/loo.csv)", ("2005", "2000-09")),
+    "swaprest": Family("나머지 맞바꾸기", "나스닥100 비중은 그 배분 그대로 두고, 나머지 상품을 다른 B의 나머지 상품으로 바꿈"
+                       "(다른 B의 나머지 비율대로 100 − 나스닥을 채움)", "A39 ② (2026-10-27_composition/swap.csv)", ("2005", "2000-09")),
+    "simple": Family("B 평균 · 세 상품 뼈대", "B2–B5 비중의 평균(13개 상품)과 나스닥100 20–35 × KRX금 10–35 × 나머지 CD금리 뼈대 24개. "
+                     "B2–B5가 아니라 새로 만든 배분이라 회색으로 그림. 판정 ‘같은 일을 한다’ = 2005–2026 MDD −15% 안이고 CAGR이 B2–B5 중 "
+                     "가장 낮은 것 이상", "A39 ③ (2026-10-27_composition/simple.csv)", ("2005", "2000-09")),
+    "canary_pass": Family("카나리아 신호 · 판정 통과", "아래 ‘카나리아 신호 · 탈락’과 같은 시험 중 판정 1–5(2005와 2000-09 MDD −15% 안, "
+                          "이웃 설정·판단일 이동에도 견고, 같은 비용의 정적 배분보다 2000-09 MDD 1 %p 이상 얕음, 가짜 신호 200개 중 90% 이상보다 "
+                          "얕음)를 모두 통과한 조합", "A40 (2026-10-27_canary/verdicts.csv)", ("2005", "2000-09")),
+    "canary_fail": Family("카나리아 신호 · 탈락", "비중은 그대로 두고 신호 14개 중 하나를 매일 종가로 읽어, 위험 신호가 켜지면 다음 거래일 종가에 "
+                          "나스닥100을 방어 주식(필수소비재·헬스케어) 또는 안전 묶음(채권·금·CD·달러)으로 옮기고 꺼지면 되돌림(D2·D3는 10 %p "
+                          "기울이기). ‘바로 매매’와 ‘1개월 금지’(신호 매매 뒤 21거래일은 신호를 따르지 않음) 두 판. 분기 말 리밸런싱은 그대로",
+                          "A40 (2026-10-27_canary/verdicts.csv)", ("2005", "2000-09")),
 }
 
 STAGE2_VARIANTS = (("엔진 밴드0", "stage2", "엔진 재계산 (밴드 0)"), ("엔진 밴드3", "stage2", "밴드 3 %p"), ("엔진 밴드5", "stage2", "밴드 5 %p"),
@@ -157,10 +177,70 @@ def filter_points() -> pd.DataFrame:
     return _frame(rows)
 
 
+def b5_filter_points() -> pd.DataFrame:
+    """A38 ran the trend filter on B2–B4 only; A40 ran its 'equity 10-month' setting on B5 as a comparator."""
+    c = pd.read_csv(CANARY_DIR / "comparators.csv")
+    c = c[(c["종류"] == "A38 주식 10개월선") & (c["배분"] == "B5")]
+    return _frame([dict(배분="B5", 묶음="filter", 변형="필터 10 (A40 비교용)", 기간=r.기간, cagr=r.cagr, mdd=r.mdd, 비중=WEIGHTS["B5"])
+                   for r in c.itertuples()])
+
+
+def _periods(row) -> list[tuple[str, float, float]]:
+    """A39 rows hold both periods side by side: (cagr, mdd) on 2005 and (cagr_2000, mdd_2000) on 2000-09."""
+    return [("2005", row.cagr, row.mdd), ("2000-09", row.cagr_2000, row.mdd_2000)]
+
+
+def composition_points() -> pd.DataFrame:
+    """A39: the 2000-09 centres (B5 had none before), ① leave one out, ② swap the rest, ③ B 평균 and the skeletons."""
+    rows = []
+    named = pd.read_csv(COMP_DIR / "named.csv")
+    for r in named[named["시험"] == "중심"].itertuples():
+        rows.append(dict(배분=r.배분, 묶음="centre", 변형="등록 비중 그대로", 기간="2000-09", cagr=r.cagr_2000, mdd=r.mdd_2000,
+                         비중=WEIGHTS.get(r.배분, "")))
+    for r in pd.read_csv(COMP_DIR / "loo.csv", dtype={"뺀상품": str}).itertuples():
+        for period, c, m in _periods(r):
+            rows.append(dict(배분=r.배분, 묶음="loo", 변형=f"{r.변형} · 판정: {r.판정}", 기간=period, cagr=c, mdd=m))
+    for r in pd.read_csv(COMP_DIR / "swap.csv").itertuples():
+        if r.행 == r.열:
+            continue
+        for period, c, m in _periods(r):
+            rows.append(dict(배분=r.행, 묶음="swaprest", 변형=f"나스닥100은 {r.행} 그대로, 나머지를 {r.열}의 것으로", 기간=period, cagr=c,
+                             mdd=m, 비중=names(r.비중)))
+    for r in pd.read_csv(COMP_DIR / "simple.csv").itertuples():
+        for period, c, m in _periods(r):
+            rows.append(dict(배분=r.배분, 묶음="simple", 변형=f"{r.변형} · 판정: {r.판정}", 기간=period, cagr=c, mdd=m,
+                             비중=names(r.비중)))
+    return _frame(rows)
+
+
+def canary_points() -> pd.DataFrame:
+    """A40: every signal × action × version on its registered B, both periods. The verdicts measured MDD from the day
+    the signal's data starts (``mdd_meas``); the point is the whole period like every other point, so a late start is
+    spelled out in the label."""
+    v = pd.read_csv(CANARY_DIR / "verdicts.csv")
+    rows = []
+    for r in v.to_dict("records"):
+        ok = r["판정"] == "후보"
+        verdict = "판정 1–5 통과" if ok else f"탈락 (판정 {int(r['통과 수'])}/5 통과)"
+        for period in ("2005", "2000-09"):
+            text = f"{r['신호 이름']} · {r['행동 이름']} · {r['판']} · 연 신호 매매 {r[f'연 신호 매매_{period}']:.1f}회"
+            meas = r[f"mdd_meas_{period}"]
+            if abs(meas - r[f"mdd_{period}"]) > 1e-12:
+                start = r.get(f"{period} 측정 시작", "")
+                text += f" · 신호 자료가 늦게 시작해 판정은 {start}부터 잰 MDD {100 * meas:.1f}%".replace(" -", " −")
+            rows.append(dict(배분=r["배분"], 묶음="canary_pass" if ok else "canary_fail", 변형=f"{text} · {verdict}", 기간=period,
+                             cagr=r[f"cagr_{period}"], mdd=r[f"mdd_{period}"], 비중=WEIGHTS[r["배분"]]))
+    return _frame(rows)
+
+
 def points() -> pd.DataFrame:
-    """All points, both periods. ``묶음`` is a key of FAMILIES; ``배분`` is B2–B5 or the reference 안정형 40."""
-    parts = [stage2_points(), neighbour_points(), local_points(), swap_points(), filter_points()]
+    """All points, both periods. ``묶음`` is a key of FAMILIES; ``배분`` is B2–B5, the reference 안정형 40, or one of
+    OTHERS (A39 ③). A centre recorded by two studies (the 2000-09 runs of A38 and A39 agree) is kept once."""
+    parts = [stage2_points(), neighbour_points(), local_points(), swap_points(), filter_points(), b5_filter_points(),
+             composition_points(), canary_points()]
     out = pd.concat([p for p in parts if len(p)], ignore_index=True)
+    centre_dup = (out["묶음"] == "centre") & out.duplicated(["배분", "묶음", "기간"])
+    out = out[~centre_dup].reset_index(drop=True)
     out["−15% 안"] = out["mdd"] >= sr.MDD_LINE
     return out
 
@@ -191,4 +271,4 @@ def centre(pts: pd.DataFrame, name: str, period: str) -> pd.Series | None:
     return c.iloc[0] if len(c) else None
 
 
-__all__ = ["NAMES", "REFERENCE", "PERIODS", "WEIGHTS", "RULES", "FAMILIES", "points", "stage2_extra", "background", "summary", "centre"]
+__all__ = ["NAMES", "REFERENCE", "OTHERS", "PERIODS", "WEIGHTS", "RULES", "FAMILIES", "points", "stage2_extra", "background", "summary", "centre"]

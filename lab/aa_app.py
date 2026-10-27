@@ -2709,8 +2709,11 @@ def experiments_page() -> None:
 B_COLORS = {**LOCAL_COLORS, "B5": PALETTE[3]}  # the A37 colours, B5 takes the next hue in the fixed order
 # marker per kind of test: named settings get shapes, the neighbour clouds small dots
 FAMILY_MARKS = {"centre": ("star", 20), "stage2": ("triangle-up", 9), "start": ("triangle-down-open", 9), "nb2": ("circle", 5),
-                "nb5": ("circle", 5), "local": ("circle", 3), "swap": ("x-thin-open", 9), "filter": ("square-open", 9)}
+                "nb5": ("circle", 5), "local": ("circle", 3), "swap": ("x-thin-open", 9), "filter": ("square-open", 9),
+                "loo": ("hexagon-open", 9), "swaprest": ("hourglass-open", 9), "simple": ("pentagon-open", 9),
+                "canary_pass": ("diamond", 10), "canary_fail": ("diamond-open", 7)}
 CLOUDS = {"local": 0.16, "nb5": 0.45, "nb2": 0.55}  # neighbour clouds and their opacity: the 15,000 wide neighbours stay faint
+FADED = {"canary_fail": 0.5}  # named points drawn lighter so the passing signal rows stand out
 
 
 @st.cache_data(show_spinner=False)
@@ -2720,7 +2723,9 @@ def load_b_tests(stamp: tuple) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def b_tests_stamp() -> tuple:
     files = [bt.STAGE2_DIR / "stage2.csv", bt.STAGE2_DIR / "neighbours.csv.gz", bt.LOCAL_DIR / "neighbours.csv.gz",
-             bt.LOCAL_DIR / "substitutions.csv", bt.FILTER_DIR / "named.csv", bt.SEARCH_DIR / "passing.csv.gz"]
+             bt.LOCAL_DIR / "substitutions.csv", bt.FILTER_DIR / "named.csv", bt.SEARCH_DIR / "passing.csv.gz",
+             bt.COMP_DIR / "named.csv", bt.COMP_DIR / "loo.csv", bt.COMP_DIR / "swap.csv", bt.COMP_DIR / "simple.csv",
+             bt.CANARY_DIR / "verdicts.csv", bt.CANARY_DIR / "comparators.csv"]
     return tuple(f.stat().st_mtime if f.exists() else 0.0 for f in files)
 
 
@@ -2729,7 +2734,7 @@ def b_scatter(pts: pd.DataFrame, bg: pd.DataFrame | None, period: str, names: li
     if bg is not None and len(bg):
         fig.add_trace(go.Scattergl(x=bg["mdd"], y=bg["cagr"], mode="markers", name=f"전역 탐색 배분 ({len(bg):,}개)", hoverinfo="skip",
                                    marker=dict(size=3, color=MUTED, opacity=0.35)))
-    p = pts[(pts["기간"] == period) & pts["배분"].isin(names + [bt.REFERENCE])]
+    p = pts[(pts["기간"] == period) & pts["배분"].isin(names + [bt.REFERENCE, *bt.OTHERS])]
     order = [f for f in bt.FAMILIES if f in fams]
     # drawing order: wide cloud, near clouds, named settings, then the registered weights on top
     order = [f for f in CLOUDS if f in order] + [f for f in order if f not in CLOUDS and f != "centre"] + (["centre"] if "centre" in order else [])
@@ -2745,12 +2750,27 @@ def b_scatter(pts: pd.DataFrame, bg: pd.DataFrame | None, period: str, names: li
             fig.add_trace(go.Scattergl(
                 x=part["mdd"], y=part["cagr"], mode="markers", showlegend=False,
                 text=text, hovertemplate="%{text}<br>CAGR %{y:.2%} · MDD %{x:.2%}<extra></extra>",
-                marker=dict(symbol=symbol, size=size, color=B_COLORS[name], opacity=CLOUDS.get(fam, 0.95),
+                marker=dict(symbol=symbol, size=size, color=B_COLORS[name], opacity=CLOUDS.get(fam, FADED.get(fam, 0.95)),
                             line=dict(width=1.5, color=INK) if fam == "centre" else dict(width=1.5, color=B_COLORS[name]))))
             if fam == "centre":  # labels as annotations: drawn above every WebGL layer
                 r = part.iloc[0]
                 fig.add_annotation(x=r["mdd"], y=r["cagr"], text=f"<b>{name}</b>", showarrow=False, yshift=17,
                                    font=dict(size=13, color=INK), bgcolor="rgba(255,255,255,0.85)", borderpad=1)
+    if "simple" in order:  # A39 ③: built from B2–B5, not one of them, so grey whatever B is picked
+        s = p[p["묶음"] == "simple"]
+        for other, color, size in (("뼈대", GRAY, 8), ("B 평균", INK, 12)):
+            part = s[s["배분"] == other]
+            if part.empty:
+                continue
+            fig.add_trace(go.Scattergl(
+                x=part["mdd"], y=part["cagr"], mode="markers", showlegend=False,
+                text=[f"<b>{other}</b> · {v}<br>{w}" for v, w in zip(part["변형"], part["비중"])],
+                hovertemplate="%{text}<br>CAGR %{y:.2%} · MDD %{x:.2%}<extra></extra>",
+                marker=dict(symbol=FAMILY_MARKS["simple"][0], size=size, color=color, line=dict(width=1.5, color=color))))
+            if other == "B 평균":
+                r = part.iloc[0]
+                fig.add_annotation(x=r["mdd"], y=r["cagr"], text="B 평균", showarrow=False, yshift=-15,
+                                   font=dict(size=11, color=INK), bgcolor="rgba(255,255,255,0.85)", borderpad=1)
     ref = p[(p["배분"] == bt.REFERENCE) & (p["묶음"] == "centre")]
     if len(ref):
         fig.add_trace(go.Scattergl(x=ref["mdd"], y=ref["cagr"], mode="markers+text", name="안정형 40 (비교, 신호 없음)", text=["안정형 40"],
@@ -2758,7 +2778,7 @@ def b_scatter(pts: pd.DataFrame, bg: pd.DataFrame | None, period: str, names: li
                                    marker=dict(symbol="diamond-open", size=12, color=INK, line=dict(width=2)),
                                    hovertemplate="안정형 40 · 정적 분기<br>CAGR %{y:.2%} · MDD %{x:.2%}<extra></extra>"))
     # legend: one entry per allocation (colour) and per test (shape), drawn off-canvas so they do not move the axes
-    shown = p[p["묶음"].isin(order) & p["배분"].isin(names)]
+    shown = p[p["묶음"].isin(order) & p["배분"].isin(names + list(bt.OTHERS))]
     for name in [n for n in names if n in set(shown["배분"])]:
         fig.add_trace(go.Scatter(x=[None], y=[None], mode="markers", name=name, legendgroup="b", legendgrouptitle_text="색 = 배분",
                                  marker=dict(symbol="circle", size=10, color=B_COLORS[name])))
@@ -2766,7 +2786,8 @@ def b_scatter(pts: pd.DataFrame, bg: pd.DataFrame | None, period: str, names: li
         symbol, size = FAMILY_MARKS[fam]
         fig.add_trace(go.Scatter(x=[None], y=[None], mode="markers", name=bt.FAMILIES[fam].label, legendgroup="f",
                                  legendgrouptitle_text="모양 = 시험",
-                                 marker=dict(symbol=symbol, size=min(max(size, 8), 13), color=GRAY, opacity=max(CLOUDS.get(fam, 1.0), 0.35),
+                                 marker=dict(symbol=symbol, size=min(max(size, 8), 13), color=GRAY,
+                                             opacity=max(CLOUDS.get(fam, FADED.get(fam, 1.0)), 0.35),
                                              line=dict(width=1.5, color=GRAY))))
     if len(shown):
         x0, x1 = min(shown["mdd"].min(), sr.MDD_LINE), shown["mdd"].max()
@@ -2814,9 +2835,9 @@ def btests_page() -> None:
         c5, c0 = bt.centre(pts, name, "2005"), bt.centre(pts, name, "2000-09")
         rows.append({"배분": name, "상품과 비중 (%)": bt.WEIGHTS[name], "2005– CAGR": cell(c5, "cagr"), "2005– MDD": cell(c5, "mdd"),
                      "2000-09– CAGR": cell(c0, "cagr"), "2000-09– MDD": cell(c0, "mdd")})
-    st.markdown(f"**네 배분의 규칙**: {bt.RULES}. 신호는 없습니다(아래 ‘추세 필터 얹기’만 신호를 더한 시험).")
+    st.markdown(f"**네 배분의 규칙**: {bt.RULES}. 신호는 없습니다(아래 ‘추세 필터 얹기’와 ‘카나리아 신호’만 신호를 더한 시험).")
     st.table(pd.DataFrame(rows).set_index("배분"))  # st.table wraps the long weights text; st.dataframe cuts it
-    st.caption("2000-09– 열은 닷컴 하락을 넣으려고 2000-09부터 돌린 결과(A37 ④)이고, 2005년 이전은 전부 모형입니다.")
+    st.caption("2000-09– 열은 닷컴 하락을 넣으려고 2000-09부터 돌린 결과(B2–B4는 A37 ④, B5는 A39)이고, 2005년 이전은 전부 모형입니다.")
     c1, c2, c3 = st.columns([2, 3, 3])
     period = c1.radio("기간", list(bt.PERIODS), format_func=lambda k: {"2005": "2005–2026", "2000-09": "2000-09–2026 (닷컴 포함)"}[k],
                       key=init("bt_period", "2005"), help="\n\n".join(f"{k}: {v}" for k, v in bt.PERIODS.items()))
@@ -2824,14 +2845,16 @@ def btests_page() -> None:
     show_bg = c3.toggle("전역 탐색 배분을 회색 배경으로", key=init("bt_bg", True), disabled=period != "2005",
                         help="A31 1단계를 실제 가격으로 다시 돌린 배분(−15% 안 전부 + 밖 표본). 2005–2026 기간에만 있습니다.")
     fams = st.multiselect("시험", list(bt.FAMILIES), format_func=lambda k: bt.FAMILIES[k].label, key=init("bt_fams", list(bt.FAMILIES)),
-                          help="기간에 따라 결과가 없는 시험은 그냥 비어 있습니다. 2000-09 기간에는 등록 비중·월간 리밸런싱·추세 필터만 있습니다. "
+                          help="기간에 따라 결과가 없는 시험은 그냥 비어 있습니다. 2000-09 기간에는 등록 비중·월간 리밸런싱·추세 필터와 "
+                               "A39(하나씩 빼기·나머지 맞바꾸기·B 평균과 뼈대)·A40(카나리아 신호)만 있습니다. "
                                "‘시작 연도 바꾸기’는 기간이 짧아(2008·2010·2015년부터) 다른 점과 같은 잣대로 비교하면 안 됩니다.")
     if not names:
         st.info("배분을 하나 이상 고르세요.")
         return
-    shown = pts[(pts["기간"] == period) & pts["배분"].isin(names) & pts["묶음"].isin(fams)]
+    shown = pts[(pts["기간"] == period) & pts["배분"].isin(names + list(bt.OTHERS)) & pts["묶음"].isin(fams)]
     st.caption(f"점 {len(shown):,}개 중 MDD −15% 안 {int(shown['−15% 안'].sum()):,}개. 색 = 배분, 모양 = 시험. 별은 등록 비중 그대로, "
-               "작은 점은 비중을 옮긴 이웃 배분입니다. 끌어서 확대하고, 두 번 누르면 처음 화면으로 돌아갑니다. 점에 마우스를 올리면 무엇을 바꿨는지 나옵니다.")
+               "작은 점은 비중을 옮긴 이웃 배분, 회색 오각형은 B2–B5로 만든 B 평균과 세 상품 뼈대(A39 ③)입니다. "
+               "카나리아 신호는 판정을 모두 통과한 조합만 속이 찬 마름모입니다. 끌어서 확대하고, 두 번 누르면 처음 화면으로 돌아갑니다. 점에 마우스를 올리면 무엇을 바꿨는지 나옵니다.")
     st.plotly_chart(b_scatter(pts, bg if show_bg and period == "2005" else None, period, names, fams), width="stretch", key="chart_bt")
     st.subheader("시험별 요약")
     b_summary_table(pts, period, names, fams)
