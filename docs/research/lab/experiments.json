@@ -2,6 +2,28 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_i_entries",
+      "title": "Stage I: 매수 전략별 1% 룰 계좌 시험 (vs 무작위 매수)",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "87",
+      "memo": "docs/research/lab/2026-10-29_stage_i_results.md",
+      "results_dir": "lab_crsp/stage_i_entries",
+      "kind": "",
+      "why": "매수 전략 15개(E1–E9, V1–V6)를 하나씩 같은 매도·1% 룰 10종목 계좌로 돌려, 아무 종목이나 무작위로 산 경우(E0)와 SPY보다 나은지 본다. 사용자가 원래 원한 '어떤 매수 전략이 의미 있나'에 대한 직접 시험.",
+      "results": [
+        "무작위로 산 것보다 확실히 나은 매수 전략은 없었다. 제한 없음 3/30(E6·E8 × H1, E7 × H9, 차이 +0.01–0.1%p), 10종목 1/30(V3 거래량 폭발 × H1, 무작위 분포 73%/58% 분위).",
+        "SPY를 1993–2023과 2017–2023 모두 넘은 후보는 없었다. 가장 나은 V3 × H1 k 2는 1993–2023 10.6%/−45%(SPY 9.9%/−55%)였지만 2017–2023 6.2%(SPY 13.2%).",
+        "같은 매도·비중 규칙으로 무작위로 산 10종목 계좌가 1993–2023 9.2%(H1)로 SPY와 비슷했다. 52주 신고가 계열(E3, V5)은 2008–2023에 무작위보다 확연히 나빴다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_i_entries/entries_H1_account10.png", "caption": "매도 H1: 매수 전략 vs 무작위 매수 분포"},
+        {"path": "docs/research/lab/figures/stage_i_entries/entries_H9_account10.png", "caption": "매도 H9: 매수 전략 vs 무작위 매수 분포"},
+        {"path": "docs/research/lab/figures/stage_i_entries/entries_H1_unlimited.png", "caption": "제한 없음 거래 기여, 매도 H1"},
+        {"path": "docs/research/lab/figures/stage_i_entries/entries_H9_unlimited.png", "caption": "제한 없음 거래 기여, 매도 H9"}
+      ]
+    },
+    {
       "id": "stage_h_bull_diag",
       "title": "Stage H 강세장 진단: 모형 순 계좌는 왜 2012–2023에 뒤졌나",
       "date": "2026-10-28",

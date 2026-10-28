@@ -740,6 +740,13 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     and |MDD| < |SPY MDD| in 1993-2023 and 2017-2023, >= 30 trades, >= 2 of 3 k, and at 40 bp;
     DSR for candidates (+90 trials, E0 not counted). Design:
     docs/research/lab/2026-10-29_stage_i_design.md.
+    Result (2026-10-28, run 23:06-23:24 KST): no buy strategy is clearly better than random buys.
+    (1a) no limit: 3 of 30 (E6, E8 with H1; E7 with H9), by +0.01 to +0.1 pp per trade; (1b)
+    10 stocks: 1 of 30 (V3 volume burst with H1, E0 percentile 73% / 58% at k 2). (2) no candidate:
+    best 1993-2023 V3 x H1 k 2 10.6% / -45% (SPY 9.9% / -55%) but 2017-2023 6.2% vs 13.2%. Random
+    buys E0 with the same exits and sizing: 10-stock median 9.2% (H1) / 7.3% (H9) in 1993-2023.
+    52-week-high entries (E3, V5) fall to the 3-6th percentile of E0 in 2008-2023. 40 bp recheck and
+    DSR not needed. Record: docs/research/lab/2026-10-29_stage_i_results.md.
 ## Open decisions
 
 - final trend-filter definition;
