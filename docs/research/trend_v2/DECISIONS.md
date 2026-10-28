@@ -760,6 +760,18 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     the pass count exceeds the 95th percentile of Binomial(N, p0). Candidates as 87. Stacking vs the
     better single (singles recomputed here). Trials +315. Three-rule combinations later, seeded by
     passing pairs. Design: docs/research/lab/2026-10-29_stage_j_design.md.
+    Result (2026-10-29, run 23:54-00:00 KST; runner checked first, 40 bp recheck and stacking
+    figure added, design unchanged): no information in pairing. Passing pairs (a) 10 / 105, (b)
+    18 / 105, below the chance count from 200 pseudo-pairs (p0 22.5% / 20.5%, expected 23.6 / 21.5,
+    95th percentile 31 / 28; (a) this low has probability 0.0004). No pair had < 30 trades. No
+    candidate: 4 pair x exit rows beat SPY in both 1993-2023 and 2017-2023 (all X1: E2xE8, E2xV6,
+    E4xV1, V1xV6), none with 2 of 3 exits; 40 bp and DSR not needed. Best by mean over exits,
+    1993-2023 10-stock median CAGR: V1xV6 11.7%, V3xV5 11.7%, E2xE8 11.7% (SPY 9.9%; same-frequency
+    E0 8.2-10.2%). Stacking vs the better single: 54 / 55 / 36 of 105 (H1 k2 / H1 k3 / X1), median
+    +0.11 / +0.03 / -0.37 pp. Pairs run at 0.2-33 signals a day (median 5.9). Singles reproduce
+    Stage I (same signal counts, CAGR within 0.6 pp, same (b) verdicts). Seeding three-rule
+    combinations from passing pairs would seed from noise; left to the user.
+    Record: docs/research/lab/2026-10-29_stage_j_results.md.
 ## Open decisions
 
 - final trend-filter definition;

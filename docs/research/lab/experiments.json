@@ -2,6 +2,28 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_j_pairs",
+      "title": "Stage J: 매수 규칙 2개 묶기 105쌍 (vs 같은 빈도 무작위 매수)",
+      "date": "2026-10-29",
+      "status": "완료",
+      "decision": "88",
+      "memo": "docs/research/lab/2026-10-29_stage_j_results.md",
+      "results_dir": "lab_crsp/stage_j_pairs",
+      "kind": "",
+      "why": "Stage I에서 매수 규칙이 무작위와 비슷했던 이유가 '신호가 너무 흔해서'인지 본다. 15개 규칙을 2개씩 묶어(10거래일 안에 둘 다 뜬 종목만 매수) 신호를 드물게 만들고, 같은 빈도로 솎은 무작위 매수와 비교한다(사용자 제안).",
+      "results": [
+        "쌍 묶기에 우연 이상의 정보는 없었다. 통과 쌍은 (a) 제한 없음 10/105, (b) 10종목 18/105로, 무작위 가짜 쌍 200개로 구한 우연 기대치 23.6 / 21.5(95% 분위 31 / 28)보다 적었다. (a)는 우연보다 확연히 적었다(이만큼 적을 확률 0.04%).",
+        "SPY 후보는 없었다. 1993–2023과 2017–2023 모두 SPY보다 CAGR이 높고 낙폭이 얕은 칸은 4개(모두 매도 X1: E2×E8, E2×V6, E4×V1, V1×V6)뿐이고, 매도 3종 중 2개 조건을 채운 쌍은 없었다.",
+        "쌍이 구성 단독 중 더 나은 쪽보다 나은 경우는 반반이었다(1993–2023 10종목 CAGR: 105쌍 중 54 / 55 / 36, 차이 중앙값 +0.11 / +0.03 / −0.37%p). 신호를 드물게 만드는 것만으로는 정보가 생기지 않았다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_H1k2.png", "caption": "매도 H1 k 2: 105쌍 vs 같은 빈도 무작위 매수 띠"},
+        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_X1.png", "caption": "매도 X1: 105쌍 vs 같은 빈도 무작위 매수 띠"},
+        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_matrix_H1k2.png", "caption": "15×15 쌍 히트맵, 매도 H1 k 2"},
+        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_stacking.png", "caption": "쌓임 효과: 쌍 vs 더 나은 단독"}
+      ]
+    },
+    {
       "id": "stage_i_entries",
       "title": "Stage I: 매수 전략별 1% 룰 계좌 시험 (vs 무작위 매수)",
       "date": "2026-10-28",
