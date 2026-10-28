@@ -172,3 +172,15 @@ def test_a41_chart_data():
     na = v.loc["평균 중심 (나) · 사후 보완"]  # design §5: the (나) group is also read against −17 %
     assert round(na["mdd"], 2) == -15.73 and na["−17% 1 기준선"] == True and na["−17% 모두 통과"] == False  # noqa: E712
     assert round(na["−17% 3 리밸런싱 안 비율"], 1) == 80.9
+
+
+def test_a41_preset_is_the_post_hoc_centre():
+    """The registered A41 preset is the (가) post-hoc centre row, labelled post hoc with its rebalancing condition."""
+    import pandas as pd
+
+    from lab.aa_assets import PRESETS
+    c = pd.read_csv(ex.A41_DIR / "centres.csv", encoding="utf-8").set_index("묶음")
+    p = PRESETS["a41_ga"]
+    text = c.at["(가) 평균·보완", "비중"]  # "code:percent;..."
+    assert p.weights == {k: int(v) for k, v in (part.split(":") for part in text.split(";"))}
+    assert "사후" in p.name and "월·분기" in p.name and "모형 가격" in p.note
