@@ -411,6 +411,7 @@ def stage3(P, out: Path, work: Path, workers: int) -> dict:
     R = srch.monthly_returns(paths, sim.dates)
     pbo1 = {k: v for k, v in srch.pbo_selection(R, mdd_line=LS.LINE, blocks=10).items() if k != "picked"}
     pbo2 = _pbo_r2(R, W[pick])
+    pbo1 = {k: v for k, v in pbo1.items() if not isinstance(v, (list, np.ndarray))}
     # rule-based comparators
     rules = []
     sets = {"13개 전부": LS.UNIVERSE}
@@ -552,31 +553,41 @@ def stage4(P, out: Path, work: Path, workers: int) -> dict:
             print(f"  ④ {k + 1}/{len(jobs)} ({time.time() - t0:.0f}s)", flush=True)
     R = pd.DataFrame(rows)
     R.to_csv(out / "robustness.csv.gz", index=False)
-    verdicts = []
+    V = verdict_table(R, set(named))
+    V.to_csv(out / "verdicts.csv", index=False)
+    return {"targets": int(len(V)), "all_pass": int((V["모두 통과"] == True).sum())}  # noqa: E712 - None for comparators
+
+
+def verdict_table(R: pd.DataFrame, comparators: set[str]) -> pd.DataFrame:
+    """Verdicts 1–4 per target. Comparators get no neighbour test, so no overall verdict (shown for reference)."""
+    rows = []
     for name, g in R.groupby("대상", sort=False):
         base = g[g["시험"] == "기준"]
         nb5 = g[g["시험"] == "이웃 ±5"]
         reb = g[g["시험"] == "리밸런싱"]
         st = g[g["시험"] == "시작 시점"]
         win = g[g["시험"] == "10년 창"]
-        b_mdd = float(base["mdd"].iloc[0]) if len(base) else np.nan
-        row = {"대상": name, "cagr": float(base["cagr"].iloc[0]) if len(base) else np.nan, "mdd": b_mdd,
+        b_mdd = float(base["mdd"].iloc[0])
+        row = {"대상": name, "종류": "비교" if name in comparators else "후보 중심", "cagr": float(base["cagr"].iloc[0]), "mdd": b_mdd,
                "1 기준선": bool(b_mdd >= LS.LINE),
                "2 이웃 ±5 안 비율": float((nb5["mdd"] >= LS.LINE).mean()) if len(nb5) else np.nan,
-               "3 리밸런싱 안 비율": float((reb["mdd"] >= LS.LINE).mean()) if len(reb) else np.nan,
-               "리밸런싱 최악 MDD": float(reb["mdd"].min()) if len(reb) else np.nan,
-               "4 10년 창 모두 안": bool((win["mdd"] >= LS.LINE).all()) if len(win) else False,
-               "10년 창 최악 MDD": float(win["mdd"].min()) if len(win) else np.nan,
-               "순위값 (매달 시작 CAGR 하위 10%)": float(st["cagr"].quantile(0.1)) if len(st) else np.nan,
-               "시작 시점 CAGR 중앙": float(st["cagr"].median()) if len(st) else np.nan,
-               "10년 CAGR 폭": float(win["cagr"].max() - win["cagr"].min()) if len(win) else np.nan}
+               "이웃 ±10 안 비율": float((g[g["시험"] == "이웃 ±10"]["mdd"] >= LS.LINE).mean()) if (g["시험"] == "이웃 ±10").any() else np.nan,
+               "3 리밸런싱 안 비율": float((reb["mdd"] >= LS.LINE).mean()),
+               "리밸런싱 최악 MDD": float(reb["mdd"].min()),
+               "리밸런싱 CAGR 범위": float(reb["cagr"].max() - reb["cagr"].min()),
+               "4 10년 창 모두 안": bool((win["mdd"] >= LS.LINE).all()),
+               "10년 창 안 비율": float((win["mdd"] >= LS.LINE).mean()),
+               "10년 창 최악 MDD": float(win["mdd"].min()),
+               "순위값 (매달 시작 CAGR 하위 10%)": float(st["cagr"].quantile(0.1)),
+               "시작 시점 CAGR 중앙": float(st["cagr"].median()),
+               "시작 시점 MDD 최악": float(st["mdd"].min()),
+               "10년 CAGR 폭": float(win["cagr"].max() - win["cagr"].min())}
         row["2 통과"] = bool(row["2 이웃 ±5 안 비율"] >= LS.NB_SHARE) if len(nb5) else None
-        row["3 통과"] = bool(row["3 리밸런싱 안 비율"] >= 0.90) if len(reb) else None
-        row["모두 통과"] = bool(row["1 기준선"] and row["2 통과"] and row["3 통과"] and row["4 10년 창 모두 안"])
-        verdicts.append(row)
-    V = pd.DataFrame(verdicts)
-    V.to_csv(out / "verdicts.csv", index=False)
-    return {"targets": int(len(V)), "all_pass": int(V["모두 통과"].sum())}
+        row["3 통과"] = bool(row["3 리밸런싱 안 비율"] >= 0.90)
+        row["모두 통과"] = (bool(row["1 기준선"] and row["2 통과"] and row["3 통과"] and row["4 10년 창 모두 안"])
+                         if row["종류"] == "후보 중심" else None)
+        rows.append(row)
+    return pd.DataFrame(rows)
 
 
 def _jsonable(o):
