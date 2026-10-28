@@ -99,7 +99,7 @@ class Prices:
         spy = np.where(closed, self.spy_o[np.minimum(sale, len(self.dates) - 1)], self.spy_c[last]) / self.spy_o[ei] - 1.0
         ew_end = np.where(closed, sale - 1, last)
         ew = self.ew[ew_end] / self.ew[si] - 1.0
-        return pd.DataFrame({"si": si, "sj": sj, "sale": sale, "closed": closed, "ret": ret,
+        return pd.DataFrame({"si": si, "ei": ei, "sj": sj, "sale": sale, "closed": closed, "ret": ret,
                              "r_mult": np.where(r_unit > 0, ret / r_unit, np.nan), "x_spy": ret - spy, "x_ew": ret - ew})
 
 
@@ -221,7 +221,7 @@ def pooled_signals(px: Prices, signals: Path, exit_: str) -> pd.DataFrame:
     s = s.drop_duplicates(["symbol", "signal_date"]).set_index(["symbol", "signal_date"]).join(flags).reset_index()
     m = px.measures(s, SAMPLES["full"][1])
     m["b2s"] = b2s_flags(m, px.dates)
-    s = pd.concat([s.reset_index(drop=True), m.drop(columns=["ret", "closed"])], axis=1)
+    s = pd.concat([s.reset_index(drop=True), m.drop(columns=["ret", "closed", "ei"])], axis=1)
     s["b50"] = (s["return"] >= BIG_RET).astype(float)
     s["b5r"] = np.where(np.isfinite(s["r_mult"]), (s["r_mult"] >= BIG_R).astype(float), np.nan)
     return s
