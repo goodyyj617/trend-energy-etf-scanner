@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from lab import aa_landscape as ls
 from lab import aa_local as loc
 from lab import aa_search_results as sr
 
@@ -29,6 +30,8 @@ COMP_DIR = ALLOC / "2026-10-27_composition"  # A39: is the B2–B5 composition i
 COMP_MEMO = ALLOC / "2026-10-27_composition.md"
 CANARY_DIR = ALLOC / "2026-10-27_canary"  # A40: canary signals on B2–B5
 CANARY_MEMO = ALLOC / "2026-10-27_canary.md"
+A41_DIR = ALLOC / "2026-10-28_a41"  # A41: a map of the whole weight space of 13 products, then robustness and the hold-out
+A41_MEMO = ALLOC / "2026-10-28_a41.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -37,7 +40,8 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named",
               "filter_mdd", "filter_curves", "filter_groups", "filter_cagr",
               "comp_loo", "comp_swap", "comp_simple", "comp_reselect", "comp_model_gap",
-              "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency")
+              "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency",
+              "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout")
 
 
 @dataclass(frozen=True)
@@ -495,3 +499,129 @@ def canary_currency(folder: Path | str = CANARY_DIR) -> pd.DataFrame:
     return pd.DataFrame({"기간": m["기간"], "배분": m["배분"], "신호": m["신호"], "행동": m["행동"],
                          "달러 CAGR": m["cagr_meas_usd"] * 100, "달러 MDD": m["mdd_meas_usd"] * 100,
                          "원화 CAGR": m["cagr_meas_krw"] * 100, "원화 MDD": m["mdd_meas_krw"] * 100})
+
+
+# --------------------------------------------------------------------------- A41 (percent units, like the rest)
+
+A41_ZONES = ("안", "경계", "밖")  # MDD ≥ −15 %, −17 – −15 %, below −17 % (the map keeps a 20,000-point sample of 밖)
+A41_MAP_SHOWN = 6000  # points per zone drawn on the page, evenly thinned from the committed table (236,348 rows)
+A41_RULES = {"equal": "규칙형 동일 비중", "invvol": "규칙형 역변동성 (현금성 30%)", "riskcap": "규칙형 주식 위험 몫 50% 상한"}
+A41_KINDS = ("사후 중심", "비교 배분", "규칙형", "절반 구간 중심", "S&P500")  # drawing / sorting order
+
+
+def a41_names(text: str) -> str:
+    """'379810:18;KRXGOLD:30' -> '나스닥100 18 · KRX금현물 30' (A41 short names; other codes by their search-universe name)."""
+    parts = []
+    for part in str(text).split(";"):
+        code, v = part.split(":")
+        parts.append(f"{ls.SHORT.get(code) or sr.name_of(code)} {int(float(v))}")
+    return " · ".join(parts)
+
+
+def a41_label(name: str) -> str:
+    """Runner target name -> page name: '중심 전체 (가) 평균·보완 1' -> '평균 중심 (가) · 사후 보완',
+    '중심 앞 절반 (나) 1' -> '앞 절반에서 고른 중심 (나) 1'; comparators and rule weights unchanged."""
+    m = re.fullmatch(r"중심 전체 \((.)\) 평균·보완 1", name)
+    if m:
+        return f"평균 중심 ({m.group(1)}) · 사후 보완"
+    m = re.fullmatch(r"중심 (앞|뒤) 절반 \((.)\) (\d+)", name)
+    if m:
+        return f"{m.group(1)} 절반에서 고른 중심 ({m.group(2)}) {m.group(3)}"
+    m = re.fullmatch(r"규칙형 (equal|invvol|riskcap)(?: \(13개\))?", name)
+    return A41_RULES[m.group(1)] if m else name
+
+
+def a41_kind(label: str) -> str:
+    if "사후 보완" in label:
+        return "사후 중심"
+    if "절반에서 고른" in label:
+        return "절반 구간 중심"
+    if label.startswith("규칙형"):
+        return "규칙형"
+    return "S&P500" if label.startswith("S&P500") else "비교 배분"
+
+
+def a41_map(folder: Path | str = A41_DIR, per_zone: int = A41_MAP_SHOWN) -> pd.DataFrame:
+    """A41 ① the weight map, every ``len(zone) // per_zone``-th point of each zone: 구역, 비중 (names), CAGR, MDD,
+    순위 값 (CAGR from every quarter-end start, 10th percentile), all in %."""
+    m = pd.read_csv(Path(folder) / "map.csv.gz", usecols=["비중", "cagr", "mdd", "rank", "zone"])
+    parts = []
+    for z in A41_ZONES:
+        g = m[m["zone"] == z]
+        parts.append(g.iloc[::max(1, len(g) // per_zone)])
+    out = pd.concat(parts, ignore_index=True)
+    return pd.DataFrame({"구역": out["zone"], "비중": out["비중"].map(a41_names), "CAGR": out["cagr"] * 100, "MDD": out["mdd"] * 100,
+                         "순위 값": out["rank"] * 100})
+
+
+def a41_marks(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 named points on the research window (2000-09 – 2024-12): the comparators (engine), the centres (half windows
+    and the full window's mean added after the results) and the three rule-based weights on all 13 products."""
+    folder = Path(folder)
+    rows = []
+    for r in pd.read_csv(folder / "named.csv").to_dict("records"):
+        label = r["이름"]
+        rows.append({"이름": label, "종류": a41_kind(label), "비중": a41_names(r["비중"]), "CAGR": r["cagr"] * 100, "MDD": r["mdd"] * 100,
+                     "순위 값": r["rank"] * 100})
+    for r in pd.read_csv(folder / "centres.csv").to_dict("records"):
+        label = a41_label(f"중심 {r['고른 구간']} {r['묶음']} {r['번호']}")
+        rows.append({"이름": label, "종류": a41_kind(label), "비중": a41_names(r["비중"]), "CAGR": r["cagr"] * 100, "MDD": r["mdd"] * 100,
+                     "순위 값": r["rank"] * 100})
+    rl = pd.read_csv(folder / "rules.csv")
+    for r in rl[rl["상품 집합"] == "13개 전부"].to_dict("records"):
+        rows.append({"이름": A41_RULES[r["규칙"]], "종류": "규칙형", "비중": "13개 전부, 분기마다 과거 자료로 다시 계산",
+                     "CAGR": r["cagr"] * 100, "MDD": r["mdd"] * 100, "순위 값": r["rank"] * 100})
+    return pd.DataFrame(rows)
+
+
+def a41_sobol(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 ② Sobol indices per product for MDD and CAGR (fractions of the output variance; ST = total, S1 = first order,
+    with the 95 % bootstrap range)."""
+    s = pd.read_csv(Path(folder) / "sobol.csv", dtype={"상품": str})
+    s = s[s["출력"].isin(["mdd", "cagr"])]
+    return s.assign(출력=s["출력"].map({"mdd": "MDD", "cagr": "CAGR"}))[["출력", "상품", "이름", "S1", "ST", "ST_lo", "ST_hi"]]
+
+
+def a41_include(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 ② putting a product in: over the 4,095 pairs of product sets that differ by that product only, the median change
+    of the share of points inside −15 % (%p) and of the median CAGR (%p)."""
+    i = pd.read_csv(Path(folder) / "include_exclude.csv")
+    return pd.DataFrame({"상품": i["상품"], "안 비율 변화": i["넣으면 안 비율 변화 중앙"] * 100, "CAGR 변화": i["넣으면 CAGR 중앙 변화"] * 100,
+                         "넣었을 때 안 비율": i["넣었을 때 안 비율 중앙"] * 100, "뺐을 때 안 비율": i["뺐을 때 안 비율 중앙"] * 100})
+
+
+A41_FREQ = {"M": "월", "Q": "분기", "S": "반기", "A": "연"}
+
+
+def a41_rebalance(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 ④ the 528 rebalancing versions of every target (engine): 이름, 종류, 주기, 변형, CAGR, MDD (%)."""
+    r = pd.read_csv(Path(folder) / "robustness.csv.gz")
+    r = r[r["시험"] == "리밸런싱"].dropna(subset=["mdd"])
+    label = r["대상"].map(a41_label)
+    return pd.DataFrame({"이름": label, "종류": label.map(a41_kind), "주기": r["변형"].str[0].map(A41_FREQ), "변형": r["변형"],
+                         "CAGR": r["cagr"] * 100, "MDD": r["mdd"] * 100}).reset_index(drop=True)
+
+
+def a41_verdicts(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 ④ verdicts per target (the runner's table) with page names; shares and MDDs in %."""
+    v = pd.read_csv(Path(folder) / "verdicts.csv")
+    out = v.assign(이름=v["대상"].map(a41_label))
+    out["종류"] = out["이름"].map(a41_kind)
+    for c in out.columns:
+        if c.endswith("비율") or "MDD" in c or c in ("cagr", "mdd") or "CAGR" in c or c.startswith("순위값"):
+            if pd.api.types.is_numeric_dtype(out[c]):
+                out[c] = out[c] * 100
+    return out
+
+
+def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 hold-out (2025-01-02 – 2026-10-27, looked at once): cumulative return, CAGR and MDD (%) on real-first prices and
+    on the model alone, per target."""
+    h = pd.read_csv(Path(folder) / "holdout.csv")
+    label = h["대상"].map(a41_label)
+    out = pd.DataFrame({"이름": label, "종류": label.map(a41_kind), "누적 수익": h["실제 누적 수익"] * 100, "CAGR": h["실제 CAGR"] * 100,
+                        "MDD": h["실제 MDD"] * 100, "모형 누적 수익": h["모형 누적 수익"] * 100, "모형 MDD": h["모형 MDD"] * 100,
+                        "시작": h["실제 시작"], "끝": h["실제 끝"]})
+    if "실행" in h:
+        out["실행"] = h["실행"].fillna("첫 실행")
+    return out

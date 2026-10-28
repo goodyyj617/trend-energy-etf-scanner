@@ -62,11 +62,11 @@ def test_summary_rows(pts):
 
 def test_composition_and_canary_points_match_their_tables(pts):
     for fam, n in {"loo": 45, "swaprest": 12, "simple": 25, "canary_pass": 27, "canary_fail": 181}.items():
-        for period in bt.PERIODS:
+        for period in ("2005", "2000-09"):
             assert ((pts["묶음"] == fam) & (pts["기간"] == period)).sum() == n, (fam, period)
     passing = pts[(pts["묶음"] == "canary_pass") & (pts["기간"] == "2005")].groupby("배분").size()
     assert passing.to_dict() == {"B3": 7, "B4": 8, "B5": 12}  # A40: no B2 row passes
-    assert set(pts.loc[pts["묶음"] == "simple", "배분"]) == set(bt.OTHERS)
+    assert set(pts.loc[pts["묶음"] == "simple", "배분"]) == {"B 평균", "뼈대"}
 
     def one(fam, name, start):
         part = pts[(pts["묶음"] == fam) & (pts["배분"] == name) & pts["변형"].str.startswith(start)].set_index("기간")
@@ -78,6 +78,24 @@ def test_composition_and_canary_points_match_their_tables(pts):
     assert one("simple", "B 평균", "네 배분")["2005"] == (10.01, -11.91)
     late = pts[pts["변형"].str.contains("늦게 시작", regex=False)]
     assert len(late) and (late["기간"] == "2000-09").all() and late["변형"].str.contains(r"\d{4}-\d{2}-\d{2}부터 잰 MDD −").all()
+
+
+def test_a41_points_match_the_a41_tables(pts):
+    a = pts[pts["기간"] == "a41"]
+    expect = {"B2": (9.10, -16.40), "B4": (7.57, -25.57), "안정형 40": (7.77, -13.73)}  # A41 memo, engine, 2000-09 – 2024-12
+    for name, (c, m) in expect.items():
+        r = bt.centre(pts, name, "a41")
+        assert (round(100 * r["cagr"], 2), round(100 * r["mdd"], 2)) == (c, m), name
+    rebal = a[a["묶음"] == "a41_rebal"]
+    assert rebal.groupby("배분").size().to_dict() == {"B2": 528, "B4": 528}
+    v = pd.read_csv(bt.A41_DIR / "verdicts.csv").set_index("대상")
+    for name in ("B2", "B4"):
+        assert rebal[rebal["배분"] == name]["−15% 안"].mean() == pytest.approx(v.at[name, "3 리밸런싱 안 비율"])
+    new = a[a["묶음"] == "a41_new"].set_index("변형")
+    assert set(new["배분"]) == {"A41"} and len(new) >= 9  # 5 half-window centres, 3 rule weights, the mean centre(s)
+    r = new.loc["평균 중심 (가) · 사후 보완"]
+    assert (round(100 * r["cagr"], 2), round(100 * r["mdd"], 2)) == (8.84, -13.71)
+    assert r["비중"] == "나스닥100 18 · S&P500 3 · 헬스케어 8 · KRX금현물 30 · 미국10년(H) 30 · 미국30년(H) 11"
 
 
 def _numbers(text: str) -> list[int]:

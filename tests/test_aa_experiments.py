@@ -138,3 +138,31 @@ def test_canary_chart_data():
     assert (k4["원화 MDD"] < k4["달러 MDD"]).all()
     trades = d.groupby(["신호", "판"])["2005 연 신호 매매"].mean().unstack()
     assert (trades["1개월 금지"] < trades["바로 매매"]).all()
+
+
+def test_a41_chart_data():
+    m = ex.a41_map()
+    assert set(m["구역"]) == set(ex.A41_ZONES) and m.groupby("구역").size().between(5000, 7000).all()
+    assert (m.loc[m["구역"] == "안", "MDD"] >= sr.STAGE2_PCT_LINE).all() and (m.loc[m["구역"] == "밖", "MDD"] < -17).all()
+    k = ex.a41_marks().set_index("이름")
+    assert (round(k.at["안정형 40", "CAGR"], 2), round(k.at["안정형 40", "MDD"], 1)) == (7.77, -13.7)
+    assert round(k.at["평균 중심 (가) · 사후 보완", "MDD"], 2) == -13.71 and k.at["평균 중심 (가) · 사후 보완", "종류"] == "사후 중심"
+    assert (k["종류"] == "절반 구간 중심").sum() == 5 and (k["종류"] == "규칙형").sum() == 3
+    s = ex.a41_sobol()
+    mdd = s[s["출력"] == "MDD"].set_index("이름")["ST"]
+    assert mdd.idxmax() == "나스닥100" and round(mdd.max(), 2) == 0.36
+    inc = ex.a41_include().set_index("상품")["안 비율 변화"]
+    assert round(inc["CD금리"], 1) == 12.6 and round(inc["미국10년(H)"], 1) == 10.2 and inc.idxmin() == "유틸리티"
+    r = ex.a41_rebalance()
+    assert r.groupby("이름").size().eq(528).all() and set(r["주기"]) == {"월", "분기", "반기", "연"}
+    post = r[r["이름"] == "평균 중심 (가) · 사후 보완"]
+    share = (post["MDD"] >= sr.STAGE2_PCT_LINE).groupby(post["주기"]).mean()
+    assert share["월"] == 1.0 and share["연"] < share["반기"] < share["분기"] < 1.0
+    assert (r.loc[r["이름"] == "안정형 40", "MDD"] >= sr.STAGE2_PCT_LINE).all()
+    v = ex.a41_verdicts().set_index("이름")
+    assert v.at["평균 중심 (가) · 사후 보완", "모두 통과"] == False  # noqa: E712 - verdict 3 (rebalancing ≥ 90 %) missed
+    assert round(v.at["평균 중심 (가) · 사후 보완", "3 리밸런싱 안 비율"], 2) == 81.25
+    h = ex.a41_holdout().set_index("이름")
+    assert set(h["시작"]) == {"2025-01-02"} and set(h["끝"]) == {"2026-10-27"}
+    assert (round(h.at["평균 중심 (가) · 사후 보완", "누적 수익"], 1), round(h.at["평균 중심 (가) · 사후 보완", "MDD"], 1)) == (23.0, -11.3)
+    assert (round(h.at["S&P500 보유", "누적 수익"], 1), round(h.at["S&P500 보유", "MDD"], 1)) == (25.4, -19.2)
