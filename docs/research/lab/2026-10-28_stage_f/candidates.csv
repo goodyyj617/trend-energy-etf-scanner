@@ -1,0 +1,7 @@
+screen,entry,exit,largest_region_full,largest_region_recent,pass_cells_full,pass_cells_recent,pass_both_40bp
+F1,E2,X1,2.0,4.0,2.0,4.0,True
+F3,E5,X5,2.0,2.0,2.0,2.0,True
+F3,E9,X1,6.0,4.0,6.0,5.0,True
+F3,E9,X2,6.0,2.0,6.0,2.0,True
+F4,E5,X1,7.0,6.0,7.0,6.0,True
+x_weak_industry,E5,X1,4.0,3.0,4.0,3.0,True

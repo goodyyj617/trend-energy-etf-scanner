@@ -2,6 +2,30 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stagec_combos_daily3000",
+      "title": "Stage F: 도움 판정 스크린의 조합",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "84",
+      "memo": "docs/research/lab/2026-10-28_stage_f_results.md",
+      "results_dir": "lab_crsp/stagec_combos_daily3000",
+      "kind": "",
+      "why": "Stage E에서 도움 판정을 받은 스크린(약한 업종·36개월 과열·고유 변동성·변동성 제외, 추세 효율 선별)을 함께 걸면(AND) 가장 좋은 단독 스크린보다 나은지, 종목 수 제한 없음과 20종목 두 방식으로 같은 칸끼리 비교한다. 구성 요소를 같은 표본에서 골랐으므로 '스크린 없음보다 낫다'는 약한 증거이고, '단독보다 낫다'가 실제 질문이다.",
+      "results": [
+        "조합 5개 모두 스크린 없음보다 나았다(두 방식, 두 기간). 스크린 없음과 단독 5개는 Stage E 값을 그대로 재현했다.",
+        "가장 좋은 단독보다 나은 조합은 F3(약한 업종 제외 + 36개월 과열 제외 + 추세 효율 상위 30%) 하나로, 두 방식 모두 통과했다(신호당 +0.17 / +0.07%p, 20종목 CAGR +1.0 / +1.1%p). F1은 20종목에서만 통과. 변동성 제외를 더한 F2·F4·F5는 2017–2023에서 기준 미달.",
+        "20종목 CAGR 중앙값은 F3 5.3% / 5.1%로 스크린 없음(3.0% / 3.3%)보다 높지만 SPY보다 크게 낮다. 조합은 MDD를 크게 얕게 했다(F4 +12.7 / +6.2%p).",
+        "후보 5개(모두 40bp 통과)는 1993–98에 SPY에 지고 1999–2003에 앞선 모양이며, DSR 0–0.25로 보류 구간 후보로 올리지 않았다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stagec_combos_daily3000/stacking_account_share_better.png", "caption": "20종목: 조합이 가장 좋은 단독보다 나아진 칸 비율"},
+        {"path": "docs/research/lab/figures/stagec_combos_daily3000/stacking_unlimited_share_better.png", "caption": "제한 없음: 조합이 가장 좋은 단독보다 나아진 칸 비율"},
+        {"path": "docs/research/lab/figures/stagec_combos_daily3000/stacking_account_median_diff.png", "caption": "20종목: 조합 − 가장 좋은 단독 (CAGR 차이 중앙값)"},
+        {"path": "docs/research/lab/figures/stagec_combos_daily3000/median_d_cagr.png", "caption": "20종목: 스크린 없음 대비 CAGR 차이 중앙값"},
+        {"path": "docs/research/lab/figures/stagec_combos_daily3000/pass_cells.png", "caption": "20종목: 스크린별 통과 칸 수"}
+      ]
+    },
+    {
       "id": "stagec_screens_daily3000",
       "title": "Stage E: 매수 전 스크리닝 (종목 수 제한 없음 / 20종목)",
       "date": "2026-10-27",
