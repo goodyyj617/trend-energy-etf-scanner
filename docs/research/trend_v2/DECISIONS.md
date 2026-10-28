@@ -726,6 +726,20 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     random median 7.3-7.9%), but 2017-2023 5.2-10.7% vs SPY 13.2%; the gain is in 2000-2011.
     58-93% of signals hit the 10% cap; capped trades contributed more. ATR% in/out changes AUC by
     <= 0.007. Record: docs/research/lab/2026-10-28_stage_h_results.md.
+87. Stage I: each buy strategy alone in the 1%-rule account (user request 2026-10-28 22:57 KST:
+    test each buy strategy separately). Registered before any run. Entries E1-E9 and V1-V6, each
+    alone at its middle value, no model; baseline E0 = random buys (each hygiene-eligible stock-day
+    with probability 1%, seeds 1-5, new tables). Exits H1 (25% trailing or ATR k stop) and H9
+    (Stage C X9), k 1.5 / 2 / 3. Account A (1% risk, 10% per stock, 10 stocks, 20-session re-entry
+    ban, 20 bp, T-bill cash) filled in 100 random orders (median and distribution; dollar volume
+    shown), and no stock limit (each signal at its weight, calendar-time portfolio scaled to 100%).
+    Periods 1993-2023, 2017-2023, halves 1993-2007 / 2008-2023, 2000-2023 for reference; holdout
+    unused. Verdicts: (1) meaningful buy, per exit, >= 2 of 3 k, both halves: (a) no limit: mean
+    contribution above E0's; (b) 10 stocks: median CAGR over random orders above the median of E0's
+    500 accounts (percentile in E0 shown). (2) candidate: 10-stock median account with CAGR > SPY
+    and |MDD| < |SPY MDD| in 1993-2023 and 2017-2023, >= 30 trades, >= 2 of 3 k, and at 40 bp;
+    DSR for candidates (+90 trials, E0 not counted). Design:
+    docs/research/lab/2026-10-29_stage_i_design.md.
 ## Open decisions
 
 - final trend-filter definition;
