@@ -1,0 +1,5 @@
+screen,entry,exit,largest_region_full,largest_region_recent,pass_cells_full,pass_cells_recent,pass_both_40bp
+s_high52,E5,X9,2.0,3.0,4.0,3.0,True
+s_lowvol,E5,X9,8.0,2.0,8.0,3.0,True
+s_rs_spy,E5,X1,4.0,3.0,4.0,4.0,True
+x_weak_industry,E5,X1,4.0,3.0,4.0,3.0,True

@@ -586,6 +586,42 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     effect (hypothesis: timing of free slots). At $1M, smallest-first orders exceed 5% of 20-day
     dollar volume in ~20% of 1993-2023 trades. Trials +26,244 (Drive log, not merged). Record:
     docs/research/lab/2026-10-27_stage_d_results.md.
+    Follow-up (timing diagnosis, no new strategy): paired per cell, missed signals are not
+    consistently better than bought ones (missed higher in 54% / 31% of the 81 canonical cells,
+    median gap +0.03 / -0.31 pp); the earlier gap came from comparing separate medians. Record:
+    docs/research/lab/2026-10-27_stage_d_timing.md.
+83. Stage E: pre-buy screening of the Stage C signals, with and without the 20-slot limit (user
+    request 2026-10-27; registered before any run). A signal is bought only if its stock passes one
+    screen on the signal day (data up to that close). Sixteen screens, each alone: none; exclusion
+    x_ivol 20, x_volatility 20, x_lottery 20, x_extended 25, x_downtrend 0, x_weak_industry 30,
+    x_overextended 10 (no trend template, as requested in 81); selection keeping the day's top 30% of
+    the eligible names by s_rs, s_quality (12), s_efficiency (6), s_smooth (12), s_high52, s_lowvol,
+    s_dd_shallow (12), s_rs_spy (6). Entries E1-E9, exits X1-X9 (3 x 3), universe and hygiene as 81.
+    Unlimited view: every passing signal traded on its own (per-signal table: count, expectancy, win
+    rate, payoff, share >= +50%) and, on each pair's canonical cell, a calendar-time portfolio (each
+    day all open positions in equal weight, fully invested while any is open, else T-bills, 20 bp on
+    each position's entry and exit, daily re-weighting free) with CAGR, MDD and median positions.
+    20-slot view: the Stage C account replayed from the per-signal tables with the screen as
+    keep-mask (dollar-volume order, 20 bp). The main verdict is paired per cell against 'none' (the
+    Stage D lesson): for each screen the 729 cells per sample give the share of cells improved and
+    the median paired difference of per-signal expectancy (unlimited) and of CAGR and MDD (20-slot).
+    A screen 'helps' when in both samples >= 60% of the cells improve and the median paired
+    difference > 0 (expectancy for unlimited, CAGR for 20-slot). Also shown: signals left vs none,
+    share of signals the 20-slot account bought, 20-slot gate passes (as 81) and candidates
+    (connected region in both samples, rechecked at 40 bp). Screen combinations are not run now;
+    they would be registered under a new number after the user decides. PBO information only, DSR
+    only for candidates, holdout unused, nothing changed after results. Runner
+    lab/screen_e_study.py (results lab_crsp/stagec_screens_daily3000).
+    Design: docs/research/lab/2026-10-27_stage_e_design.md.
+    Result (2026-10-27, run 19:38-22:35 KST): helps (registered rule) unlimited: x_ivol, x_volatility,
+    x_weak_industry, x_overextended; 20-slot: s_efficiency, x_weak_industry, x_overextended. Effects
+    small (median paired +0.04-0.16 pp per signal, +0.7-1.5 pp CAGR); 20-slot median CAGR stays 3-5%.
+    s_lowvol and s_dd_shallow shallow the MDD in 90-99% of cells (+8-24 pp) with little CAGR gain.
+    Four 20-slot candidates (all E5 pullback x X1 / X9; screens s_high52, s_lowvol, s_rs_spy,
+    x_weak_industry), all passing at 40 bp, but DSR 0.00 (N 55,000) and at most 0.17 with a robust
+    Sharpe dispersion and N 1,169; most lost to SPY in 1993-98 and led in 1999-2003. No holdout
+    candidate. Calendar-time (unlimited) portfolios hold a median 250-930 names, CAGR 1-6%.
+    Trials +23,328 (Drive log, not merged). Record: docs/research/lab/2026-10-27_stage_e_results.md.
 
 ## Open decisions
 
