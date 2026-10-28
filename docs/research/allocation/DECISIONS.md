@@ -534,3 +534,41 @@ A40. Canary signals on B2–B5, weights unchanged. User: "카나리아 자산군
     on data containing 2000–02 and 2008, so the dot-com pass is not independent; most of 2005–2026 is model prices
     (A39 ⑤) and 2000–2004 is all model; post-2005 crisis help is 1–3 %p; in-sample. Same PR: experiment entry 'a40' on
     '실험 기록' and PNGs in `2026-10-27_canary/figures/`.
+
+A41. Principle-first map of a 13-product universe, backtests used only to check (planned, not yet run). User,
+    2026-10-27 20:48 / 21:17 and 2026-10-28 11:12 KST: keep MDD −15 % as the goal but do not drop an allocation
+    just for crossing it (so −15 % is a reference line, not a cut); keep 2025–2026 out of the backtest and look at it
+    once at the end; every growth and defensive equity product on its own; gold priced as the KRX spot account;
+    unhedged US treasuries only as real KRX-listed ETFs buyable in ISA (no synthetic products), earlier ETFs or US
+    proxies before listing; no weight rule fixed in advance, cover the space as widely as possible and read it as a
+    multivariate function; cost / spread / tax set up but not applied; '권고대로': drop TIPS, IG corporates, MSCI World
+    and KODEX 200, and build the 'gold by new deposits only' version as a setting without running it. Design fixed
+    before results in `2026-10-28_a41_design.md` (user-reviewed plan: Claude Doc '자산배분 재설계안'): research window
+    2000-09-01 – 2024-12-31 (A37 `extend_history` before 2005; info sub-window from 2005; halves split at 2012-12),
+    hold-out 2025-01-02 onward used once after the candidates are shown; ISA + gold account rebalanced as one
+    portfolio; quarterly, next-close, 10 bp. Products (13): 379810, 379800, 453630, 453640, 463640, KRX spot gold
+    (2014-03-24; fallback 411060 with fee added back; before GLD / GC=F × FX), 459580, one dollar-cash axis 0046A0
+    (chained 261240 real 2016-12 – 2025-04, BIL / T-bill × FX before), 329750 (KIS 0–1-yr treasuries; pre-listing proxy = USD cash, not SHY),
+    305080, 0091C0, 476760, 484790 (chained 453850); 261240 / 455030 / 308620 are not separate axes. Stage 1: 2^20
+    scrambled Sobol points, per product an inclusion coordinate (p 0.5) and a size coordinate, 2 % floor then uniform
+    Dirichlet, integer %; metrics per point include CAGR / MDD on the window, halves and 2005+, crisis windows,
+    quarter-end start-date CAGR p10 (= the rank) and quarter-end 10-year windows; zones 안 (≥ −15) / 경계 (−15 to −17)
+    / 밖, all points kept. Stage 2: no gradient ascent (MDD is non-smooth and A32's refined R walked to the line);
+    Scheffé quadratic surrogate (fit on even points, R² on odd) for slope maps only, product-level Sobol indices on
+    real simulations (Saltelli N = 2^14, Jansen, bootstrap 200), 1 / 5 %p exchange rates by finite differences,
+    leave-one-product-out pairs on 50,000 points, all subsets summarised. Selection: (가) points with MDD ≥ −15 %,
+    every quarter-end 10-year window ≥ −15 % and ±5 %p neighbours ≥ 80 % inside, plateau = rank within 0.3 %p of the
+    best, grouped by the set of products ≥ 10 %, a centre (mean weights, < 2 % dropped, integer %) for each group
+    with ≥ 5 % of the plateau, up to 5; (나) the same with the line at −17 %, only if its best rank beats (가)'s. The
+    same selection on each half, judged on the other half, and on rule weights (equal, inverse vol with cash 30 %,
+    equity risk share ≤ 50 %); PBO by CSCV (10 blocks, 20,000 points) for A31's rule and a plateau rule. Stage 3
+    (engine) on every centre, rule weights and comparators (B2, B4, 안정형 40, two A39 skeletons, S&P500): ±5 / ±10 %p
+    neighbours and leave-one-out; 528 rebalancing versions (monthly / quarterly / half-yearly / yearly × month phase
+    × 0–20 trading-day offsets × bands 0 / 3 / 5 / 10, 10 bp, plus 20 bp at offset 0); monthly starts 2000-09 –
+    2015-12 and 172 monthly 10-year windows. Verdicts, pass / fail only: 1 MDD ≥ −15 %, 2 ±5 %p neighbours ≥ 80 %
+    inside, 3 ≥ 90 % of rebalancing versions inside, 4 every monthly 10-year window inside; passers ranked by the
+    monthly start-date CAGR p10; misses kept with their size; rebalancing worst < −20 % and start-date p10 vs 안정형
+    40 are info columns. Stage 4 hold-out recorded only. Stage 0 PR (no results) also registers the new products,
+    fixes `aa_real.SYN_REAL` (the unhedged 30-yr stood on 453850 = ACE 미국30년국채액티브(H), hedged; A35 samples
+    holding the synthetic unhedged 30-yr used hedged returns after 2023-03; B2–B5 and 안정형 presets unaffected) to
+    476760, and adds `lab/aa_frictions.py` (off, bit-identical test). Nothing is registered by the study.

@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 CASH = "CASH"  # uninvested KRW cash (Bank of Korea base rate)
+KRX_GOLD = "KRXGOLD"  # KRX 금시장 spot gold held in a 금현물 계좌 (not an ETF, no KRX ticker; DECISIONS A41)
 KRW_CASH, USD_CASH = "KRW_CASH", "USD_CASH"  # pseudo proxies for the cash-like products
 BENCHMARK_CODE = "379800"  # KODEX 미국S&P500, the KRW version of "SPY"
 CLASS_ORDER = ["주식", "채권", "금·실물", "현금·달러", "레버리지"]
@@ -38,6 +39,7 @@ class Product:
     leverage: float = 1.0
     extra_drag: float = 0.0  # percent per year, a known gap the proxy does not capture
     note: str = ""
+    account: str = "isa"  # "isa" | "gold" (KRX 금현물 계좌, outside the ISA); read by lab/aa_frictions.py only
 
     @property
     def proxy_symbols(self) -> list[str]:
@@ -87,10 +89,21 @@ PRODUCTS: dict[str, Product] = {p.code: p for p in [
        note="미국 물가연동국채(TIPS) 환노출. 대용 TIP(2003-12 이후)."),
     _p("468630", "KODEX iShares미국투자등급회사채액티브", "채권", [("LQD", 1)], "unhedged", 0.10, "2023-10-19",
        note="미국 투자등급 회사채 환노출. 대용 LQD(2002-07 이후)."),
+    # 환노출 미국채 (DECISIONS A41, 2026-10-28 추가. 이름·첫 거래일·총보수·기초지수는 2026-10-27 – 28 네이버 금융에서 확인)
+    _p("329750", "TIGER 미국달러단기채권액티브", "채권", [(USD_CASH, 1)], "unhedged", 0.30, "2019-07-24",
+       note="기초지수 KIS U.S. Treasury Bond 0-1Y(미국 국채 0–1년), 환노출. 상장 전 대용은 달러 현금(BIL, 2007 전 3개월 "
+            "T-bill) × 원/달러: SHY(1–3년)는 듀레이션이 길어 실제 상품에 없는 금리 위험이 들어감(A41 변경 기록)."),
+    _p("305080", "TIGER 미국채10년선물", "채권", [("IEF", 1)], "unhedged", 0.29, "2018-08-30",
+       note="미국 10년 국채 선물, 환노출. 대용 IEF는 선물 롤 비용·금리차를 반영하지 못함(A33: 실제가 모형보다 연 1.2–1.9%p 낮음)."),
+    _p("476760", "ACE 미국30년국채액티브", "채권", [("TLT", 1)], "unhedged", 0.05, "2024-03-12",
+       note="미국 30년 국채, 환노출(같은 운용사의 453850은 환헤지판)."),
     # 금·실물
     _p("411060", "ACE KRX금현물", "금·실물", [("GLD", 1)], "unhedged", 0.19, "2021-12-15",
        note="KRX 금시장 가격(원화)을 따름 = 국제 금값 × 환율 근사. 국내 금 프리미엄(2025년 한때 +10% 이상)은 반영 안 됨. 다른 운용사의 KRX금현물 ETF도 같은 방식."),
     _p("132030", "KODEX 골드선물(H)", "금·실물", [("GLD", 1)], "hedged", 0.68, "2010-10-01"),
+    _p(KRX_GOLD, "KRX 금현물 (금현물 계좌)", "금·실물", [("GLD", 1)], "unhedged", 0.0, "2014-03-24", account="gold",
+       note="KRX 금시장 일별 종가(원/g, 네이버 '국내 금'). ISA 밖의 금현물 계좌라 운용보수가 없고 매매 차익은 비과세. "
+            "개장(2014-03-24) 전은 국제 금 × 원/달러 모형이라 국내 금 프리미엄이 없음."),
     _p("352560", "KODEX 미국부동산리츠(H)", "금·실물", [("IYR", 1)], "hedged", 0.09, "2020-05-13"),
     _p("182480", "TIGER 미국MSCI리츠(합성 H)", "금·실물", [("IYR", 1)], "hedged", 0.24, "2013-10-10",
        note="MSCI 미국 리츠 지수 환헤지. 352560보다 상장이 7년 빠르고 보수는 높음. 대용은 같은 IYR."),
@@ -99,6 +112,8 @@ PRODUCTS: dict[str, Product] = {p.code: p for p in [
        note="CD 금리를 받음. 대용은 한국은행 기준금리(실제 CD 금리는 보통 0.1–0.5%p 높음)."),
     _p("261240", "KODEX 미국달러선물", "현금·달러", [(USD_CASH, 1)], "unhedged", 0.25, "2016-12-27",
        note="원/달러 환율 + 달러 금리. 국내 투자자에게 주식 폭락기 방패 역할(2008·2020년 원화 약세)."),
+    _p("0046A0", "TIGER 미국초단기(3개월이하)국채", "현금·달러", [(USD_CASH, 1)], "unhedged", 0.09, "2025-04-29",
+       note="미국 국채 3개월 이하, 환노출 = 달러 단기금리 × 원/달러. A41에서는 상장 전을 KODEX 미국달러선물(261240) 실제 가격으로 이음."),
     # 레버리지 (ISA에서 매수 가능, 증권사 레버리지 ETF 사전교육·기본예탁금 필요)
     _p("225040", "TIGER 미국S&P500레버리지(합성 H)", "레버리지", [("SPY", 1)], "hedged", 0.25, "2015-07-29", leverage=2.0,
        extra_drag=3.0, note="S&P 500 가격지수(배당 제외)의 2배라 배당 2배만큼 덜 받음 → 연 3%p 차감(배당수익률 1.5% 가정)."),
@@ -110,6 +125,8 @@ PRODUCTS: dict[str, Product] = {p.code: p for p in [
     _p("122630", "KODEX 레버리지", "레버리지", [("EWY", 1)], "krw_native", 0.64, "2010-02-22", leverage=2.0,
        note="코스피 200 2배. 대용은 EWY 원화 환산의 2배."),
 ]}
+# registered for A41 (2026-10-28), after the A31–A40 records were written: those records do not cover them
+ADDED_A41 = ("329750", "305080", "476760", KRX_GOLD, "0046A0")
 PROXY_SYMBOLS = sorted({s for p in PRODUCTS.values() for s in p.proxy_symbols})
 DEFAULT_PRODUCTS = ["379800", "251350", "291890", "484790", "0091C0", "411060"]
 

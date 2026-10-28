@@ -45,7 +45,7 @@ class StaticSim:
     """
 
     def __init__(self, panel: Panel, syms: list[str], start: str, end: str, rebalance: str = "Q",
-                 cost_bps: float = 10.0, rebalance_offset: int = 0):
+                 cost_bps: float = 10.0, rebalance_offset: int = 0, frictions=None):
         missing = [s for s in syms if s not in panel.symbols]
         if missing:
             raise ValueError(f"가격 데이터가 없는 자산: {', '.join(short(s) for s in missing)}")
@@ -77,6 +77,9 @@ class StaticSim:
         self.rebalance = rebalance
         self.rebalance_offset = int(rebalance_offset)
         self.cost = cost_bps / 1e4
+        from .aa_frictions import resolve  # A41 §7: None or disabled = the old code path
+        fr = resolve(frictions)
+        self._cost_vec = fr.cost_vector(self.columns, cost_bps) if fr is not None else None
         self.n_days = len(dates)
 
     @property
@@ -106,7 +109,10 @@ class StaticSim:
                 prev = block[:, -2] if block.shape[1] >= 2 else value  # the decision day's value
                 hold = W * seg[-1] * value[:, None]
                 tr = np.abs(W * pre[:, None] - hold).sum(axis=1) / 2.0
-                value = pre - tr * self.cost
+                if self._cost_vec is None:
+                    value = pre - tr * self.cost
+                else:
+                    value = pre - (np.abs(W * pre[:, None] - hold) @ self._cost_vec) / 2.0
                 paths[:, e] = value
                 turn += tr / prev
         years = max(T, 1) / TRADING_DAYS

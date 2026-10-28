@@ -125,7 +125,7 @@ def sidebar(data: dict) -> None:
     with st.sidebar:
         st.radio("가격 기준", list(real.SOURCES), format_func=real.SOURCES.get, key=init("m_source", real.DEFAULT_SOURCE),
                  help="실제 가격 우선: 각 상품이 상장한 뒤(상장 5거래일 뒤부터)는 실제 국내 종가 + 분배금, 그 전은 미국 대용 모형을 이어 붙입니다. "
-                      "가상 상품(미국10년·30년 환노출)은 TIGER 미국채10년선물(305080)·ACE 미국30년국채액티브(453850)의 실제 가격을 씁니다. "
+                      "가상 상품(미국10년·30년 환노출)은 TIGER 미국채10년선물(305080)·ACE 미국30년국채액티브(476760, 2026-10-28 전 기록은 환헤지판 453850)의 실제 가격을 씁니다. "
                       "모형만: 모든 상품을 전 기간 미국 대용 × 원/달러로 계산합니다(DECISIONS A33). 바꾸면 모든 계산이 다시 됩니다.")
         st.caption(f"데이터: 미국 대용 ETF ~ {data['usd_last']} · 원/달러 ~ {data['fx_last']} · 원화 금리: 한국은행 기준금리")
         st.caption(data.get("real_msg", ""))
@@ -1075,7 +1075,7 @@ def glossary_page() -> None:
     if rp is not None:
         st.caption("‘실제 가격 시작’은 사이드바 ‘가격 기준 = 실제 가격 우선’일 때 그 상품이 실제 국내 가격(네이버 종가 + Yahoo 분배금)으로 바뀌는 날입니다"
                    "(상장 5거래일 뒤, 미국 날짜 기준). 그 전은 모형입니다. ‘실제−모형’과 ‘월수익률 상관’은 그날부터 2026-10-16까지 실제 가격과 모형을 비교한 값이고(DECISIONS A33), "
-                   "1–5년 표본이 많아 잡음이 큽니다. 가상 상품 두 종은 실제 상품 305080·453850의 가격을 씁니다. 메모: docs/research/allocation/2026-10-26_real_prices.md")
+                   "1–5년 표본이 많아 잡음이 큽니다. 가상 상품 두 종은 실제 상품 305080·476760의 가격(2026-10-28 전 기록은 453850)을 씁니다. 메모: docs/research/allocation/2026-10-26_real_prices.md")
     st.caption("종목코드·총보수·상장일·환헤지 여부는 2026-10-24에 etfshopping.com, funetf.co.kr, 운용사 페이지에서 확인했습니다. 총보수 외 실부담비용은 더 클 수 있습니다.")
     st.subheader("원화 수익률을 만드는 방법")
     st.markdown(BR.join([
@@ -1831,7 +1831,7 @@ def search_detail(res: sr.SearchResults) -> None:
     if r.get("출처") == "다듬음":
         st.warning("다듬은 배분입니다. 상위 300개에서 5%p씩 옮겨 CAGR을 올리다 −15% 선에 닿은 것이라 이웃 배분 다수가 선을 넘습니다. 후보가 아니라 참고로만 보세요.")
     if any(c in sr.SYNTHETIC for c in w):
-        st.warning("가상 상품(환노출 미국채)이 들어 있습니다. 실제 국내 상품(TIGER 305080 / KODEX 308620 / ACE 453850)과 같은지 확인 전이라 ISA에서 그대로 살 수 없습니다.")
+        st.warning("가상 상품(환노출 미국채)이 들어 있습니다. 실제 국내 상품(TIGER 305080 / KODEX 308620 / ACE 476760)과 같은지 확인 전이라 ISA에서 그대로 살 수 없습니다.")
     search_detail_tables(r)
     with st.expander("상품 구성 (ISA에서 살 상품)"):
         search_product_table(w)
