@@ -651,6 +651,34 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     all passing at 40 bp, all losing to SPY in 1993-98 and leading in 1999-2003; DSR 0.00 (N 62,290)
     and at most 0.25 (IQR dispersion, N 1,169). No holdout candidate. Trials +7,290 (Drive log, not
     merged). Record: docs/research/lab/2026-10-28_stage_f_results.md.
+85. Stage G: tails, SPY-relative scoring and extreme-event entries (user approval 2026-10-28 of the
+    order: (1) tail analysis + SPY-relative scoring, (2) extreme-event entries, (3) walk-forward
+    selection, designed later). Registered before any run. Already seen before the design: in Stage C
+    canonical cells the top 5% of signals give 73-145% of net profit, signals beyond mean + 2 sd
+    (1.5-3.5%) give 60-110%, median signal -3 to -7%. G-1 (descriptive, no new trials): Stage C v2
+    per-signal tables (daily top 3,000, hygiene), E1-E9 x X1-X9 all cells, equal money per signal,
+    samples 1993-2023 / 2017-2023 plus four non-overlapping signal-date periods 1993-99, 2000-08,
+    2009-16, 2017-23. (a) Tail concentration: share of net profit from the top 1/2/5% of signals,
+    expectancy without them, skew, big-winner share under B50 (return >= +50%), B5R (>= 5R, R = 2 x
+    ATR14 on the signal day / entry price) and B2S (> mean + 2 sd of the same cell's signals that
+    were sold in the 365 days before the signal day; days with < 30 such signals skipped). (b) Excess
+    over SPY on the same holding window (entry open -> sale open) and over an equal-weight universe
+    index (hygiene-eligible top 3,000, daily re-weighted, close-based: signal-day close -> close before
+    the sale). (c) What big winners looked like on the signal day: E1-E9 canonical signals pooled per
+    stock-day, exit X1 (25% trailing) main and X9 (k 2) secondary, B5R main; 40 features fixed in the
+    design memo (price/volume 20, size 2, industry 1, market 6, screens 11); medians, univariate AUC,
+    decile lift. A feature 'separates' when AUC >= 0.55 (or <= 0.45) in both halves 1993-2007 and
+    2008-2023 and AUC - 0.5 has the same sign in all four periods; chance count from 200 label
+    shuffles within periods. Rule: >= 3 separating features and above the placebo 95th percentile ->
+    (3) is a walk-forward model of the big-winner probability; otherwise big winners are a sizing
+    problem (pyramiding, D). G-2 (registered now, run after G-1 at night): first-day entries V1 1-day
+    return z > {2, 2.5, 3} (63-day sd) closing in the top 25% of the range; V2 5-day z > {2, 2.5, 3};
+    V3 log-volume z (50 days) > {3, 4, 5} and close > open; V4 true range > {2, 2.5, 3} x ATR20 and
+    close > open; V5 new 252-day closing high and volume >= {1.5, 2, 3} x 50-day average; V6 the
+    previous day's 20-day range in the lowest {10, 20, 30}% of the past year and close above the
+    prior 20-day high. Judged per signal (no slot limit) with X1-X9 and the measures of G-1, against
+    E1-E9; trials +972 (6 x 81 x 2). Holdout unused; nothing changed after results.
+    Design: docs/research/lab/2026-10-28_stage_g_design.md.
 
 ## Open decisions
 
