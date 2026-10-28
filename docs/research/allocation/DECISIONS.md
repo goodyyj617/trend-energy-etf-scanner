@@ -586,8 +586,10 @@ A41. Principle-first map of a 13-product universe, backtests used only to check 
     −17 % it passes 1, 2, 4 and misses 3 (80.9 %). Hold-out 2025-01-02 – 2026-10-27, each target once (the user chose
     to run it after seeing the post-hoc centre; (나) and the three rule weights were missed in the first run and added
     the same day): (가) +23.0 % (MDD −11.3), (나) +24.8 (−13.2), 안정형 40 +21.5 (−9.1), B2 +26.4 (−10.0), S&P500
-    +25.4 (−19.2), rule weights +9.9 to +11.7; 11 of 16 inside −15 %. Recorded only. Nothing registered; whether to
-    register (가) with "monthly or quarterly rebalancing only" is the user's call. Caveats: 10-yr(H) has no real price
+    +25.4 (−19.2), rule weights +9.9 to +11.7; 11 of 16 inside −15 %. Recorded only. Registration (user's choice, 2026-10-28,
+    after the hold-out): (가) became preset `a41_ga` "A41 (가) 평균 중심 (사후, 월·분기 리밸런싱만)"; its name and note
+    carry the post-hoc label, the monthly/quarterly-only condition and the model-price caveats. (나) and the half
+    centres are not registered. Caveats: 10-yr(H) has no real price
     before 2025-08 (all model in the research window); 2000–2004 all model; sampling was PCG64 pseudo-random, not
     Sobol; in-sample. Same PR: experiment entry 'a41', the 'A41 연구 구간' period on 'B2–B5 시험 모음', figures ①–⑧.
 
