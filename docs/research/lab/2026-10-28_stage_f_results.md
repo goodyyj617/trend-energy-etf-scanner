@@ -12,10 +12,39 @@ Stage E에서 미리 정한 기준을 통과한 스크린(약한 업종 제외, 
 
 ## 그림
 
-모두 `docs/research/lab/figures/stagec_combos_daily3000/`에 있습니다.
-- `stacking_unlimited_share_better.png`, `stacking_account_share_better.png`: 조합이 가장 좋은 단독보다 나아진 칸 비율(기준 60%)
-- `stacking_unlimited_median_diff.png`, `stacking_account_median_diff.png`: 조합 − 가장 좋은 단독, 칸별 차이 중앙값
-- `share_better_expectancy.png`, `share_better_cagr.png`, `median_d_cagr.png`, `pass_cells.png`, `cal_median_cagr.png`: Stage E와 같은 그림(스크린 없음 대비), 조합과 단독을 함께 표시
+주 판정(조합 vs 가장 좋은 단독, 같은 칸 비교)입니다. 각 조합의 괄호 안이 비교한 단독 스크린입니다. 빨간 점선이 기준 60%이고, 두 기간 막대가 모두 그 오른쪽에 있고 차이 중앙값이 0보다 커야 통과입니다.
+
+![20종목: 조합이 가장 좋은 단독보다 나아진 칸 비율](figures/stagec_combos_daily3000/stacking_account_share_better.png)
+20종목 계좌에서 CAGR이 단독보다 나아진 칸 비율입니다. F1과 F3만 2017–2023에서도 60%를 넘었습니다.
+
+![20종목: 조합 − 가장 좋은 단독, CAGR 차이 중앙값](figures/stagec_combos_daily3000/stacking_account_median_diff.png)
+20종목 계좌의 CAGR 차이 중앙값입니다. 모든 조합이 0보다 크지만, 나아진 칸 비율 기준을 넘은 것은 F1·F3입니다.
+
+![제한 없음: 조합이 가장 좋은 단독보다 나아진 칸 비율](figures/stagec_combos_daily3000/stacking_unlimited_share_better.png)
+종목 수 제한 없음에서 신호당 수익이 단독보다 나아진 칸 비율입니다. 2017–2023에서 60%를 넘은 것은 F3뿐입니다.
+
+![제한 없음: 조합 − 가장 좋은 단독, 신호당 수익 차이 중앙값](figures/stagec_combos_daily3000/stacking_unlimited_median_diff.png)
+종목 수 제한 없음의 신호당 수익 차이 중앙값(%p)입니다. F5는 2017–2023에서 0보다 조금 작습니다.
+
+아래는 Stage E와 같은 '스크린 없음 대비' 그림입니다. 단독 5개와 조합 5개를 함께 표시했습니다.
+
+![제한 없음: 신호당 수익이 나아진 칸 비율](figures/stagec_combos_daily3000/share_better_expectancy.png)
+종목 수 제한 없음, 스크린 없음보다 신호당 수익이 나아진 칸 비율입니다. 조합은 모두 두 기간에서 60%를 넘었습니다.
+
+![20종목: CAGR이 나아진 칸 비율](figures/stagec_combos_daily3000/share_better_cagr.png)
+20종목 계좌, 스크린 없음보다 CAGR이 나아진 칸 비율입니다.
+
+![20종목: 스크린 없음 대비 CAGR 차이 중앙값](figures/stagec_combos_daily3000/median_d_cagr.png)
+20종목 계좌의 CAGR 차이 중앙값입니다. 조합은 +1.4 – +2.5%p로 단독(+0.5 – +1.5%p)보다 큽니다.
+
+![제한 없음: 스크린 없음 대비 신호당 수익 차이 중앙값](figures/stagec_combos_daily3000/median_d_expectancy.png)
+종목 수 제한 없음의 신호당 수익 차이 중앙값입니다.
+
+![20종목: 스크린별 통과 칸 수](figures/stagec_combos_daily3000/pass_cells.png)
+20종목 계좌의 통과 칸 수(729칸 중, CAGR > SPY · |MDD| < |SPY MDD| · 거래 30회 이상)입니다.
+
+![제한 없음: 달력 시간 포트폴리오 CAGR 중앙값](figures/stagec_combos_daily3000/cal_median_cagr.png)
+종목 수 제한 없음을 달력 시간 포트폴리오(그날 열린 포지션 전부 같은 비중)로 본 CAGR 중앙값(대표 칸 81개)입니다.
 
 ## 무엇을 시험했나
 

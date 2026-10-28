@@ -52,8 +52,13 @@ def names() -> list[str]:
     return ["none"] + SINGLES + list(COMBOS)
 
 
+TINY = {"x_weak_industry": "업종", "x_overextended": "장기 과열", "x_ivol": "고유 변동성", "x_volatility": "변동성",
+        "s_efficiency": "추세 효율"}
+
+
 def labels() -> dict[str, str]:
-    return {k: f"{k}: " + " + ".join(SHORT[s] for s in v) for k, v in COMBOS.items()}
+    """Short names for figures, e.g. 'F3: 업종·장기 과열·추세 효율' (full definitions in the memo)."""
+    return {k: f"{k}: " + "·".join(TINY[s] for s in v) for k, v in COMBOS.items()}
 
 
 def _activate() -> None:
@@ -186,8 +191,10 @@ def write_figures(out: Path, st: pd.DataFrame) -> list[Path]:
         for stat, t2, u2 in (("median_diff", title, unit), ("share_better", title.split(":")[0] + ": 조합이 나아진 칸 비율 (기준 60%)", "나아진 칸 비율 (%)")):
             m = g.pivot(index="combo", columns="sample", values=stat).reindex(list(COMBOS))
             labs = [f"{k} (대비: {SHORT[g[g['combo'] == k]['best_single'].iloc[0]]})" for k in COMBOS]
+            share = stat == "share_better"
             made.append(figures.paired_bars(labs, {SAMPLES[s][2]: m[s].to_numpy(dtype=float) for s in SAMPLES},
-                                            t2, u2, out / "figures" / f"stacking_{view}_{stat}.png", pct=True))
+                                            t2, u2, out / "figures" / f"stacking_{view}_{stat}.png", pct=True, legend_out=True,
+                                            ref=se.HELP_SHARE if share else None, ref_label="기준 60%" if share else ""))
     return made
 
 

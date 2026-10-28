@@ -346,8 +346,10 @@ def write_figures(out: Path, scr: pd.DataFrame, reg: pd.DataFrame) -> list[Path]
         if stat not in scr:
             continue
         m = scr.pivot(index="screen", columns="sample", values=stat).reindex(order)
+        share = stat.startswith("share_better")
         made.append(figures.paired_bars([label(n) for n in order], {names[s]: m[s].to_numpy(dtype=float) for s in SAMPLES},
-                                        title, unit, d / f"{stat}.png", pct=pct))
+                                        title, unit, d / f"{stat}.png", pct=pct, legend_out=True,
+                                        ref=HELP_SHARE if share else None, ref_label="기준 60%" if share else ""))
     return made
 
 

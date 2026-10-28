@@ -43,22 +43,34 @@ def _save(fig, path: Path) -> Path:
 
 
 def paired_bars(labels: list[str], series: dict[str, np.ndarray], title: str, xlabel: str, path: Path,
-                pct: bool = True) -> Path:
-    """Horizontal bars, one group per label and one bar per series (e.g. per sample)."""
+                pct: bool = True, ref: float | None = None, ref_label: str = "", legend_out: bool = False) -> Path:
+    """Horizontal bars, one group per label and one bar per series (e.g. per sample). `ref` (in the
+    same units as the values, before the x100 of `pct`) draws a dashed reference line labelled
+    `ref_label`; `legend_out` puts the legend right of the plot so it never covers a bar."""
     plt = _plt()
     n, k = len(labels), len(series)
-    fig, ax = plt.subplots(figsize=(8, max(3.0, 0.32 * n + 1.2)))
+    fig, ax = plt.subplots(figsize=(10 if legend_out else 8, max(3.0, 0.32 * n + 1.2)))
     h = 0.8 / max(k, 1)
     y = np.arange(n)
     for j, (name, vals) in enumerate(series.items()):
         v = np.asarray(vals, dtype=float) * (100 if pct else 1)
         ax.barh(y + (j - (k - 1) / 2) * h, v, height=h, label=name, color=COLORS[j % len(COLORS)])
     ax.axvline(0, color="#444", lw=0.8)
+    if ref is not None:
+        r = ref * (100 if pct else 1)
+        ax.axvline(r, color="#c0392b", lw=1.2, ls="--")
+        if ref_label:
+            ax.annotate(ref_label, (r, 0.0), xycoords=("data", "axes fraction"), xytext=(3, 3), textcoords="offset points",
+                        ha="left", va="bottom", fontsize=8, color="#c0392b",
+                        bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.85))
     ax.set_yticks(y, labels)
     ax.invert_yaxis()
     ax.set_xlabel(xlabel)
     ax.set_title(title)
-    ax.legend(loc="lower right", fontsize=8)
+    if legend_out:
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=8, frameon=False)
+    else:
+        ax.legend(loc="lower right", fontsize=8)
     ax.grid(axis="x", alpha=0.3)
     return _save(fig, path)
 
