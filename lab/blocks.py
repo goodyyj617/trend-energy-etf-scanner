@@ -419,6 +419,73 @@ STAGE_C_ENTRIES = [
           Param("g (%)", 4, 1, 10, 1, "%", "어제 고가 대비 갭 크기"), _c_gap_volume, "거래량"),
 ]
 
+# Stage G-2 extreme-event entries (DECISIONS 85): first-day signals of an unusually large move,
+# volume or range, each measured against the stock's own recent history (data up to the signal close).
+
+def _sd_before(p: Panel, days: int, lag: int) -> pd.DataFrame:
+    """Daily-return standard deviation of the `days` sessions ending `lag` sessions before today."""
+    r = p.close / p.close.ffill().shift(1) - 1.0
+    return r.shift(lag).rolling(days, min_periods=int(days * 0.8)).std()
+
+
+def _g_ret_z1(p: Panel, z: float) -> pd.DataFrame:
+    r1 = p.close / p.close.ffill().shift(1) - 1.0
+    rng = (p.high - p.low).replace(0, np.nan)
+    top = (p.close - p.low) / rng >= 0.75
+    return first_day((r1 / _sd_before(p, 63, 1) > z) & top)
+
+
+def _g_ret_z5(p: Panel, z: float) -> pd.DataFrame:
+    r5 = p.close / p.close.ffill().shift(5) - 1.0
+    return first_day(r5 / (_sd_before(p, 63, 5) * np.sqrt(5)) > z)
+
+
+def _g_volume_z(p: Panel, z: float) -> pd.DataFrame:
+    lv = np.log(p.volume.where(p.volume > 0))
+    prior = lv.shift(1).rolling(50, min_periods=40)
+    return first_day(((lv - prior.mean()) / prior.std() > z) & (p.close > p.open))
+
+
+def _g_range_expansion(p: Panel, k: float) -> pd.DataFrame:
+    prev = p.close.ffill().shift(1)
+    tr = np.fmax(np.fmax(p.high - p.low, (p.high - prev).abs()), (p.low - prev).abs())
+    return first_day((tr > k * atr(p, 20).shift(1)) & (p.close > p.open))
+
+
+def _g_high52_volume(p: Panel, m: float) -> pd.DataFrame:
+    hi = p.close.shift(1).rolling(252, min_periods=252).max()
+    return first_day((p.close > hi) & (p.volume >= m * avg_volume_before(p, 50)))
+
+
+def _g_contraction_break(p: Panel, q: float) -> pd.DataFrame:
+    rng20 = (p.high.rolling(20, min_periods=20).max() - p.low.rolling(20, min_periods=20).min()) / p.close
+    low = rng20.rolling(252, min_periods=200).quantile(q / 100.0)
+    tight = (rng20 <= low).shift(1, fill_value=False)
+    return first_day(tight & (p.close > p.high.shift(1).rolling(20, min_periods=20).max()))
+
+
+STAGE_G_ENTRIES = [
+    Block("g_ret_z1", "하루 급등 (첫날)", "1일 수익 ÷ 직전 63일 일간 수익 표준편차 > z, 종가가 그날 범위의 상위 25%",
+          "평소 변동폭에 비해 아주 크게 오른 날, 밀리지 않고 고가 근처에서 마감한 날 삽니다.",
+          Param("z", 2.5, 2.0, 3.0, 0.5, "σ", "평소 하루 변동의 몇 배"), _g_ret_z1, "가격"),
+    Block("g_ret_z5", "5일 급등 (첫날)", "5일 수익 ÷ (그 5일 전까지 63일 일간 표준편차 × √5) > z",
+          "평소에 비해 5일 동안 아주 크게 오른 첫날 삽니다.",
+          Param("z", 2.5, 2.0, 3.0, 0.5, "σ", "평소 5일 변동의 몇 배"), _g_ret_z5, "가격"),
+    Block("g_volume_z", "거래량 폭발 (첫날)", "log 거래량이 직전 50일 log 거래량 평균보다 z 표준편차 이상 크고, 종가 > 시가",
+          "평소보다 거래량이 극단적으로 터진 양봉 날 삽니다.",
+          Param("z", 4, 3, 5, 1, "σ", "log 거래량의 표준편차 배수"), _g_volume_z, "거래량"),
+    Block("g_range_expansion", "변동폭 급확장 (첫날)", "오늘 true range > k × 어제의 ATR(20), 종가 > 시가",
+          "평소 진폭의 k배가 넘게 움직인 양봉 날 삽니다.",
+          Param("k", 2.5, 2.0, 3.0, 0.5, "배", "ATR(20) 대비 배수"), _g_range_expansion, "보조지표"),
+    Block("g_high52_volume", "52주 신고가 종가 + 거래량 (첫날)", "종가 > 직전 252거래일 최고 종가, 거래량 ≥ m × 직전 50일 평균",
+          "종가 기준 52주 신고가를 거래량과 함께 쓴 첫날 삽니다(E3은 고가 기준).",
+          Param("m (배)", 2, 1.5, 3, 0.5, "배", "평균 거래량 대비 배수"), _g_high52_volume, "거래량"),
+    Block("g_contraction_break", "변동성 수축 뒤 돌파 (첫날)",
+          "어제의 20일 범위(최고 − 최저 ÷ 종가)가 지난 1년 중 하위 q% 분위 이하, 오늘 종가 > 직전 20일 최고가",
+          "움직임이 아주 좁아졌다가 위로 터지는 첫날 삽니다(VCP 돌파).",
+          Param("q (%)", 20, 10, 30, 10, "%", "좁다고 볼 분위"), _g_contraction_break, "가격"),
+]
+
 STAGE_C_EXITS = [
     Block("chandelier", "샹들리에 청산 (ATR 22)", "오늘 종가 < 진입 후 최고 종가 − k × ATR(22)",
           "최고 종가에서 22일 평균 진폭의 k배 아래로 내려가면 팝니다(Chuck LeBeau). ATR 트레일링과 같고 ATR 기간만 22일입니다.",
@@ -565,6 +632,7 @@ EXIT_BLOCKS: dict[str, Block] = {
 }
 
 ENTRY_BLOCKS.update({b.key: b for b in STAGE_C_ENTRIES})
+ENTRY_BLOCKS.update({b.key: b for b in STAGE_G_ENTRIES})
 EXIT_BLOCKS.update({b.key: b for b in STAGE_C_EXITS})
 
 REGIME_PAIRS: dict[str, str] = {  # regime entry filter -> its complement exit (regime switch)

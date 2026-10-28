@@ -80,3 +80,37 @@ def test_placebo_counts_shape():
     pl = ts.placebo(s, "b5r", 3)
     assert len(pl) == 6 and set(pl["kind"]) == {"signal", "month_block"}
     assert (pl["separating"] <= 3).all()  # shuffled labels break the real separator
+
+
+def test_event_blocks_by_hand():
+    from lab import blocks
+    from tests.test_stage_c import _study_panel
+
+    p, dates = _study_panel()
+    c = p.close.copy()
+    # a +30% day on A at row 400, closing at its high
+    c.loc[dates[400]:, "A"] *= 1.3
+    p.close, p.high = c, p.high.copy()
+    p.high.loc[dates[400]:, "A"] = c.loc[dates[400]:, "A"]
+    p.low.loc[dates[400], "A"] = c.loc[dates[399], "A"]
+    for b in blocks.STAGE_G_ENTRIES:
+        out = b.compute(p, b.param.default)
+        assert out.shape == p.close.shape and out.dtypes.eq(bool).all()
+        assert not (out & out.shift(1, fill_value=False)).any().any()  # first days only
+    v1 = blocks.ENTRY_BLOCKS["g_ret_z1"].compute(p, 3.0)
+    assert v1.loc[dates[400], "A"] and not v1.loc[dates[401], "A"]
+    v4 = blocks.ENTRY_BLOCKS["g_range_expansion"].compute(p, 3.0)
+    d = dates[400]
+    assert v4.loc[d, "A"] == bool(p.close.loc[d, "A"] > p.open.loc[d, "A"])  # a +30% range: only the rising-bar test decides
+
+
+def test_event_menu(monkeypatch):
+    from lab import event_study as ev, stage_c_study as sc
+
+    monkeypatch.setattr(sc, "ENTRIES", dict(sc.ENTRIES))
+    monkeypatch.setattr(sc, "EXITS", dict(sc.EXITS))
+    monkeypatch.setattr(sc, "ENTRY_CANON", dict(sc.ENTRY_CANON))
+    ev.use_menu()
+    assert list(sc.ENTRIES) == ["V1", "V2", "V3", "V4", "V5", "V6"] and len(sc.EXITS) == 9
+    assert sc.rules("V3", "X1", 0, 1) == ({"g_volume_z": 3}, {"trailing_pct": 25}, None)
+    assert all(len(v) == 3 for _, v in ev.EVENTS.values())
