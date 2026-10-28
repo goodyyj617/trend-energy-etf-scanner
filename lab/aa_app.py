@@ -2652,6 +2652,15 @@ A41_ZONE_COLORS = {"안": BLUE, "경계": PALETTE[2], "밖": MUTED}
 A41_SPAN = "2000-09 – 2024-12, 원화, 분기 리밸런싱, 편도 10bp, 2005년 이전은 전부 모형 가격"
 
 
+# where each chart label sits, so the crowded corner near −15 % stays readable
+A41_TEXT_POS = {"(가) 평균 · 사후": "bottom right", "(나) 평균 · 사후": "top left", "B2": "top right", "안정형 40": "bottom right",
+                "규칙형 위험 몫 상한": "bottom center", "규칙형 동일": "top left", "B4": "bottom center"}
+
+
+def _a41_textpos(names: pd.Series) -> list[str]:
+    return [A41_TEXT_POS.get(exps.a41_short(n), "top center") for n in names]
+
+
 def _a41_marks(fig: go.Figure, marks: pd.DataFrame, x: str = "MDD", y: str = "CAGR") -> None:
     for kind in exps.A41_KINDS:
         part = marks[marks["종류"] == kind]
@@ -2660,7 +2669,8 @@ def _a41_marks(fig: go.Figure, marks: pd.DataFrame, x: str = "MDD", y: str = "CA
         symbol, size, color = A41_KIND_STYLE[kind]
         label_it = kind in ("사후 중심", "비교 배분", "S&P500")
         fig.add_trace(go.Scatter(x=part[x], y=part[y], mode="markers+text" if label_it else "markers", name=kind,
-                                 text=part["이름"] if label_it else None, textposition="top center", textfont=dict(size=10, color=INK),
+                                 text=part["이름"].map(exps.a41_short) if label_it else None, textposition=_a41_textpos(part["이름"]),
+                                 textfont=dict(size=10, color=INK),
                                  marker=dict(symbol=symbol, size=size, color=color, line=dict(width=1.5, color=INK if kind == "사후 중심" else color)),
                                  customdata=np.c_[part["이름"], part["비중"]],
                                  hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>CAGR %{y:.2f}% · MDD %{x:.2f}%<extra></extra>"))
@@ -2677,11 +2687,11 @@ def chart_a41_map() -> go.Figure:
     _a41_marks(fig, exps.a41_marks())
     _line_15(fig)
     fig.add_vline(x=100 * ls.NEAR, line=dict(color=GRAY, dash="dot", width=1))
-    fig.update_layout(height=600, margin=dict(l=10, r=10, t=60, b=10),
+    fig.update_layout(height=620, margin=dict(l=10, r=10, t=80, b=10),
                       title=dict(text="13개 상품 비중 지도 1,048,576점: MDD(가로)와 CAGR(세로)<br>"
-                                      f"<sup>{A41_SPAN}. 구역마다 고르게 솎아 약 6,000점씩 그림. 별 = 평탄한 영역의 평균(결과를 본 뒤 보완), "
+                                      f"<sup>{A41_SPAN}<br>구역마다 고르게 솎아 약 6,000점씩 그림. 별 = 평탄한 영역의 평균(결과를 본 뒤 보완), "
                                       "× = 앞·뒤 절반에서만 고른 중심</sup>"),
-                      xaxis=dict(title="MDD (%) — 점선 −17%, 파선 −15%", range=[-45, 0.5]), yaxis=dict(title="CAGR (%/년)"),
+                      xaxis=dict(title="MDD (%) — 점선 −17%, 파선 −15%", range=[-47, 0.5]), yaxis=dict(title="CAGR (%/년)"),
                       legend=dict(orientation="h", y=-0.14))
     return fig
 
@@ -2727,15 +2737,18 @@ def chart_a41_rebalance() -> go.Figure:
         part = r[r["이름"] == n]
         symbol, _, color = A41_KIND_STYLE[part["종류"].iloc[0]]
         share = 100 * (part["MDD"] >= sr.STAGE2_PCT_LINE).mean()
-        fig.add_trace(go.Box(y=part["MDD"], name=f"{n}<br>안 {share:.0f}%", marker_color=color, boxpoints="outliers", showlegend=False,
+        tick = f"{exps.a41_short(n)}<br>안 {share:.0f}%"
+        if "(나) 평균" in exps.a41_short(n):  # design §5: the (나) group is read against −17 % too
+            tick += f"<br>−17%: {100 * (part['MDD'] >= 100 * ls.NEAR).mean():.0f}%"
+        fig.add_trace(go.Box(y=part["MDD"], name=tick, marker_color=color, boxpoints="outliers", showlegend=False,
                              customdata=np.c_[part["변형"], part["CAGR"]],
                              hovertemplate=f"{n}<br>" + "%{customdata[0]}<br>MDD %{y:.2f}% · CAGR %{customdata[1]:.2f}%<extra></extra>"))
     fig.add_hline(y=sr.STAGE2_PCT_LINE, line=dict(color=GRAY, dash="dash", width=1))
-    fig.update_layout(height=560, margin=dict(l=10, r=10, t=70, b=10),
+    fig.update_layout(height=620, margin=dict(l=10, r=10, t=100, b=10),
                       title=dict(text="리밸런싱을 528가지로 바꿔도 −15% 안인가 (판정 3: 90% 이상)<br>"
-                                      "<sup>주기(월·분기·반기·연) × 시기 × 0–20거래일 미룸 × 밴드 0·3·5·10%p, 10bp와 20bp. "
-                                      f"{A41_SPAN}. 아래 글자 = −15% 안 비율</sup>"),
-                      yaxis=dict(title="MDD (%)"), xaxis=dict(tickangle=0, tickfont=dict(size=10)))
+                                      "<sup>주기(월·분기·반기·연) × 시기 × 0–20거래일 미룸 × 밴드 0·3·5·10%p, 10bp와 20bp. 아래 글자 = −15% 안 비율"
+                                      f"<br>{A41_SPAN}</sup>"),
+                      yaxis=dict(title="MDD (%)"), xaxis=dict(tickangle=-35, tickfont=dict(size=10)))
     return fig
 
 
@@ -2747,18 +2760,19 @@ def chart_a41_holdout() -> go.Figure:
         if part.empty:
             continue
         symbol, size, color = A41_KIND_STYLE[kind]
-        fig.add_trace(go.Scatter(x=part["MDD"], y=part["누적 수익"], mode="markers+text", name=kind, text=part["이름"],
-                                 textposition="top center", textfont=dict(size=10, color=INK),
+        fig.add_trace(go.Scatter(x=part["MDD"], y=part["누적 수익"], mode="markers+text", name=kind, text=part["이름"].map(exps.a41_short),
+                                 textposition=_a41_textpos(part["이름"]), textfont=dict(size=10, color=INK),
                                  marker=dict(symbol=symbol, size=size, color=color, line=dict(width=1.5, color=INK if kind == "사후 중심" else color)),
-                                 customdata=np.c_[part["CAGR"], part["모형 누적 수익"], part["모형 MDD"]],
-                                 hovertemplate="<b>%{text}</b><br>실제 가격 우선: 누적 %{y:.1f}% (연 %{customdata[0]:.1f}%) · MDD %{x:.1f}%"
+                                 customdata=np.c_[part["CAGR"], part["모형 누적 수익"], part["모형 MDD"], part["이름"]],
+                                 hovertemplate="<b>%{customdata[3]}</b><br>실제 가격 우선: 누적 %{y:.1f}% (연 %{customdata[0]:.1f}%) · MDD %{x:.1f}%"
                                                "<br>모형만: 누적 %{customdata[1]:.1f}% · MDD %{customdata[2]:.1f}%<extra></extra>"))
     _line_15(fig)
     span = f"{h['시작'].iloc[0]} – {h['끝'].iloc[0]}"
     fig.update_layout(height=520, margin=dict(l=10, r=10, t=60, b=10),
                       title=dict(text=f"보류 구간 {span}: 연구에 쓰지 않은 22개월을 한 번만 본 결과<br>"
                                       "<sup>실제 국내 가격 우선, 분기·10bp. 기록만 하고 후보·판정은 바꾸지 않음. 큰 위기가 없던 구간이라 낙폭 검증력은 약함</sup>"),
-                      xaxis=dict(title="보류 구간 MDD (%)"), yaxis=dict(title="누적 수익 (%)"), legend=dict(orientation="h", y=-0.14))
+                      xaxis=dict(title="보류 구간 MDD (%)", range=[float(h["MDD"].min()) - 1, float(h["MDD"].max()) + 1.5]),
+                      yaxis=dict(title="누적 수익 (%)"), legend=dict(orientation="h", y=-0.14))
     return fig
 
 
@@ -2803,7 +2817,7 @@ def experiments_page() -> None:
     st.title("실험 기록")
     st.caption("자산배분 연구실에서 돌린 실험을 최신순으로 모았습니다. 실험마다 **왜 했는지**, **핵심 결과**, **그래프**가 있습니다. "
                "그래프는 저장소에 기록된 결과 파일로 그리므로 가격 데이터 없이 열립니다. 점에 마우스를 올리면 값이 나옵니다. "
-               "모든 숫자는 2005–2026 원화 표본 내 결과이고 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
+               "모든 숫자는 원화 표본 내 결과(기간은 실험마다 적음, 대부분 2005–2026)이고 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
     items = list(reversed(exps.EXPERIMENTS))
     st.markdown("  \n".join(f"- {e.date} · {e.decision} · **{e.title}**" for e in items))
     for e in items:
@@ -2906,7 +2920,8 @@ def b_scatter(pts: pd.DataFrame, bg: pd.DataFrame | None, period: str, names: li
                 marker=dict(symbol=np.where(post, "star", FAMILY_MARKS["a41_new"][0]).tolist(), size=np.where(post, 16, 11).tolist(),
                             color=np.where(post, INK, GRAY).tolist(), line=dict(width=1.5, color=INK))))
             for r in a[post].itertuples():
-                fig.add_annotation(x=r.mdd, y=r.cagr, text=r.변형.replace(" · 사후 보완", " (사후)"), showarrow=False, yshift=-16,
+                fig.add_annotation(x=r.mdd, y=r.cagr, text=r.변형.replace(" · 사후 보완", " (사후)"), showarrow=False,
+                                   yshift=18 if "(나)" in r.변형 else -16, xshift=40 if "(나)" in r.변형 else 0,
                                    font=dict(size=11, color=INK), bgcolor="rgba(255,255,255,0.85)", borderpad=1)
     ref = p[(p["배분"] == bt.REFERENCE) & (p["묶음"] == "centre")]
     if len(ref):

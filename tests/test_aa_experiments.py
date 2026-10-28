@@ -166,3 +166,9 @@ def test_a41_chart_data():
     assert set(h["시작"]) == {"2025-01-02"} and set(h["끝"]) == {"2026-10-27"}
     assert (round(h.at["평균 중심 (가) · 사후 보완", "누적 수익"], 1), round(h.at["평균 중심 (가) · 사후 보완", "MDD"], 1)) == (23.0, -11.3)
     assert (round(h.at["S&P500 보유", "누적 수익"], 1), round(h.at["S&P500 보유", "MDD"], 1)) == (25.4, -19.2)
+    assert len(h) == 16 and (h["실행"] != "첫 실행").sum() == 4  # (나) and the three rule weights, added the same day
+    assert (round(h.at["평균 중심 (나) · 사후 보완", "누적 수익"], 1), round(h.at["평균 중심 (나) · 사후 보완", "MDD"], 1)) == (24.8, -13.2)
+    assert (h["종류"] == "규칙형").sum() == 3 and (h.loc[h["종류"] == "규칙형", "누적 수익"] < h.at["안정형 40", "누적 수익"]).all()
+    na = v.loc["평균 중심 (나) · 사후 보완"]  # design §5: the (나) group is also read against −17 %
+    assert round(na["mdd"], 2) == -15.73 and na["−17% 1 기준선"] == True and na["−17% 모두 통과"] == False  # noqa: E712
+    assert round(na["−17% 3 리밸런싱 안 비율"], 1) == 80.9
