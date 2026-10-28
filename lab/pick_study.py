@@ -552,13 +552,25 @@ def write_figures(out: Path, v: pd.DataFrame) -> list[Path]:
     if not figures.available():
         return []
     made = []
+    base = pd.read_csv(out / "baselines.csv").set_index("baseline") if (out / "baselines.csv").exists() else None
+    spy_all = float(base.loc["SPY", "cagr_all"]) if base is not None else None
     labs = [f"{r.exit} k{r.k:g}" for r in v.itertuples()]
     made.append(figures.paired_bars(labs, {"2000–2011": v["auc_2000-2011"].to_numpy() - 0.5, "2012–2023": v["auc_2012-2023"].to_numpy() - 0.5},
                                     "고르는 힘: 평가 구간 AUC − 0.5 (주 모형, 기준 +0.05)", "AUC − 0.5", out / "figures" / "auc.png",
                                     pct=False, ref=AUC_MIN - 0.5, ref_label="기준 +0.05", legend_out=True))
     made.append(figures.paired_bars(labs, {"모형 순": v["model_cagr_all"].to_numpy(), "거래대금 순": v["dv_cagr_all"].to_numpy(),
                                            "무작위 중앙값": v["random_median_cagr_all"].to_numpy()},
-                                    "10종목 1% 룰 계좌 CAGR, 2000–2023", "CAGR (%)", out / "figures" / "account10_cagr.png", legend_out=True))
+                                    "10종목 1% 룰 계좌 CAGR, 2000–2023 (점선 = SPY)", "CAGR (%)", out / "figures" / "account10_cagr.png",
+                                    legend_out=True, ref=spy_all, ref_label="SPY"))
+    halves = {}
+    for x, ki in settings():
+        acc = pd.read_csv(out / "settings" / tag(x, ki) / "accounts.csv").set_index("account")
+        for h in HALVES:
+            halves.setdefault(f"모형 순 {h}", []).append(acc.loc["logit_atr", f"cagr_{h}"])
+            halves.setdefault(f"거래대금 순 {h}", []).append(acc.loc["dollar_volume", f"cagr_{h}"])
+    made.append(figures.paired_bars(labs, {k: np.asarray(vv) for k, vv in halves.items()},
+                                    "10종목 계좌 CAGR: 모형 순 vs 거래대금 순, 두 반쪽", "CAGR (%)", out / "figures" / "account10_halves.png",
+                                    legend_out=True))
     un = pd.concat([pd.read_csv(out / "settings" / tag(x, ki) / "unlimited.csv").assign(setting=f"{x} k{K_VALUES[ki]:g}")
                     for x, ki in settings()])
     m = un[un["view"].isin(["all", "top30_logit_atr"])].pivot(index="setting", columns="view", values="cagr_all").reindex(labs)

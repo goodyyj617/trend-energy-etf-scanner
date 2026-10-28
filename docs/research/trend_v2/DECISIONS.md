@@ -718,6 +718,14 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     both halves; (3) candidate: 10-stock CAGR > SPY and |MDD| < |SPY MDD| in 2000-2023 and
     2017-2023 with >= 30 trades, >= 2 of the 3 k values, still at 40 bp; DSR for candidates only.
     Holdout unused. Design: docs/research/lab/2026-10-28_stage_h_design.md.
+    Result (2026-10-28, run 18:32-20:34 KST): no setting passes. (1) AUC 0.53-0.57 (2000-2011) /
+    0.58-0.62 (2012-2023); only H1 k 3 passes; for H9 the stock-block placebo is higher in
+    2000-2011 (year base rates). (2) 10-stock: 0/6 (score order beats dollar volume in 2000-2011 but
+    not in 2012-2023); no limit: 3/6 (H1). (3) no candidate. H1 10-stock score order 2000-2023 CAGR
+    10.5-13.1%, MDD -32 to -40% (SPY 7.0% / -55%, dollar-volume order 2.7-4.0% / -68 to -82%,
+    random median 7.3-7.9%), but 2017-2023 5.2-10.7% vs SPY 13.2%; the gain is in 2000-2011.
+    58-93% of signals hit the 10% cap; capped trades contributed more. ATR% in/out changes AUC by
+    <= 0.007. Record: docs/research/lab/2026-10-28_stage_h_results.md.
 ## Open decisions
 
 - final trend-filter definition;

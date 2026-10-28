@@ -2,6 +2,29 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_h_pick",
+      "title": "Stage H: 큰 승자 고르기 (걷기식 학습, 1% 룰 계좌)",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "86",
+      "memo": "docs/research/lab/2026-10-28_stage_h_results.md",
+      "results_dir": "lab_crsp/stage_h_pick",
+      "kind": "",
+      "why": "그해 이전 자료만으로 신호 시점에 큰 승자(거래 기여 ≥ 자산의 +5%)를 고를 수 있는지, 그렇게 고른 거래로 사용자 계좌 A(1% 위험, 종목당 10%, 10종목)와 종목 수 제한 없는 계좌가 SPY보다 나아지는지 본다.",
+      "results": [
+        "미리 정한 판정으로 통과한 설정은 없었다(고르는 힘 1/6, 10종목 0/6, 제한 없음 3/6, 후보 0).",
+        "H1(25% 트레일링 + ATR 손절)의 10종목 계좌는 모형 순 CAGR 10.5–13.1%, MDD −32 – −40%로 SPY(7.0%, −55%)와 거래대금 순(2.7–4.0%)보다 나았지만, 이점은 2000–2011에 몰려 있었고 2017–2023에는 SPY(13.2%)에 못 미쳤다.",
+        "평가 구간 AUC는 0.53–0.62로 작았고, ATR%를 넣든 빼든 거의 같았다.",
+        "계좌 A에서는 신호의 58–93%가 종목당 10% 상한에 걸렸고, 상한 거래의 기여가 더 컸다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_h_pick/account10_cagr.png", "caption": "10종목 1% 룰 계좌 CAGR (점선 SPY)"},
+        {"path": "docs/research/lab/figures/stage_h_pick/account10_halves.png", "caption": "모형 순 vs 거래대금 순, 두 반쪽"},
+        {"path": "docs/research/lab/figures/stage_h_pick/auc.png", "caption": "평가 구간 AUC − 0.5"},
+        {"path": "docs/research/lab/figures/stage_h_pick/unlimited_cagr.png", "caption": "종목 수 제한 없음: 상위 30% vs 전부"}
+      ]
+    },
+    {
       "id": "stage_g_events",
       "title": "Stage G-2: 극단 이벤트 매수 V1–V6",
       "date": "2026-10-28",
