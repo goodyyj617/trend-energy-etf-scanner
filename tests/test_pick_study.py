@@ -60,3 +60,12 @@ def test_calendar_weighted_scales_to_full():
     # one position of weight 0.5: half in T-bills
     eq, _ = ph.calendar_weighted(np.array([0]), np.array([3]), np.array([False]), np.array([0]), np.array([0.5]), O, C, cash, 0.0)
     assert np.allclose(eq, np.cumprod([1 + 0.5 * 0.01, 1 + 0.5 * 0.1 + 0.5 * 0.01, 1 + 0.5 * 0.01]))
+
+
+def test_replay_log():
+    O = np.array([[10, 10], [10, 10], [10, 10], [20, 10]], dtype=float)
+    log = {}
+    eq, tr = ph.replay_risk(np.array([0, 0]), np.array([1, 1]), np.array([0, 1]), np.array([3, -1]), np.array([True, False]),
+                            np.array([0.10, 0.05]), np.array([2.0, 1.0]), O, O.copy(), np.zeros(4), 0.0, slots=1, log=log)
+    assert list(log["positions"]) == [0, 1, 1, 0] and list(log["left"]) == [0, 1, 0, 0]
+    assert abs(log["invested"][1] - 0.10) < 1e-12 and log["held"][2] == [0]

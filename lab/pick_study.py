@@ -149,7 +149,7 @@ def weights(px: ts.Prices, m: pd.DataFrame, k: float) -> pd.DataFrame:
 def build_setting(px: ts.Prices, dirs: dict, x: str, ki: int, keys: list[str]) -> pd.DataFrame:
     s = pooled(dirs, x, ki, keys)
     m = px.measures(s, SAMPLES["full"][1])
-    s = pd.concat([s[["symbol", "signal_date", "entry_date", "exit_signal_date", "return", "holding_days", "closed"]
+    s = pd.concat([s[["symbol", "signal_date", "entry_date", "exit_signal_date", "return", "holding_days", "closed", "exit_reason"]
                      + [f"is_{e}" for e in keys]].reset_index(drop=True),
                    m[["si", "ei", "sj", "sale", "x_spy", "x_ew"]]], axis=1)
     return pd.concat([s, weights(px, m.assign(ret=s["return"].to_numpy()), K_VALUES[ki])], axis=1)
@@ -225,8 +225,9 @@ def design(s: pd.DataFrame, train: np.ndarray, rows: np.ndarray, cols: list) -> 
     return X
 
 
-def walk_forward(s: pd.DataFrame, dates: pd.DatetimeIndex, rng: np.random.Generator, n_placebo: int):
-    """Scores of every test-year signal for each variant, training thresholds, and placebo AUCs."""
+def walk_forward(s: pd.DataFrame, dates: pd.DatetimeIndex, rng: np.random.Generator, n_placebo: int, only=None):
+    """Scores of every test-year signal for each variant, training thresholds, and placebo AUCs.
+    `only` (a set of (model, with ATR%, target)) limits the variants fitted (e.g. {MAIN})."""
     sd = pd.DatetimeIndex(s["signal_date"])
     year = sd.year.to_numpy()
     sale_date = dates[np.minimum(s["sale"].to_numpy(), len(dates) - 1)]
@@ -249,6 +250,8 @@ def walk_forward(s: pd.DataFrame, dates: pd.DatetimeIndex, rng: np.random.Genera
                 y = s[f"y_{target}"].to_numpy()[train]
                 ok = np.isfinite(y)
                 for kind in MODELS:
+                    if only is not None and (kind, with_atr, target) not in only:
+                        continue
                     f = fit(kind, Xtr[ok], y[ok], cols)
                     key = (kind, with_atr, target)
                     scores.setdefault(key, np.full(len(s), np.nan))[test] = f.score(Xte)
@@ -280,11 +283,14 @@ def _placebo_year(Xtr, y, sym, Xte, test, Y, cols, rng, n):
 
 # --------------------------------------------------------------------------- 4. accounts
 
-def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLOTS, ban=BAN):
+def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLOTS, ban=BAN, log=None):
     """10-stock 1%-rule account on the window arrays: signals of day i are bought at the open of
     ei (their next session) in `key` order (larger first) while a slot and cash are free; target
     value = w x equity at that open (capped by cash); no re-entry for `ban` sessions after an exit.
-    Returns (equity, trades: [j, entry_i, exit_i, ret, weight, capped_flag_index])."""
+    Returns (equity, trades: [j, entry_i, exit_i, ret, weight, row]). With `log` (a dict) it is
+    filled per day: invested (stock share of equity at the close), positions, left (signals of the
+    day left unbought because slots or cash ran out), idle (free slots and no buyable signal),
+    banned (signals skipped by the re-entry rule) and held (symbols held at the close)."""
     n = O.shape[0]
     by_day: dict[int, list[int]] = {}
     for r in np.argsort(-key, kind="stable"):
@@ -309,14 +315,18 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
             trades.append((j, p["entry_i"], i, px * (1 - cost) / (p["entry_px"] * (1 + cost)) - 1.0, p["weight"], p["r"]))
             del pos[j]
             last_exit[j] = i
+        left = banned = bought = 0
         if i in by_day and len(pos) < slots:
             held = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else LC[i - 1, j]) for j, p in pos.items())
             eq_now = cash + held
-            for r in by_day[i]:
+            cand = by_day[i]
+            for q, r in enumerate(cand):
                 if len(pos) >= slots or cash <= 1e-9:
+                    left = len(cand) - q
                     break
                 j = int(sj[r])
                 if j in pos or (j in last_exit and i - last_exit[j] < ban):
+                    banned += j not in pos
                     continue
                 px = Oi[j]
                 if px != px or px <= 0 or not np.isfinite(w[r]):
@@ -325,10 +335,20 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
                 pos[j] = {"shares": alloc / (px * (1 + cost)), "entry_px": float(px), "entry_i": i,
                           "sale": int(sale[r]) if closed[r] else -1, "weight": alloc / eq_now, "r": int(r)}
                 cash -= alloc
+                bought += 1
                 if closed[r] and sale[r] < n:
                     sells.setdefault(int(sale[r]), []).append(j)
+        elif i in by_day:
+            left = len(by_day[i])
         cash *= 1.0 + cash_r[i]
         eq[i] = cash + sum(p["shares"] * LC[i, j] for j, p in pos.items())
+        if log is not None:
+            log.setdefault("invested", np.zeros(n))[i] = 1.0 - cash / eq[i] if eq[i] > 0 else 0.0
+            log.setdefault("positions", np.zeros(n, dtype=int))[i] = len(pos)
+            log.setdefault("left", np.zeros(n, dtype=int))[i] = left
+            log.setdefault("idle", np.zeros(n, dtype=bool))[i] = len(pos) < slots and bought == 0 and left == 0
+            log.setdefault("banned", np.zeros(n, dtype=int))[i] = banned
+            log.setdefault("held", [None] * n)[i] = list(pos)
     for j, p in pos.items():  # still open at the end: valued at the last close
         trades.append((j, p["entry_i"], n - 1, LC[n - 1, j] / (p["entry_px"] * (1 + cost)) - 1.0, p["weight"], p["r"]))
     return eq, pd.DataFrame(trades, columns=["j", "entry_i", "exit_i", "ret", "weight", "row"])

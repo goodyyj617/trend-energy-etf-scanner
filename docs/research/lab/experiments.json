@@ -2,6 +2,28 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_h_bull_diag",
+      "title": "Stage H 강세장 진단: 모형 순 계좌는 왜 2012–2023에 뒤졌나",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "86",
+      "memo": "docs/research/lab/2026-10-29_stage_h_bull_diag.md",
+      "results_dir": "lab_crsp/stage_h_pick/diag",
+      "kind": "",
+      "why": "Stage H 모형 순 10종목 계좌의 이점이 2000–2011에 몰리고 2012–2023에는 거래대금 순·SPY에 뒤진 이유가 현금 비중, 종목 크기, 승자 사이징, 잦은 손절 중 무엇인지 숫자로 가린다(서술 분석).",
+      "results": [
+        "주된 이유는 종목 크기: 모형 순은 시총 순위 중앙값 467위(상위 500 안 53%), 거래대금 순은 24위(100%). SPY 베타 0.72 대 0.88.",
+        "현금 비중은 아님(주식 비중 98–99%, 늘 10종목을 채움). 잦은 손절도 아님(ATR 손절 비율 55% 대 61%, 평균 기여 같음).",
+        "승자 사이징도 아님: 큰 승자(기여 ≥ +5%)는 모형 순 21개 +403%, 거래대금 순 17개 +362%. 다만 거래대금 순은 끝까지 들고 간 초대형주가 평균 +5% 기여했다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_h_pick/diag_cap_rank_median.png", "caption": "보유 종목 시총 순위 중앙값"},
+        {"path": "docs/research/lab/figures/stage_h_pick/diag_invested_mean.png", "caption": "평균 주식 비중"},
+        {"path": "docs/research/lab/figures/stage_h_pick/diag_excess_bull_months.png", "caption": "SPY 200일선 위인 달의 월 초과수익"},
+        {"path": "docs/research/lab/figures/stage_h_pick/diag_big_contrib_sum.png", "caption": "큰 승자 기여 합"}
+      ]
+    },
+    {
       "id": "stage_h_pick",
       "title": "Stage H: 큰 승자 고르기 (걷기식 학습, 1% 룰 계좌)",
       "date": "2026-10-28",
