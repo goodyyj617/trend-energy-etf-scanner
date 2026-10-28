@@ -534,3 +534,21 @@ A40. Canary signals on B2–B5, weights unchanged. User: "카나리아 자산군
     on data containing 2000–02 and 2008, so the dot-com pass is not independent; most of 2005–2026 is model prices
     (A39 ⑤) and 2000–2004 is all model; post-2005 crisis help is 1–3 %p; in-sample. Same PR: experiment entry 'a40' on
     '실험 기록' and PNGs in `2026-10-27_canary/figures/`.
+
+A41. Principle-first map of a 14-product universe, backtests used only to check (planned, not yet run). User,
+    2026-10-27 – 28: keep MDD −15 % as the goal but do not drop an allocation just for crossing it; keep 2025–2026 out
+    of the backtest and look at it once at the end; every product on its own; gold priced as the KRX spot account;
+    unhedged US treasuries only as real KRX-listed ETFs (no synthetic products), proxies before listing; no weight rule
+    fixed in advance, cover the space as widely as possible; cost / spread / tax fields set up but not applied; drop
+    TIPS, IG corporates, MSCI World and KODEX 200; include a 'gold by new deposits only' version. Design fixed before
+    results in `2026-10-28_a41_design.md`: research window 2000-09-01 – 2024-12-31 (sub-window from 2005), hold-out
+    2025-01-02 onward used once; 14 products (nasdaq-100, S&P500, staples, health care, utilities, KRX spot gold, CD,
+    dollar futures, dollar SOFR 455030, unhedged short UST 329750, unhedged 10-yr futures 305080, 10-yr(H), unhedged
+    30-yr 476760, 30-yr(H)); stage 1 = 2^20 Sobol points (inclusion bit + size per product, uniform Dirichlet within
+    the included set, integer %, min 2 %) with zones 안 / 경계 (−15 to −18) / 밖, Sobol sensitivity indices on the 28
+    independent coordinates computed on real simulations (Saltelli N = 2^14), no gradient ascent (MDD is non-smooth
+    and A32's refined R showed it walks to the line); stage 2 rebalancing cube (frequency, bands, quarter phase,
+    0–20 trading-day offsets, 10 / 20 bp, gold G0 / G1); stage 3 start dates 2000-09 – 2015-12 monthly and every
+    10-year window; verdicts 1–5 (MDD −15 %, ≥ 90 % of stage-2 versions inside and worst ≥ −20 %, ±5 %p neighbours
+    ≥ 80 % inside, 10-year windows ≥ 90 % inside, start-date CAGR p10 ≥ 안정형 40's), ranked by start-date CAGR p10;
+    rows failing only verdict 1 are kept as '선 근처 후보'. Nothing is registered by the study.
