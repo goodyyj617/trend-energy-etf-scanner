@@ -54,6 +54,8 @@ def screen_names() -> list[str]:
 def label(name: str) -> str:
     if name == "none":
         return "스크린 없음"
+    if name in _W.get("labels", {}):
+        return _W["labels"][name]
     s = screens.ALL_SCREENS[name]
     return f"제외: {s.label}" if name in EXCLUDE else f"선별: {s.label} 상위 30%"
 
@@ -68,6 +70,11 @@ def screen_mask(panel: Panel, eligible: pd.DataFrame, name: str) -> pd.DataFrame
     p = screens.SELECT_SCORES[name].param
     score = screens.SELECT_SCORES[name].compute(panel, p.default if p else None).where(eligible)
     return eligible & (score.rank(axis=1, pct=True) >= 1.0 - TOP_SHARE)
+
+
+def active_names() -> list[str]:
+    """Screens a worker runs: Stage E's menu unless a later stage (lab/combo_f_study.py) set its own."""
+    return _W.get("names") or screen_names()
 
 
 def mask_file(out: Path, name: str) -> Path:
@@ -124,7 +131,7 @@ def _setup(panel: Panel, signals_dir: str, out: str) -> None:
     _W["cache"] = SignalCache(panel)
     _W["signals"] = Path(signals_dir)
     _W["spy"] = {k: spy_stats(panel, s, e) for k, (s, e, _) in SAMPLES.items()}
-    _W["masks"] = {n: pd.read_parquet(mask_file(Path(out), n)).to_numpy(dtype=bool) for n in screen_names()}
+    _W["masks"] = {n: pd.read_parquet(mask_file(Path(out), n)).to_numpy(dtype=bool) for n in active_names()}
 
 
 def _init(panel_dir: str, eligible: str, signals_dir: str, out: str, dry: bool):
@@ -162,7 +169,7 @@ def _run_pair(job):
             ent = win.get_indexer(pd.DatetimeIndex(sig["entry_date"]))
             sale = ent + sig["holding_days"].to_numpy(dtype=int)
             closed = sig["closed"].to_numpy(dtype=bool)
-        for name in screen_names():
+        for name in active_names():
             keep = np.zeros(len(sig), dtype=bool)
             keep[ok] = _W["masks"][name][di[ok], dj[ok]]
             row = {"xi": xi, "yi": yi, "screen": name, **signal_stats(ret[keep & filled], years), **spy}
@@ -297,7 +304,7 @@ def summarize(out: Path, panel: Panel | None = None) -> dict:
 def check_cost(out: Path, panel: Panel, name: str, e: str, x: str) -> bool:
     """True if the pair has a passing cell in both samples when replayed at CHECK_COST_BPS."""
     if "masks" not in _W:
-        _W["masks"] = {n: pd.read_parquet(mask_file(out, n)).to_numpy(dtype=bool) for n in screen_names()}
+        _W["masks"] = {n: pd.read_parquet(mask_file(out, n)).to_numpy(dtype=bool) for n in active_names()}
     passed = {}
     for sample in SAMPLES:
         spy = spy_stats(panel, SAMPLES[sample][0], SAMPLES[sample][1])
@@ -327,7 +334,7 @@ def write_figures(out: Path, scr: pd.DataFrame, reg: pd.DataFrame) -> list[Path]
         return []
     d = out / "figures"
     names = {k: SAMPLES[k][2] for k in SAMPLES}
-    order = screen_names()
+    order = active_names()
     made = []
     for stat, title, unit, pct in (
             ("median_d_expectancy", "종목 수 제한 없음: 스크린이 바꾼 신호당 수익 (칸별 차이 중앙값)", "스크린 없음 대비 (%p)", True),

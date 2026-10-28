@@ -1,6 +1,8 @@
 """Stage E candidates (DECISIONS 83): index check and DSR of each candidate's representative cell.
 
-    python scripts/stage_e_report.py --out DIR
+    python scripts/stage_e_report.py --out DIR [--n-raw N]
+
+Also used for Stage F (DECISIONS 84, same output layout) with --n-raw 62290 (Stages B-F).
 
 Reads the Stage E output folder (20-slot equity curves, summary) and SPY / cash from the price cache.
 Representative cell of a candidate = among its cells passing in both samples, the one whose smaller
@@ -49,7 +51,9 @@ def index_stats(eq: pd.Series, spy: pd.Series) -> dict:
 def main(argv: list[str]) -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", required=True)
+    ap.add_argument("--n-raw", type=int, default=N_TRIALS["raw"], help="logged trials (Stage F: 62,290)")
     a = ap.parse_args(argv)
+    n_trials = {"raw": a.n_raw, "effective": N_TRIALS["effective"]}
     out = Path(a.out)
     c = pd.read_csv(out / "summary.csv")
     cand = pd.read_csv(out / "candidates.csv")
@@ -82,7 +86,7 @@ def main(argv: list[str]) -> None:
             row = {"screen": r.screen, "entry": r.entry, "exit": r.exit, "xi": int(xi), "yi": int(yi), "sample": smp,
                    "cagr": cell["cagr"], "mdd": cell["mdd"], "n_trades": int(cell["n_trades"]), "goal_pass": bool(cell["goal_pass"]),
                    **index_stats(eq, spy)}
-            for k, n in N_TRIALS.items():
+            for k, n in n_trials.items():
                 row[f"dsr_{k}"] = deflated_sharpe(eq.dropna(), n, sr_var[smp])
                 row[f"dsr_iqr_{k}"] = deflated_sharpe(eq.dropna(), n, sr_var_iqr[smp])
             rows.append(row)

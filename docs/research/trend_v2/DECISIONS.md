@@ -622,6 +622,25 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     Sharpe dispersion and N 1,169; most lost to SPY in 1993-98 and led in 1999-2003. No holdout
     candidate. Calendar-time (unlimited) portfolios hold a median 250-930 names, CAGR 1-6%.
     Trials +23,328 (Drive log, not merged). Record: docs/research/lab/2026-10-27_stage_e_results.md.
+84. Stage F: combinations of the Stage E screens that helped (user choice 2026-10-28; registered
+    before any run). Everything but the screen is Stage E's (E1-E9, X1-X9 3 x 3, daily top 3,000,
+    hygiene, 20 bp, both views). Each screen is judged alone exactly as in 83 (s_efficiency's top 30%
+    ranked among the hygiene-eligible names, never re-ranked after other screens); a combination buys
+    only stocks passing all of its screens (AND). F1 = x_weak_industry 30 + x_overextended 10;
+    F2 = F1 + x_ivol 20; F3 = F1 + s_efficiency (6) top 30%; F4 = F1 + x_ivol + s_efficiency;
+    F5 = F1 + x_ivol + x_volatility 20. 'none' and the five singles are re-run in the same job and
+    must reproduce Stage E. Verdicts fixed before results: (1) vs none, Stage E's rule (both samples
+    >= 60% of cells better and median paired difference > 0; expectancy unlimited, CAGR 20-slot, MDD
+    shown); (2) main verdict 'stacking': each combo vs its best component on the same cells with the
+    same rule in both samples; the best component is chosen per view by the two-sample mean of its
+    median paired difference vs none; (3) candidates as 81-83 (connected passing region >= 2 cells in
+    both samples, 40 bp recheck), index check and DSR only for candidates (N = Stages B-F, ~62,290,
+    and 1,169; IQR-dispersion variant shown); (4) information: 15%-drawdown target return, signals
+    left, share bought by the 20-slot account. Limit stated in advance: the components were picked
+    from Stage E on the same samples, so passing (1) is weak new evidence; (2) is the question. Only
+    F1-F5 are logged as trials (7,290). Holdout unused, nothing changed after results. Runner
+    lab/combo_f_study.py (results lab_crsp/stagec_combos_daily3000).
+    Design: docs/research/lab/2026-10-28_stage_f_design.md.
 
 ## Open decisions
 
