@@ -58,8 +58,9 @@ SPX = {"S&P500 보유": {"379800": 100}}
 
 # --------------------------------------------------------------------------- data
 
-def load_panel():
-    """KRW panel 2000-09 – , proxies carried back (A37 extend_history), real prices after listing with A41 chains."""
+def load_panel(prices: str = "real"):
+    """KRW panel 2000-09 – , proxies carried back (A37 extend_history), real prices after listing with A41 chains
+    (prices="model": the model only, for the real-vs-model column of the hold-out check)."""
     usd, failed = download_panel(sorted(set(PROXY_SYMBOLS) | {"IEF", "TLT", "SHY"}), end=DATA_END)
     subs, failed_s = download_panel(sorted({c for v in loc.SUBSTITUTES.values() for c in v}), end=DATA_END)
     if failed or failed_s:
@@ -70,6 +71,8 @@ def load_panel():
     missing = sorted(need & set(unavailable))
     if missing:
         raise SystemExit(f"대용 데이터가 없는 상품: {missing}")
+    if prices == "model":
+        return krw, table, {}
     krw, info, msg = aa_real.apply_source(krw, "real", chains=aa_real.A41_CHAINS)
     if info is None:
         raise SystemExit(msg)
@@ -590,6 +593,74 @@ def verdict_table(R: pd.DataFrame, comparators: set[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# --------------------------------------------------------------------------- after the results (user's decisions)
+
+MEAN_LABEL = "(가) 평균·보완"  # added after the results: the mean of the full-window flat region (design change log)
+HOLDOUT_START = "2025-01-02"
+
+
+def stage4b(P, out: Path, work: Path, workers: int) -> dict:
+    """The user's decision of 2026-10-28 after stage 3: the full-window flat region (10 points) gave no centre under
+    the grouping rule, so its mean weights become one more centre and go through stage 4 like the others."""
+    krw, _, _ = load_panel()
+    F = pd.read_csv(out / "flat_region_full.csv")
+    reg = F[F["영역"] == "(가)"]
+    mean = np.vstack([wparse(s) for s in reg["비중"]]).mean(axis=0)
+    mean[mean < LS.MIN_PCT] = 0.0
+    w = LS.whole(mean)
+    sim, lay = _sim(krw)
+    m = LS.path_metrics(*sim.run(LS.to_fraction(w[None, :])), lay).iloc[0].to_dict()
+    C = pd.read_csv(out / "centres.csv")
+    C = C[C["묶음"] != MEAN_LABEL]
+    row = {"고른 구간": "전체", "묶음": MEAN_LABEL, "번호": 1, "영역 점 수": int(len(reg)),
+           "주요 상품": " + ".join(LS.SHORT[LS.UNIVERSE[i]] for i in np.flatnonzero(w >= LS.MAJOR_PCT)), "묶음 점 수": int(len(reg)),
+           "비중": wstr(w), **m, "zone": LS.zone(np.array([m["mdd"]]))[0]}
+    C = pd.concat([C, pd.DataFrame([row])], ignore_index=True)
+    C.to_csv(out / "centres.csv", index=False)
+    name = f"중심 전체 {MEAN_LABEL} 1"
+    rows = _robust_one((krw, name, {LS.UNIVERSE[i]: float(x) for i, x in enumerate(w) if x > 0}, "grid"))
+    R = pd.read_csv(out / "robustness.csv.gz")
+    R = pd.concat([R[R["대상"] != name], pd.DataFrame(rows)], ignore_index=True)
+    R.to_csv(out / "robustness.csv.gz", index=False)
+    named = {**{k: PRESETS[v].weights for k, v in COMPARE.items()}, **SKELETONS, **SPX}
+    V = verdict_table(R, set(named))
+    V.to_csv(out / "verdicts.csv", index=False)
+    v = V[V["대상"] == name].iloc[0].to_dict()
+    return {"weights": wstr(w), "metrics": {k: m[k] for k in ("cagr", "mdd", "rank", "win_worst")}, "verdict": v}
+
+
+def stage5(P, out: Path, work: Path, workers: int) -> dict:
+    """Hold-out (2025-01-02 – data end), once, after the user saw the candidate table: every centre and comparator,
+    on real-first prices and on the model alone. Recorded only; nothing is re-chosen from it."""
+    real, _, _ = load_panel("real")
+    model, _, _ = load_panel("model")
+    C = pd.read_csv(out / "centres.csv")
+    targets = {f"중심 {r['고른 구간']} {r['묶음']} {r['번호']}": {LS.UNIVERSE[i]: float(x) for i, x in enumerate(wparse(r["비중"])) if x > 0}
+               for _, r in C.iterrows()}
+    targets.update({k: dict(PRESETS[v].weights) for k, v in COMPARE.items()})
+    targets.update(SKELETONS)
+    targets.update(SPX)
+    rows = []
+    for name, w in targets.items():
+        row = {"대상": name}
+        for tag, panel in (("실제", real), ("모형", model)):
+            r = run_allocation(panel, AllocConfig(name, dict(w), HOLDOUT_START, DATA_END, rebalance="Q", cost_bps=COST_BPS))
+            m = _metrics_of(r.equity, r.turnover)
+            v = r.equity.to_numpy()
+            row.update({f"{tag} 시작": str(r.equity.index[0].date()), f"{tag} 끝": str(r.equity.index[-1].date()),
+                        f"{tag} 누적 수익": float(v[-1] / v[0] - 1), f"{tag} CAGR": m["cagr"], f"{tag} MDD": m["mdd"]})
+        row["안 (실제)"] = bool(row["실제 MDD"] >= LS.LINE)
+        rows.append(row)
+    H = pd.DataFrame(rows)
+    spx = H.set_index("대상").loc["S&P500 보유"]
+    st = H.set_index("대상").loc["안정형 40"]
+    H["S&P500 대비 누적 수익 (실제, %p)"] = H["실제 누적 수익"] - spx["실제 누적 수익"]
+    H["안정형 40 대비 누적 수익 (실제, %p)"] = H["실제 누적 수익"] - st["실제 누적 수익"]
+    H["실제 − 모형 누적 수익 (%p)"] = H["실제 누적 수익"] - H["모형 누적 수익"]
+    H.to_csv(out / "holdout.csv", index=False)
+    return {"start": HOLDOUT_START, "end": str(H["실제 끝"].iloc[0]), "targets": int(len(H)), "inside": int(H["안 (실제)"].sum())}
+
+
 def _jsonable(o):
     if isinstance(o, np.ndarray):
         return o.tolist()
@@ -605,7 +676,7 @@ def _jsonable(o):
 def main(argv: list[str]) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--stage", default="all", choices=("1", "2", "3", "4", "all"))
+    ap.add_argument("--stage", default="all", choices=("1", "2", "3", "4", "4b", "5", "all"))
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--workers", type=int, default=max(1, min(12, (os.cpu_count() or 2) - 1)))
     args = ap.parse_args(argv)
@@ -621,7 +692,7 @@ def main(argv: list[str]) -> None:
     for s in stages:
         t0 = time.time()
         print(f"=== {s}단계", flush=True)
-        res = {"1": stage1, "2": stage2, "3": stage3, "4": stage4}[s](P, out, work, args.workers)
+        res = {"1": stage1, "2": stage2, "3": stage3, "4": stage4, "4b": stage4b, "5": stage5}[s](P, out, work, args.workers)
         res["seconds"] = round(time.time() - t0, 1)
         summary[f"stage{s}"] = res
         summ_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2, default=_jsonable), encoding="utf-8")

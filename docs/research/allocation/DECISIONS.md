@@ -535,7 +535,7 @@ A40. Canary signals on B2–B5, weights unchanged. User: "카나리아 자산군
     (A39 ⑤) and 2000–2004 is all model; post-2005 crisis help is 1–3 %p; in-sample. Same PR: experiment entry 'a40' on
     '실험 기록' and PNGs in `2026-10-27_canary/figures/`.
 
-A41. Principle-first map of a 13-product universe, backtests used only to check (planned, not yet run). User,
+A41. Principle-first map of a 13-product universe, backtests used only to check (run 2026-10-28; memo `2026-10-28_a41.md`). User,
     2026-10-27 20:48 / 21:17 and 2026-10-28 11:12 KST: keep MDD −15 % as the goal but do not drop an allocation
     just for crossing it (so −15 % is a reference line, not a cut); keep 2025–2026 out of the backtest and look at it
     once at the end; every growth and defensive equity product on its own; gold priced as the KRX spot account;
@@ -572,3 +572,16 @@ A41. Principle-first map of a 13-product universe, backtests used only to check 
     fixes `aa_real.SYN_REAL` (the unhedged 30-yr stood on 453850 = ACE 미국30년국채액티브(H), hedged; A35 samples
     holding the synthetic unhedged 30-yr used hedged returns after 2023-03; B2–B5 and 안정형 presets unaffected) to
     476760, and adds `lab/aa_frictions.py` (off, bit-identical test). Nothing is registered by the study.
+    Results (2000-09 – 2024-12, KRW, quarterly, 10 bp; engine check 4.4e-14): 2^20 points, 11.2 % inside −15 %, best
+    CAGR inside 9.15 %. Sobol total index on MDD: nasdaq-100 0.36, CD 0.18, 10-yr(H) 0.18, 30-yr(H) 0.15; adding CD or
+    10-yr(H) raises the inside share by 12.6 / 10.2 %p (hedged beats unhedged at the same maturity). Flat region: 10
+    points (CAGR 8.6–9.0, MDD −13.3 to −14.3); the grouping rule split them, so no full-window centre; half-window
+    centres (5) failed the other half (full MDD −19 to −42 %, 0 % of 528 rebalancing versions inside). PBO 0.91 (A31
+    rule) / 0.63 (flat-region rule). Among comparators only 안정형 40 kept every rebalancing version and 10-year window
+    inside. After the results the user added the region's mean as a centre: nasdaq-100 18 · S&P500 3 · health care 8 ·
+    KRX gold 30 · 10-yr(H) 30 · 30-yr(H) 11 → 8.84 / −13.71 %, neighbours ±5 94.7 % inside, all 10-year windows inside,
+    rebalancing 81.3 % inside (annual and wide bands fail; monthly 100 %, quarterly 91.7 %) → verdict 3 missed.
+    Hold-out 2025-01-02 – 2026-10-27, run once: that centre +23.0 % (MDD −11.3) vs 안정형 40 +21.5 (−9.1), S&P500
+    +25.4 (−19.2). Nothing registered. Caveats: 10-yr(H) has no real price before 2025-08 (all model in the research
+    window); 2000–2004 all model; in-sample.
+
