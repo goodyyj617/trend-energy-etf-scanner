@@ -669,7 +669,9 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     design memo (price/volume 20, size 2, industry 1, market 6, screens 11); medians, univariate AUC,
     decile lift. A feature 'separates' when AUC >= 0.55 (or <= 0.45) in both halves 1993-2007 and
     2008-2023 and AUC - 0.5 has the same sign in all four periods; chance count from 200 label
-    shuffles within periods. Rule: >= 3 separating features and above the placebo 95th percentile ->
+    shuffles within years, and for the six market features (same value for every signal of a day)
+    also from 200 month-block shuffles (months permuted, labels drawn from the paired month), judged
+    by the stricter of the two. SPY excess uses the exact signal window (open to open). Rule: >= 3 separating features and above the placebo 95th percentile ->
     (3) is a walk-forward model of the big-winner probability; otherwise big winners are a sizing
     problem (pyramiding, D). G-2 (registered now, run after G-1 at night): first-day entries V1 1-day
     return z > {2, 2.5, 3} (63-day sd) closing in the top 25% of the range; V2 5-day z > {2, 2.5, 3};
