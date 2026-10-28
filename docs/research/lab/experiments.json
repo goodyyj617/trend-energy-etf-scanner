@@ -19,7 +19,8 @@
       ],
       "figures": [
         {"path": "docs/research/lab/figures/stage_h_pick/account10_cagr.png", "caption": "10종목 1% 룰 계좌 CAGR (점선 SPY)"},
-        {"path": "docs/research/lab/figures/stage_h_pick/account10_halves.png", "caption": "모형 순 vs 거래대금 순, 두 반쪽"},
+        {"path": "docs/research/lab/figures/stage_h_pick/account10_2000_2011.png", "caption": "10종목 계좌 CAGR 2000–2011 (점선 SPY)"},
+        {"path": "docs/research/lab/figures/stage_h_pick/account10_2012_2023.png", "caption": "10종목 계좌 CAGR 2012–2023 (점선 SPY)"},
         {"path": "docs/research/lab/figures/stage_h_pick/auc.png", "caption": "평가 구간 AUC − 0.5"},
         {"path": "docs/research/lab/figures/stage_h_pick/unlimited_cagr.png", "caption": "종목 수 제한 없음: 상위 30% vs 전부"}
       ]
