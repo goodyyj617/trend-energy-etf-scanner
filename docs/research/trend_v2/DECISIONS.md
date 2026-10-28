@@ -681,6 +681,17 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     prior 20-day high. Judged per signal (no slot limit) with X1-X9 and the measures of G-1, against
     E1-E9; trials +972 (6 x 81 x 2). Holdout unused; nothing changed after results.
     Design: docs/research/lab/2026-10-28_stage_g_design.md.
+    G-1 result (2026-10-28, run 15:20-15:31 KST): in 89% / 100% (1993-2023 / 2017-2023) of the
+    cells with positive net profit the top 5% of signals make all of it or more; median signal
+    -2.1% / -2.5%, skew 7.3 / 5.8. Signals beat SPY over their own window in 36% / 34% (median
+    excess -2.4% / -2.8%; mean excess > 0 in 32% / 3% of cells, 55% in 2000-08); big winners (5R)
+    beat it by +47% / +53%. Long-holding exits (X1, X9) have the most big winners, X6/X7 almost
+    none. (c) X1, B5R: 8 separating features (ATR%, idiosyncratic vol, max 1-day return, cap rank,
+    turnover, distance from 52-week low and high, shallow drawdown), none of the market six; placebo
+    95th percentile 0 (both kinds), so by rule (3) is a walk-forward big-winner model. Caveat: the
+    eight mostly mean "low volatility", which the ATR-scaled 5R makes easier to reach; under B50/B2S
+    they fail and flip sign in 2017-23 (only low price, and the term spread for B2S, pass); pooled
+    signals overlap 96% within symbols. Record: docs/research/lab/2026-10-28_stage_g_results.md.
 
 ## Open decisions
 

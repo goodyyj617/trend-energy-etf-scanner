@@ -474,24 +474,28 @@ def run_features(panel: Panel, eligible: pd.DataFrame, px: Prices, signals: Path
 
 # --------------------------------------------------------------------------- figures and main
 
-def write_figures(out: Path, c: pd.DataFrame, ft: pd.DataFrame) -> list[Path]:
+def write_figures(out: Path, c: pd.DataFrame, ft: pd.DataFrame, ft_b50: pd.DataFrame | None = None) -> list[Path]:
     if not figures.available():
         return []
     d = out / "figures"
     made = []
     can = c[c["canonical"] & (c["sample"].isin(list(SAMPLES)))]
     names = {k: SAMPLES[k][2] for k in SAMPLES}
-    for stat, title, unit in (("top5_share", "상위 5% 신호가 낸 순이익 몫 (대표 칸, 매도별 중앙값)", "순이익 중 몫 (%)"),
+    for stat, title, unit in (("mean", "신호당 평균 수익 (대표 칸, 매도별 중앙값)", "%"),
+                              ("mean_wo_top5", "상위 5% 신호를 뺀 신호당 평균 수익 (대표 칸, 매도별 중앙값)", "%"),
                               ("median_x_spy", "신호당 SPY 대비 초과 중앙값 (대표 칸, 매도별 중앙값)", "%p"),
                               ("b5r", "큰 승자(≥ 5R) 비율 (대표 칸, 매도별 중앙값)", "%")):
         m = can.groupby(["exit", "sample"])[stat].median().unstack("sample").reindex(list(sc.EXITS))
         made.append(figures.paired_bars([f"{x} {sc.EXITS[x][0]}" for x in m.index], {names[s]: m[s].to_numpy(dtype=float) for s in SAMPLES},
                                         title, unit, d / f"{stat}_by_exit.png", pct=True, legend_out=True))
-    f = ft.sort_values("auc_all")
-    made.append(figures.paired_bars([LABELS[k] for k in f["feature"]],
-                                    {"1993–2007": (f["auc_h1"] - 0.5).to_numpy(), "2008–2023": (f["auc_h2"] - 0.5).to_numpy()},
-                                    "큰 승자(≥ 5R, 매도 X1) 가르는 힘: AUC − 0.5 (기준 ±0.05)", "AUC − 0.5", d / "feature_auc.png",
-                                    pct=False, ref=AUC_HI - 0.5, ref_label="기준 +0.05", legend_out=True))
+    for f, label, name in ((ft, "≥ 5R", "feature_auc.png"), (ft_b50, "≥ +50%", "feature_auc_b50.png")):
+        if f is None:
+            continue
+        f = f.sort_values("auc_all")
+        made.append(figures.paired_bars([LABELS[k] for k in f["feature"]],
+                                        {"1993–2007": (f["auc_h1"] - 0.5).to_numpy(), "2008–2023": (f["auc_h2"] - 0.5).to_numpy()},
+                                        f"큰 승자({label}, 매도 X1) 가르는 힘: AUC − 0.5 (기준 ±0.05)", "AUC − 0.5", d / name,
+                                        pct=False, ref=AUC_HI - 0.5, ref_label="기준 +0.05 (−0.05도 같음)", legend_out=True))
     return made
 
 
@@ -527,7 +531,7 @@ def main(argv: list[str]) -> None:
     log("(다) 큰 승자의 신호일 특징")
     verdict = run_features(panel, eligible, px, signals, out)
     ft = pd.read_csv(out / f"features_X1_{MAIN_LABEL}.csv")
-    write_figures(out, c, ft)
+    write_figures(out, c, ft, pd.read_csv(out / "features_X1_b50.csv"))
     can = c[c["canonical"]]
     summ = {"verdict": verdict,
             "canonical_median": can.groupby("sample")[["top1_share", "top2_share", "top5_share", "mean_wo_top5", "skew", "b50", "b5r",

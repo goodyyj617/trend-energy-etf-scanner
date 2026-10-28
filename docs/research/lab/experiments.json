@@ -2,6 +2,30 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_g_tail",
+      "title": "Stage G-1: 꼬리 분석과 SPY 대비 채점",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "85",
+      "memo": "docs/research/lab/2026-10-28_stage_g_results.md",
+      "results_dir": "lab_crsp/stage_g_tail",
+      "kind": "",
+      "why": "추세추종 수익이 소수의 극단적 거래에서 나오는지, 신호가 같은 기간 SPY보다 나았는지, 큰 승자가 신호 시점에 무엇이 달랐는지를 Stage C 신호 전체(E1–E9 × X1–X9)로 본다. 답에 따라 다음 단계가 '큰 승자 고르기 모형'인지 '이긴 종목 키우기(피라미딩)'인지 갈린다.",
+      "results": [
+        "순이익이 플러스인 칸의 89% / 100%(1993–2023 / 2017–2023)에서 상위 5% 신호가 순이익 전부 이상을 냈다. 신호 수익 중앙값은 −2.1% / −2.5%.",
+        "신호가 같은 보유 구간 SPY를 이긴 비율은 36% / 34%, 초과 중앙값 −2.4% / −2.8%. 큰 승자(≥ 5R)만 SPY보다 +47% / +53% 높았다.",
+        "오래 들고 가는 매도(X1 25% 트레일링, X9)에서 큰 승자가 가장 많고, 빨리 파는 X6·X7에서는 거의 없었다.",
+        "미리 정한 규칙상 큰 승자를 가르는 특징 8개(위약 0개)로 ③은 '고르기 모형'이다. 다만 8개 대부분이 '변동성이 낮은 종목'이며 5R 정의(ATR 비례)의 영향이 크고, 절대 기준(≥ +50%)에서는 2017–2023에 방향이 뒤집혔다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_g_tail/mean_wo_top5_by_exit.png", "caption": "상위 5%를 뺀 신호당 평균 수익"},
+        {"path": "docs/research/lab/figures/stage_g_tail/median_x_spy_by_exit.png", "caption": "같은 구간 SPY 대비 초과 중앙값"},
+        {"path": "docs/research/lab/figures/stage_g_tail/b5r_by_exit.png", "caption": "매도별 큰 승자(≥ 5R) 비율"},
+        {"path": "docs/research/lab/figures/stage_g_tail/feature_auc.png", "caption": "큰 승자(≥ 5R)를 가르는 힘: AUC − 0.5"},
+        {"path": "docs/research/lab/figures/stage_g_tail/feature_auc_b50.png", "caption": "큰 승자(≥ +50%)를 가르는 힘: AUC − 0.5"}
+      ]
+    },
+    {
       "id": "stagec_combos_daily3000",
       "title": "Stage F: 도움 판정 스크린의 조합",
       "date": "2026-10-28",
