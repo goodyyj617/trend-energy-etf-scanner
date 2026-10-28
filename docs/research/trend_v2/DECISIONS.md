@@ -747,6 +747,19 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     buys E0 with the same exits and sizing: 10-stock median 9.2% (H1) / 7.3% (H9) in 1993-2023.
     52-week-high entries (E3, V5) fall to the 3-6th percentile of E0 in 2008-2023. 40 bp recheck and
     DSR not needed. Record: docs/research/lab/2026-10-29_stage_i_results.md.
+88. Stage J: buy rules in pairs (user proposal 2026-10-28 23:37 KST; registered before any run).
+    The 15 buy rules (E1-E9, V1-V6 at their middle values) in all 105 pairs: buy at the next open
+    after the later of the two first-day signals when both fire on the same stock within 10 trading
+    days (either order; same day counts). The later signal's stored table row gives the exit, so no
+    engine run except E0 x X1. Exits H1 k 2, H1 k 3 and X1 (25% trailing only, fixed 10% weight).
+    Account A (1% risk, 10% cap, 10 stocks, 20-session re-entry ban, 20 bp; 100 random orders,
+    median) and no stock limit (mean contribution). Baseline: random buys E0 thinned to the nearest
+    of 0.02 / 0.05 / 0.1 / 0.2 / 0.4% of stock-days (5 seeds x 100 orders). Verdicts as 87 (a) and
+    (b), both halves, >= 2 of 3 exits; pairs with < 30 trades excluded. Chance count: 200 thinned
+    random pseudo-pairs (40 per frequency bin, 20 orders) give a pass rate p0; information only if
+    the pass count exceeds the 95th percentile of Binomial(N, p0). Candidates as 87. Stacking vs the
+    better single (singles recomputed here). Trials +315. Three-rule combinations later, seeded by
+    passing pairs. Design: docs/research/lab/2026-10-29_stage_j_design.md.
 ## Open decisions
 
 - final trend-filter definition;
