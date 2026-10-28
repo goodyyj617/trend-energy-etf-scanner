@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from lab import aa_landscape as ls
 from lab import aa_local as loc
 from lab import aa_search_results as sr
 
@@ -29,6 +30,8 @@ COMP_DIR = ALLOC / "2026-10-27_composition"  # A39: is the B2–B5 composition i
 COMP_MEMO = ALLOC / "2026-10-27_composition.md"
 CANARY_DIR = ALLOC / "2026-10-27_canary"  # A40: canary signals on B2–B5
 CANARY_MEMO = ALLOC / "2026-10-27_canary.md"
+A41_DIR = ALLOC / "2026-10-28_a41"  # A41: a map of the whole weight space of 13 products, then robustness and the hold-out
+A41_MEMO = ALLOC / "2026-10-28_a41.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -37,7 +40,8 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "local_neighbours", "local_groups", "local_bootstrap", "dotcom_curves", "dotcom_named",
               "filter_mdd", "filter_curves", "filter_groups", "filter_cagr",
               "comp_loo", "comp_swap", "comp_simple", "comp_reselect", "comp_model_gap",
-              "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency")
+              "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency",
+              "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout")
 
 
 @dataclass(frozen=True)
@@ -211,6 +215,38 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 추세 규칙들은 닷컴·2008이 든 자료로 알려져 독립 시험이 아니고, 208개를 시험했고(후보는 한 생각과 그 이웃에 몰림), 2005–2026의 상당 부분이 모형 가격이며, 표본 내 결과입니다."),
         ("canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency"), CANARY_MEMO,
         "신호 판은 아직 연구실 화면에서 돌릴 수 없습니다(실행기 scripts/aa_canary_study.py)"),
+    Experiment(
+        "a41", "2026-10-28", "A41", "원칙으로 짓고 백테스트는 검증만: 13개 상품 비중 지도와 강건성",
+        "A31–A40은 25만 개 배분 가운데 과거 성적이 가장 좋은 점을 골랐고, 그 고르는 규칙의 과최적화 확률(PBO)은 0.87이었습니다. 고른 B3–B5는 닷컴에서 "
+        "−26 – −31%였습니다. 사용자는 아예 새롭게 접근하기로 하고, MDD −15% 목표는 유지하되 원칙으로 배분을 짓고 백테스트는 검증에만 쓰며, 2025–26년 "
+        "자료는 마지막에 한 번만 보기로 정했습니다. 그래서 결과를 보기 전에 재료(국내 상장 13개 상품: 나스닥100, S&P500, 필수소비재, 헬스케어, 유틸리티, "
+        "KRX 금현물 계좌, CD금리, 미국초단기채, 미국단기채, 미국10년 환노출·(H), 미국30년 환노출·(H)), 판정 넷(기준선 MDD −15% 안, ±5%p 이웃 80% 이상 안, "
+        "리밸런싱 528가지 중 90% 이상 안, 10년 창 모두 안), 고르는 방식(최고점이 아니라 넓고 평탄한 영역의 중심)을 고정했습니다(PR #100). "
+        "그다음 비중 공간 전체를 1,048,576점으로 고르게 훑고, 어느 상품이 결과를 좌우하는지 읽은 뒤, 후보를 엔진으로 흔들어 봤습니다. "
+        "규칙은 모두 정적 배분이고, 분기 말 종가로 판단해 다음 거래일 종가에 원래 비중으로 되돌리며 편도 10bp입니다. 연구 구간은 닷컴을 포함한 "
+        "2000-09 – 2024-12, 원화, 상장 후 실제 국내 가격·상장 전 모형 가격입니다(2005년 이전은 전부 모형).",
+        ("한 줄 답: −15% 안에서 CAGR 상한은 약 9.1%입니다. 미리 정한 규칙으로는 전체 구간 후보 중심이 0개였고, 판정 넷을 모두 넘은 배분은 비교용 안정형 40뿐입니다"
+         "(7.77% / −13.7%, 리밸런싱 528가지 모두 −15% 안, 최악 −14.8%).",
+         "지도: 105만 점 중 11.2%(117,305점)가 −15% 안, 9.4%가 −17 – −15% 경계입니다. 엔진과의 차이는 4.4e-14입니다.",
+         "무엇이 좌우하나: 낙폭은 나스닥100 비중이 가장 크게 좌우합니다(Sobol 총 지수 0.36). 그다음은 CD금리·미국10년(H) 0.18, 미국30년(H) 0.15, 유틸리티 0.12입니다. "
+         "CD금리를 넣으면 −15% 안에 드는 배분이 12.6%p, 미국10년(H)을 넣으면 10.2%p 늘고, 유틸리티(−3.9)·미국30년 환노출(−2.3)·나스닥100(−1.6)은 줄입니다. "
+         "같은 만기에서 환헤지 국채가 환노출보다 낙폭을 더 막았습니다(헤지판은 연구 구간 대부분 모형 가격).",
+         "평탄한 영역 10점은 나스닥100 13–21 · KRX 금현물 25–32 · 미국10년(H) 14–40 · 미국30년(H) 0–24의 한 구조였습니다(CAGR 8.6–9.0%, MDD −13.3 – −14.3%). "
+         "‘비중 10% 이상 상품 집합마다 5점 이상’ 묶음 규칙에서 조각나 중심이 생기지 않았습니다.",
+         "과최적화 비용: 앞·뒤 절반에서만 고른 중심 5개는 반대쪽 절반에서 무너져 전체 구간 MDD −19.0 – −42.1%, 리밸런싱 528가지 중 −15% 안 0%였습니다. "
+         "PBO는 최고점 고르기 0.91, 평탄 영역 고르기 0.63입니다.",
+         "결과를 본 뒤 보완(사후): 평탄한 영역의 평균을 중심으로 두었습니다. (가) 나스닥100 18 · S&P500 3 · 헬스케어 8 · KRX 금현물 30 · 미국10년(H) 30 · "
+         "미국30년(H) 11 → 8.84% / −13.71%(2005– 9.84%). 기준선·이웃(95%)·10년 창은 넘었지만 리밸런싱 528가지 중 81%만 −15% 안이라 판정 3에 미달했습니다. "
+         "월 100%, 분기 92%, 반기 86%, 연 75%이고, 드물게 맞추거나 밴드를 넓히면 2008·2022에 선을 넘습니다.",
+         "(나) −17% 쪽 평균 중심(나스닥100 17 · S&P500 6 · 필수소비재 2 · 헬스케어 8 · KRX 금현물 35 · 미국10년(H) 13 · 미국30년(H) 19)은 9.40% / −15.73%입니다. "
+         "−17% 선으로 봐도 리밸런싱 81%라 판정 3에 미달합니다. (가)보다 CAGR 0.56%p를 더 얻고 MDD가 2%p 깊습니다.",
+         "규칙형(13개 전부, 분기마다 과거 자료로 다시 계산): 동일 비중 7.23% / −18.3%, 역변동성 5.86% / −9.4%, 주식 위험 몫 50% 상한 6.83% / −13.75%.",
+         "보류 구간 2025-01-02 – 2026-10-27(대상마다 한 번, 실제 가격 우선, 기록만): (가) 평균 중심 +23.0% / −11.3%, (나) +24.8% / −13.2%, 안정형 40 +21.5% / −9.1%, "
+         "B2 +26.4% / −10.0%, S&P500 +25.4% / −19.2%, 규칙형 +9.9 – +11.7%. 16개 중 11개가 −15% 안이었습니다. 큰 위기가 없던 22개월이라 낙폭 검증력은 약합니다.",
+         "한계: 미국10년(H)은 2025-08 상장이라 연구 구간 전부 모형 가격(금리차 + 헤지 비용 20bp)이고, 2000–2004는 전부 모형입니다. 표본 좌표는 설계의 Sobol 대신 "
+         "의사 난수(PCG64)를 썼습니다(실행 전 변경 기록). 사후 중심은 결과를 본 뒤 더한 것이고, 모든 숫자는 표본 안 결과입니다. 프리셋은 등록하지 않았습니다."),
+        ("a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout"), A41_MEMO,
+        "‘B2–B5 시험 모음’의 기간 ‘A41 연구 구간’(B2·B4의 리밸런싱 528가지와 A41의 새 배분), PNG 그림 ①–⑧은 docs/research/allocation/2026-10-28_a41/figures/"),
 )
 
 
@@ -495,3 +531,141 @@ def canary_currency(folder: Path | str = CANARY_DIR) -> pd.DataFrame:
     return pd.DataFrame({"기간": m["기간"], "배분": m["배분"], "신호": m["신호"], "행동": m["행동"],
                          "달러 CAGR": m["cagr_meas_usd"] * 100, "달러 MDD": m["mdd_meas_usd"] * 100,
                          "원화 CAGR": m["cagr_meas_krw"] * 100, "원화 MDD": m["mdd_meas_krw"] * 100})
+
+
+# --------------------------------------------------------------------------- A41 (percent units, like the rest)
+
+A41_ZONES = ("안", "경계", "밖")  # MDD ≥ −15 %, −17 – −15 %, below −17 % (the map keeps a 20,000-point sample of 밖)
+A41_MAP_SHOWN = 6000  # points per zone drawn on the page, evenly thinned from the committed table (236,348 rows)
+A41_RULES = {"equal": "규칙형 동일 비중", "invvol": "규칙형 역변동성 (현금성 30%)", "riskcap": "규칙형 주식 위험 몫 50% 상한"}
+A41_KINDS = ("사후 중심", "비교 배분", "규칙형", "절반 구간 중심", "S&P500")  # drawing / sorting order
+
+
+def a41_names(text: str) -> str:
+    """'379810:18;KRXGOLD:30' -> '나스닥100 18 · KRX금현물 30' (A41 short names; other codes by their search-universe name)."""
+    parts = []
+    for part in str(text).split(";"):
+        code, v = part.split(":")
+        parts.append(f"{ls.SHORT.get(code) or sr.name_of(code)} {int(float(v))}")
+    return " · ".join(parts)
+
+
+def a41_label(name: str) -> str:
+    """Runner target name -> page name: '중심 전체 (가) 평균·보완 1' -> '평균 중심 (가) · 사후 보완',
+    '중심 앞 절반 (나) 1' -> '앞 절반에서 고른 중심 (나) 1'; comparators and rule weights unchanged."""
+    m = re.fullmatch(r"중심 전체 \((.)\) 평균·보완 1", name)
+    if m:
+        return f"평균 중심 ({m.group(1)}) · 사후 보완"
+    m = re.fullmatch(r"중심 (앞|뒤) 절반 \((.)\) (\d+)", name)
+    if m:
+        return f"{m.group(1)} 절반에서 고른 중심 ({m.group(2)}) {m.group(3)}"
+    m = re.fullmatch(r"규칙형 (equal|invvol|riskcap)(?: \(13개\))?", name)
+    return A41_RULES[m.group(1)] if m else name
+
+
+A41_SHORT_RULES = {"규칙형 동일 비중": "규칙형 동일", "규칙형 역변동성 (현금성 30%)": "규칙형 역변동성", "규칙형 주식 위험 몫 50% 상한": "규칙형 위험 몫 상한"}
+
+
+def a41_short(label: str) -> str:
+    """Page name -> chart label: '평균 중심 (가) · 사후 보완' -> '(가) 평균 · 사후', '앞 절반에서 고른 중심 (가) 1' -> '앞 절반 (가) 1'."""
+    m = re.fullmatch(r"평균 중심 \((.)\) · 사후 보완", label)
+    if m:
+        return f"({m.group(1)}) 평균 · 사후"
+    label = label.replace("절반에서 고른 중심", "절반")
+    return A41_SHORT_RULES.get(label, label.replace("S&P500 보유", "S&P500"))
+
+
+def a41_kind(label: str) -> str:
+    if "사후 보완" in label:
+        return "사후 중심"
+    if "절반에서 고른" in label:
+        return "절반 구간 중심"
+    if label.startswith("규칙형"):
+        return "규칙형"
+    return "S&P500" if label.startswith("S&P500") else "비교 배분"
+
+
+def a41_map(folder: Path | str = A41_DIR, per_zone: int = A41_MAP_SHOWN) -> pd.DataFrame:
+    """A41 ① the weight map, every ``len(zone) // per_zone``-th point of each zone: 구역, 비중 (names), CAGR, MDD,
+    순위 값 (CAGR from every quarter-end start, 10th percentile), all in %."""
+    m = pd.read_csv(Path(folder) / "map.csv.gz", usecols=["비중", "cagr", "mdd", "rank", "zone"])
+    parts = []
+    for z in A41_ZONES:
+        g = m[m["zone"] == z]
+        parts.append(g.iloc[::max(1, len(g) // per_zone)])
+    out = pd.concat(parts, ignore_index=True)
+    return pd.DataFrame({"구역": out["zone"], "비중": out["비중"].map(a41_names), "CAGR": out["cagr"] * 100, "MDD": out["mdd"] * 100,
+                         "순위 값": out["rank"] * 100})
+
+
+def a41_marks(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 named points on the research window (2000-09 – 2024-12): the comparators (engine), the centres (half windows
+    and the full window's mean added after the results) and the three rule-based weights on all 13 products."""
+    folder = Path(folder)
+    rows = []
+    for r in pd.read_csv(folder / "named.csv").to_dict("records"):
+        label = r["이름"]
+        rows.append({"이름": label, "종류": a41_kind(label), "비중": a41_names(r["비중"]), "CAGR": r["cagr"] * 100, "MDD": r["mdd"] * 100,
+                     "순위 값": r["rank"] * 100})
+    for r in pd.read_csv(folder / "centres.csv").to_dict("records"):
+        label = a41_label(f"중심 {r['고른 구간']} {r['묶음']} {r['번호']}")
+        rows.append({"이름": label, "종류": a41_kind(label), "비중": a41_names(r["비중"]), "CAGR": r["cagr"] * 100, "MDD": r["mdd"] * 100,
+                     "순위 값": r["rank"] * 100})
+    rl = pd.read_csv(folder / "rules.csv")
+    for r in rl[rl["상품 집합"] == "13개 전부"].to_dict("records"):
+        rows.append({"이름": A41_RULES[r["규칙"]], "종류": "규칙형", "비중": "13개 전부, 분기마다 과거 자료로 다시 계산",
+                     "CAGR": r["cagr"] * 100, "MDD": r["mdd"] * 100, "순위 값": r["rank"] * 100})
+    return pd.DataFrame(rows)
+
+
+def a41_sobol(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 ② Sobol indices per product for MDD and CAGR (fractions of the output variance; ST = total, S1 = first order,
+    with the 95 % bootstrap range)."""
+    s = pd.read_csv(Path(folder) / "sobol.csv", dtype={"상품": str})
+    s = s[s["출력"].isin(["mdd", "cagr"])]
+    return s.assign(출력=s["출력"].map({"mdd": "MDD", "cagr": "CAGR"}))[["출력", "상품", "이름", "S1", "ST", "ST_lo", "ST_hi"]]
+
+
+def a41_include(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 ② putting a product in: over the 4,095 pairs of product sets that differ by that product only, the median change
+    of the share of points inside −15 % (%p) and of the median CAGR (%p)."""
+    i = pd.read_csv(Path(folder) / "include_exclude.csv")
+    return pd.DataFrame({"상품": i["상품"], "안 비율 변화": i["넣으면 안 비율 변화 중앙"] * 100, "CAGR 변화": i["넣으면 CAGR 중앙 변화"] * 100,
+                         "넣었을 때 안 비율": i["넣었을 때 안 비율 중앙"] * 100, "뺐을 때 안 비율": i["뺐을 때 안 비율 중앙"] * 100})
+
+
+A41_FREQ = {"M": "월", "Q": "분기", "S": "반기", "A": "연"}
+
+
+def a41_rebalance(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 ④ the 528 rebalancing versions of every target (engine): 이름, 종류, 주기, 변형, CAGR, MDD (%)."""
+    r = pd.read_csv(Path(folder) / "robustness.csv.gz")
+    r = r[r["시험"] == "리밸런싱"].dropna(subset=["mdd"])
+    label = r["대상"].map(a41_label)
+    return pd.DataFrame({"이름": label, "종류": label.map(a41_kind), "주기": r["변형"].str[0].map(A41_FREQ), "변형": r["변형"],
+                         "CAGR": r["cagr"] * 100, "MDD": r["mdd"] * 100}).reset_index(drop=True)
+
+
+def a41_verdicts(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 ④ verdicts per target (the runner's table) with page names; shares and MDDs in %."""
+    v = pd.read_csv(Path(folder) / "verdicts.csv")
+    out = v.assign(이름=v["대상"].map(a41_label))
+    out["종류"] = out["이름"].map(a41_kind)
+    for c in out.columns:
+        if c.endswith("비율") or "MDD" in c or c in ("cagr", "mdd") or "CAGR" in c or c.startswith("순위값"):
+            if pd.api.types.is_numeric_dtype(out[c]):
+                out[c] = out[c] * 100
+    return out
+
+
+def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:
+    """A41 hold-out (2025-01-02 – 2026-10-27, looked at once): cumulative return, CAGR and MDD (%) on real-first prices and
+    on the model alone, per target."""
+    h = pd.read_csv(Path(folder) / "holdout.csv")
+    label = h["대상"].map(a41_label)
+    out = pd.DataFrame({"이름": label, "종류": label.map(a41_kind), "누적 수익": h["실제 누적 수익"] * 100, "CAGR": h["실제 CAGR"] * 100,
+                        "MDD": h["실제 MDD"] * 100, "모형 누적 수익": h["모형 누적 수익"] * 100, "모형 MDD": h["모형 MDD"] * 100,
+                        "시작": h["실제 시작"], "끝": h["실제 끝"]})
+    if "실행" in h:
+        out["실행"] = h["실행"].fillna("첫 실행")
+    return out

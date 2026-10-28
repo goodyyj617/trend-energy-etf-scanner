@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lab import aa_b_tests as bt  # noqa: E402
 from lab import aa_experiments as exps  # noqa: E402
+from lab import aa_landscape as ls  # noqa: E402
 from lab import aa_notes as notes  # noqa: E402
 from lab import aa_real as real  # noqa: E402
 from lab import aa_rebalance as rebal  # noqa: E402
@@ -2645,6 +2646,136 @@ def chart_canary_currency() -> go.Figure:
     return fig
 
 
+A41_KIND_STYLE = {"사후 중심": ("star", 18, PALETTE[4]), "비교 배분": ("diamond-open", 12, INK), "규칙형": ("square-open", 11, AQUA),
+                  "절반 구간 중심": ("x", 11, ORANGE), "S&P500": ("circle-open", 11, GRAY)}
+A41_ZONE_COLORS = {"안": BLUE, "경계": PALETTE[2], "밖": MUTED}
+A41_SPAN = "2000-09 – 2024-12, 원화, 분기 리밸런싱, 편도 10bp, 2005년 이전은 전부 모형 가격"
+
+
+# where each chart label sits, so the crowded corner near −15 % stays readable
+A41_TEXT_POS = {"(가) 평균 · 사후": "bottom right", "(나) 평균 · 사후": "top left", "B2": "top right", "안정형 40": "bottom right",
+                "규칙형 위험 몫 상한": "bottom center", "규칙형 동일": "top left", "B4": "bottom center"}
+
+
+def _a41_textpos(names: pd.Series) -> list[str]:
+    return [A41_TEXT_POS.get(exps.a41_short(n), "top center") for n in names]
+
+
+def _a41_marks(fig: go.Figure, marks: pd.DataFrame, x: str = "MDD", y: str = "CAGR") -> None:
+    for kind in exps.A41_KINDS:
+        part = marks[marks["종류"] == kind]
+        if part.empty:
+            continue
+        symbol, size, color = A41_KIND_STYLE[kind]
+        label_it = kind in ("사후 중심", "비교 배분", "S&P500")
+        fig.add_trace(go.Scatter(x=part[x], y=part[y], mode="markers+text" if label_it else "markers", name=kind,
+                                 text=part["이름"].map(exps.a41_short) if label_it else None, textposition=_a41_textpos(part["이름"]),
+                                 textfont=dict(size=10, color=INK),
+                                 marker=dict(symbol=symbol, size=size, color=color, line=dict(width=1.5, color=INK if kind == "사후 중심" else color)),
+                                 customdata=np.c_[part["이름"], part["비중"]],
+                                 hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>CAGR %{y:.2f}% · MDD %{x:.2f}%<extra></extra>"))
+
+
+def chart_a41_map() -> go.Figure:
+    m = exps.a41_map()
+    fig = go.Figure()
+    for zone in ("밖", "경계", "안"):
+        part = m[m["구역"] == zone]
+        fig.add_trace(go.Scattergl(x=part["MDD"], y=part["CAGR"], mode="markers", name=f"{zone} (표본 {len(part):,}점)",
+                                   marker=dict(size=3, color=A41_ZONE_COLORS[zone], opacity=0.45 if zone != "밖" else 0.35),
+                                   text=part["비중"], hovertemplate="%{text}<br>CAGR %{y:.2f}% · MDD %{x:.2f}%<extra></extra>"))
+    _a41_marks(fig, exps.a41_marks())
+    _line_15(fig)
+    fig.add_vline(x=100 * ls.NEAR, line=dict(color=GRAY, dash="dot", width=1))
+    fig.update_layout(height=620, margin=dict(l=10, r=10, t=80, b=10),
+                      title=dict(text="13개 상품 비중 지도 1,048,576점: MDD(가로)와 CAGR(세로)<br>"
+                                      f"<sup>{A41_SPAN}<br>구역마다 고르게 솎아 약 6,000점씩 그림. 별 = 평탄한 영역의 평균(결과를 본 뒤 보완), "
+                                      "× = 앞·뒤 절반에서만 고른 중심</sup>"),
+                      xaxis=dict(title="MDD (%) — 점선 −17%, 파선 −15%", range=[-47, 0.5]), yaxis=dict(title="CAGR (%/년)"),
+                      legend=dict(orientation="h", y=-0.14))
+    return fig
+
+
+def chart_a41_sobol() -> go.Figure:
+    s = exps.a41_sobol()
+    order = s[s["출력"] == "MDD"].sort_values("ST")["이름"].tolist()
+    fig = go.Figure()
+    for out, color in (("CAGR", AQUA), ("MDD", BLUE)):
+        part = s[s["출력"] == out].set_index("이름").reindex(order)
+        fig.add_trace(go.Bar(y=order, x=part["ST"], name=f"{out} 총 지수", orientation="h", marker_color=color,
+                             error_x=dict(type="data", symmetric=False, array=part["ST_hi"] - part["ST"], arrayminus=part["ST"] - part["ST_lo"],
+                                          color=INK, thickness=1, width=2),
+                             customdata=part["S1"], hovertemplate="%{y} · " + out + "<br>총 지수 %{x:.3f} · 1차 지수 %{customdata:.3f}<extra></extra>"))
+    fig.update_layout(height=520, barmode="group", bargap=0.25, margin=dict(l=10, r=10, t=60, b=10),
+                      title=dict(text="어느 상품의 비중이 결과를 좌우하나: Sobol 총 지수 (실제 시뮬레이션 245,760회)<br>"
+                                      "<sup>총 지수 = 그 상품 비중(넣을지 · 얼마나)만 흔들었을 때 결과 분산의 몫, 다른 상품과 함께 작용한 몫 포함. 가는 선 = 95% 범위</sup>"),
+                      xaxis=dict(title="총 지수 (0–1)"), yaxis=dict(title=None), legend=dict(orientation="h", y=-0.12, traceorder="reversed"))
+    return fig
+
+
+def chart_a41_include() -> go.Figure:
+    d = exps.a41_include().sort_values("안 비율 변화")
+    color = np.where(d["안 비율 변화"] >= 0, AQUA, RED)
+    fig = go.Figure(go.Bar(y=d["상품"], x=d["안 비율 변화"], orientation="h", marker_color=list(color),
+                           text=[f"{v:+.1f}" for v in d["안 비율 변화"]], textposition="outside",
+                           customdata=np.c_[d["뺐을 때 안 비율"], d["넣었을 때 안 비율"], d["CAGR 변화"]],
+                           hovertemplate="%{y}<br>−15% 안 비율: 뺐을 때 %{customdata[0]:.1f}% → 넣었을 때 %{customdata[1]:.1f}% "
+                                         "(짝 중앙 %{x:+.1f}%p)<br>CAGR 중앙 변화 %{customdata[2]:+.2f}%p<extra></extra>"))
+    fig.update_layout(height=480, margin=dict(l=10, r=40, t=60, b=10),
+                      title=dict(text="상품 하나를 넣으면 −15% 안에 드는 배분이 늘까 줄까<br>"
+                                      "<sup>그 상품만 다른 상품 집합 짝 4,095쌍의 중앙값. 오른쪽 = 넣으면 낙폭을 막는 쪽</sup>"),
+                      xaxis=dict(title="−15% 안 비율 변화 (%p)"), yaxis=dict(title=None))
+    return fig
+
+
+def chart_a41_rebalance() -> go.Figure:
+    r = exps.a41_rebalance()
+    v = exps.a41_verdicts().set_index("이름")
+    names = [n for kind in exps.A41_KINDS for n in dict.fromkeys(r.loc[r["종류"] == kind, "이름"])]
+    fig = go.Figure()
+    for n in names:
+        part = r[r["이름"] == n]
+        symbol, _, color = A41_KIND_STYLE[part["종류"].iloc[0]]
+        share = 100 * (part["MDD"] >= sr.STAGE2_PCT_LINE).mean()
+        tick = f"{exps.a41_short(n)}<br>안 {share:.0f}%"
+        if "(나) 평균" in exps.a41_short(n):  # design §5: the (나) group is read against −17 % too
+            tick += f"<br>−17%: {100 * (part['MDD'] >= 100 * ls.NEAR).mean():.0f}%"
+        fig.add_trace(go.Box(y=part["MDD"], name=tick, marker_color=color, boxpoints="outliers", showlegend=False,
+                             customdata=np.c_[part["변형"], part["CAGR"]],
+                             hovertemplate=f"{n}<br>" + "%{customdata[0]}<br>MDD %{y:.2f}% · CAGR %{customdata[1]:.2f}%<extra></extra>"))
+    fig.add_hline(y=sr.STAGE2_PCT_LINE, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=620, margin=dict(l=10, r=10, t=100, b=10),
+                      title=dict(text="리밸런싱을 528가지로 바꿔도 −15% 안인가 (판정 3: 90% 이상)<br>"
+                                      "<sup>주기(월·분기·반기·연) × 시기 × 0–20거래일 미룸 × 밴드 0·3·5·10%p, 10bp와 20bp. 아래 글자 = −15% 안 비율"
+                                      f"<br>{A41_SPAN}</sup>"),
+                      yaxis=dict(title="MDD (%)"), xaxis=dict(tickangle=-35, tickfont=dict(size=10)))
+    return fig
+
+
+def chart_a41_holdout() -> go.Figure:
+    h = exps.a41_holdout()
+    fig = go.Figure()
+    for kind in exps.A41_KINDS:
+        part = h[h["종류"] == kind]
+        if part.empty:
+            continue
+        symbol, size, color = A41_KIND_STYLE[kind]
+        fig.add_trace(go.Scatter(x=part["MDD"], y=part["누적 수익"], mode="markers+text", name=kind, text=part["이름"].map(exps.a41_short),
+                                 textposition=_a41_textpos(part["이름"]), textfont=dict(size=10, color=INK),
+                                 marker=dict(symbol=symbol, size=size, color=color, line=dict(width=1.5, color=INK if kind == "사후 중심" else color)),
+                                 customdata=np.c_[part["CAGR"], part["모형 누적 수익"], part["모형 MDD"], part["이름"]],
+                                 hovertemplate="<b>%{customdata[3]}</b><br>실제 가격 우선: 누적 %{y:.1f}% (연 %{customdata[0]:.1f}%) · MDD %{x:.1f}%"
+                                               "<br>모형만: 누적 %{customdata[1]:.1f}% · MDD %{customdata[2]:.1f}%<extra></extra>"))
+    _line_15(fig)
+    span = f"{h['시작'].iloc[0]} – {h['끝'].iloc[0]}"
+    fig.update_layout(height=520, margin=dict(l=10, r=10, t=60, b=10),
+                      title=dict(text=f"보류 구간 {span}: 연구에 쓰지 않은 22개월을 한 번만 본 결과<br>"
+                                      "<sup>실제 국내 가격 우선, 분기·10bp. 기록만 하고 후보·판정은 바꾸지 않음. 큰 위기가 없던 구간이라 낙폭 검증력은 약함</sup>"),
+                      xaxis=dict(title="보류 구간 MDD (%)", range=[float(h["MDD"].min()) - 1, float(h["MDD"].max()) + 1.5]),
+                      yaxis=dict(title="누적 수익 (%)"), legend=dict(orientation="h", y=-0.14))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2674,6 +2805,11 @@ EXPERIMENT_CHARTS = {
     "canary_placebo": chart_canary_placebo,
     "canary_trades": chart_canary_trades,
     "canary_currency": chart_canary_currency,
+    "a41_map": chart_a41_map,
+    "a41_sobol": chart_a41_sobol,
+    "a41_include": chart_a41_include,
+    "a41_rebalance": chart_a41_rebalance,
+    "a41_holdout": chart_a41_holdout,
 }
 
 
@@ -2681,7 +2817,7 @@ def experiments_page() -> None:
     st.title("실험 기록")
     st.caption("자산배분 연구실에서 돌린 실험을 최신순으로 모았습니다. 실험마다 **왜 했는지**, **핵심 결과**, **그래프**가 있습니다. "
                "그래프는 저장소에 기록된 결과 파일로 그리므로 가격 데이터 없이 열립니다. 점에 마우스를 올리면 값이 나옵니다. "
-               "모든 숫자는 2005–2026 원화 표본 내 결과이고 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
+               "모든 숫자는 원화 표본 내 결과(기간은 실험마다 적음, 대부분 2005–2026)이고 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
     items = list(reversed(exps.EXPERIMENTS))
     st.markdown("  \n".join(f"- {e.date} · {e.decision} · **{e.title}**" for e in items))
     for e in items:
@@ -2711,8 +2847,9 @@ B_COLORS = {**LOCAL_COLORS, "B5": PALETTE[3]}  # the A37 colours, B5 takes the n
 FAMILY_MARKS = {"centre": ("star", 20), "stage2": ("triangle-up", 9), "start": ("triangle-down-open", 9), "nb2": ("circle", 5),
                 "nb5": ("circle", 5), "local": ("circle", 3), "swap": ("x-thin-open", 9), "filter": ("square-open", 9),
                 "loo": ("hexagon-open", 9), "swaprest": ("hourglass-open", 9), "simple": ("pentagon-open", 9),
-                "canary_pass": ("diamond", 10), "canary_fail": ("diamond-open", 7)}
-CLOUDS = {"local": 0.16, "nb5": 0.45, "nb2": 0.55}  # neighbour clouds and their opacity: the 15,000 wide neighbours stay faint
+                "canary_pass": ("diamond", 10), "canary_fail": ("diamond-open", 7), "a41_rebal": ("circle", 4), "a41_new": ("star-open", 11)}
+# neighbour clouds and their opacity: the 15,000 wide neighbours stay faint; A41's 528 rebalancing versions likewise
+CLOUDS = {"local": 0.16, "nb5": 0.45, "nb2": 0.55, "a41_rebal": 0.4}
 FADED = {"canary_fail": 0.5}  # named points drawn lighter so the passing signal rows stand out
 
 
@@ -2725,7 +2862,8 @@ def b_tests_stamp() -> tuple:
     files = [bt.STAGE2_DIR / "stage2.csv", bt.STAGE2_DIR / "neighbours.csv.gz", bt.LOCAL_DIR / "neighbours.csv.gz",
              bt.LOCAL_DIR / "substitutions.csv", bt.FILTER_DIR / "named.csv", bt.SEARCH_DIR / "passing.csv.gz",
              bt.COMP_DIR / "named.csv", bt.COMP_DIR / "loo.csv", bt.COMP_DIR / "swap.csv", bt.COMP_DIR / "simple.csv",
-             bt.CANARY_DIR / "verdicts.csv", bt.CANARY_DIR / "comparators.csv"]
+             bt.CANARY_DIR / "verdicts.csv", bt.CANARY_DIR / "comparators.csv", bt.A41_DIR / "named.csv",
+             bt.A41_DIR / "robustness.csv.gz", bt.A41_DIR / "centres.csv", bt.A41_DIR / "rules.csv"]
     return tuple(f.stat().st_mtime if f.exists() else 0.0 for f in files)
 
 
@@ -2770,6 +2908,20 @@ def b_scatter(pts: pd.DataFrame, bg: pd.DataFrame | None, period: str, names: li
             if other == "B 평균":
                 r = part.iloc[0]
                 fig.add_annotation(x=r["mdd"], y=r["cagr"], text="B 평균", showarrow=False, yshift=-15,
+                                   font=dict(size=11, color=INK), bgcolor="rgba(255,255,255,0.85)", borderpad=1)
+    if "a41_new" in order:  # A41's own allocations: not B2–B5, so grey; the centre added after the results is labelled
+        a = p[(p["배분"] == "A41") & (p["묶음"] == "a41_new")]
+        if len(a):
+            post = a["변형"].str.contains("사후 보완")
+            fig.add_trace(go.Scattergl(
+                x=a["mdd"], y=a["cagr"], mode="markers", showlegend=False,
+                text=[f"<b>{v}</b> (A41)<br>{w}" for v, w in zip(a["변형"], a["비중"])],
+                hovertemplate="%{text}<br>CAGR %{y:.2%} · MDD %{x:.2%}<extra></extra>",
+                marker=dict(symbol=np.where(post, "star", FAMILY_MARKS["a41_new"][0]).tolist(), size=np.where(post, 16, 11).tolist(),
+                            color=np.where(post, INK, GRAY).tolist(), line=dict(width=1.5, color=INK))))
+            for r in a[post].itertuples():
+                fig.add_annotation(x=r.mdd, y=r.cagr, text=r.변형.replace(" · 사후 보완", " (사후)"), showarrow=False,
+                                   yshift=18 if "(나)" in r.변형 else -16, xshift=40 if "(나)" in r.변형 else 0,
                                    font=dict(size=11, color=INK), bgcolor="rgba(255,255,255,0.85)", borderpad=1)
     ref = p[(p["배분"] == bt.REFERENCE) & (p["묶음"] == "centre")]
     if len(ref):
@@ -2839,7 +2991,8 @@ def btests_page() -> None:
     st.table(pd.DataFrame(rows).set_index("배분"))  # st.table wraps the long weights text; st.dataframe cuts it
     st.caption("2000-09– 열은 닷컴 하락을 넣으려고 2000-09부터 돌린 결과(B2–B4는 A37 ④, B5는 A39)이고, 2005년 이전은 전부 모형입니다.")
     c1, c2, c3 = st.columns([2, 3, 3])
-    period = c1.radio("기간", list(bt.PERIODS), format_func=lambda k: {"2005": "2005–2026", "2000-09": "2000-09–2026 (닷컴 포함)"}[k],
+    period = c1.radio("기간", list(bt.PERIODS),
+                      format_func=lambda k: {"2005": "2005–2026", "2000-09": "2000-09–2026 (닷컴 포함)", "a41": "2000-09–2024-12 (A41 연구 구간)"}[k],
                       key=init("bt_period", "2005"), help="\n\n".join(f"{k}: {v}" for k, v in bt.PERIODS.items()))
     names = c2.multiselect("배분", list(bt.NAMES), key=init("bt_names", list(bt.NAMES)))
     show_bg = c3.toggle("전역 탐색 배분을 회색 배경으로", key=init("bt_bg", True), disabled=period != "2005",
@@ -2847,6 +3000,7 @@ def btests_page() -> None:
     fams = st.multiselect("시험", list(bt.FAMILIES), format_func=lambda k: bt.FAMILIES[k].label, key=init("bt_fams", list(bt.FAMILIES)),
                           help="기간에 따라 결과가 없는 시험은 그냥 비어 있습니다. 2000-09 기간에는 등록 비중·월간 리밸런싱·추세 필터와 "
                                "A39(하나씩 빼기·나머지 맞바꾸기·B 평균과 뼈대)·A40(카나리아 신호)만 있습니다. "
+                               "A41 연구 구간에는 B2·B4의 등록 비중과 리밸런싱 528가지, A41이 새로 만든 배분만 있습니다(B3·B5는 A41에서 돌리지 않음). "
                                "‘시작 연도 바꾸기’는 기간이 짧아(2008·2010·2015년부터) 다른 점과 같은 잣대로 비교하면 안 됩니다.")
     if not names:
         st.info("배분을 하나 이상 고르세요.")
@@ -2854,6 +3008,7 @@ def btests_page() -> None:
     shown = pts[(pts["기간"] == period) & pts["배분"].isin(names + list(bt.OTHERS)) & pts["묶음"].isin(fams)]
     st.caption(f"점 {len(shown):,}개 중 MDD −15% 안 {int(shown['−15% 안'].sum()):,}개. 색 = 배분, 모양 = 시험. 별은 등록 비중 그대로, "
                "작은 점은 비중을 옮긴 이웃 배분, 회색 오각형은 B2–B5로 만든 B 평균과 세 상품 뼈대(A39 ③)입니다. "
+               "A41 연구 구간의 회색 빈 별은 A41이 새로 만든 배분이고, 검은 별은 결과를 본 뒤 더한 평균 중심(사후)입니다. "
                "카나리아 신호는 판정을 모두 통과한 조합만 속이 찬 마름모입니다. 끌어서 확대하고, 두 번 누르면 처음 화면으로 돌아갑니다. 점에 마우스를 올리면 무엇을 바꿨는지 나옵니다.")
     st.plotly_chart(b_scatter(pts, bg if show_bg and period == "2005" else None, period, names, fams), width="stretch", key="chart_bt")
     st.subheader("시험별 요약")

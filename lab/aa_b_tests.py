@@ -3,7 +3,8 @@ CAGR / MDD points for the page 'B2–B5 시험 모음' (user request, 2026-10-27
 다시 정리해서 한 눈에 MDD와 CAGR을 볼 수 있도록").
 
 Nothing here runs a backtest: it only reads the result files of the studies that tested B2–B5
-(A32 stage 2 re-run on real prices = A35, A37 local study, A38 trend filter, A39 composition, A40 canary signals).
+(A32 stage 2 re-run on real prices = A35, A37 local study, A38 trend filter, A39 composition, A40 canary signals,
+A41 robustness of B2 · B4 on the 2000-09 – 2024-12 research window and the new allocations A41 built).
 Values are fractions (0.107 = 10.7 %).
 A study that adds B2–B5 results later registers a reader in ``FAMILIES`` and ``points``.
 """
@@ -21,18 +22,20 @@ LOCAL_DIR = ALLOC / "2026-10-27_local_study"  # A37
 FILTER_DIR = ALLOC / "2026-10-27_trend_filter"  # A38
 COMP_DIR = ALLOC / "2026-10-27_composition"  # A39
 CANARY_DIR = ALLOC / "2026-10-27_canary"  # A40
+A41_DIR = ALLOC / "2026-10-28_a41"  # A41
 SEARCH_DIR = sr.RESULTS_REAL_DIR  # A31 stage 1 on real prices (A35), the grey background
 
 NAMES = ("B2", "B3", "B4", "B5")
 REFERENCE = "안정형 40"
-OTHERS = ("B 평균", "뼈대")  # A39 ③: allocations built from B2–B5 rather than B2–B5 themselves (drawn grey)
+OTHERS = ("B 평균", "뼈대", "A41")  # A39 ③ and A41: allocations that are not B2–B5 themselves (drawn grey)
 # stage-2 row label of each B (the band the search picked it from)
 STAGE2_LABELS = {"B2": "B 레버·가상 없음 (-14,-13]", "B3": "B 레버·가상 없음 (-13,-12]",
                  "B4": "B 레버·가상 없음 (-12,-11]", "B5": "B 레버·가상 없음 (-11,-10]"}
 STAGE2_REFERENCE = "비교: 안정형 40 (금·현금 분산)"
 
 PERIODS = {"2005": "2005-01-03 – 2026-10-16 (상장 후 실제 가격, 상장 전 모형)",
-           "2000-09": "2000-09-01 – 2026-10-16 (닷컴 포함, 2005년 이전은 전부 모형)"}
+           "2000-09": "2000-09-01 – 2026-10-16 (닷컴 포함, 2005년 이전은 전부 모형)",
+           "a41": "2000-09-01 – 2024-12-31 (A41 연구 구간: 닷컴 포함, 2025년 이후는 보류 구간이라 뺌, 2005년 이전은 전부 모형)"}
 
 # the registered weights, whole percents (the same numbers as the presets / aa_local.CENTRES / stage2.csv)
 WEIGHTS = {
@@ -53,7 +56,8 @@ class Family:
 
 
 FAMILIES: dict[str, Family] = {
-    "centre": Family("등록 비중 그대로", RULES, "A35 2단계 실제 가격 재실행 · A37 ④ · A38", ("2005", "2000-09")),
+    "centre": Family("등록 비중 그대로", RULES, "A35 2단계 실제 가격 재실행 · A37 ④ · A38 · A41 (2026-10-28_a41/named.csv, B2 · B4 · 안정형 40)",
+                     ("2005", "2000-09", "a41")),
     "stage2": Family("2단계 설정 바꾸기",
                      "같은 비중으로 리밸런싱 밴드 0·3·5 %p, 월간·연간 리밸런싱, 편도 비용 20 bp, 헤지 추가 비용 40 bp(기본 20)",
                      "A32 → A35 (2026-10-26_stage2_real/stage2.csv), 2000-09의 월간은 A38", ("2005", "2000-09")),
@@ -85,6 +89,12 @@ FAMILIES: dict[str, Family] = {
                           "나스닥100을 방어 주식(필수소비재·헬스케어) 또는 안전 묶음(채권·금·CD·달러)으로 옮기고 꺼지면 되돌림(D2·D3는 10 %p "
                           "기울이기). ‘바로 매매’와 ‘1개월 금지’(신호 매매 뒤 21거래일은 신호를 따르지 않음) 두 판. 분기 말 리밸런싱은 그대로",
                           "A40 (2026-10-27_canary/verdicts.csv)", ("2005", "2000-09")),
+    "a41_rebal": Family("리밸런싱 528가지 (A41)", "같은 비중으로 리밸런싱 주기(월·분기·반기·연) × 시기(22가지) × 결정일 0·5·10·15·20거래일 미룸 × "
+                        "밴드 0·3·5·10 %p를 편도 10 bp로, 미룸 0일은 20 bp로도 엔진에서 돌림", "A41 ④ (2026-10-28_a41/robustness.csv.gz)",
+                        ("a41",)),
+    "a41_new": Family("A41 새 배분 (중심·규칙형)", "B2–B5가 아니라 A41이 13개 상품으로 새로 만든 배분: 전체 구간 평탄한 영역의 평균 중심"
+                      "(결과를 본 뒤 보완), 앞·뒤 절반에서만 고른 중심, 규칙형 비중 3개(동일 비중, 역변동성, 주식 위험 몫 50% 상한). 회색으로 그림",
+                      "A41 ③ (2026-10-28_a41/centres.csv, rules.csv)", ("a41",)),
 }
 
 STAGE2_VARIANTS = (("엔진 밴드0", "stage2", "엔진 재계산 (밴드 0)"), ("엔진 밴드3", "stage2", "밴드 3 %p"), ("엔진 밴드5", "stage2", "밴드 5 %p"),
@@ -233,11 +243,31 @@ def canary_points() -> pd.DataFrame:
     return _frame(rows)
 
 
+def a41_points() -> pd.DataFrame:
+    """A41 on its research window (period ``a41``): B2 · B4 · 안정형 40 as registered, the 528 rebalancing versions of B2 and
+    B4, and the new allocations (centres, rule-based weights) under 배분 'A41'."""
+    from lab import aa_experiments as exps  # the A41 readers and names live there
+
+    rows = []
+    for r in pd.read_csv(A41_DIR / "named.csv").to_dict("records"):
+        if r["이름"] in NAMES or r["이름"] == REFERENCE:
+            rows.append(dict(배분=r["이름"], 묶음="centre", 변형="등록 비중 그대로 (A41 패널)", 기간="a41", cagr=r["cagr"], mdd=r["mdd"],
+                             비중=WEIGHTS.get(r["이름"], "")))
+    rb = pd.read_csv(A41_DIR / "robustness.csv.gz")
+    rb = rb[(rb["시험"] == "리밸런싱") & rb["대상"].isin(NAMES)].dropna(subset=["mdd"])
+    rows += [dict(배분=r.대상, 묶음="a41_rebal", 변형=f"리밸런싱 {r.변형}", 기간="a41", cagr=r.cagr, mdd=r.mdd, 비중=WEIGHTS[r.대상])
+             for r in rb.itertuples()]
+    marks = exps.a41_marks()
+    for r in marks[marks["종류"].isin(["사후 중심", "절반 구간 중심", "규칙형"])].to_dict("records"):
+        rows.append(dict(배분="A41", 묶음="a41_new", 변형=r["이름"], 기간="a41", cagr=r["CAGR"] / 100, mdd=r["MDD"] / 100, 비중=r["비중"]))
+    return _frame(rows)
+
+
 def points() -> pd.DataFrame:
     """All points, both periods. ``묶음`` is a key of FAMILIES; ``배분`` is B2–B5, the reference 안정형 40, or one of
     OTHERS (A39 ③). A centre recorded by two studies (the 2000-09 runs of A38 and A39 agree) is kept once."""
     parts = [stage2_points(), neighbour_points(), local_points(), swap_points(), filter_points(), b5_filter_points(),
-             composition_points(), canary_points()]
+             composition_points(), canary_points(), a41_points()]
     out = pd.concat([p for p in parts if len(p)], ignore_index=True)
     centre_dup = (out["묶음"] == "centre") & out.duplicated(["배분", "묶음", "기간"])
     out = out[~centre_dup].reset_index(drop=True)

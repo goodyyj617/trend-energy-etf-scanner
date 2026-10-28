@@ -32,7 +32,7 @@ from .data import BENCHMARK, Panel
 
 TRADING_DAYS = 252
 RISK_PARITY_MIN_VOL = 0.01  # annualised; below this an asset is cash-like and keeps its base weight in risk parity
-REBALANCE_LABELS = {"M": "매월", "Q": "매분기", "A": "매년", "none": "안 함 (매수 후 보유)"}
+REBALANCE_LABELS = {"M": "매월", "Q": "매분기", "S": "반기마다", "A": "매년", "none": "안 함 (매수 후 보유)"}
 OVERLAY_LABELS = {
     "none": "없음 (정적 배분)",
     "sma": "추세 필터 · N개월 이동평균 아래면 안전자산",
@@ -109,13 +109,14 @@ class AllocConfig:
     weights: dict[str, float]  # symbol (or CASH) -> percent; normalised to sum 100 when run
     start: str
     end: str
-    rebalance: str = "Q"  # "M" | "Q" | "A" | "none"
+    rebalance: str = "Q"  # "M" | "Q" | "S" | "A" | "none"
     band: float = 0.0  # percent points; 0 = trade at every decision
     cost_bps: float = 10.0
     overlay: Overlay = Overlay()
     leverage: Leverage = Leverage()
     cash_yield: bool = True
     rebalance_offset: int = 0  # trade this many trading days after the period's last day (timing-luck check, A27)
+    rebalance_phase: int = 0  # which months end a period (decision_rows, A41); 0 = calendar quarters / years
 
     def __post_init__(self):
         def native(v):
@@ -158,6 +159,8 @@ class AllocConfig:
         d["leverage"] = asdict(self.leverage)
         if not d["rebalance_offset"]:  # keep fingerprints of configs saved before the field existed
             d.pop("rebalance_offset")
+        if not d["rebalance_phase"]:
+            d.pop("rebalance_phase")
         return d
 
     @staticmethod
@@ -200,13 +203,30 @@ class AllocResult:
 
 # --------------------------------------------------------------------------- helpers
 
-def decision_rows(index: pd.DatetimeIndex, freq: str) -> np.ndarray:
-    """Positions of the last row of each month / quarter / year within index."""
+PERIOD_MONTHS = {"M": 1, "Q": 3, "S": 6, "A": 12}
+
+
+def decision_rows(index: pd.DatetimeIndex, freq: str, phase: int = 0) -> np.ndarray:
+    """Positions of the last row of each month / quarter / half year / year within index.
+
+    ``phase`` (A41) moves the decision months: the period ends in the months m with m % L == phase, L the period
+    length in months (Q: 0 = 3·6·9·12, 1 = 1·4·7·10, 2 = 2·5·8·11; S: 0–5; A: 0–11, 0 = December). phase 0 with
+    "M", "Q" or "A" is the calendar rule used before (bit-identical); "S" with phase 0 ends in June and December."""
     if freq == "none":
         return np.array([], dtype=int)
-    period = index.to_period({"M": "M", "Q": "Q", "A": "Y"}[freq])
-    last = pd.Series(np.arange(len(index)), index=index).groupby(period).last()
-    return last.to_numpy(dtype=int)
+    if phase == 0 and freq in ("M", "Q", "A"):
+        period = index.to_period({"M": "M", "Q": "Q", "A": "Y"}[freq])
+        last = pd.Series(np.arange(len(index)), index=index).groupby(period).last()
+        return last.to_numpy(dtype=int)
+    months = PERIOD_MONTHS[freq]
+    if not 0 <= phase < months:
+        raise ValueError(f"phase는 0–{months - 1}이어야 합니다: {phase}")
+    month_last = pd.Series(np.arange(len(index)), index=index).groupby(index.to_period("M")).last()
+    keep = (month_last.index.month % months) == phase
+    rows = month_last.to_numpy(dtype=int)[keep]
+    if len(rows) == 0 or rows[-1] != len(index) - 1:  # like the calendar rule: the last row ends the last period
+        rows = np.append(rows, len(index) - 1)
+    return rows
 
 
 def _month_end_closes(close: pd.DataFrame) -> pd.DataFrame:
@@ -426,7 +446,7 @@ def run_allocation(panel: Panel, cfg: AllocConfig, frictions=None) -> AllocResul
 
     # decision days: the overlay decides monthly, a static mix at its own frequency
     freq = "M" if cfg.overlay.kind != "none" else cfg.rebalance
-    rows = decision_rows(dates, freq) + int(cfg.rebalance_offset)
+    rows = decision_rows(dates, freq, cfg.rebalance_phase if freq == cfg.rebalance else 0) + int(cfg.rebalance_offset)
     rows = rows[rows < len(dates) - 1]  # a decision on the last day has no next close
     sig = _Signals(close, cash_full.loc[close.index]) if cfg.overlay.kind != "none" else None
     targets: dict[int, dict[str, float]] = {}
