@@ -66,7 +66,7 @@ def test_taxes_and_deposit_only_are_settings_that_refuse_to_run():
 
 
 def test_a41_products_are_registered_with_checked_facts():
-    expect = {"0046A0": ("USD_CASH", 0.09, "2025-04-29"), "329750": ("SHY", 0.30, "2019-07-24"),
+    expect = {"0046A0": ("USD_CASH", 0.09, "2025-04-29"), "329750": ("USD_CASH", 0.30, "2019-07-24"),
               "305080": ("IEF", 0.29, "2018-08-30"), "476760": ("TLT", 0.05, "2024-03-12"), KRX_GOLD: ("GLD", 0.0, "2014-03-24")}
     for code, (proxy, ter, listed) in expect.items():
         p = PRODUCTS[code]

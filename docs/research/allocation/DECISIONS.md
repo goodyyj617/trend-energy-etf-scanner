@@ -548,7 +548,7 @@ A41. Principle-first map of a 13-product universe, backtests used only to check 
     hold-out 2025-01-02 onward used once after the candidates are shown; ISA + gold account rebalanced as one
     portfolio; quarterly, next-close, 10 bp. Products (13): 379810, 379800, 453630, 453640, 463640, KRX spot gold
     (2014-03-24; fallback 411060 with fee added back; before GLD / GC=F × FX), 459580, one dollar-cash axis 0046A0
-    (chained 261240 real 2016-12 – 2025-04, BIL / T-bill × FX before), 329750 (treasury-only to be checked in stage 0),
+    (chained 261240 real 2016-12 – 2025-04, BIL / T-bill × FX before), 329750 (KIS 0–1-yr treasuries; pre-listing proxy = USD cash, not SHY),
     305080, 0091C0, 476760, 484790 (chained 453850); 261240 / 455030 / 308620 are not separate axes. Stage 1: 2^20
     scrambled Sobol points, per product an inclusion coordinate (p 0.5) and a size coordinate, 2 % floor then uniform
     Dirichlet, integer %; metrics per point include CAGR / MDD on the window, halves and 2005+, crisis windows,
