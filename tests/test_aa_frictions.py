@@ -117,3 +117,28 @@ def test_krx_gold_pages_parse_to_a_price_file_row_set():
     tr = aa_real.real_series(pd.concat([df] * 1, ignore_index=True).assign(date=lambda d: pd.to_datetime(d["date"])),
                              pd.DataFrame(columns=["code", "date", "close", "dividends"]))
     assert tr == {}  # two closes are fewer than SPLICE_LAG + 1: too short to splice
+
+
+def test_decision_phase_and_half_years():
+    from lab.aa_engine import decision_rows
+    idx = pd.bdate_range("2001-01-01", "2003-12-31")
+    for f in ("M", "Q", "A"):
+        assert np.array_equal(decision_rows(idx, f), decision_rows(idx, f, 0))
+    months = lambda rows: sorted({idx[r].month for r in rows[:-1]})  # noqa: E731 - the last row closes the data
+    assert months(decision_rows(idx, "Q", 1)) == [1, 4, 7, 10] and months(decision_rows(idx, "Q", 2)) == [2, 5, 8, 11]
+    assert months(decision_rows(idx, "S")) == [6, 12] and months(decision_rows(idx, "S", 3)) == [3, 9]
+    assert months(decision_rows(idx, "A", 5)) == [5]
+    q = decision_rows(idx, "Q")
+    assert np.array_equal(decision_rows(idx, "Q", 0), q) and set(q[:-1]) <= set(decision_rows(idx, "M"))
+    with pytest.raises(ValueError):
+        decision_rows(idx, "Q", 3)
+    p = panel()
+    a = run_allocation(p, cfg(rebalance="Q"))
+    b = run_allocation(p, cfg(rebalance="Q", rebalance_phase=0))
+    assert a.equity.equals(b.equity) and "rebalance_phase" not in cfg().to_dict()
+    c = run_allocation(p, cfg(rebalance="Q", rebalance_phase=1))
+    assert not c.equity.equals(a.equity)
+    W = np.array([[0.5, 0.3, 0.15, 0.05]])
+    sim = srch.StaticSim(p, ["A", "B", "C"], "2004-01-02", "2005-06-30", rebalance="S", rebalance_phase=2)
+    eng = run_allocation(p, cfg(rebalance="S", rebalance_phase=2, end="2005-06-30"))
+    assert np.allclose(sim.run(W)[0][0], eng.equity.to_numpy(), rtol=1e-9, atol=0)

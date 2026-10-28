@@ -45,7 +45,7 @@ class StaticSim:
     """
 
     def __init__(self, panel: Panel, syms: list[str], start: str, end: str, rebalance: str = "Q",
-                 cost_bps: float = 10.0, rebalance_offset: int = 0, frictions=None):
+                 cost_bps: float = 10.0, rebalance_offset: int = 0, frictions=None, rebalance_phase: int = 0):
         missing = [s for s in syms if s not in panel.symbols]
         if missing:
             raise ValueError(f"가격 데이터가 없는 자산: {', '.join(short(s) for s in missing)}")
@@ -67,7 +67,7 @@ class StaticSim:
         growth = np.concatenate([1.0 + R, (1.0 + cash.to_numpy(dtype=float))[:, None]], axis=1)
         # cumulative growth index: G[0] = 1 (before the first day), G[t + 1] = value after day t
         self._G = np.vstack([np.ones((1, growth.shape[1])), np.cumprod(growth, axis=0)])
-        rows = decision_rows(dates, rebalance) + int(rebalance_offset)  # A27 timing check: trade later
+        rows = decision_rows(dates, rebalance, rebalance_phase) + int(rebalance_offset)  # A27 timing check: trade later
         rows = rows[rows < len(dates) - 1]
         self._trade_rows = (rows + 1).astype(int)
         self.syms = list(syms)
