@@ -1,0 +1,20 @@
+{
+ "rows_compared": 8748,
+ "rows_expected": 8748,
+ "max_abs_diff_signals": 0.0,
+ "nan_mismatch_signals": 0,
+ "max_abs_diff_expectancy": 0.0,
+ "nan_mismatch_expectancy": 0,
+ "max_abs_diff_win_rate": 0.0,
+ "nan_mismatch_win_rate": 0,
+ "max_abs_diff_cagr": 8.725641624240943e-07,
+ "nan_mismatch_cagr": 0,
+ "max_abs_diff_mdd": 2.7332568326432494e-06,
+ "nan_mismatch_mdd": 0,
+ "max_abs_diff_n_trades": 0.0,
+ "nan_mismatch_n_trades": 0,
+ "max_abs_diff_cal_cagr": 6.271575306027177e-07,
+ "nan_mismatch_cal_cagr": 0,
+ "max_abs_diff_cal_mdd": 2.020664655599802e-06,
+ "nan_mismatch_cal_mdd": 0
+}

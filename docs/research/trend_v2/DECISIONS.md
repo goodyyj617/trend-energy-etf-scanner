@@ -641,6 +641,16 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     F1-F5 are logged as trials (7,290). Holdout unused, nothing changed after results. Runner
     lab/combo_f_study.py (results lab_crsp/stagec_combos_daily3000).
     Design: docs/research/lab/2026-10-28_stage_f_design.md.
+    Result (2026-10-28, run 11:27-14:09 KST): reproduction exact ('none' and the five singles,
+    8,748 rows, max CAGR/MDD difference 3e-6). (1) all five combos help vs none in both views.
+    (2) stacking: F3 (weak industry + overextended + efficiency) beats its best single in both views
+    (unlimited vs x_weak_industry 78% / 67% of cells, +0.17 / +0.07 pp per signal; 20-slot vs
+    s_efficiency 70% / 61%, +1.0 / +1.1 pp CAGR); F1 in the 20-slot view only (72% / 61%); F2, F4,
+    F5 fail in 2017-2023 (47-59% of cells). 20-slot median CAGR F3 5.3% / 5.1% (none 3.0% / 3.3%,
+    SPY 9.9% / 12.7%). (3) five combo candidates (F1 E2xX1, F3 E5xX5, F3 E9xX1, F3 E9xX2, F4 E5xX1),
+    all passing at 40 bp, all losing to SPY in 1993-98 and leading in 1999-2003; DSR 0.00 (N 62,290)
+    and at most 0.25 (IQR dispersion, N 1,169). No holdout candidate. Trials +7,290 (Drive log, not
+    merged). Record: docs/research/lab/2026-10-28_stage_f_results.md.
 
 ## Open decisions
 

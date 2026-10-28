@@ -1,0 +1,161 @@
+{
+ "helps_unlimited": [
+  "F1",
+  "F2",
+  "F3",
+  "F4",
+  "F5",
+  "x_ivol",
+  "x_overextended",
+  "x_volatility",
+  "x_weak_industry"
+ ],
+ "helps_account": [
+  "F1",
+  "F2",
+  "F3",
+  "F4",
+  "F5",
+  "s_efficiency",
+  "x_overextended",
+  "x_weak_industry"
+ ],
+ "stacks": [
+  {
+   "combo": "F1",
+   "view": "account"
+  },
+  {
+   "combo": "F3",
+   "view": "account"
+  },
+  {
+   "combo": "F3",
+   "view": "unlimited"
+  }
+ ],
+ "candidates": [
+  {
+   "screen": "F1",
+   "entry": "E2",
+   "exit": "X1",
+   "largest_region_full": 2.0,
+   "largest_region_recent": 4.0,
+   "pass_cells_full": 2.0,
+   "pass_cells_recent": 4.0,
+   "pass_both_40bp": true
+  },
+  {
+   "screen": "F3",
+   "entry": "E5",
+   "exit": "X5",
+   "largest_region_full": 2.0,
+   "largest_region_recent": 2.0,
+   "pass_cells_full": 2.0,
+   "pass_cells_recent": 2.0,
+   "pass_both_40bp": true
+  },
+  {
+   "screen": "F3",
+   "entry": "E9",
+   "exit": "X1",
+   "largest_region_full": 6.0,
+   "largest_region_recent": 4.0,
+   "pass_cells_full": 6.0,
+   "pass_cells_recent": 5.0,
+   "pass_both_40bp": true
+  },
+  {
+   "screen": "F3",
+   "entry": "E9",
+   "exit": "X2",
+   "largest_region_full": 6.0,
+   "largest_region_recent": 2.0,
+   "pass_cells_full": 6.0,
+   "pass_cells_recent": 2.0,
+   "pass_both_40bp": true
+  },
+  {
+   "screen": "F4",
+   "entry": "E5",
+   "exit": "X1",
+   "largest_region_full": 7.0,
+   "largest_region_recent": 6.0,
+   "pass_cells_full": 7.0,
+   "pass_cells_recent": 6.0,
+   "pass_both_40bp": true
+  }
+ ],
+ "best_single": [
+  {
+   "combo": "F1",
+   "view": "unlimited",
+   "best_single": "x_weak_industry"
+  },
+  {
+   "combo": "F1",
+   "view": "account",
+   "best_single": "x_weak_industry"
+  },
+  {
+   "combo": "F2",
+   "view": "unlimited",
+   "best_single": "x_ivol"
+  },
+  {
+   "combo": "F2",
+   "view": "account",
+   "best_single": "x_weak_industry"
+  },
+  {
+   "combo": "F3",
+   "view": "unlimited",
+   "best_single": "x_weak_industry"
+  },
+  {
+   "combo": "F3",
+   "view": "account",
+   "best_single": "s_efficiency"
+  },
+  {
+   "combo": "F4",
+   "view": "unlimited",
+   "best_single": "x_ivol"
+  },
+  {
+   "combo": "F4",
+   "view": "account",
+   "best_single": "s_efficiency"
+  },
+  {
+   "combo": "F5",
+   "view": "unlimited",
+   "best_single": "x_ivol"
+  },
+  {
+   "combo": "F5",
+   "view": "account",
+   "best_single": "x_weak_industry"
+  }
+ ],
+ "reproduction": {
+  "rows_compared": 8748,
+  "rows_expected": 8748,
+  "max_abs_diff_signals": 0.0,
+  "nan_mismatch_signals": 0,
+  "max_abs_diff_expectancy": 0.0,
+  "nan_mismatch_expectancy": 0,
+  "max_abs_diff_win_rate": 0.0,
+  "nan_mismatch_win_rate": 0,
+  "max_abs_diff_cagr": 8.725641624240943e-07,
+  "nan_mismatch_cagr": 0,
+  "max_abs_diff_mdd": 2.7332568326432494e-06,
+  "nan_mismatch_mdd": 0,
+  "max_abs_diff_n_trades": 0.0,
+  "nan_mismatch_n_trades": 0,
+  "max_abs_diff_cal_cagr": 6.271575306027177e-07,
+  "nan_mismatch_cal_cagr": 0,
+  "max_abs_diff_cal_mdd": 2.020664655599802e-06,
+  "nan_mismatch_cal_mdd": 0
+ }
+}
