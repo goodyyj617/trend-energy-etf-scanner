@@ -692,7 +692,27 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     eight mostly mean "low volatility", which the ATR-scaled 5R makes easier to reach; under B50/B2S
     they fail and flip sign in 2017-23 (only low price, and the term spread for B2S, pass); pooled
     signals overlap 96% within symbols. Record: docs/research/lab/2026-10-28_stage_g_results.md.
-
+86. Stage H: picking big winners walk-forward, with a 1%-rule account (user choice 2026-10-28:
+    account A = 1% risk per trade, 10% per-stock cap, at most 10 stocks; analyse both with and
+    without the stock-count limit). Registered before any run. Stop = entry - k x ATR14 (signal
+    day), k 1.5 / 2 / 3; shares = equity x 1% / (entry - stop), capped at 10% of equity; no leverage;
+    no re-entry for 20 sessions after any exit; T-bill cash; 20 bp (candidates 40 bp). Entries: E1-E9
+    and V1-V6 canonical signals pooled per stock-day with 15 entry flags; exits H1 = 25% trailing or
+    ATR stop (new tables) and H9 = Stage C X9 (2 x 3 settings). Target: contribution w x return
+    >= +5% of equity (w = min(1% / stop%, 10%)), i.e. 5R uncapped or +50% capped; secondary B50 and
+    SPY excess > 0. Features: G-1's 40 + entry flags, training percentiles; with and without ATR%.
+    Models (numpy): L2 logistic (lambda 1, main) and a rank average with training-set directions.
+    Walk-forward: first fit 1993-1999, evaluated 2000-2023, refit each January on trades closed
+    before it. Placebo: training labels shuffled by stock blocks each year, 100 times. Accounts:
+    10-stock (buy order by score vs dollar volume vs 100 random orders) and no stock limit (each
+    signal at its 1%-rule weight; calendar-time portfolio scaled to 100% exposure, gross exposure
+    shown; model as a filter: training top-30% score vs all). Capped / uncapped trades shown apart.
+    Verdicts per setting (main model): (1) AUC >= 0.55 in 2000-2011 and 2012-2023 and above the
+    placebo 95th percentile; (2) 10-stock: score order beats dollar volume and the random median in
+    CAGR in both halves and in >= 60% of years; no limit: top-30% mean contribution above all in
+    both halves; (3) candidate: 10-stock CAGR > SPY and |MDD| < |SPY MDD| in 2000-2023 and
+    2017-2023 with >= 30 trades, >= 2 of the 3 k values, still at 40 bp; DSR for candidates only.
+    Holdout unused. Design: docs/research/lab/2026-10-28_stage_h_design.md.
 ## Open decisions
 
 - final trend-filter definition;
