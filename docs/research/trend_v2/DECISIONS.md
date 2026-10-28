@@ -692,6 +692,11 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     eight mostly mean "low volatility", which the ATR-scaled 5R makes easier to reach; under B50/B2S
     they fail and flip sign in 2017-23 (only low price, and the term spread for B2S, pass); pooled
     signals overlap 96% within symbols. Record: docs/research/lab/2026-10-28_stage_g_results.md.
+    G-2 result (2026-10-28, run 17:39-18:31 KST): V1-V6 are no better than E1-E9 per signal: big
+    winners (5R) 4.3-6.5% vs 4.0-6.2% (median over cells, 1993-2023), median SPY excess -1.9 to
+    -3.2% vs -1.6 to -3.3%, signals beating SPY 35-36%; mean excess > 0 only for E9 and V5 in
+    1993-2023 and for none in 2017-2023. V1 z > 2 fires on 2.3% of eligible stock-days.
+    Trials +972. Same record.
 86. Stage H: picking big winners walk-forward, with a 1%-rule account (user choice 2026-10-28:
     account A = 1% risk per trade, 10% per-stock cap, at most 10 stocks; analyse both with and
     without the stock-count limit). Registered before any run. Stop = entry - k x ATR14 (signal

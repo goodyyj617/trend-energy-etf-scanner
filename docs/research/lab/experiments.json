@@ -2,6 +2,26 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_g_events",
+      "title": "Stage G-2: 극단 이벤트 매수 V1–V6",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "85",
+      "memo": "docs/research/lab/2026-10-28_stage_g_results.md",
+      "results_dir": "lab_crsp/stage_g_events",
+      "kind": "",
+      "why": "수익이 소수의 큰 승자에서 나오므로, 평소와 다른 극단적 움직임(하루·5일 급등, 거래량 폭발, 변동폭 급확장, 52주 신고가 종가 + 거래량, 수축 뒤 돌파)이 일어난 첫날에 사면 큰 승자를 더 자주 잡는지 신호 단위로 E1–E9와 비교한다.",
+      "results": [
+        "V1–V6의 큰 승자(≥ 5R) 비율 4.3–6.5%로 E1–E9(4.0–6.2%)와 비슷했다.",
+        "SPY 대비 초과 중앙값 −1.9 – −3.2%, SPY를 이긴 신호 35–36%로 기존 매수와 같은 수준이다.",
+        "평균 초과가 플러스인 매수는 1993–2023에서 E9와 V5뿐, 2017–2023에서는 없었다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_g_tail/events_median_x_spy.png", "caption": "매수별 SPY 대비 초과 중앙값"},
+        {"path": "docs/research/lab/figures/stage_g_tail/events_b5r.png", "caption": "매수별 큰 승자(≥ 5R) 비율"}
+      ]
+    },
+    {
       "id": "stage_g_tail",
       "title": "Stage G-1: 꼬리 분석과 SPY 대비 채점",
       "date": "2026-10-28",
