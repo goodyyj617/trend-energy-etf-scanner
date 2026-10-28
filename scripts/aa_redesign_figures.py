@@ -40,7 +40,10 @@ def fig_map(out: Path, dest: Path) -> Path:
         ax.annotate(r["이름"], (r["mdd"] * 100, r["cagr"] * 100), fontsize=8, xytext=(4, 3), textcoords="offset points")
     if len(cen):
         full = cen[cen["고른 구간"] == "전체"]
-        ax.scatter(full["mdd"] * 100, full["cagr"] * 100, marker="*", s=160, color="#9b2c2c", label="후보 중심 (전체 구간)")
+        ax.scatter(full["mdd"] * 100, full["cagr"] * 100, marker="*", s=160, color="#9b2c2c", label="평균 중심 (전체 구간, 결과를 본 뒤 보완)")
+        for _, r in full.iterrows():
+            ax.annotate(f"{r['묶음'].split()[0]} 사후", (r["mdd"] * 100, r["cagr"] * 100), fontsize=8, xytext=(4, -10),
+                        textcoords="offset points", color="#9b2c2c")
     ax.axvline(-15, color="gray", ls="--", lw=1)
     ax.axvline(-17, color="gray", ls=":", lw=1)
     ax.set_xlim(max(-45, mp["mdd"].min() * 100), 0)
@@ -167,6 +170,27 @@ def fig_halves(out: Path, dest: Path) -> Path:
     return figs._save(fig, dest / "7_halves.png")
 
 
+def fig_holdout(out: Path, dest: Path) -> Path:
+    h = pd.read_csv(out / "holdout.csv")
+    plt, fig, ax = _fig(10, 6.5)
+    late = h["실행"].fillna("첫 실행").ne("첫 실행") if "실행" in h else pd.Series(False, index=h.index)
+    for flag, mk, lab in ((False, "o", "첫 실행"), (True, "s", "추가 (첫 실행에서 빠진 대상)")):
+        p = h[late == flag]
+        if p.empty:
+            continue
+        ax.scatter(p["실제 MDD"] * 100, p["실제 누적 수익"] * 100, marker=mk, s=55, facecolor="none" if flag else "#2b6cb0",
+                   edgecolor="#2b6cb0", label=lab)
+        for _, r in p.iterrows():
+            name = r["대상"].replace("중심 전체 ", "").replace("중심 ", "").replace(" 평균·보완 1", " 평균 중심 (사후)")
+            ax.annotate(name, (r["실제 MDD"] * 100, r["실제 누적 수익"] * 100), fontsize=7, xytext=(4, 3), textcoords="offset points")
+    ax.axvline(-15, color="gray", ls="--", lw=1)
+    ax.set_xlabel(f"보류 구간 MDD (%, 실제 가격 우선, {h['실제 시작'].iloc[0]} – {h['실제 끝'].iloc[0]})")
+    ax.set_ylabel("누적 수익 (%)")
+    ax.set_title("A41 ⑧ 보류 구간 한 번: 연구에 쓰지 않은 22개월 (기록만, 후보·판정은 그대로)")
+    ax.legend(fontsize=8)
+    return figs._save(fig, dest / "8_holdout.png")
+
+
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
@@ -177,7 +201,7 @@ def main(argv):
     if not figs.available():
         raise SystemExit("matplotlib이 없습니다")
     made = []
-    for f in (fig_map, fig_sobol, fig_include, fig_rebalance, fig_starts, fig_exchange, fig_halves):
+    for f in (fig_map, fig_sobol, fig_include, fig_rebalance, fig_starts, fig_exchange, fig_halves, fig_holdout):
         try:
             made.append(f(out, dest).name)
         except FileNotFoundError as exc:

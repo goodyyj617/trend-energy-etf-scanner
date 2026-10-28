@@ -589,76 +589,119 @@ def verdict_table(R: pd.DataFrame, comparators: set[str]) -> pd.DataFrame:
         row["3 통과"] = bool(row["3 리밸런싱 안 비율"] >= 0.90)
         row["모두 통과"] = (bool(row["1 기준선"] and row["2 통과"] and row["3 통과"] and row["4 10년 창 모두 안"])
                          if row["종류"] == "후보 중심" else None)
+        if "(나)" in name:  # design §5: the (나) group is also read against −17 %
+            near = {"−17% 1 기준선": bool(b_mdd >= LS.NEAR),
+                    "−17% 2 이웃 ±5 안 비율": float((nb5["mdd"] >= LS.NEAR).mean()) if len(nb5) else np.nan,
+                    "−17% 3 리밸런싱 안 비율": float((reb["mdd"] >= LS.NEAR).mean()),
+                    "−17% 4 10년 창 모두 안": bool((win["mdd"] >= LS.NEAR).all())}
+            near["−17% 모두 통과"] = bool(near["−17% 1 기준선"] and near["−17% 2 이웃 ±5 안 비율"] >= LS.NB_SHARE
+                                        and near["−17% 3 리밸런싱 안 비율"] >= 0.90 and near["−17% 4 10년 창 모두 안"])
+            row.update(near)
         rows.append(row)
     return pd.DataFrame(rows)
 
 
 # --------------------------------------------------------------------------- after the results (user's decisions)
 
-MEAN_LABEL = "(가) 평균·보완"  # added after the results: the mean of the full-window flat region (design change log)
 HOLDOUT_START = "2025-01-02"
 
 
+MEAN_LABELS = {"(가)": "(가) 평균·보완", "(나)": "(나) 평균·보완"}
+
+
 def stage4b(P, out: Path, work: Path, workers: int) -> dict:
-    """The user's decision of 2026-10-28 after stage 3: the full-window flat region (10 points) gave no centre under
-    the grouping rule, so its mean weights become one more centre and go through stage 4 like the others."""
+    """After stage 3 (user's go, 2026-10-28): the full-window flat regions gave no centre under the grouping rule, so
+    the mean weights of each region ((가) within −15 %, (나) −17 – −15 %) become one more centre each and go through
+    stage 4 like the others. Targets already in robustness.csv are not run again."""
     krw, _, _ = load_panel()
     F = pd.read_csv(out / "flat_region_full.csv")
-    reg = F[F["영역"] == "(가)"]
-    mean = np.vstack([wparse(s) for s in reg["비중"]]).mean(axis=0)
-    mean[mean < LS.MIN_PCT] = 0.0
-    w = LS.whole(mean)
     sim, lay = _sim(krw)
-    m = LS.path_metrics(*sim.run(LS.to_fraction(w[None, :])), lay).iloc[0].to_dict()
     C = pd.read_csv(out / "centres.csv")
-    C = C[C["묶음"] != MEAN_LABEL]
-    row = {"고른 구간": "전체", "묶음": MEAN_LABEL, "번호": 1, "영역 점 수": int(len(reg)),
-           "주요 상품": " + ".join(LS.SHORT[LS.UNIVERSE[i]] for i in np.flatnonzero(w >= LS.MAJOR_PCT)), "묶음 점 수": int(len(reg)),
-           "비중": wstr(w), **m, "zone": LS.zone(np.array([m["mdd"]]))[0]}
-    C = pd.concat([C, pd.DataFrame([row])], ignore_index=True)
-    C.to_csv(out / "centres.csv", index=False)
-    name = f"중심 전체 {MEAN_LABEL} 1"
-    rows = _robust_one((krw, name, {LS.UNIVERSE[i]: float(x) for i, x in enumerate(w) if x > 0}, "grid"))
     R = pd.read_csv(out / "robustness.csv.gz")
-    R = pd.concat([R[R["대상"] != name], pd.DataFrame(rows)], ignore_index=True)
+    res = {}
+    for region, label in MEAN_LABELS.items():
+        reg = F[F["영역"] == region]
+        if reg.empty:
+            continue
+        mean = np.vstack([wparse(x) for x in reg["비중"]]).mean(axis=0)
+        mean[mean < LS.MIN_PCT] = 0.0
+        w = LS.whole(mean)
+        m = LS.path_metrics(*sim.run(LS.to_fraction(w[None, :])), lay).iloc[0].to_dict()
+        C = C[C["묶음"] != label]
+        row = {"고른 구간": "전체", "묶음": label, "번호": 1, "영역 점 수": int(len(reg)),
+               "주요 상품": " + ".join(LS.SHORT[LS.UNIVERSE[i]] for i in np.flatnonzero(w >= LS.MAJOR_PCT)), "묶음 점 수": int(len(reg)),
+               "비중": wstr(w), **m, "zone": LS.zone(np.array([m["mdd"]]))[0]}
+        C = pd.concat([C, pd.DataFrame([row])], ignore_index=True)
+        name = f"중심 전체 {label} 1"
+        if not (R["대상"] == name).any():
+            rows = _robust_one((krw, name, {LS.UNIVERSE[i]: float(x) for i, x in enumerate(w) if x > 0}, "grid"))
+            R = pd.concat([R, pd.DataFrame(rows)], ignore_index=True)
+        res[label] = {"weights": wstr(w), "metrics": {k: m[k] for k in ("cagr", "mdd", "rank", "win_worst")}}
+    C.to_csv(out / "centres.csv", index=False)
     R.to_csv(out / "robustness.csv.gz", index=False)
     named = {**{k: PRESETS[v].weights for k, v in COMPARE.items()}, **SKELETONS, **SPX}
     V = verdict_table(R, set(named))
     V.to_csv(out / "verdicts.csv", index=False)
-    v = V[V["대상"] == name].iloc[0].to_dict()
-    return {"weights": wstr(w), "metrics": {k: m[k] for k in ("cagr", "mdd", "rank", "win_worst")}, "verdict": v}
+    for label in res:
+        res[label]["verdict"] = V[V["대상"] == f"중심 전체 {label} 1"].iloc[0].to_dict()
+    return res
+
+
+HOLDOUT_RULE_NAMES = {"equal": "규칙형 equal (13개)", "invvol": "규칙형 invvol (13개)", "riskcap": "규칙형 riskcap (13개)"}
+
+
+def _holdout_row(name: str, runs: dict) -> dict:
+    row = {"대상": name}
+    for tag, eq in runs.items():
+        v = eq.to_numpy()
+        m = _metrics_of(eq, 0.0)
+        row.update({f"{tag} 시작": str(eq.index[0].date()), f"{tag} 끝": str(eq.index[-1].date()),
+                    f"{tag} 누적 수익": float(v[-1] / v[0] - 1), f"{tag} CAGR": m["cagr"], f"{tag} MDD": m["mdd"]})
+    row["안 (실제)"] = bool(row["실제 MDD"] >= LS.LINE)
+    return row
 
 
 def stage5(P, out: Path, work: Path, workers: int) -> dict:
-    """Hold-out (2025-01-02 – data end), once, after the user saw the candidate table: every centre and comparator,
-    on real-first prices and on the model alone. Recorded only; nothing is re-chosen from it."""
+    """Hold-out (2025-01-02 – DATA_END), once, after the user saw the candidate table: every centre, comparator and
+    rule-based weight, on real-first prices and on the model alone. Recorded only; nothing is re-chosen from it.
+    Rows already in holdout.csv are kept as they are (each target is looked at once); targets the first run missed
+    are added with 실행 = '추가 (첫 실행에서 빠진 대상)'."""
     real, _, _ = load_panel("real")
     model, _, _ = load_panel("model")
+    path = out / "holdout.csv"
+    old = pd.read_csv(path) if path.exists() else pd.DataFrame(columns=["대상"])
+    if len(old) and "실행" not in old:
+        old["실행"] = "첫 실행"
+    done = set(old["대상"])
     C = pd.read_csv(out / "centres.csv")
     targets = {f"중심 {r['고른 구간']} {r['묶음']} {r['번호']}": {LS.UNIVERSE[i]: float(x) for i, x in enumerate(wparse(r["비중"])) if x > 0}
                for _, r in C.iterrows()}
     targets.update({k: dict(PRESETS[v].weights) for k, v in COMPARE.items()})
     targets.update(SKELETONS)
     targets.update(SPX)
+    tag_new = "추가 (첫 실행에서 빠진 대상)" if done else "첫 실행"
     rows = []
     for name, w in targets.items():
-        row = {"대상": name}
-        for tag, panel in (("실제", real), ("모형", model)):
-            r = run_allocation(panel, AllocConfig(name, dict(w), HOLDOUT_START, DATA_END, rebalance="Q", cost_bps=COST_BPS))
-            m = _metrics_of(r.equity, r.turnover)
-            v = r.equity.to_numpy()
-            row.update({f"{tag} 시작": str(r.equity.index[0].date()), f"{tag} 끝": str(r.equity.index[-1].date()),
-                        f"{tag} 누적 수익": float(v[-1] / v[0] - 1), f"{tag} CAGR": m["cagr"], f"{tag} MDD": m["mdd"]})
-        row["안 (실제)"] = bool(row["실제 MDD"] >= LS.LINE)
-        rows.append(row)
-    H = pd.DataFrame(rows)
+        if name in done:
+            continue
+        runs = {tag: run_allocation(panel, AllocConfig(name, dict(w), HOLDOUT_START, DATA_END, rebalance="Q", cost_bps=COST_BPS)).equity
+                for tag, panel in (("실제", real), ("모형", model))}
+        rows.append({**_holdout_row(name, runs), "실행": tag_new})
+    for rule, name in HOLDOUT_RULE_NAMES.items():
+        if name in done:
+            continue
+        runs = {tag: LS.run_rule(panel, rule, LS.UNIVERSE, HOLDOUT_START, DATA_END, COST_BPS)[0]
+                for tag, panel in (("실제", real), ("모형", model))}
+        rows.append({**_holdout_row(name, runs), "실행": tag_new})
+    H = pd.concat([old, pd.DataFrame(rows)], ignore_index=True) if rows else old
     spx = H.set_index("대상").loc["S&P500 보유"]
     st = H.set_index("대상").loc["안정형 40"]
     H["S&P500 대비 누적 수익 (실제, %p)"] = H["실제 누적 수익"] - spx["실제 누적 수익"]
     H["안정형 40 대비 누적 수익 (실제, %p)"] = H["실제 누적 수익"] - st["실제 누적 수익"]
     H["실제 − 모형 누적 수익 (%p)"] = H["실제 누적 수익"] - H["모형 누적 수익"]
-    H.to_csv(out / "holdout.csv", index=False)
-    return {"start": HOLDOUT_START, "end": str(H["실제 끝"].iloc[0]), "targets": int(len(H)), "inside": int(H["안 (실제)"].sum())}
+    H.to_csv(path, index=False)
+    return {"start": HOLDOUT_START, "end": str(H["실제 끝"].iloc[0]), "targets": int(len(H)), "added": [r["대상"] for r in rows],
+            "inside": int(H["안 (실제)"].sum())}
 
 
 def _jsonable(o):
