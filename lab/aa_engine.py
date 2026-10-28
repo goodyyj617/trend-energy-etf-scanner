@@ -310,13 +310,15 @@ def target_weights(base: dict[str, float], overlay: Overlay, sig: _Signals, d: p
 
 def simulate(rets: pd.DataFrame, cash: pd.Series, targets: dict[int, dict[str, float]], cost_bps: float,
              band: float, exposure: pd.Series | None = None, spread_bps: float = 0.0, ter_bps: float = 0.0,
-             first: dict[str, float] | None = None) -> tuple[pd.Series, pd.DataFrame, float, int]:
+             first: dict[str, float] | None = None, cost_vec: np.ndarray | None = None
+             ) -> tuple[pd.Series, pd.DataFrame, float, int]:
     """Daily simulation of a weight path.
 
     rets: daily returns of the risky columns (no CASH column); cash: daily cash return.
     targets: {row position of the decision day: weights incl. CASH}; traded at the next row's close.
     first: weights held from the first row (defaults to the first target, or all cash).
     exposure: daily k for leverage (None = 1).
+    cost_vec: one-way cost per column incl. CASH last, as fractions (lab/aa_frictions.py); None = cost_bps for all.
     Returns (equity, weights DataFrame incl. CASH, annual one-way turnover, trades).
     """
     cols = list(rets.columns)
@@ -353,7 +355,7 @@ def simulate(rets: pd.DataFrame, cash: pd.Series, targets: dict[int, dict[str, f
             tgt = pending * value
             tr = np.abs(tgt - hold).sum() / 2.0  # one-way turnover of the trade
             if band <= 0 or (np.abs(hold / value - pending).max() > band / 100.0):
-                value -= tr * cost
+                value -= tr * cost if cost_vec is None else (np.abs(tgt - hold) @ cost_vec) / 2.0
                 r_mix = value / unlev - 1.0 if unlev > 0 else 0.0
                 hold = pending * value
                 turnover += tr / unlev if unlev > 0 else 0.0
@@ -398,7 +400,10 @@ def benchmark_of(panel: Panel) -> str:
     return getattr(panel, "benchmark", None) or BENCHMARK
 
 
-def run_allocation(panel: Panel, cfg: AllocConfig) -> AllocResult:
+def run_allocation(panel: Panel, cfg: AllocConfig, frictions=None) -> AllocResult:
+    """``frictions``: lab.aa_frictions.Frictions; None or disabled changes nothing (A41 §7)."""
+    from .aa_frictions import resolve
+    fr = resolve(frictions)
     bench_sym = benchmark_of(panel)
     if bench_sym not in panel.symbols:
         raise ValueError(f"벤치마크 {bench_sym} 가격이 데이터에 없습니다.")
@@ -438,8 +443,9 @@ def run_allocation(panel: Panel, cfg: AllocConfig) -> AllocResult:
     elif lev.factor != 1.0:
         exposure = pd.Series(lev.factor, index=dates)
 
+    cost_vec = fr.cost_vector(list(rets.columns) + [CASH], cfg.cost_bps) if fr is not None else None
     eq, weights, turnover, trades = simulate(rets, cash, targets, cfg.cost_bps, cfg.band, exposure,
-                                             lev.spread_bps, lev.ter_bps, first)
+                                             lev.spread_bps, lev.ter_bps, first, cost_vec)
     bench = panel.close[bench_sym].loc[dates].ffill()
     bench = bench / bench.iloc[0]
     exp_series = exposure if exposure is not None else pd.Series(1.0, index=dates)

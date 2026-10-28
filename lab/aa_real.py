@@ -14,7 +14,13 @@ module swaps in the real price of each Korean-listed product after its listing a
   (5 days after the first real close, past the listing-day noise), scaled to meet the model there.
 - After the last real close the model's returns carry the series on (an old price file never shows a flat line).
 - The two synthetic unhedged treasuries of A31 have no product of their own; they take the real prices of
-  TIGER 미국채10년선물 (305080) and ACE 미국30년국채액티브 (453850).
+  TIGER 미국채10년선물 (305080) and ACE 미국30년국채액티브 (476760). Until 2026-10-28 the 30-year stand-in was 453850,
+  which is the hedged ACE 미국30년국채액티브(H) (DECISIONS A41; noted in 2026-10-26_real_prices.md).
+- Chains (opt-in, A41): a column may take the real prices of earlier-listed stand-ins before its own, e.g. 0046A0 runs
+  on KODEX 미국달러선물 (261240) from 2016-12 until its own listing. `hybrid_panel(..., chains=A41_CHAINS)`; without
+  `chains` nothing changes.
+- KRX spot gold (code KRXGOLD) is the Naver "domestic gold" close (KRX 금시장, KRW per gram, 2014-03-24 on), stored in
+  naver.csv.gz like an ETF without distributions.
 
 Price files live in lab_data/kr/ (gitignored, like lab_data/yf): naver.csv.gz (code,date,open,high,low,close,
 volume) and yahoo.csv.gz (code,date,…,close,…,dividends). `python -m lab.aa_real fetch` downloads them (needs
@@ -31,14 +37,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .aa_assets import PRODUCTS
+from .aa_assets import KRX_GOLD, PRODUCTS
 from .data import CACHE_DIR, Panel
 
 REAL_DIR = CACHE_DIR / "kr"
 SAME_DAY = frozenset({"069500", "122630", "459580"})  # KOSPI (model from EWY) and KRW cash: same calendar date
 SPLICE_LAG = 5  # Seoul trading days after the first real close
-SYN_REAL = {"SYN_IEF_U": "305080", "SYN_TLT_U": "453850"}  # synthetic product -> real product standing in for it
-EXTRA_CODES = {"305080": "TIGER 미국채10년선물", "308620": "KODEX 미국채10년선물", "453850": "ACE 미국30년국채액티브"}
+SYN_REAL = {"SYN_IEF_U": "305080", "SYN_TLT_U": "476760"}  # synthetic product -> real product standing in for it
+EXTRA_CODES = {"308620": "KODEX 미국채10년선물", "453850": "ACE 미국30년국채액티브(H)"}  # real prices that are not products
+# A41: earlier-listed real stand-ins, oldest first, used before a column's own real prices (opt-in, see hybrid_panel)
+A41_CHAINS = {"0046A0": ("261240",), "484790": ("453850",)}
 REAL_CODES = sorted(set(PRODUCTS) | set(EXTRA_CODES))
 SOURCES = {"real": "실제 가격 우선 (상장 후 실제 · 상장 전 모형)", "model": "모형만 (미국 대용 × 원/달러)"}
 DEFAULT_SOURCE = "real"  # user's choice on the decision card, 2026-10-26 12:34 KST (A33)
@@ -110,37 +118,44 @@ def splice_date(tr: pd.Series, used: pd.Series) -> pd.Timestamp | None:
 
 # --------------------------------------------------------------------------- hybrid panel
 
-def hybrid_panel(panel: Panel, real: dict[str, pd.Series], syn_real: dict[str, str] | None = None
-                 ) -> tuple[Panel, dict[str, dict]]:
+def hybrid_panel(panel: Panel, real: dict[str, pd.Series], syn_real: dict[str, str] | None = None,
+                 chains: dict[str, tuple[str, ...]] | None = None) -> tuple[Panel, dict[str, dict]]:
     """Copy of a KRW model panel with every column real from its splice date on.
 
+    ``chains`` (opt-in) lists earlier-listed real stand-ins per column, oldest first: each takes over from its own
+    splice date, scaled to meet the series built so far, and the column's own real prices take over last.
+
     Returns (panel, info) where info maps each panel column to {"real": code, "splice": Timestamp | None,
-    "real_last": Timestamp | None}; columns without real data map to splice None."""
+    "real_last": Timestamp | None, "chain": [(code, splice), ...]}; columns without real data map to splice None.
+    "real" / "splice" describe the last real series that took over."""
     syn_real = SYN_REAL if syn_real is None else syn_real
+    chains = chains or {}
     us = panel.close.index
     close = panel.close.copy()
     info: dict[str, dict] = {}
     for col in panel.close.columns:
-        rc = syn_real.get(col, col)
-        tr = real.get(rc)
-        if tr is None:
-            info[col] = {"real": None, "splice": None, "real_last": None}
-            continue
-        vals, used = to_us_grid(tr, us, rc in SAME_DAY)
-        t0 = splice_date(tr, used)
-        model0 = panel.close.at[t0, col] if t0 is not None else np.nan
-        if t0 is None or not np.isfinite(model0):
-            info[col] = {"real": rc, "splice": None, "real_last": tr.index[-1]}
-            continue
-        last = tr.index[-1]
-        covered = (us <= last) if rc in SAME_DAY else (us < last)  # US dates the real file can still answer
-        te = us[covered & (us >= t0)][-1]
-        after = (us >= t0) & (us <= te)
-        close.loc[after, col] = model0 * vals[after] / vals.at[t0]
-        tail = us > te  # past the real file's end: carry on with model returns instead of a flat line
-        if tail.any():
-            close.loc[tail, col] = close.at[te, col] * panel.close.loc[tail, col] / panel.close.at[te, col]
-        info[col] = {"real": rc, "splice": t0, "real_last": tr.index[-1]}
+        own = syn_real.get(col, col)
+        links = [c for c in (*chains.get(col, ()), own) if c in real]
+        d = {"real": None, "splice": None, "real_last": None, "chain": []}
+        for rc in links:
+            tr = real[rc]
+            vals, used = to_us_grid(tr, us, rc in SAME_DAY)
+            t0 = splice_date(tr, used)
+            base0 = close.at[t0, col] if t0 is not None else np.nan  # the series so far (the model for the first link)
+            d.update(real=rc, real_last=tr.index[-1])
+            if t0 is None or not np.isfinite(base0):
+                continue
+            last = tr.index[-1]
+            covered = (us <= last) if rc in SAME_DAY else (us < last)  # US dates the real file can still answer
+            te = us[covered & (us >= t0)][-1]
+            after = (us >= t0) & (us <= te)
+            close.loc[after, col] = base0 * vals[after] / vals.at[t0]
+            tail = us > te  # past the real file's end: carry on with model returns instead of a flat line
+            if tail.any():
+                close.loc[tail, col] = close.at[te, col] * panel.close.loc[tail, col] / panel.close.at[te, col]
+            d["splice"] = t0
+            d["chain"].append((rc, t0))
+        info[col] = d
     out = copy.copy(panel)
     out.open = out.high = out.low = out.close = close
     out.source = panel.source + " · 상장 후 실제 국내 가격(네이버 종가 + Yahoo 분배금)"
@@ -176,7 +191,8 @@ def ensure_files(folder: Path | str = REAL_DIR, max_age_hours: float = REFRESH_H
         return f"실제 가격을 새로 받지 못했습니다 ({exc})."
 
 
-def apply_source(panel: Panel, source: str, folder: Path | str = REAL_DIR) -> tuple[Panel, dict[str, dict] | None, str]:
+def apply_source(panel: Panel, source: str, folder: Path | str = REAL_DIR, chains: dict[str, tuple[str, ...]] | None = None
+                 ) -> tuple[Panel, dict[str, dict] | None, str]:
     """The panel for a price source ("real" or "model"), the splice info (None for the model) and a status line."""
     if source != "real":
         return panel, None, "모형만: 모든 상품이 전 기간 미국 대용 × 원/달러입니다."
@@ -184,7 +200,7 @@ def apply_source(panel: Panel, source: str, folder: Path | str = REAL_DIR) -> tu
     if files is None:
         return panel, None, (f"실제 가격 파일이 없어 모형으로 계산했습니다 ({Path(folder) / 'naver.csv.gz'}). "
                              "`python -m lab.aa_real fetch`로 받으세요.")
-    hyb, info = hybrid_panel(panel, real_series(*files))
+    hyb, info = hybrid_panel(panel, real_series(*files), chains=chains)
     n = sum(1 for d in info.values() if d["splice"] is not None)
     last = max((d["real_last"] for d in info.values() if d["real_last"] is not None), default=None)
     return hyb, info, f"실제 가격: {n}/{len(info)}종, 상장 5거래일 뒤부터 (실제 가격 ~ {last.date() if last is not None else '–'})"
@@ -233,6 +249,37 @@ def _fetch_naver(code: str, end: str) -> pd.DataFrame | None:
                          "close": [x[4] for x in data], "volume": [x[5] for x in data]})
 
 
+GOLD_URL = "https://api.stock.naver.com/marketindex/metals/M04020000/prices"  # Naver domestic gold = KRX 금시장 close
+
+
+def parse_gold(pages: list[list[dict]]) -> pd.DataFrame:
+    """Naver metal-price pages -> naver.csv.gz rows for KRX_GOLD (close only, oldest first, one row per date)."""
+    rows = [(str(x["localTradedAt"])[:10], float(str(x["closePrice"]).replace(",", ""))) for page in pages for x in page]
+    df = pd.DataFrame(rows, columns=["date", "close"]).drop_duplicates("date").sort_values("date", kind="stable")
+    df = df[df["close"] > 0]
+    c = df["close"].to_numpy()
+    return pd.DataFrame({"code": KRX_GOLD, "date": df["date"].to_numpy(), "open": c, "high": c, "low": c, "close": c,
+                         "volume": 0})
+
+
+def _fetch_krx_gold(max_pages: int = 400) -> pd.DataFrame | None:
+    import requests
+    pages = []
+    for page in range(1, max_pages + 1):
+        try:
+            r = requests.get(GOLD_URL, params={"page": page, "pageSize": 60}, headers={"User-Agent": UA}, timeout=30)
+            r.raise_for_status()
+            rows = r.json()
+        except Exception:  # noqa: BLE001
+            return None
+        finally:
+            time.sleep(0.2)
+        if not rows:
+            break
+        pages.append(rows)
+    return parse_gold(pages) if pages else None
+
+
 def fetch(codes: list[str] = REAL_CODES, folder: Path | str = REAL_DIR) -> pd.DataFrame:
     """Download Naver closes and Yahoo distributions for `codes` into `folder`. Returns a per-code summary."""
     folder = Path(folder)
@@ -240,7 +287,10 @@ def fetch(codes: list[str] = REAL_CODES, folder: Path | str = REAL_DIR) -> pd.Da
     end = (pd.Timestamp.today() + pd.Timedelta(days=7)).strftime("%Y%m%d")
     nav, yah, summary = [], [], []
     for code in codes:
-        n, y = _fetch_naver(code, end), _fetch_yahoo(code)
+        if code == KRX_GOLD:  # not an ETF: one price series and no distributions
+            n, y = _fetch_krx_gold(), pd.DataFrame({"code": code, "date": [], "close": [], "dividends": []})
+        else:
+            n, y = _fetch_naver(code, end), _fetch_yahoo(code)
         if n is not None:
             nav.append(n)
         if y is not None:

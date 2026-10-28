@@ -69,12 +69,12 @@ WINDOWS = {"2008": CRISIS_WINDOWS["금융위기 2007–09"], "2011": CRISIS_WIND
            "2018": CRISIS_WINDOWS["2018년 4분기"], "2020": CRISIS_WINDOWS["코로나 2020"], "2022": CRISIS_WINDOWS["금리 급등 2022"]}
 
 # Two synthetic products (A31): unhedged plain US treasuries. Real products to verify before any preset:
-# 10년 → TIGER 미국채10년선물 305080 (2018-08) / KODEX 미국채10년선물 308620 (2018-10); 30년 → ACE 미국30년국채액티브 453850 (2023-03).
+# 10년 → TIGER 미국채10년선물 305080 (2018-08) / KODEX 미국채10년선물 308620 (2018-10); 30년 → ACE 미국30년국채액티브 476760 (2024-03). 2026-10-28 전에는 환헤지판 453850을 잘못 연결했다(A41).
 SYNTHETIC: dict[str, Product] = {
     "SYN_IEF_U": _p("SYN_IEF_U", "미국10년국채 환노출(가상)", "채권", [("IEF", 1)], "unhedged", 0.15, "2018-08-30",
                     note="가상 상품: IEF × 원/달러. 실제 상품(TIGER 305080 / KODEX 308620)은 확인 전."),
     "SYN_TLT_U": _p("SYN_TLT_U", "미국30년국채 환노출(가상)", "채권", [("TLT", 1)], "unhedged", 0.15, "2023-03-14",
-                    note="가상 상품: TLT × 원/달러. 실제 상품(ACE 453850)은 확인 전."),
+                    note="가상 상품: TLT × 원/달러. 실제 상품은 ACE 미국30년국채액티브 476760."),
 }
 SHORT_NAMES = {"SYN_IEF_U": "미국10년 환노출*", "SYN_TLT_U": "미국30년 환노출*"}
 CLASSES: dict[str, list[str]] = {
@@ -111,7 +111,7 @@ GROUP_HELP = {
     "나스닥100": "KODEX 미국나스닥100과 나스닥100 2배 상품. 탐색에서 MDD 대비 수익을 끌어올린 재료가 거의 이것이었습니다(메모 §3).",
     "방어·경기 섹터": "S&P500 유틸리티·필수소비재·헬스케어·에너지. 대용 XLU·XLP·XLV·XLE는 1998년부터 있습니다.",
     "레버리지 상품": "2배 상품 6종(합계 20% 이하로만 뽑음). ISA에서 사려면 레버리지 ETF 사전교육과 기본예탁금이 필요합니다.",
-    "가상 상품": "환노출 미국채 10년·30년(가상, IEF·TLT × 원/달러). 실제 상품(TIGER 305080 / KODEX 308620 / ACE 453850)은 확인 전입니다.",
+    "가상 상품": "환노출 미국채 10년·30년(가상, IEF·TLT × 원/달러). 실제 상품(TIGER 305080 / KODEX 308620 / ACE 476760)은 확인 전입니다.",
 }
 
 FLAG_TEXT = {
