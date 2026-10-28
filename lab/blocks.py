@@ -486,6 +486,22 @@ STAGE_G_ENTRIES = [
           Param("q (%)", 20, 10, 30, 10, "%", "좁다고 볼 분위"), _g_contraction_break, "가격"),
 ]
 
+# Stage I baseline (DECISIONS 87): random buys, not a strategy. Each stock-day is a "signal" with
+# probability RANDOM_SHARE (the engine then keeps only eligible names); the seed is the parameter.
+RANDOM_SHARE = 0.01
+
+
+def _g_random(p: Panel, seed: float) -> pd.DataFrame:
+    draw = np.random.default_rng(int(seed)).random(p.close.shape, dtype=np.float32) < RANDOM_SHARE
+    return pd.DataFrame(draw, index=p.close.index, columns=p.close.columns) & p.close.notna()
+
+
+STAGE_I_ENTRIES = [
+    Block("g_random", "무작위 매수 (비교 기준)", "종목 · 일마다 1% 확률로 뽑은 날 (씨앗 = 파라미터)",
+          "전략이 아니라 비교 기준입니다. 매수 전략이 무작위로 산 것보다 나은지 보려고 씁니다.",
+          Param("씨앗", 1, 1, 5, 1, "", "난수 씨앗"), _g_random, "가격"),
+]
+
 STAGE_C_EXITS = [
     Block("chandelier", "샹들리에 청산 (ATR 22)", "오늘 종가 < 진입 후 최고 종가 − k × ATR(22)",
           "최고 종가에서 22일 평균 진폭의 k배 아래로 내려가면 팝니다(Chuck LeBeau). ATR 트레일링과 같고 ATR 기간만 22일입니다.",
@@ -640,3 +656,4 @@ REGIME_PAIRS: dict[str, str] = {  # regime entry filter -> its complement exit (
 }
 
 ALL_BLOCKS: dict[str, Block] = {**ENTRY_BLOCKS, **EXIT_BLOCKS}
+ALL_BLOCKS.update({b.key: b for b in STAGE_I_ENTRIES})  # research baseline only: not offered in the app menus

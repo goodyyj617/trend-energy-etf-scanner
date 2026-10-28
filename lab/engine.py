@@ -139,7 +139,7 @@ class StrategyConfig:
         extra = "" if self.heat is None else f" | 열 상한 {self.heat:.0%}"
         extra += "" if self.breakeven_r is None else f" | 손익분기 이동 +{_num(self.breakeven_r)}R"
         slots = "종목별 단독 매매" if self.single else f"최대 {self.max_positions}종목{size}"
-        return f"진입: {fmt(ENTRY_BLOCKS, self.entries)} | 청산: {fmt(EXIT_BLOCKS, self.exits)} | {slots}{extra}"
+        return f"진입: {fmt(ALL_BLOCKS, self.entries)} | 청산: {fmt(EXIT_BLOCKS, self.exits)} | {slots}{extra}"
 
     def to_dict(self) -> dict:
         d = asdict(self)
