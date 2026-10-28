@@ -20,6 +20,10 @@ def test_pair_rows_window_and_order(monkeypatch):
     r = pj.pair_rows("A", "B", "x").sort_values(["symbol", "si"])
     # S100 (B at 95, within 10) from A; S215 is 15 after A200 -> no; T50 same day -> one row
     assert list(zip(r["symbol"], r["si"])) == [("S", 100), ("T", 50)]
+    # the window is a gap of 0-10 trading days: 10 counts, 11 does not
+    tabs = {("A", "x"): table([("S", 110), ("U", 111)]), ("B", "x"): table([("S", 100), ("U", 100)])}
+    r = pj.pair_rows("A", "B", "x")
+    assert list(zip(r["symbol"], r["si"])) == [("S", 110)]
 
 
 def test_chance_count():
