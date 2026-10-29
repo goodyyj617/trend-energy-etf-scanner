@@ -797,6 +797,21 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     statistics under 10 signals. Holdout unused. Runner lab/pair_study.py --size 3 (results
     lab_crsp/stage_j3_triples). Design: docs/research/lab/2026-10-29_stage_j3_design.md (amended
     before any run, 10:30 KST).
+    Result (2026-10-29, run 10:31-11:14 KST, daytime CPU limit): 455 triples judged (0.05-19.5
+    signals a day, median 1.2; none under 30 trades). (b) 10-stock: 118 pass, above chance (p0 18.75%,
+    expected 85, 95th percentile 99) - but only from 1993-2007 (excess over same-frequency E0 +0.7 to
+    +1.5 pp, 11-14% beyond the pseudo 95th percentile, rank test p < 0.001); in 2008-2023 equal to or
+    below the pseudo-triples. (a) no limit: 24 pass, far below chance (expected 108). Per-signal
+    returns differ from E0 (p < 0.05 in 65% of triple x exit cells vs 4.2% of pseudo cells) but the
+    mean is lower (CI above 0 in 3.8%, below 0 in 48%; fewer -20% losses, and in 2008-2023 fewer +50%
+    winners). Candidates (as 87): 5 at 20 bp; with 2 exits still at 40 bp E2xE5xV2 (H1 k3, X1) and
+    E4xV3xV5 (H1 k2, X1), 2017-2023 CAGR 13.2-15.8% vs SPY 13.2%; DSR (N 65,218) 0.93-0.997 tests
+    Sharpe > 0 only; PSR vs SPY's or E0's Sharpe 0.60-0.93; pseudo-triples pass the candidate rule
+    at 0.38% (triples 1.1%). Stacking: above the best of their three pairs in 35-41% (median -0.4 pp),
+    above the best single in 53-65%. Singles and pairs equal Stage J exactly; pair verdicts unchanged
+    under 8 bins. Frequency: best relative results at 0.5-2 signals a day, worse below 0.1. Next
+    step chosen by the user: many more exits (to be registered). Record:
+    docs/research/lab/2026-10-29_stage_j3_results.md.
 ## Open decisions
 
 - final trend-filter definition;

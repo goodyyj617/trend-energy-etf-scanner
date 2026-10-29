@@ -2,6 +2,28 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_j3_triples",
+      "title": "Stage J3: 매수 규칙 3개 묶기 455개 (vs 같은 빈도 무작위 매수, 수익률 히스토그램·검정)",
+      "date": "2026-10-29",
+      "status": "완료",
+      "decision": "89",
+      "memo": "docs/research/lab/2026-10-29_stage_j3_results.md",
+      "results_dir": "lab_crsp/stage_j3_triples",
+      "kind": "",
+      "why": "쌍으로도 신호가 아직 많다는 사용자 판단에 따라 15개 규칙을 3개씩 묶어(10거래일 안에 셋 다 뜬 종목만 매수) 더 엄격하게 만들고, 같은 빈도로 솎은 무작위 매수와 비교한다. 그림은 사용자 요청으로 수익률(%) 축의 히스토그램과 검정으로 바꿨다.",
+      "results": [
+        "10종목 계좌 판정 (b)는 455개 중 118개 통과로 우연 95% 분위 99를 넘었다(가짜 묶음 800개 통과율 18.75%). 하지만 차이는 1993–2007에서만 났고(같은 빈도 무작위 대비 +0.7–1.5%p, 가짜 95% 선 넘음 11–14%), 2008–2023에는 무작위와 같거나 못했다.",
+        "신호 단위 수익률은 무작위와 분포가 달랐지만(p<0.05: 묶음 65% vs 가짜 4.2%) 평균은 오히려 낮았다(평균 차 CI가 0보다 위 3.8%, 아래 48%). 큰 손실은 줄었으나 2008–2023에 큰 수익도 줄었다. (a) 제한 없음 판정은 24개로 우연 기대(108)보다 적었다.",
+        "등록 규칙의 SPY 후보 5개 중 40bp에서도 매도 2종이 남은 것은 E2×E5×V2, E4×V3×V5 2개. 2017–2023에 SPY를 겨우 넘었고, 샤프로는 SPY·무작위와 구별되지 않았다(PSR 0.60–0.93). 3개 묶음은 그 안의 쌍 중 최선보다 대체로 못했다(35–41%만 높음)."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_j3_triples/triples_excess_hist.png", "caption": "3개 묶음 vs 가짜 묶음: 같은 빈도 무작위 대비 초과 수익(%p) 분포"},
+        {"path": "docs/research/lab/figures/stage_j3_triples/triple_returns_H1k3.png", "caption": "신호 단위 수익률 분포, 매도 H1 k 3: 묶음 신호 전부 vs 같은 빈도 무작위"},
+        {"path": "docs/research/lab/figures/stage_j3_triples/triple_top_returns_H1k3.png", "caption": "상위 5개 묶음의 신호 단위 수익률 vs 같은 빈도 무작위"},
+        {"path": "docs/research/lab/figures/stage_j3_triples/triples_stacking.png", "caption": "쌓임 효과: 묶음 vs 세 쌍·세 단독 중 최선"}
+      ]
+    },
+    {
       "id": "stage_j_pairs",
       "title": "Stage J: 매수 규칙 2개 묶기 105쌍 (vs 같은 빈도 무작위 매수)",
       "date": "2026-10-29",
@@ -17,8 +39,7 @@
         "쌍이 구성 단독 중 더 나은 쪽보다 나은 경우는 반반이었다(1993–2023 10종목 CAGR: 105쌍 중 54 / 55 / 36, 차이 중앙값 +0.11 / +0.03 / −0.37%p). 신호를 드물게 만드는 것만으로는 정보가 생기지 않았다."
       ],
       "figures": [
-        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_H1k2.png", "caption": "매도 H1 k 2: 105쌍 vs 같은 빈도 무작위 매수 띠"},
-        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_X1.png", "caption": "매도 X1: 105쌍 vs 같은 빈도 무작위 매수 띠"},
+        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_excess_hist.png", "caption": "쌍 vs 가짜 쌍: 같은 빈도 무작위 대비 초과 수익(%p) 분포"},
         {"path": "docs/research/lab/figures/stage_j_pairs/pairs_matrix_H1k2.png", "caption": "15×15 쌍 히트맵, 매도 H1 k 2"},
         {"path": "docs/research/lab/figures/stage_j_pairs/pairs_stacking.png", "caption": "쌓임 효과: 쌍 vs 더 나은 단독"}
       ]

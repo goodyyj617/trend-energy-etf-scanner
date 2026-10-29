@@ -412,12 +412,12 @@ def fig_excess(out: Path, v: pd.DataFrame, kind: str, label: str, name: str) -> 
             auc, p = mann_whitney(a, b) if len(a) and len(b) else (np.nan, np.nan)
             ax.text(0.02, 0.97, f"{label} {len(a)}개: 평균 {a.mean():+.1f}%p (가짜 {b.mean():+.1f}%p)\n"
                                 f"가짜 95% 선(점선) 넘음 {np.mean(a > q) * 100:.0f}% (우연이면 5%)\n순위 검정 p = {p:.3f}",
-                    transform=ax.transAxes, va="top", fontsize=8)
+                    transform=ax.transAxes, va="top", fontsize=8, bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none"})
             ax.set_title(f"매도 {x}, {h.replace('-', '–')}", fontsize=10)
             ax.grid(alpha=0.3)
             if r_ == len(EXITS_J) - 1:
                 ax.set_xlabel("10종목 CAGR − 같은 빈도 무작위 매수 중앙값 (%p)")
-    axes[0, 1].legend(loc="upper right", fontsize=8, frameon=False)
+    fig.legend(*axes[0, 0].get_legend_handles_labels(), loc="upper right", bbox_to_anchor=(0.99, 0.985), fontsize=8, frameon=False)
     fig.suptitle(f"{label}의 10종목 계좌 초과 수익 분포 vs 같은 빈도 무작위 가짜 묶음 (밀도)", fontsize=11)
     return figures._save(fig, out / "figures" / name)
 
