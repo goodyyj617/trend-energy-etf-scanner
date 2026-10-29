@@ -839,6 +839,21 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     mean +27% / +62%); short exits (MA, MN, PS, LB, CH: 4-27 days) give E0 10-stock CAGR -0.2-4.9%.
     Time estimate 2-3 h at night. Holdout unused. Runner lab/exit_study.py (results
     lab_crsp/stage_l_exits). Design: docs/research/lab/2026-10-29_stage_l_design.md.
+    Result (2026-10-29, run 13:30-16:29 KST under the daytime CPU limit; engine 24 min): triples
+    show information in (b) under 7 of 11 exits (CH, PS, LB, MA, MN, RS, TP) and in (a) under 5 (CH,
+    PS, LB, MA, MN); none under X1, H1, H9, ST. Mostly a mechanical effect of fast exits: under MA and
+    MN random buys are sold after a median 3.6 / 8 days, the triples hold 32 / 49 (trend-type buys
+    start in the opposite state of the exit condition); MA: 13 of 15 singles beat random in both
+    halves. Holding periods match random under CH, PS, RS (CH only in 1993-2007). Absolute results
+    fall with faster exits (triples' median 10-stock CAGR X1 9.7%, H1 9.0%, TP 8.0%, MN 7.8%, MA
+    6.8%, LB 5.6%, CH 5.0%, PS 2.0%, RS -4.2%; SPY 9.9%). E0 (1%) exit character: X1 9.8% / -56%,
+    141 days; H1 8.9% / -45%; RS -24.4% / -100%, 1 day (eaten by 20 bp costs). Per-signal returns
+    differ from E0 under every exit (p < 0.05 in 51-97% of cells vs 4-10% of pseudo cells); the mean
+    is higher only under the fast exits (CI above 0: MA 97%, MN 93%, LB 73%, CH 51%) and lower under
+    the long ones (X1, H1, H9, ST, TP). No candidate: at most 2 exits pass the SPY test (4 triples);
+    pseudo-triples 19 of 3,520 cells, none with >= 3 exits. 40 bp and DSR not needed. Limit: a
+    random baseline that does not start in the exit state would be needed to separate forecasting
+    from the mechanical effect (not registered). Record: docs/research/lab/2026-10-29_stage_l_results.md.
 ## Open decisions
 
 - final trend-filter definition;

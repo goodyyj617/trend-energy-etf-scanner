@@ -2,6 +2,29 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_l_exits",
+      "title": "Stage L: 매도 전략 11종으로 같은 매수 묶음 다시 시험 (vs 같은 빈도 무작위 매수)",
+      "date": "2026-10-29",
+      "status": "완료",
+      "decision": "90",
+      "memo": "docs/research/lab/2026-10-29_stage_l_results.md",
+      "results_dir": "lab_crsp/stage_l_exits",
+      "kind": "",
+      "why": "매도가 2–3종뿐이라 매매가 제대로 시험되지 않았을 수 있다는 사용자 판단에 따라, 단독 15·쌍 105·3개 묶음 455를 성격이 다른 매도 11종(트레일링, 샹들리에, SAR, 신저가, 50일선, 손익분기, 절반 익절, 넓은 손절, 단기 반등, 모멘텀 소멸)으로 다시 계산하고 매도별 성격을 정리한다.",
+      "results": [
+        "3개 묶음이 같은 빈도 무작위보다 낫다는 '정보 있음'은 매도에 따라 달랐다: (b) 10종목 11종 중 7종(CH, PS, LB, MA, MN, RS, TP), (a) 신호당 기여 5종. 지금까지 쓰던 X1·H1·H9와 ST에서는 없었다.",
+        "정보가 나온 매도는 대부분 빨리 파는 매도이고, 큰 부분이 기계적 효과였다: 50일선(MA)·모멘텀 소멸(MN) 매도에서 무작위 매수는 3.6일·8일 만에 팔렸지만 추세형 매수 묶음은 32일·49일 보유했다(매도 조건과 반대 상태의 종목을 삼).",
+        "빨리 파는 매도일수록 계좌 성적은 낮았다(3개 묶음 CAGR 중앙값 X1 9.7% vs MA 6.8%, PS 2.0%, RS −4.2%; RS는 하루 보유로 비용에 잠식, 무작위 계좌 연 −24%). SPY를 매도 3종 이상에서 넘은 후보는 없었다(최대 2종, 4개 묶음)."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_l_exits/e0_returns_by_exit.png", "caption": "무작위 매수 E0 신호 수익률 분포, 매도 11종"},
+        {"path": "docs/research/lab/figures/stage_l_exits/excess_by_exit_2008-2023.png", "caption": "매도별 초과 수익(%p) 분포: 묶음·쌍 vs 가짜, 2008–2023"},
+        {"path": "docs/research/lab/figures/stage_l_exits/excess_by_exit_1993-2007.png", "caption": "같은 그림, 1993–2007"},
+        {"path": "docs/research/lab/figures/stage_l_exits/singles_by_exit.png", "caption": "매수 규칙 단독 × 매도 히트맵"},
+        {"path": "docs/research/lab/figures/stage_l_exits/candidates_returns.png", "caption": "SPY 기준을 가장 많은 매도에서 통과한 묶음의 신호 수익률"}
+      ]
+    },
+    {
       "id": "stage_j3_triples",
       "title": "Stage J3: 매수 규칙 3개 묶기 455개 (vs 같은 빈도 무작위 매수, 수익률 히스토그램·검정)",
       "date": "2026-10-29",
