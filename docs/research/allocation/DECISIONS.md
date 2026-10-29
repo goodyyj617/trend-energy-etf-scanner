@@ -623,3 +623,14 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     family inside, scenarios, rule walk-forward), sealed-window opening, campaign ledger `trials_ledger.csv` (A31–A41
     back-filled) for deflated Sharpe, nothing registered by the study. Criteria are not lowered if no candidate passes.
     Corrections to the audit doc (signal keys, KTB codes, setting count) are listed in the memo.
+    Stage 0 (2026-10-29, memo `2026-10-29_a42_stage0.md`): ECOS monthly CD91 / KTB 3-5-10-20-30 → `lab/aa_kr_rates.csv`;
+    products 114260 / 148070 / 439870 (KTB proxies from monthly yields, monthly correlation with the real ETFs only
+    0.45–0.55) and 446720 (SCHD ← DVY); sealed 1990-01 – 2000-08 series on Drive with hashes, `lab/aa_sealed.py`
+    guard (no gold series found); `aa_real.QUIRKS` opt-in (261240 2019-03-14 interpolated; 069500 2026-07 and the
+    2025-12-29 distributions checked and kept); `lab/aa_pricesets.py` 24 sets, default path bit-identical ((가)
+    8.843 / −13.706 % as A41); calibration overlap cut at 2024-12-31. Hedge cost from 267440 vs h = 0 model: 49 bp
+    (base) / 70 bp (CD91), 95 % interval about ±300 bp → h* = 60 bp, representative set real · h60 · CD91. 24-set
+    re-run: MDD moves 0.1–1.2 %p and the inside / outside split is the same in every set (안정형 40 and (가) inside in
+    24 / 24, B2 / B4 / holdings / S&P500 in 0 / 24); CAGR moves 0.4–1.0 %p. FX timing (Seoul fixing): CAGR ≤ 0.013 %p,
+    kept DEXKOUS by rule, but (가) MDD −13.71 → −12.19 %.
+

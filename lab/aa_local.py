@@ -312,6 +312,7 @@ DOTCOM_WINDOW = ("2000-09-01", "2003-12-31")  # nasdaq-100 fell about 80 % from 
 # proxies that start after DOTCOM_START → substitutes tried in order; the one whose monthly returns track
 # the proxy best (correlation) over the proxy's first three years is used. Fixed before the run (A37).
 SUBSTITUTES: dict[str, tuple[str, ...]] = {
+    "SCHD": ("DVY",),  # iShares Select Dividend (2003-11), for SOL 미국배당다우존스 (A42)
     "IEF": ("VFITX",),  # Vanguard Intermediate-Term Treasury
     "TLT": ("VUSTX",),  # Vanguard Long-Term Treasury
     "LQD": ("VFICX", "VWESX"),  # Vanguard Intermediate-Term / Long-Term Investment-Grade

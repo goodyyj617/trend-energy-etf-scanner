@@ -27,12 +27,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .aa_assets import BENCHMARK_CODE, KRW_CASH, PRODUCTS, USD_CASH, Product
+from .aa_assets import BENCHMARK_CODE, KRW_CASH, KTB3, KTB10, KTB30, PRODUCTS, USD_CASH, Product
 from .data import CACHE_DIR, FIELDS, Panel
 
 TRADING_DAYS = 252
 USDKRW_PATH = Path(__file__).with_name("aa_usdkrw.csv.gz")
 BOK_PATH = Path(__file__).with_name("aa_bok_rate.csv")
+KR_RATES_PATH = Path(__file__).with_name("aa_kr_rates.csv")  # ECOS 721Y001 monthly averages, 2000-09 – (A42)
+KTB_DURATION = {KTB3: 2.8, KTB10: 8.3, KTB30: 19.0}  # modified duration of the constant-maturity approximation
 FX_SOURCE_URL = "https://raw.githubusercontent.com/datasets/exchange-rates/main/data/daily.csv"
 FX_TAIL_CACHE = CACHE_DIR / "yf" / "KRW_X.csv.gz"
 
@@ -54,6 +56,36 @@ def load_bok_rate(path: Path = BOK_PATH) -> pd.Series:
     """Base rate in percent, indexed by the date each level took effect."""
     df = pd.read_csv(path, parse_dates=["date"])
     return df.set_index("date")["rate_pct"].astype(float).sort_index()
+
+
+def load_kr_rates(path: Path = KR_RATES_PATH) -> pd.DataFrame | None:
+    """Monthly Korean rates in percent (cd91, ktb3, ktb5, ktb10, ktb20, ktb30), indexed by the month's first day."""
+    if not Path(path).exists():
+        return None
+    return pd.read_csv(path, parse_dates=["month"]).set_index("month").sort_index()
+
+
+def cd91_schedule(rates: pd.DataFrame | None = None) -> pd.Series:
+    """CD91 as a step schedule like load_bok_rate (the month's average from its first day), for cash="cd91"."""
+    rates = load_kr_rates() if rates is None else rates
+    if rates is None:
+        raise FileNotFoundError(KR_RATES_PATH)
+    return rates["cd91"].dropna()
+
+
+def ktb_returns(index: pd.DatetimeIndex, rates: pd.DataFrame) -> pd.DataFrame:
+    """Daily total returns of constant-maturity Korean government bonds from monthly yields (A42 0-3):
+    r_t = y_(t−1) / 252 − D × (y_t − y_(t−1)), the yield stepping on the first trading day of each month.
+    30-year: the 30-year yield (2012-09 –), before it the 20-year (2006-01 –), before that the 10-year."""
+    y30 = rates["ktb30"].combine_first(rates["ktb20"]).combine_first(rates["ktb10"])
+    out = {}
+    for sym, y in ((KTB3, rates["ktb3"]), (KTB10, rates["ktb10"]), (KTB30, y30)):
+        y = y.dropna() / 100.0
+        line = y.reindex(y.index.union(index)).ffill().reindex(index)
+        line[index < y.index[0]] = np.nan
+        prev = line.shift(1)
+        out[sym] = prev / TRADING_DAYS - KTB_DURATION[sym] * (line - prev)
+    return pd.DataFrame(out, index=index)
 
 
 def splice(base: pd.Series, tail: pd.Series | None) -> pd.Series:
@@ -108,7 +140,7 @@ def krw_cash_returns(index: pd.DatetimeIndex, bok: pd.Series) -> pd.Series:
 # --------------------------------------------------------------------------- product returns
 
 def product_returns(p: Product, usd_rets: pd.DataFrame, fx_ret: pd.Series, usd_cash: pd.Series, krw_cash: pd.Series,
-                    model: KrwModel = KrwModel()) -> pd.Series:
+                    model: KrwModel = KrwModel(), ktb: pd.DataFrame | None = None) -> pd.Series:
     """Daily KRW return of one product on usd_rets.index (NaN where a proxy has no data)."""
     idx = usd_rets.index
     base = pd.Series(0.0, index=idx)
@@ -117,6 +149,8 @@ def product_returns(p: Product, usd_rets: pd.DataFrame, fx_ret: pd.Series, usd_c
             base = base + w * krw_cash
         elif sym == USD_CASH:
             base = base + w * usd_cash
+        elif sym in KTB_DURATION:
+            base = base + w * ktb[sym]
         else:
             base = base + w * usd_rets[sym]
     L = p.leverage
@@ -150,7 +184,8 @@ def _index_from_returns(r: pd.Series) -> pd.Series:
 
 
 def krw_panel(usd_panel: Panel, fx: pd.Series, bok: pd.Series, model: KrwModel = KrwModel(),
-              products: dict[str, Product] | None = None) -> tuple[Panel, dict[str, str]]:
+              products: dict[str, Product] | None = None, rates: pd.DataFrame | None | str = "auto"
+              ) -> tuple[Panel, dict[str, str]]:
     """Panel whose columns are product codes (KRW price indices) and whose cash is KRW cash.
 
     Returns (panel, unavailable) where unavailable maps a product code to the reason it is missing.
@@ -163,13 +198,17 @@ def krw_panel(usd_panel: Panel, fx: pd.Series, bok: pd.Series, model: KrwModel =
     fx_ret = fx_line.pct_change(fill_method=None).fillna(0.0)
     usd_cash = (usd_panel.cash if usd_panel.cash is not None else pd.Series(0.0, index=idx)).reindex(idx).fillna(0.0)
     krw_cash = krw_cash_returns(idx, bok)
+    rates = load_kr_rates() if isinstance(rates, str) else rates
+    ktb = ktb_returns(idx, rates) if rates is not None else None
     cols, unavailable = {}, {}
     for code, p in products.items():
         missing = [s for s in p.proxy_symbols if s not in usd_rets.columns or usd_panel.close[s].notna().sum() < 2]
+        if ktb is None:
+            missing += [s for s, _ in p.proxy if s in KTB_DURATION]
         if missing:
             unavailable[code] = f"대용 데이터 없음 ({', '.join(missing)})"
             continue
-        r = product_returns(p, usd_rets, fx_ret, usd_cash, krw_cash, model)
+        r = product_returns(p, usd_rets, fx_ret, usd_cash, krw_cash, model, ktb)
         cols[code] = _index_from_returns(r)
     if not cols:
         raise ValueError("국내 ETF 수익률을 하나도 만들지 못했습니다 (미국 대용 데이터 없음).")
