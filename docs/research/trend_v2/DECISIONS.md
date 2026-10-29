@@ -779,19 +779,24 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     rule's stored table row gives the exit; a new triple signal after all three fire again (holding
     and re-entry ban as the account rules). Everything else as 88 (exits H1 k2 / H1 k3 / X1, account
     A with 100 random orders and no stock limit, periods, verdicts (a) and (b), < 30 trades excluded,
-    candidates, 40 bp, DSR). E0 bins add 0.005% and 0.01% (7 bins, 0.005-0.4% of stock-days);
-    pseudo-triples 40 per bin x 20 orders (280); chance count as 88. Stacking vs the best of the
-    three pairs and of the three singles (Stage J values). Trials +1,365. Figures changed at the
-    user's request: no signals-per-day figure; per-signal return (%, 20 bp, no stock limit)
+    candidates, 40 bp, DSR). E0 bins add 0.002%, 0.005% and 0.01% (8 bins, 0.002-0.4% of
+    stock-days, about 0.04-8 signals a day); pseudo-triples 100 per bin x 20 orders (800); chance
+    count as 88 (per-bin p0 shown). Singles and pairs re-run in the same job (must equal Stage J);
+    stacking vs the best of the three pairs and of the three singles. Trials +1,365. Figures changed
+    at the user's request: no signals-per-day figure; per-signal return (%, 20 bp, no stock limit)
     histograms (all triples' signals vs same-frequency E0 mixed by bin share, halves, per exit; top 5
-    (b)-passing triples by 1993-2023 10-stock CAGR, or overall top 5, vs E0 at H1 k3); 10-stock CAGR
-    histogram of the triples vs the 280 pseudo-triples; stacking. stats.csv per triple x exit:
+    (b)-passing triples by 1993-2023 10-stock CAGR at H1 k3, or overall top 5, vs E0 at H1 k3);
+    10-stock CAGR in excess of the same-frequency E0 median, triples vs the 800 pseudo-triples, with
+    the share beyond the pseudo 95th percentile and a rank test (the Stage J memo's signals-per-day
+    figure is replaced the same way); stacking. stats.csv per triple x exit (1993-2023 signals):
     signals, mean, median, share >= +50%, share <= -20%, mean difference vs same-frequency E0 with a
-    1,000-draw bootstrap 95% CI, Mann-Whitney U two-sided p, KS statistic; the same on the
-    pseudo-triples, and the share with p < 0.05 shown side by side. Statistical meaning only if the
-    triples' p < 0.05 share clearly exceeds the pseudo-triples' share (and 5%), never from one p
-    value; no statistics under 10 signals. Holdout unused. Runner lab/pair_study.py --size 3
-    (results lab_crsp/stage_j3_triples). Design: docs/research/lab/2026-10-29_stage_j3_design.md.
+    1,000-draw bootstrap 95% CI, Mann-Whitney U two-sided p (normal approximation, tie correction)
+    and P(triple > E0), KS statistic; the same on the pseudo-triples, each against E0 without its own
+    seed, and the share with p < 0.05 shown side by side. Statistical meaning only if the triples'
+    p < 0.05 share clearly exceeds the pseudo-triples' share (and 5%), never from one p value; no
+    statistics under 10 signals. Holdout unused. Runner lab/pair_study.py --size 3 (results
+    lab_crsp/stage_j3_triples). Design: docs/research/lab/2026-10-29_stage_j3_design.md (amended
+    before any run, 10:30 KST).
 ## Open decisions
 
 - final trend-filter definition;
