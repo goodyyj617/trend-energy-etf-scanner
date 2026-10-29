@@ -593,3 +593,33 @@ A41. Principle-first map of a 13-product universe, backtests used only to check 
     before 2025-08 (all model in the research window); 2000–2004 all model; sampling was PCG64 pseudo-random, not
     Sobol; in-sample. Same PR: experiment entry 'a41', the 'A41 연구 구간' period on 'B2–B5 시험 모음', figures ①–⑧.
 
+A42. Verify the rule that picks weights, not the picked weights (design fixed 2026-10-29 before any run; memo
+    `2026-10-29_a42_design.md`). User asked for an audit of A1–A41 and a plan "testing as many combinations as
+    possible, time is fine"; the audit doc listed 36 gaps (data 10, method 12, operations 7, reading 7) and the user
+    chose the full scope, stages 0→5 in order (2026-10-29 10:39 KST). Why: A31–A41 looked at millions of weights on
+    the same 2000-09 – 2024-12 data; a picked weight cannot be re-verified there, the 2025–26 hold-out is spent, and
+    안정형 40's pass is a re-check (registered after seeing 2005–2026). Four axes fixed now: (1) walk-forward of eight
+    selection rules R1–R8 (yearly re-pick on expanding and 10-year windows, hold next year, test 2006–2024; fixed
+    comparators F1–F5 labelled not out-of-sample); (2) model uncertainty as an axis, 24 price sets = prices
+    {model, adjusted, real-first} × hedge cost {0, 20, 40, 60 bp} × KRW cash {BOK base, CD91}, pass = every set; the
+    representative set is real-first · h* (grid value nearest the stage-0 estimate from real 2017–18 hedged UST ETFs)
+    · CD91; (3) six-factor exposures (EQ, GROWTH, UST, KTB, FX, GOLD) and eight fixed scenarios S1–S8, pass = at most
+    two worse than −25 %; (4) sealed data: 1990-01 – 2000-08 proxies built in stage 0 and stored only on Drive (hash in
+    repo, code refuses to read without `--unseal-a42`), opened once in stage 5 with a −20 % line; forward tracking of
+    real prices from 2026-11 by a monthly Action, first look 2027-11. Stages: 0 data (CD91, hedge-cost estimate,
+    KTB 3/10/30-yr and US-dividend axes, quirk rules `aa_real.QUIRKS`, adjusted model, FX timing check, 24-set
+    re-run of B2/B4/안정형 40/(가)/holdings/S&P500); 1 `aa_exposure.py`; 2 static search v2 over 17 products (A41 13
+    + KTB 3 + US dividend; leverage arm adds 409820 and 225040, sum ≤ 30 %), samples T1 two-level Sobol / T2 free
+    (inclusion 0.3/0.5/0.7) / T3 k-uniform / TL leverage, 2^20 each, seed 2042; second grid on 50k inside + 10k
+    border + 20k outside points × 1,152 settings (24 price sets × 4 periods × bands 0/3/5/10 × 3 phases, band added
+    to `StaticSim`); point filter = MDD ≥ −17 % in all 24 sets, rules compared by walk-forward CAGR / MDD / longest
+    recovery Pareto, rule pass = walk-forward MDD ≥ −17 % in all sets; 3 operating policies (324 = account single /
+    ISA + gold-by-new-money × deposits × execution × costs × tax × ISA limits; implement `DepositRule`/`TaxRule`;
+    the user declares the policy they will use, default quarterly · no band · two accounts · 10M + 1M KRW a month ·
+    general ISA; rebalancing verdicts count only that declared family); 4 dynamic layer (8,730 settings = 10 targets
+    × signals none/K2/K3/K4/K6/K8/D1 × 4 actions × confirm 0/10 days × tranches 1/2/4 × vol target none/8/10 % ×
+    cooldown 0/21, plus HAA50+BAA50 satellite 0/25/50 %; 200 placebos and equal-cost static; A40 verdicts); 5 final
+    gates F1–F5 (representative MDD ≥ −15 % with 경계 listed apart, all sets ≥ −17 %, ≥ 90 % of the declared policy
+    family inside, scenarios, rule walk-forward), sealed-window opening, campaign ledger `trials_ledger.csv` (A31–A41
+    back-filled) for deflated Sharpe, nothing registered by the study. Criteria are not lowered if no candidate passes.
+    Corrections to the audit doc (signal keys, KTB codes, setting count) are listed in the memo.
