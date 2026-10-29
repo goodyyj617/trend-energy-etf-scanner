@@ -1,0 +1,24 @@
+{
+ "meaningful_a": [
+  {
+   "buy": "E6",
+   "exit": "H1"
+  },
+  {
+   "buy": "E8",
+   "exit": "H1"
+  },
+  {
+   "buy": "E7",
+   "exit": "H9"
+  }
+ ],
+ "meaningful_b": [
+  {
+   "buy": "V3",
+   "exit": "H1"
+  }
+ ],
+ "candidates_20bp": [],
+ "candidates_40bp": []
+}

@@ -651,7 +651,147 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     all passing at 40 bp, all losing to SPY in 1993-98 and leading in 1999-2003; DSR 0.00 (N 62,290)
     and at most 0.25 (IQR dispersion, N 1,169). No holdout candidate. Trials +7,290 (Drive log, not
     merged). Record: docs/research/lab/2026-10-28_stage_f_results.md.
-
+85. Stage G: tails, SPY-relative scoring and extreme-event entries (user approval 2026-10-28 of the
+    order: (1) tail analysis + SPY-relative scoring, (2) extreme-event entries, (3) walk-forward
+    selection, designed later). Registered before any run. Already seen before the design: in Stage C
+    canonical cells the top 5% of signals give 73-145% of net profit, signals beyond mean + 2 sd
+    (1.5-3.5%) give 60-110%, median signal -3 to -7%. G-1 (descriptive, no new trials): Stage C v2
+    per-signal tables (daily top 3,000, hygiene), E1-E9 x X1-X9 all cells, equal money per signal,
+    samples 1993-2023 / 2017-2023 plus four non-overlapping signal-date periods 1993-99, 2000-08,
+    2009-16, 2017-23. (a) Tail concentration: share of net profit from the top 1/2/5% of signals,
+    expectancy without them, skew, big-winner share under B50 (return >= +50%), B5R (>= 5R, R = 2 x
+    ATR14 on the signal day / entry price) and B2S (> mean + 2 sd of the same cell's signals that
+    were sold in the 365 days before the signal day; days with < 30 such signals skipped). (b) Excess
+    over SPY on the same holding window (entry open -> sale open) and over an equal-weight universe
+    index (hygiene-eligible top 3,000, daily re-weighted, close-based: signal-day close -> close before
+    the sale). (c) What big winners looked like on the signal day: E1-E9 canonical signals pooled per
+    stock-day, exit X1 (25% trailing) main and X9 (k 2) secondary, B5R main; 40 features fixed in the
+    design memo (price/volume 20, size 2, industry 1, market 6, screens 11); medians, univariate AUC,
+    decile lift. A feature 'separates' when AUC >= 0.55 (or <= 0.45) in both halves 1993-2007 and
+    2008-2023 and AUC - 0.5 has the same sign in all four periods; chance count from 200 label
+    shuffles within years, and for the six market features (same value for every signal of a day)
+    also from 200 month-block shuffles (months permuted, labels drawn from the paired month), judged
+    by the stricter of the two. SPY excess uses the exact signal window (open to open). Rule: >= 3 separating features and above the placebo 95th percentile ->
+    (3) is a walk-forward model of the big-winner probability; otherwise big winners are a sizing
+    problem (pyramiding, D). G-2 (registered now, run after G-1 at night): first-day entries V1 1-day
+    return z > {2, 2.5, 3} (63-day sd) closing in the top 25% of the range; V2 5-day z > {2, 2.5, 3};
+    V3 log-volume z (50 days) > {3, 4, 5} and close > open; V4 true range > {2, 2.5, 3} x ATR20 and
+    close > open; V5 new 252-day closing high and volume >= {1.5, 2, 3} x 50-day average; V6 the
+    previous day's 20-day range in the lowest {10, 20, 30}% of the past year and close above the
+    prior 20-day high. Judged per signal (no slot limit) with X1-X9 and the measures of G-1, against
+    E1-E9; trials +972 (6 x 81 x 2). Holdout unused; nothing changed after results.
+    Design: docs/research/lab/2026-10-28_stage_g_design.md.
+    G-1 result (2026-10-28, run 15:20-15:31 KST): in 89% / 100% (1993-2023 / 2017-2023) of the
+    cells with positive net profit the top 5% of signals make all of it or more; median signal
+    -2.1% / -2.5%, skew 7.3 / 5.8. Signals beat SPY over their own window in 36% / 34% (median
+    excess -2.4% / -2.8%; mean excess > 0 in 32% / 3% of cells, 55% in 2000-08); big winners (5R)
+    beat it by +47% / +53%. Long-holding exits (X1, X9) have the most big winners, X6/X7 almost
+    none. (c) X1, B5R: 8 separating features (ATR%, idiosyncratic vol, max 1-day return, cap rank,
+    turnover, distance from 52-week low and high, shallow drawdown), none of the market six; placebo
+    95th percentile 0 (both kinds), so by rule (3) is a walk-forward big-winner model. Caveat: the
+    eight mostly mean "low volatility", which the ATR-scaled 5R makes easier to reach; under B50/B2S
+    they fail and flip sign in 2017-23 (only low price, and the term spread for B2S, pass); pooled
+    signals overlap 96% within symbols. Record: docs/research/lab/2026-10-28_stage_g_results.md.
+    G-2 result (2026-10-28, run 17:39-18:31 KST): V1-V6 are no better than E1-E9 per signal: big
+    winners (5R) 4.3-6.5% vs 4.0-6.2% (median over cells, 1993-2023), median SPY excess -1.9 to
+    -3.2% vs -1.6 to -3.3%, signals beating SPY 35-36%; mean excess > 0 only for E9 and V5 in
+    1993-2023 and for none in 2017-2023. V1 z > 2 fires on 2.3% of eligible stock-days.
+    Trials +972. Same record.
+86. Stage H: picking big winners walk-forward, with a 1%-rule account (user choice 2026-10-28:
+    account A = 1% risk per trade, 10% per-stock cap, at most 10 stocks; analyse both with and
+    without the stock-count limit). Registered before any run. Stop = entry - k x ATR14 (signal
+    day), k 1.5 / 2 / 3; shares = equity x 1% / (entry - stop), capped at 10% of equity; no leverage;
+    no re-entry for 20 sessions after any exit; T-bill cash; 20 bp (candidates 40 bp). Entries: E1-E9
+    and V1-V6 canonical signals pooled per stock-day with 15 entry flags; exits H1 = 25% trailing or
+    ATR stop (new tables) and H9 = Stage C X9 (2 x 3 settings). Target: contribution w x return
+    >= +5% of equity (w = min(1% / stop%, 10%)), i.e. 5R uncapped or +50% capped; secondary B50 and
+    SPY excess > 0. Features: G-1's 40 + entry flags, training percentiles; with and without ATR%.
+    Models (numpy): L2 logistic (lambda 1, main) and a rank average with training-set directions.
+    Walk-forward: first fit 1993-1999, evaluated 2000-2023, refit each January on trades closed
+    before it. Placebo: training labels shuffled by stock blocks each year, 100 times. Accounts:
+    10-stock (buy order by score vs dollar volume vs 100 random orders) and no stock limit (each
+    signal at its 1%-rule weight; calendar-time portfolio scaled to 100% exposure, gross exposure
+    shown; model as a filter: training top-30% score vs all). Capped / uncapped trades shown apart.
+    Verdicts per setting (main model): (1) AUC >= 0.55 in 2000-2011 and 2012-2023 and above the
+    placebo 95th percentile; (2) 10-stock: score order beats dollar volume and the random median in
+    CAGR in both halves and in >= 60% of years; no limit: top-30% mean contribution above all in
+    both halves; (3) candidate: 10-stock CAGR > SPY and |MDD| < |SPY MDD| in 2000-2023 and
+    2017-2023 with >= 30 trades, >= 2 of the 3 k values, still at 40 bp; DSR for candidates only.
+    Holdout unused. Design: docs/research/lab/2026-10-28_stage_h_design.md.
+    Result (2026-10-28, run 18:32-20:34 KST): no setting passes. (1) AUC 0.53-0.57 (2000-2011) /
+    0.58-0.62 (2012-2023); only H1 k 3 passes; for H9 the stock-block placebo is higher in
+    2000-2011 (year base rates). (2) 10-stock: 0/6 (score order beats dollar volume in 2000-2011 but
+    not in 2012-2023); no limit: 3/6 (H1). (3) no candidate. H1 10-stock score order 2000-2023 CAGR
+    10.5-13.1%, MDD -32 to -40% (SPY 7.0% / -55%, dollar-volume order 2.7-4.0% / -68 to -82%,
+    random median 7.3-7.9%), but 2017-2023 5.2-10.7% vs SPY 13.2%; the gain is in 2000-2011.
+    58-93% of signals hit the 10% cap; capped trades contributed more. ATR% in/out changes AUC by
+    <= 0.007. Record: docs/research/lab/2026-10-28_stage_h_results.md.
+87. Stage I: each buy strategy alone in the 1%-rule account (user request 2026-10-28 22:57 KST:
+    test each buy strategy separately). Registered before any run. Entries E1-E9 and V1-V6, each
+    alone at its middle value, no model; baseline E0 = random buys (each hygiene-eligible stock-day
+    with probability 1%, seeds 1-5, new tables). Exits H1 (25% trailing or ATR k stop) and H9
+    (Stage C X9), k 1.5 / 2 / 3. Account A (1% risk, 10% per stock, 10 stocks, 20-session re-entry
+    ban, 20 bp, T-bill cash) filled in 100 random orders (median and distribution; dollar volume
+    shown), and no stock limit (each signal at its weight, calendar-time portfolio scaled to 100%).
+    Periods 1993-2023, 2017-2023, halves 1993-2007 / 2008-2023, 2000-2023 for reference; holdout
+    unused. Verdicts: (1) meaningful buy, per exit, >= 2 of 3 k, both halves: (a) no limit: mean
+    contribution above E0's; (b) 10 stocks: median CAGR over random orders above the median of E0's
+    500 accounts (percentile in E0 shown). (2) candidate: 10-stock median account with CAGR > SPY
+    and |MDD| < |SPY MDD| in 1993-2023 and 2017-2023, >= 30 trades, >= 2 of 3 k, and at 40 bp;
+    DSR for candidates (+90 trials, E0 not counted). Design:
+    docs/research/lab/2026-10-29_stage_i_design.md.
+    Result (2026-10-28, run 23:06-23:24 KST): no buy strategy is clearly better than random buys.
+    (1a) no limit: 3 of 30 (E6, E8 with H1; E7 with H9), by +0.01 to +0.1 pp per trade; (1b)
+    10 stocks: 1 of 30 (V3 volume burst with H1, E0 percentile 73% / 58% at k 2). (2) no candidate:
+    best 1993-2023 V3 x H1 k 2 10.6% / -45% (SPY 9.9% / -55%) but 2017-2023 6.2% vs 13.2%. Random
+    buys E0 with the same exits and sizing: 10-stock median 9.2% (H1) / 7.3% (H9) in 1993-2023.
+    52-week-high entries (E3, V5) fall to the 3-6th percentile of E0 in 2008-2023. 40 bp recheck and
+    DSR not needed. Record: docs/research/lab/2026-10-29_stage_i_results.md.
+88. Stage J: buy rules in pairs (user proposal 2026-10-28 23:37 KST; registered before any run).
+    The 15 buy rules (E1-E9, V1-V6 at their middle values) in all 105 pairs: buy at the next open
+    after the later of the two first-day signals when both fire on the same stock within 10 trading
+    days (either order; same day counts). The later signal's stored table row gives the exit, so no
+    engine run except E0 x X1. Exits H1 k 2, H1 k 3 and X1 (25% trailing only, fixed 10% weight).
+    Account A (1% risk, 10% cap, 10 stocks, 20-session re-entry ban, 20 bp; 100 random orders,
+    median) and no stock limit (mean contribution). Baseline: random buys E0 thinned to the nearest
+    of 0.02 / 0.05 / 0.1 / 0.2 / 0.4% of stock-days (5 seeds x 100 orders). Verdicts as 87 (a) and
+    (b), both halves, >= 2 of 3 exits; pairs with < 30 trades excluded. Chance count: 200 thinned
+    random pseudo-pairs (40 per frequency bin, 20 orders) give a pass rate p0; information only if
+    the pass count exceeds the 95th percentile of Binomial(N, p0). Candidates as 87. Stacking vs the
+    better single (singles recomputed here). Trials +315. Three-rule combinations later, seeded by
+    passing pairs. Design: docs/research/lab/2026-10-29_stage_j_design.md.
+    Result (2026-10-29, run 23:54-00:00 KST; runner checked first, 40 bp recheck and stacking
+    figure added, design unchanged): no information in pairing. Passing pairs (a) 10 / 105, (b)
+    18 / 105, below the chance count from 200 pseudo-pairs (p0 22.5% / 20.5%, expected 23.6 / 21.5,
+    95th percentile 31 / 28; (a) this low has probability 0.0004). No pair had < 30 trades. No
+    candidate: 4 pair x exit rows beat SPY in both 1993-2023 and 2017-2023 (all X1: E2xE8, E2xV6,
+    E4xV1, V1xV6), none with 2 of 3 exits; 40 bp and DSR not needed. Best by mean over exits,
+    1993-2023 10-stock median CAGR: V1xV6 11.7%, V3xV5 11.7%, E2xE8 11.7% (SPY 9.9%; same-frequency
+    E0 8.2-10.2%). Stacking vs the better single: 54 / 55 / 36 of 105 (H1 k2 / H1 k3 / X1), median
+    +0.11 / +0.03 / -0.37 pp. Pairs run at 0.2-33 signals a day (median 5.9). Singles reproduce
+    Stage I (same signal counts, CAGR within 0.6 pp, same (b) verdicts). Seeding three-rule
+    combinations from passing pairs would seed from noise; left to the user.
+    Record: docs/research/lab/2026-10-29_stage_j_results.md.
+89. Stage J3: buy rules in threes (user decision 2026-10-29 10:18 KST, regardless of the Stage J
+    result; registered before any run). All 455 triples of the 15 rules (not seeded by passing
+    pairs): buy at the next open after the latest of three first-day signals on the same stock when
+    the earliest and latest are 0-10 trading days apart (any order, same day counts); the latest
+    rule's stored table row gives the exit; a new triple signal after all three fire again (holding
+    and re-entry ban as the account rules). Everything else as 88 (exits H1 k2 / H1 k3 / X1, account
+    A with 100 random orders and no stock limit, periods, verdicts (a) and (b), < 30 trades excluded,
+    candidates, 40 bp, DSR). E0 bins add 0.005% and 0.01% (7 bins, 0.005-0.4% of stock-days);
+    pseudo-triples 40 per bin x 20 orders (280); chance count as 88. Stacking vs the best of the
+    three pairs and of the three singles (Stage J values). Trials +1,365. Figures changed at the
+    user's request: no signals-per-day figure; per-signal return (%, 20 bp, no stock limit)
+    histograms (all triples' signals vs same-frequency E0 mixed by bin share, halves, per exit; top 5
+    (b)-passing triples by 1993-2023 10-stock CAGR, or overall top 5, vs E0 at H1 k3); 10-stock CAGR
+    histogram of the triples vs the 280 pseudo-triples; stacking. stats.csv per triple x exit:
+    signals, mean, median, share >= +50%, share <= -20%, mean difference vs same-frequency E0 with a
+    1,000-draw bootstrap 95% CI, Mann-Whitney U two-sided p, KS statistic; the same on the
+    pseudo-triples, and the share with p < 0.05 shown side by side. Statistical meaning only if the
+    triples' p < 0.05 share clearly exceeds the pseudo-triples' share (and 5%), never from one p
+    value; no statistics under 10 signals. Holdout unused. Runner lab/pair_study.py --size 3
+    (results lab_crsp/stage_j3_triples). Design: docs/research/lab/2026-10-29_stage_j3_design.md.
 ## Open decisions
 
 - final trend-filter definition;

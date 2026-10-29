@@ -2,6 +2,140 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_j_pairs",
+      "title": "Stage J: 매수 규칙 2개 묶기 105쌍 (vs 같은 빈도 무작위 매수)",
+      "date": "2026-10-29",
+      "status": "완료",
+      "decision": "88",
+      "memo": "docs/research/lab/2026-10-29_stage_j_results.md",
+      "results_dir": "lab_crsp/stage_j_pairs",
+      "kind": "",
+      "why": "Stage I에서 매수 규칙이 무작위와 비슷했던 이유가 '신호가 너무 흔해서'인지 본다. 15개 규칙을 2개씩 묶어(10거래일 안에 둘 다 뜬 종목만 매수) 신호를 드물게 만들고, 같은 빈도로 솎은 무작위 매수와 비교한다(사용자 제안).",
+      "results": [
+        "쌍 묶기에 우연 이상의 정보는 없었다. 통과 쌍은 (a) 제한 없음 10/105, (b) 10종목 18/105로, 무작위 가짜 쌍 200개로 구한 우연 기대치 23.6 / 21.5(95% 분위 31 / 28)보다 적었다. (a)는 우연보다 확연히 적었다(이만큼 적을 확률 0.04%).",
+        "SPY 후보는 없었다. 1993–2023과 2017–2023 모두 SPY보다 CAGR이 높고 낙폭이 얕은 칸은 4개(모두 매도 X1: E2×E8, E2×V6, E4×V1, V1×V6)뿐이고, 매도 3종 중 2개 조건을 채운 쌍은 없었다.",
+        "쌍이 구성 단독 중 더 나은 쪽보다 나은 경우는 반반이었다(1993–2023 10종목 CAGR: 105쌍 중 54 / 55 / 36, 차이 중앙값 +0.11 / +0.03 / −0.37%p). 신호를 드물게 만드는 것만으로는 정보가 생기지 않았다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_H1k2.png", "caption": "매도 H1 k 2: 105쌍 vs 같은 빈도 무작위 매수 띠"},
+        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_X1.png", "caption": "매도 X1: 105쌍 vs 같은 빈도 무작위 매수 띠"},
+        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_matrix_H1k2.png", "caption": "15×15 쌍 히트맵, 매도 H1 k 2"},
+        {"path": "docs/research/lab/figures/stage_j_pairs/pairs_stacking.png", "caption": "쌓임 효과: 쌍 vs 더 나은 단독"}
+      ]
+    },
+    {
+      "id": "stage_i_entries",
+      "title": "Stage I: 매수 전략별 1% 룰 계좌 시험 (vs 무작위 매수)",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "87",
+      "memo": "docs/research/lab/2026-10-29_stage_i_results.md",
+      "results_dir": "lab_crsp/stage_i_entries",
+      "kind": "",
+      "why": "매수 전략 15개(E1–E9, V1–V6)를 하나씩 같은 매도·1% 룰 10종목 계좌로 돌려, 아무 종목이나 무작위로 산 경우(E0)와 SPY보다 나은지 본다. 사용자가 원래 원한 '어떤 매수 전략이 의미 있나'에 대한 직접 시험.",
+      "results": [
+        "무작위로 산 것보다 확실히 나은 매수 전략은 없었다. 제한 없음 3/30(E6·E8 × H1, E7 × H9, 차이 +0.01–0.1%p), 10종목 1/30(V3 거래량 폭발 × H1, 무작위 분포 73%/58% 분위).",
+        "SPY를 1993–2023과 2017–2023 모두 넘은 후보는 없었다. 가장 나은 V3 × H1 k 2는 1993–2023 10.6%/−45%(SPY 9.9%/−55%)였지만 2017–2023 6.2%(SPY 13.2%).",
+        "같은 매도·비중 규칙으로 무작위로 산 10종목 계좌가 1993–2023 9.2%(H1)로 SPY와 비슷했다. 52주 신고가 계열(E3, V5)은 2008–2023에 무작위보다 확연히 나빴다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_i_entries/entries_H1_account10.png", "caption": "매도 H1: 매수 전략 vs 무작위 매수 분포"},
+        {"path": "docs/research/lab/figures/stage_i_entries/entries_H9_account10.png", "caption": "매도 H9: 매수 전략 vs 무작위 매수 분포"},
+        {"path": "docs/research/lab/figures/stage_i_entries/entries_H1_unlimited.png", "caption": "제한 없음 거래 기여, 매도 H1"},
+        {"path": "docs/research/lab/figures/stage_i_entries/entries_H9_unlimited.png", "caption": "제한 없음 거래 기여, 매도 H9"}
+      ]
+    },
+    {
+      "id": "stage_h_bull_diag",
+      "title": "Stage H 강세장 진단: 모형 순 계좌는 왜 2012–2023에 뒤졌나",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "86",
+      "memo": "docs/research/lab/2026-10-29_stage_h_bull_diag.md",
+      "results_dir": "lab_crsp/stage_h_pick/diag",
+      "kind": "",
+      "why": "Stage H 모형 순 10종목 계좌의 이점이 2000–2011에 몰리고 2012–2023에는 거래대금 순·SPY에 뒤진 이유가 현금 비중, 종목 크기, 승자 사이징, 잦은 손절 중 무엇인지 숫자로 가린다(서술 분석).",
+      "results": [
+        "주된 이유는 종목 크기: 모형 순은 시총 순위 중앙값 467위(상위 500 안 53%), 거래대금 순은 24위(100%). SPY 베타 0.72 대 0.88.",
+        "현금 비중은 아님(주식 비중 98–99%, 늘 10종목을 채움). 잦은 손절도 아님(ATR 손절 비율 55% 대 61%, 평균 기여 같음).",
+        "승자 사이징도 아님: 큰 승자(기여 ≥ +5%)는 모형 순 21개 +403%, 거래대금 순 17개 +362%. 다만 거래대금 순은 끝까지 들고 간 초대형주가 평균 +5% 기여했다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_h_pick/diag_cap_rank_median.png", "caption": "보유 종목 시총 순위 중앙값"},
+        {"path": "docs/research/lab/figures/stage_h_pick/diag_invested_mean.png", "caption": "평균 주식 비중"},
+        {"path": "docs/research/lab/figures/stage_h_pick/diag_excess_bull_months.png", "caption": "SPY 200일선 위인 달의 월 초과수익"},
+        {"path": "docs/research/lab/figures/stage_h_pick/diag_big_contrib_sum.png", "caption": "큰 승자 기여 합"}
+      ]
+    },
+    {
+      "id": "stage_h_pick",
+      "title": "Stage H: 큰 승자 고르기 (걷기식 학습, 1% 룰 계좌)",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "86",
+      "memo": "docs/research/lab/2026-10-28_stage_h_results.md",
+      "results_dir": "lab_crsp/stage_h_pick",
+      "kind": "",
+      "why": "그해 이전 자료만으로 신호 시점에 큰 승자(거래 기여 ≥ 자산의 +5%)를 고를 수 있는지, 그렇게 고른 거래로 사용자 계좌 A(1% 위험, 종목당 10%, 10종목)와 종목 수 제한 없는 계좌가 SPY보다 나아지는지 본다.",
+      "results": [
+        "미리 정한 판정으로 통과한 설정은 없었다(고르는 힘 1/6, 10종목 0/6, 제한 없음 3/6, 후보 0).",
+        "H1(25% 트레일링 + ATR 손절)의 10종목 계좌는 모형 순 CAGR 10.5–13.1%, MDD −32 – −40%로 SPY(7.0%, −55%)와 거래대금 순(2.7–4.0%)보다 나았지만, 이점은 2000–2011에 몰려 있었고 2017–2023에는 SPY(13.2%)에 못 미쳤다.",
+        "평가 구간 AUC는 0.53–0.62로 작았고, ATR%를 넣든 빼든 거의 같았다.",
+        "계좌 A에서는 신호의 58–93%가 종목당 10% 상한에 걸렸고, 상한 거래의 기여가 더 컸다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_h_pick/account10_cagr.png", "caption": "10종목 1% 룰 계좌 CAGR (점선 SPY)"},
+        {"path": "docs/research/lab/figures/stage_h_pick/account10_2000_2011.png", "caption": "10종목 계좌 CAGR 2000–2011 (점선 SPY)"},
+        {"path": "docs/research/lab/figures/stage_h_pick/account10_2012_2023.png", "caption": "10종목 계좌 CAGR 2012–2023 (점선 SPY)"},
+        {"path": "docs/research/lab/figures/stage_h_pick/auc.png", "caption": "평가 구간 AUC − 0.5"},
+        {"path": "docs/research/lab/figures/stage_h_pick/unlimited_cagr.png", "caption": "종목 수 제한 없음: 상위 30% vs 전부"}
+      ]
+    },
+    {
+      "id": "stage_g_events",
+      "title": "Stage G-2: 극단 이벤트 매수 V1–V6",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "85",
+      "memo": "docs/research/lab/2026-10-28_stage_g_results.md",
+      "results_dir": "lab_crsp/stage_g_events",
+      "kind": "",
+      "why": "수익이 소수의 큰 승자에서 나오므로, 평소와 다른 극단적 움직임(하루·5일 급등, 거래량 폭발, 변동폭 급확장, 52주 신고가 종가 + 거래량, 수축 뒤 돌파)이 일어난 첫날에 사면 큰 승자를 더 자주 잡는지 신호 단위로 E1–E9와 비교한다.",
+      "results": [
+        "V1–V6의 큰 승자(≥ 5R) 비율 4.3–6.5%로 E1–E9(4.0–6.2%)와 비슷했다.",
+        "SPY 대비 초과 중앙값 −1.9 – −3.2%, SPY를 이긴 신호 35–36%로 기존 매수와 같은 수준이다.",
+        "평균 초과가 플러스인 매수는 1993–2023에서 E9와 V5뿐, 2017–2023에서는 없었다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_g_tail/events_median_x_spy.png", "caption": "매수별 SPY 대비 초과 중앙값"},
+        {"path": "docs/research/lab/figures/stage_g_tail/events_b5r.png", "caption": "매수별 큰 승자(≥ 5R) 비율"}
+      ]
+    },
+    {
+      "id": "stage_g_tail",
+      "title": "Stage G-1: 꼬리 분석과 SPY 대비 채점",
+      "date": "2026-10-28",
+      "status": "완료",
+      "decision": "85",
+      "memo": "docs/research/lab/2026-10-28_stage_g_results.md",
+      "results_dir": "lab_crsp/stage_g_tail",
+      "kind": "",
+      "why": "추세추종 수익이 소수의 극단적 거래에서 나오는지, 신호가 같은 기간 SPY보다 나았는지, 큰 승자가 신호 시점에 무엇이 달랐는지를 Stage C 신호 전체(E1–E9 × X1–X9)로 본다. 답에 따라 다음 단계가 '큰 승자 고르기 모형'인지 '이긴 종목 키우기(피라미딩)'인지 갈린다.",
+      "results": [
+        "순이익이 플러스인 칸의 89% / 100%(1993–2023 / 2017–2023)에서 상위 5% 신호가 순이익 전부 이상을 냈다. 신호 수익 중앙값은 −2.1% / −2.5%.",
+        "신호가 같은 보유 구간 SPY를 이긴 비율은 36% / 34%, 초과 중앙값 −2.4% / −2.8%. 큰 승자(≥ 5R)만 SPY보다 +47% / +53% 높았다.",
+        "오래 들고 가는 매도(X1 25% 트레일링, X9)에서 큰 승자가 가장 많고, 빨리 파는 X6·X7에서는 거의 없었다.",
+        "미리 정한 규칙상 큰 승자를 가르는 특징 8개(위약 0개)로 ③은 '고르기 모형'이다. 다만 8개 대부분이 '변동성이 낮은 종목'이며 5R 정의(ATR 비례)의 영향이 크고, 절대 기준(≥ +50%)에서는 2017–2023에 방향이 뒤집혔다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_g_tail/mean_wo_top5_by_exit.png", "caption": "상위 5%를 뺀 신호당 평균 수익"},
+        {"path": "docs/research/lab/figures/stage_g_tail/median_x_spy_by_exit.png", "caption": "같은 구간 SPY 대비 초과 중앙값"},
+        {"path": "docs/research/lab/figures/stage_g_tail/b5r_by_exit.png", "caption": "매도별 큰 승자(≥ 5R) 비율"},
+        {"path": "docs/research/lab/figures/stage_g_tail/feature_auc.png", "caption": "큰 승자(≥ 5R)를 가르는 힘: AUC − 0.5"},
+        {"path": "docs/research/lab/figures/stage_g_tail/feature_auc_b50.png", "caption": "큰 승자(≥ +50%)를 가르는 힘: AUC − 0.5"}
+      ]
+    },
+    {
       "id": "stagec_combos_daily3000",
       "title": "Stage F: 도움 판정 스크린의 조합",
       "date": "2026-10-28",

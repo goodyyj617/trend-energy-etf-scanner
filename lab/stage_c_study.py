@@ -69,6 +69,8 @@ EXITS: dict[str, tuple[str, list]] = {
 EXIT_CANON = {"X1": 1, "X2": 1, "X3": 1, "X4": 1, "X5": 1, "X6": 1, "X7": 1, "X8": 2, "X9": 1}
 X9_EXTRA = {"time_stop": 60}
 X9_BREAKEVEN_R = 2.0
+EXIT_EXTRA: dict[str, dict] = {"X9": X9_EXTRA}  # exit -> fixed extra exit blocks (later stages add theirs)
+EXIT_BREAKEVEN: dict[str, float] = {"X9": X9_BREAKEVEN_R}
 HYGIENE = dict(screens.HYGIENE_DEFAULT)  # no size floor, no trend template
 COMMON = dict(cost_bps=20.0, min_price=5.0, min_dollar_volume=1e6, sizing="equal")
 SLOTS = 20
@@ -99,9 +101,8 @@ def rules(e: str, x: str, xi: int, yi: int) -> tuple[dict, dict, float | None]:
     ek, ev = ENTRIES[e]
     xk, xv = EXITS[x]
     exits = {xk: xv[yi]}
-    if x == "X9":
-        exits.update(X9_EXTRA)
-    return {ek: ev[xi]}, exits, (X9_BREAKEVEN_R if x == "X9" else None)
+    exits.update(EXIT_EXTRA.get(x, {}))
+    return {ek: ev[xi]}, exits, EXIT_BREAKEVEN.get(x)
 
 
 def config(sample: str, e: str, x: str, xi: int, yi: int, **kw) -> StrategyConfig:
