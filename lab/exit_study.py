@@ -52,6 +52,7 @@ EXITS_L = {
     "MN": {"label": "126일 수익률 마이너스 + ATR×3", "table": "new", "block": ("momentum_neg", 126), "extra": True, "stop": ("atr14", 3.0)},
 }
 EXTRA_STOP = {"atr_stop": 3.0}
+VALUES_ONLY = ("RS",)  # heatmap rows shown as values, outside the colour range
 H_KI = 2  # H1 / H9 tables at k = 3 (pick_study.K_VALUES)
 MIN_EXITS = 3  # a candidate passes the market test under at least this many exits
 N_PLACEBO_PER_BIN = 40
@@ -467,19 +468,27 @@ def fig_single_heatmap(out: Path, v: pd.DataFrame) -> Path:
             if e in rules and r["exit"] in EXITS_L:
                 mat[list(EXITS_L).index(r["exit"]), rules.index(e)] = (r[f"cagr_{h}"] - r[f"e0_cagr_{h}"]) * 100
         mats.append(mat)
-    lim = max(1.0, float(np.nanmax(np.abs(np.concatenate([m.ravel() for m in mats])))) if np.isfinite(mats[0]).any() else 1.0)
+    # the values only for the exits outside the colour range (RS: a one-day swing exit eaten by costs)
+    plain = [i for i, x in enumerate(EXITS_L) if x in VALUES_ONLY]
+    colored = np.concatenate([np.delete(m, plain, axis=0).ravel() for m in mats])
+    lim = max(1.0, float(np.nanmax(np.abs(colored)))) if np.isfinite(colored).any() else 1.0
     for ax, h, mat in zip(axes, es.HALVES, mats):
-        im = ax.imshow(mat, cmap="RdBu", vmin=-lim, vmax=lim, aspect="auto")
+        shown = mat.copy()
+        shown[plain] = np.nan
+        im = ax.imshow(np.ma.masked_invalid(shown), cmap="RdBu", vmin=-lim, vmax=lim, aspect="auto")
+        for i in plain:
+            ax.axhspan(i - 0.5, i + 0.5, color="#eeeeee")
         for i in range(mat.shape[0]):
             for j in range(mat.shape[1]):
                 if np.isfinite(mat[i, j]):
                     ax.text(j, i, f"{mat[i, j]:+.1f}", ha="center", va="center", fontsize=6,
-                            color="white" if abs(mat[i, j]) > 0.6 * lim else "black")
+                            color="white" if i not in plain and abs(mat[i, j]) > 0.6 * lim else "black")
         ax.set_xticks(range(len(rules)), rules, fontsize=7)
         ax.set_yticks(range(len(EXITS_L)), list(EXITS_L), fontsize=8)
         ax.set_title(h.replace("-", "–"), fontsize=10)
         fig.colorbar(im, ax=ax, shrink=0.8)
-    fig.suptitle("매수 규칙 단독 × 매도: 10종목 CAGR − 같은 빈도 무작위 중앙값 (%p), 파랑 = 무작위보다 높음", fontsize=11)
+    fig.suptitle("매수 규칙 단독 × 매도: 10종목 CAGR − 같은 빈도 무작위 중앙값 (%p), 파랑 = 무작위보다 높음"
+                 + (f"; 회색 줄({', '.join(VALUES_ONLY)})은 값만 표시, 색 범위에서 제외" if VALUES_ONLY else ""), fontsize=11)
     return figures._save(fig, out / "figures" / "singles_by_exit.png")
 
 
@@ -564,15 +573,21 @@ def stage2(a) -> None:
     character = exit_character(v, un, acc)
     character.to_csv(out / "exit_character.csv", index=False)
     v[v["kind"] == "single"].to_csv(out / "singles_by_exit.csv", index=False)
-    ch = {"by_exit": chance_by_exit(v), "stats_by_exit": {x: pj.stats_summary(g) for x, g in st.groupby("exit", sort=False)},
+    by_exit = chance_by_exit(v)
+    ch = {"by_exit": by_exit,
+          "exits_with_information": {k: {t: sorted(x for x in by_exit if by_exit[x][k][t]["information"]) for t in ("a", "b")}
+                                     for k in ("triple", "pair", "single")},
+          "stats_by_exit": {x: pj.stats_summary(g) for x, g in st.groupby("exit", sort=False)},
           "candidates_20bp": sorted(v.loc[v["candidate_20bp"], "set"].unique().tolist()),
           "candidates": sorted(v.loc[v["candidate"], "set"].unique().tolist()),
           "trials": {"before": N_TRIALS_BEFORE, "new": N_NEW}}
     (out / "chance.json").write_text(json.dumps(ch, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
     write_figures(out, v, un, hist)
     t = ch["by_exit"]
+    info = ch["exits_with_information"]["triple"]
     ts.log("완료 · 매도별 (b) 통과 묶음 / 우연 95% 분위: " + ", ".join(
-        f"{x} {t[x]['triple']['b']['observed']}/{t[x]['triple']['b']['q95']}" for x in t) + f" · 후보 {len(ch['candidates'])}")
+        f"{x} {t[x]['triple']['b']['observed']}/{t[x]['triple']['b']['q95']}" for x in t)
+        + f" · 정보 있음 매도 수 (a) {len(info['a'])} · (b) {len(info['b'])} / {len(EXITS_L)} · 후보 {len(ch['candidates'])}")
 
 
 def write_figures(out: Path, v: pd.DataFrame, un: pd.DataFrame, hist: pd.DataFrame) -> list[Path]:

@@ -812,6 +812,33 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     under 8 bins. Frequency: best relative results at 0.5-2 signals a day, worse below 0.1. Next
     step chosen by the user: many more exits (to be registered). Record:
     docs/research/lab/2026-10-29_stage_j3_results.md.
+90. Stage L: many more exits for the same buy sets (user decision 2026-10-29; registered before any
+    run). Eleven exits, one value each: X1 (25% trailing only, fixed 10% weight), H1 (X1 + ATR14 x3
+    stop), CH (chandelier, close < peak - ATR22 x3; sizing stop ATR22 x3), PS (parabolic SAR flip,
+    0.02 / max 0.2, + ATR x3), LB (20-day low break + ATR x3), MA (50-day MA break + ATR x3), H9 (ATR
+    x3 + 2R breakeven + 60-day time stop), TP (half sold at the next open after a close >= +50%, the
+    rest H1), ST (ATR14 x5 stop only), RS (close > SMA5 or RSI2 > 90, + ATR x3), MN (126-day return <
+    0, + ATR x3); stops -> 1% rule (10% cap), no stop -> fixed 10%. Buy sets, filter, account and
+    periods as 89 (singles 15, pairs 105, triples 455; 10 stocks, 20-session ban, 20 bp, 100 random
+    orders; no limit). Baselines per exit: E0 in the 8 bins (5 seeds x 100 orders), pseudo-triples
+    40 per bin x 20 orders, and E0 at 1% for an exit-character table. Verdicts per exit as 89 ((a),
+    (b), both halves, < 30 trades excluded, chance count from the pseudo-triples), summarised as the
+    number of the 11 exits with information; candidates: SPY in 1993-2023 and 2017-2023 with >= 30
+    trades under >= 3 of the 11 exits, rerun at 40 bp and still >= 3; DSR (N 65,218 + 4,600) and PSR
+    vs SPY / E0 Sharpe for candidates only; per-signal statistics per exit as 89. Exit-character
+    table (E0: 10-stock CAGR/MDD, holding days, stop-out, loss, big-winner and partial shares,
+    per-signal mean/median/+50%/-20%; singles' median CAGR); figures: E0 return histograms (11),
+    excess-return histograms per exit (triples, pairs vs pseudo), exit x single heatmap (RS shown as
+    values outside the colour range), candidate histograms; no signals-per-day figure. Trials
+    +4,600. Engine tables (97 jobs, 125 cells): the 15 rules and E0 under PS, LB, MA, RS, MN, ST and
+    E0 under CH; reused: X1, H1 k3, H9 k3 and the rules' CH (Stage C X2 k 3, the same rule); TP =
+    H1 k3 rows with the engine's take_profit_pct rule applied from prices (the signal-table mode has
+    no partial sale), replayed with the new optional partial sale in pick_study.replay_risk
+    (unchanged without it, tested). Dry-run notes before the run: RS holds a median of 1 day and is
+    eaten by costs (E0 10-stock CAGR -24% a year); H9 and ST keep winners to the end (per-signal
+    mean +27% / +62%); short exits (MA, MN, PS, LB, CH: 4-27 days) give E0 10-stock CAGR -0.2-4.9%.
+    Time estimate 2-3 h at night. Holdout unused. Runner lab/exit_study.py (results
+    lab_crsp/stage_l_exits). Design: docs/research/lab/2026-10-29_stage_l_design.md.
 ## Open decisions
 
 - final trend-filter definition;
