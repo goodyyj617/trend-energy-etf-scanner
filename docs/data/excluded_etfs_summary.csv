@@ -124,6 +124,7 @@ EFAS,Global X MSCI SuperDividend EAFE ETF,dividend,dividend_equity_income,unknow
 ELCV,Strategy Shares Eventide High Dividend ETF,high dividend,dividend_equity_income,unknown
 EMDV,ProShares MSCI Emerging Markets Dividend Growers ETF,dividend,dividend_equity_income,unknown
 EQIN,Columbia U.S. Equity Income ETF,equity income,dividend_equity_income,unknown
+ETDG,Eventide Dividend Growth ETF,dividend growth,dividend_equity_income,unknown
 EUDG,WisdomTree Europe Quality Dividend Growth Fund,dividend growth,dividend_equity_income,unknown
 EUDV,ProShares MSCI Europe Dividend Growers ETF,dividend,dividend_equity_income,unknown
 FDD,First Trust STOXX European Select Dividend Index Fund,dividend,dividend_equity_income,unknown
