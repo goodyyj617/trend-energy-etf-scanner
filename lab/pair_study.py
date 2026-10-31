@@ -138,27 +138,34 @@ def _r_init(panel_dir: str, eligible: str, dry: bool):
 
 # --------------------------------------------------------------------------- signal sets
 
-def rule_table(e: str, exit_key: str) -> pd.DataFrame:
-    """Filled first-day signals of rule e (middle value) with their exit under exit_key."""
-    key = (e, exit_key)
-    if key in _W["tables"]:
-        return _W["tables"][key]
+def table_spec(e: str, exit_key: str) -> tuple[Path, int, int]:
+    """(signal table, entry cell, exit cell) of rule e (or E0 seed 'R0s<k>') under a Stage J exit."""
     d = _W["dirs"]
     x, yi = EXITS_J[exit_key]
     if e.startswith("R0s"):
         seed_i = E0_SEEDS.index(int(e[3:]))
         f = d["stage_i"] / "r0" / "signals" / "full" / "R0__H1_signals.parquet" if x == "H1" else d["r0x1"] / "signals" / "full" / "R0__X1_signals.parquet"
-        xi, yi = seed_i, (yi if x == "H1" else 0)
-    elif x == "H1":
-        f, xi = d["stage_h"] / "h1" / "signals" / "full" / f"{e}__H1_signals.parquet", 0
-    else:
-        root = d["v2"] if e.startswith("E") else d["events"]
-        f, xi, yi = root / "signals" / "full" / f"{e}__X1_signals.parquet", _C_CANON.get(e, 1), 1
+        return f, seed_i, (yi if x == "H1" else 0)
+    if x == "H1":
+        return d["stage_h"] / "h1" / "signals" / "full" / f"{e}__H1_signals.parquet", 0, yi
+    root = d["v2"] if e.startswith("E") else d["events"]
+    return root / "signals" / "full" / f"{e}__X1_signals.parquet", _C_CANON.get(e, 1), 1
+
+
+def rule_table(e: str, exit_key: str) -> pd.DataFrame:
+    """Filled first-day signals of rule e (middle value) with their exit under exit_key. Another
+    study's exits can be served by setting _W['table_of'] (same signature as table_spec)."""
+    key = (e, exit_key)
+    if key in _W["tables"]:
+        return _W["tables"][key]
+    f, xi, yi = _W.get("table_of", table_spec)(e, exit_key)
     s = pd.read_parquet(f, columns=["xi", "yi", "symbol", "signal_date", "entry_date", "exit_signal_date", "return",
                                     "holding_days", "closed", "exit_reason"])
     s = s[(s["xi"] == xi) & (s["yi"] == yi) & (s["exit_reason"] != CANCELLED)].drop(columns=["xi", "yi"])
     s = s.drop_duplicates(["symbol", "signal_date"]).reset_index(drop=True)
     s["si"] = _W["px"].dates.get_indexer(pd.DatetimeIndex(s["signal_date"]))
+    if "table_post" in _W:  # e.g. a partial take-profit added to the stored exits (lab/exit_study.py)
+        s = _W["table_post"](s, e, exit_key)
     _W["tables"][key] = s
     return s
 
