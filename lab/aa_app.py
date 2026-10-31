@@ -2850,6 +2850,37 @@ def chart_a42_1_check() -> go.Figure:
     return fig
 
 
+def chart_a42_2_walk() -> go.Figure:
+    t = exps.a42_2_walk()
+    fig = go.Figure()
+    for kind, color in (("고정", RED), ("확장", BLUE), ("10년 이동", AQUA), ("규칙형", "#7a5c2e")):
+        p = t[t["창"] == kind] if kind != "규칙형" else t[t["창"].isin(["훈련 없음", "직전 3년"])]
+        for _, r in p.iterrows():
+            fig.add_trace(go.Scatter(x=[r["24세트 최악 MDD"], r["MDD"]], y=[r["CAGR"], r["CAGR"]], mode="lines",
+                                     line=dict(color=color, width=1), showlegend=False, hoverinfo="skip"))
+        fig.add_trace(go.Scatter(x=p["MDD"], y=p["CAGR"], mode="markers+text", name=kind, text=p["이름"], textposition="top right",
+                                 marker=dict(size=9, color=color), customdata=p[["24세트 최악 MDD", "최장 회복 (월)"]],
+                                 hovertemplate="%{text}<br>CAGR %{y:.2f}% · MDD %{x:.1f}%<br>24세트 최악 MDD %{customdata[0]:.1f}%"
+                                               " · 최장 회복 %{customdata[1]:.0f}개월<extra></extra>"))
+    fig.add_vline(x=-17, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=520, margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.15),
+                      title=dict(text="고르는 규칙의 시간 밖 성적: 매년 그때까지의 자료로 고르고 다음 해를 보유 (2006–2024)<br>"
+                                      "<sup>점 = 대표 가격 세트, 선 = 가격 세트 24개 중 최악 MDD까지. 점선 −17% = 규칙 통과선</sup>"),
+                      xaxis=dict(title="MDD (%)"), yaxis=dict(title="CAGR (%)"))
+    return fig
+
+
+def chart_a42_2_rebalance() -> go.Figure:
+    t = exps.a42_2_rebalance()
+    fig = go.Figure(go.Heatmap(z=t.to_numpy(), x=[f"밴드 {b:g}%p" for b in t.columns], y=list(t.index), colorscale="Blues",
+                               text=[[f"{v:.1f}" for v in row] for row in t.to_numpy()], texttemplate="%{text}",
+                               hovertemplate="%{y} · %{x}: %{z:.1f}%<extra></extra>"))
+    fig.update_layout(height=380, margin=dict(l=10, r=10, t=70, b=10),
+                      title=dict(text="리밸런싱 설정별로 MDD −15% 안에 드는 격자 점의 비율 (%)<br>"
+                                      "<sup>대표 가격 세트, 2차 격자 점 전체, 결정일 이동 0·5·10일 평균</sup>"))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2888,6 +2919,8 @@ EXPERIMENT_CHARTS = {
     "a42_0_hedge": chart_a42_0_hedge,
     "a42_1_scenarios": chart_a42_1_scenarios,
     "a42_1_check": chart_a42_1_check,
+    "a42_2_walk": chart_a42_2_walk,
+    "a42_2_rebalance": chart_a42_2_rebalance,
 }
 
 
