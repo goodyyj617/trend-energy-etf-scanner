@@ -1,0 +1,562 @@
+{
+ "by_gen": {
+  "E0": {
+   "n_lines": 29,
+   "excluded_few_trades": 0,
+   "a": {
+    "observed": 8,
+    "p0": 0.21724137931034482,
+    "expected": 6.3,
+    "q95": 10,
+    "information": false,
+    "passing": [
+     "K11f",
+     "K12o",
+     "K13f",
+     "K2f",
+     "K3o",
+     "K4l",
+     "K8f",
+     "K9f"
+    ]
+   },
+   "b": {
+    "observed": 3,
+    "p0": 0.1706896551724138,
+    "expected": 4.95,
+    "q95": 8,
+    "information": false,
+    "passing": [
+     "K1f",
+     "K2f",
+     "K8f"
+    ]
+   },
+   "feature": {
+    "observed": 3,
+    "p0": 0.032692307692307694,
+    "expected": 0.42500000000000004,
+    "q95": 2,
+    "information": true,
+    "features": [
+     "K1",
+     "K2",
+     "K8"
+    ]
+   }
+  },
+  "E2": {
+   "n_lines": 29,
+   "excluded_few_trades": 0,
+   "a": {
+    "observed": 10,
+    "p0": 0.2439655172413793,
+    "expected": 7.074999999999999,
+    "q95": 11,
+    "information": false,
+    "passing": [
+     "K11f",
+     "K12o",
+     "K13f",
+     "K14o",
+     "K1f",
+     "K2f",
+     "K3o",
+     "K4l",
+     "K8f",
+     "K9o"
+    ]
+   },
+   "b": {
+    "observed": 5,
+    "p0": 0.19827586206896552,
+    "expected": 5.75,
+    "q95": 9,
+    "information": false,
+    "passing": [
+     "K11f",
+     "K12f",
+     "K1f",
+     "K4m",
+     "K6f"
+    ]
+   },
+   "feature": {
+    "observed": 3,
+    "p0": 0.04230769230769231,
+    "expected": 0.55,
+    "q95": 2,
+    "information": true,
+    "features": [
+     "K1",
+     "K6",
+     "K11"
+    ]
+   }
+  },
+  "V3": {
+   "n_lines": 29,
+   "excluded_few_trades": 0,
+   "a": {
+    "observed": 8,
+    "p0": 0.22586206896551725,
+    "expected": 6.55,
+    "q95": 10,
+    "information": false,
+    "passing": [
+     "K11f",
+     "K12o",
+     "K13f",
+     "K2f",
+     "K3o",
+     "K4l",
+     "K8f",
+     "K9f"
+    ]
+   },
+   "b": {
+    "observed": 2,
+    "p0": 0.2103448275862069,
+    "expected": 6.1000000000000005,
+    "q95": 10,
+    "information": false,
+    "passing": [
+     "K11f",
+     "K14f"
+    ]
+   },
+   "feature": {
+    "observed": 1,
+    "p0": 0.05,
+    "expected": 0.65,
+    "q95": 2,
+    "information": false,
+    "features": [
+     "K14"
+    ]
+   }
+  }
+ },
+ "feature_info": {
+  "E0": [
+   {
+    "feature": "K1",
+    "label": "주가 낮음",
+    "gen": "E0",
+    "hypothesis": true,
+    "fav_b": true,
+    "fav_a": false,
+    "opp_below": true,
+    "information": true
+   },
+   {
+    "feature": "K2",
+    "label": "고유 변동성 낮음 (63일, SPY 대비 잔차)",
+    "gen": "E0",
+    "hypothesis": true,
+    "fav_b": true,
+    "fav_a": true,
+    "opp_below": true,
+    "information": true
+   },
+   {
+    "feature": "K3",
+    "label": "회전율 높음",
+    "gen": "E0",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K5",
+    "label": "12-1개월 수익률 낮음",
+    "gen": "E0",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K6",
+    "label": "업종 상대강도 높음 (6-1)",
+    "gen": "E0",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K7",
+    "label": "36개월 수익률 낮음",
+    "gen": "E0",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K8",
+    "label": "60일 변동성 낮음",
+    "gen": "E0",
+    "hypothesis": true,
+    "fav_b": true,
+    "fav_a": true,
+    "opp_below": true,
+    "information": true
+   },
+   {
+    "feature": "K9",
+    "label": "추세 효율 높음 (6개월)",
+    "gen": "E0",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K10",
+    "label": "상대강도 높음 (IBD식)",
+    "gen": "E0",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K11",
+    "label": "52주 고가 근접",
+    "gen": "E0",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K12",
+    "label": "거래대금 낮음 (63일)",
+    "gen": "E0",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K13",
+    "label": "12개월 낙폭 얕음",
+    "gen": "E0",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K14",
+    "label": "매집/분산 높음 (3개월)",
+    "gen": "E0",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   }
+  ],
+  "V3": [
+   {
+    "feature": "K1",
+    "label": "주가 낮음",
+    "gen": "V3",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K2",
+    "label": "고유 변동성 낮음 (63일, SPY 대비 잔차)",
+    "gen": "V3",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K3",
+    "label": "회전율 높음",
+    "gen": "V3",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K5",
+    "label": "12-1개월 수익률 낮음",
+    "gen": "V3",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K6",
+    "label": "업종 상대강도 높음 (6-1)",
+    "gen": "V3",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K7",
+    "label": "36개월 수익률 낮음",
+    "gen": "V3",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K8",
+    "label": "60일 변동성 낮음",
+    "gen": "V3",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K9",
+    "label": "추세 효율 높음 (6개월)",
+    "gen": "V3",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K10",
+    "label": "상대강도 높음 (IBD식)",
+    "gen": "V3",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K11",
+    "label": "52주 고가 근접",
+    "gen": "V3",
+    "hypothesis": false,
+    "fav_b": true,
+    "fav_a": true,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K12",
+    "label": "거래대금 낮음 (63일)",
+    "gen": "V3",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K13",
+    "label": "12개월 낙폭 얕음",
+    "gen": "V3",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K14",
+    "label": "매집/분산 높음 (3개월)",
+    "gen": "V3",
+    "hypothesis": false,
+    "fav_b": true,
+    "fav_a": false,
+    "opp_below": true,
+    "information": true
+   }
+  ],
+  "E2": [
+   {
+    "feature": "K1",
+    "label": "주가 낮음",
+    "gen": "E2",
+    "hypothesis": true,
+    "fav_b": true,
+    "fav_a": true,
+    "opp_below": true,
+    "information": true
+   },
+   {
+    "feature": "K2",
+    "label": "고유 변동성 낮음 (63일, SPY 대비 잔차)",
+    "gen": "E2",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K3",
+    "label": "회전율 높음",
+    "gen": "E2",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K5",
+    "label": "12-1개월 수익률 낮음",
+    "gen": "E2",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K6",
+    "label": "업종 상대강도 높음 (6-1)",
+    "gen": "E2",
+    "hypothesis": true,
+    "fav_b": true,
+    "fav_a": false,
+    "opp_below": true,
+    "information": true
+   },
+   {
+    "feature": "K7",
+    "label": "36개월 수익률 낮음",
+    "gen": "E2",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K8",
+    "label": "60일 변동성 낮음",
+    "gen": "E2",
+    "hypothesis": true,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K9",
+    "label": "추세 효율 높음 (6개월)",
+    "gen": "E2",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K10",
+    "label": "상대강도 높음 (IBD식)",
+    "gen": "E2",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K11",
+    "label": "52주 고가 근접",
+    "gen": "E2",
+    "hypothesis": false,
+    "fav_b": true,
+    "fav_a": true,
+    "opp_below": true,
+    "information": true
+   },
+   {
+    "feature": "K12",
+    "label": "거래대금 낮음 (63일)",
+    "gen": "E2",
+    "hypothesis": false,
+    "fav_b": true,
+    "fav_a": false,
+    "opp_below": false,
+    "information": false
+   },
+   {
+    "feature": "K13",
+    "label": "12개월 낙폭 얕음",
+    "gen": "E2",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": true,
+    "opp_below": true,
+    "information": false
+   },
+   {
+    "feature": "K14",
+    "label": "매집/분산 높음 (3개월)",
+    "gen": "E2",
+    "hypothesis": false,
+    "fav_b": false,
+    "fav_a": false,
+    "opp_below": true,
+    "information": false
+   }
+  ]
+ },
+ "stats": {
+  "rule_p_lt_05": 0.8659003831417624,
+  "pseudo_p_lt_05": 0.007854406130268199,
+  "rule_ci_above_0": 0.27586206896551724,
+  "rule_ci_below_0": 0.4789272030651341
+ },
+ "candidates_20bp": [
+  {
+   "line": "K14f",
+   "gen": "V3",
+   "exit": "H1k2"
+  },
+  {
+   "line": "K14f",
+   "gen": "V3",
+   "exit": "X1"
+  }
+ ],
+ "candidates": [],
+ "trials": {
+  "before": 69818,
+  "new": 261
+ },
+ "sr_var_daily": 7.807257368890304e-05
+}
