@@ -32,6 +32,9 @@ CANARY_DIR = ALLOC / "2026-10-27_canary"  # A40: canary signals on B2–B5
 CANARY_MEMO = ALLOC / "2026-10-27_canary.md"
 A41_DIR = ALLOC / "2026-10-28_a41"  # A41: a map of the whole weight space of 13 products, then robustness and the hold-out
 A41_MEMO = ALLOC / "2026-10-28_a41.md"
+A42_0_DIR = ALLOC / "2026-10-29_a42_stage0"  # A42 stage 0: data, 24 price sets, hedge-cost estimate
+A42_0_MEMO = ALLOC / "2026-10-29_a42_stage0.md"
+A42_0_ORDER = ("(가)", "안정형 40", "B2", "B4", "현재 보유", "S&P500")
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -41,7 +44,8 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "filter_mdd", "filter_curves", "filter_groups", "filter_cagr",
               "comp_loo", "comp_swap", "comp_simple", "comp_reselect", "comp_model_gap",
               "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency",
-              "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout")
+              "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout",
+              "a42_0_sets", "a42_0_hedge")
 
 
 @dataclass(frozen=True)
@@ -247,6 +251,27 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "의사 난수(PCG64)를 썼습니다(실행 전 변경 기록). 사후 중심은 결과를 본 뒤 더한 것이고, 모든 숫자는 표본 안 결과입니다. 프리셋은 등록하지 않았습니다."),
         ("a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout"), A41_MEMO,
         "‘B2–B5 시험 모음’의 기간 ‘A41 연구 구간’(B2·B4의 리밸런싱 528가지와 A41의 새 배분), PNG 그림 ①–⑧은 docs/research/allocation/2026-10-28_a41/figures/"),
+    Experiment(
+        "a42_0", "2026-10-29", "A42", "A42 0단계: 빠진 자료를 채우고 가격 가정 24가지로 기존 결과를 다시 재기",
+        "A42는 고른 비중이 아니라 고르는 규칙을 검증하고, 모형 불확실성을 축으로 넣어 '모든 가격 가정에서 버티는가'로 판정합니다. 그 전제로, "
+        "기존 결과가 자료 선택에 얼마나 기대는지 먼저 재야 했습니다. 원화 현금은 한국은행 기준금리로 잡았지만 실제 CD금리는 보통 더 높고, 환헤지 미국채는 "
+        "연구 구간 전부가 모형이며 헤지 비용은 20bp 하나로 가정했고, 국고채 ETF는 한 번도 쓰지 않았습니다. 그래서 CD91·국고채 금리·새 상품(국고채 3·10·30년, "
+        "미국 배당)을 받고, 가격 세트 24개(가격 {모형, 보정 모형, 실제 우선} × 헤지 비용 {0, 20, 40, 60bp} × 원화 현금 {기준금리, CD91})를 만들어, "
+        "기존 배분 6개를 2000-09 – 2024-12(분기, 10bp)에서 다시 돌렸습니다. 이 단계는 무엇도 고르지 않습니다.",
+        ("한 줄 답: 어느 배분이 MDD −15% 안인지는 24세트 모두에서 같습니다. (가) 평균 중심과 안정형 40은 24/24 안, B2·B4·현재 보유·S&P500은 0/24입니다.",
+         "MDD는 세트에 따라 0.1–1.2%p만 움직이고, CAGR은 0.4–1.0%p 움직입니다. 헤지 비용 20bp마다 −0.06 – −0.09%p, CD91로 바꾸면 +0.10 – +0.15%p, "
+         "보정 모형으로 바꾸면 S&P500 −0.86%p·현재 보유 −0.48%p입니다.",
+         "대표 세트(실제 우선 · 헤지 60bp · CD91): (가) 8.81% / −13.68%, 안정형 40 7.80% / −13.68%, B2 9.11% / −16.36%, B4 7.70% / −25.31%, "
+         "현재 보유 8.01% / −17.47%, S&P500 8.89% / −45.42%.",
+         "환헤지 비용 추정: 실제 환헤지 미국채 ETF 267440(RISE 미국장기국채선물(H), 2017-04 –)을 같은 대용의 헤지 모형(비용 0)과 겹쳐 연 70bp(CD91 기준, "
+         "기준금리로는 49bp)를 얻었고, 가장 가까운 격자값 60bp를 대표 세트에 썼습니다. 95% 구간이 약 ±300bp라 근거는 약합니다(선물과 TLT의 듀레이션 차이가 섞임).",
+         "새 경로의 기본값(실제 우선 · 20bp · 기준금리)은 예전과 비트 단위로 같고, (가)가 A41과 똑같이 8.843% / −13.706%로 나옵니다.",
+         "자료 흠: 달러선물 2019-03-14 이상 체결은 보간, KODEX 200의 2026-07 급변(EWY도 같이 움직임)과 2025-12-29 분배금(종가가 분배만큼 떨어짐)은 그대로 둡니다. "
+         "서울 매매기준율로 바꿔도 CAGR은 0.013%p 이하로 바뀌지만, (가)의 MDD는 −13.71%에서 −12.19%로 움직였습니다.",
+         "봉인 구간(1990-01 – 2000-08) 자료 15개는 값을 보지 않고 드라이브에만 저장했고 해시만 남겼습니다(금은 월간 시리즈). 5단계에서 한 번 엽니다.",
+         "한계: 국고채 대용은 월평균 금리로 만든 근사라 실제 ETF와 월 상관이 0.45–0.55뿐이고, 보정 모형의 겹침은 2024-12에서 잘랐습니다(보류 구간 자료가 섞이지 않게)."),
+        ("a42_0_sets", "a42_0_hedge"), A42_0_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a42_stage0/"),
 )
 
 
@@ -656,6 +681,23 @@ def a41_verdicts(folder: Path | str = A41_DIR) -> pd.DataFrame:
             if pd.api.types.is_numeric_dtype(out[c]):
                 out[c] = out[c] * 100
     return out
+
+
+def a42_0_sets(folder: Path | str = A42_0_DIR) -> pd.DataFrame:
+    """A42 stage 0: per allocation, CAGR and MDD (%) range over the 24 price sets and the representative set's values."""
+    s = pd.read_csv(Path(folder) / "sets.csv")
+    g = s.groupby("배분")
+    rep = s[s["대표"]].set_index("배분")
+    out = pd.DataFrame({"CAGR 최저": g["cagr"].min() * 100, "CAGR 최고": g["cagr"].max() * 100, "MDD 최악": g["mdd"].min() * 100,
+                        "MDD 최선": g["mdd"].max() * 100, "−15% 안 세트": g["mdd"].apply(lambda x: int((x >= -0.15).sum())),
+                        "대표 CAGR": rep["cagr"] * 100, "대표 MDD": rep["mdd"] * 100})
+    return out.reindex([n for n in A42_0_ORDER if n in out.index]).reset_index(names="배분")
+
+
+def a42_0_hedge(folder: Path | str = A42_0_DIR) -> pd.DataFrame:
+    """A42 0-2: hedge-cost estimates (bp a year) with 95 % block-bootstrap intervals, per product and KRW cash."""
+    h = pd.read_csv(Path(folder) / "hedge.csv", dtype={"상품": str})
+    return h[["상품", "이름", "원화 현금", "겹침 시작", "겹침 일", "h 추정 (bp)", "95% 하한 (bp)", "95% 상한 (bp)"]].copy()
 
 
 def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:

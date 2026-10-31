@@ -2776,6 +2776,48 @@ def chart_a41_holdout() -> go.Figure:
     return fig
 
 
+def chart_a42_0_sets() -> go.Figure:
+    from plotly.subplots import make_subplots
+    t = exps.a42_0_sets()
+    names = t["배분"].tolist()[::-1]
+    t = t.set_index("배분").reindex(names)
+    fig = make_subplots(rows=1, cols=2, horizontal_spacing=0.14, subplot_titles=("CAGR (%)", "MDD (%)"))
+    for col, (lo, hi, rep) in enumerate((("CAGR 최저", "CAGR 최고", "대표 CAGR"), ("MDD 최악", "MDD 최선", "대표 MDD")), start=1):
+        fig.add_trace(go.Bar(y=names, x=t[hi] - t[lo], base=t[lo], orientation="h", marker_color=AQUA if col == 1 else BLUE, opacity=0.55,
+                             name="24세트 범위" if col == 1 else None, showlegend=col == 1,
+                             hovertemplate="%{y}<br>24세트 범위 %{base:.2f} – %{customdata:.2f}<extra></extra>", customdata=t[hi]), row=1, col=col)
+        fig.add_trace(go.Scatter(y=names, x=t[rep], mode="markers", marker=dict(symbol="diamond", size=10, color=INK),
+                                 name="대표 세트 (실제 우선 · 헤지 60bp · CD91)" if col == 1 else None, showlegend=col == 1,
+                                 hovertemplate="%{y}<br>대표 세트 %{x:.2f}<extra></extra>"), row=1, col=col)
+    fig.add_vline(x=-15, line=dict(color=GRAY, dash="dash", width=1), row=1, col=2)
+    fig.update_layout(height=420, margin=dict(l=10, r=10, t=80, b=10), legend=dict(orientation="h", y=-0.15),
+                      title=dict(text="가격 가정 24가지에서 기존 배분 6개 (2000-09 – 2024-12, 분기 · 10bp)<br>"
+                                      "<sup>막대 = 가격 {모형, 보정 모형, 실제 우선} × 헤지 비용 {0, 20, 40, 60bp} × 원화 현금 {기준금리, CD91}의 최저–최고. "
+                                      "MDD가 −15% 선의 어느 쪽인지는 24세트 모두 같음</sup>"))
+    return fig
+
+
+def chart_a42_0_hedge() -> go.Figure:
+    h = exps.a42_0_hedge()
+    fig = go.Figure()
+    for cash, color in (("base", AQUA), ("cd91", BLUE)):
+        part = h[h["원화 현금"] == cash]
+        label = part["이름"] + " (" + part["상품"] + ")"
+        fig.add_trace(go.Scatter(x=part["h 추정 (bp)"], y=label, mode="markers", name="원화 현금 " + ("기준금리" if cash == "base" else "CD91"),
+                                 marker=dict(size=11, color=color),
+                                 error_x=dict(type="data", symmetric=False, array=part["95% 상한 (bp)"] - part["h 추정 (bp)"],
+                                              arrayminus=part["h 추정 (bp)"] - part["95% 하한 (bp)"], color=color, thickness=1.2),
+                                 hovertemplate="%{y}<br>추정 %{x:.0f}bp<extra></extra>"))
+    for g in (0, 20, 40, 60):
+        fig.add_vline(x=g, line=dict(color=GRAY, dash="dot", width=1))
+    fig.update_layout(height=360, margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="환헤지 비용 추정: 실제 환헤지 미국채 ETF − 헤지 모형(비용 0), 2024-12까지<br>"
+                                      "<sup>점 = 연 평균 차이, 선 = 63일 블록 부트스트랩 95% 범위, 점선 = 가격 세트의 격자 0 · 20 · 40 · 60bp. "
+                                      "대표값 60bp는 267440 · CD91 추정(70bp)에 가장 가까운 격자</sup>"),
+                      xaxis=dict(title="연 비용 (bp)"), yaxis=dict(title=None))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2810,6 +2852,8 @@ EXPERIMENT_CHARTS = {
     "a41_include": chart_a41_include,
     "a41_rebalance": chart_a41_rebalance,
     "a41_holdout": chart_a41_holdout,
+    "a42_0_sets": chart_a42_0_sets,
+    "a42_0_hedge": chart_a42_0_hedge,
 }
 
 

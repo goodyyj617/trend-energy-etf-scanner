@@ -90,12 +90,65 @@ def fx_timing() -> pd.DataFrame:
     return df
 
 
+FIG_DIR = ROOT / "docs" / "research" / "allocation" / "figures" / "a42_stage0"
+
+
+def figures(src: Path, dest: Path = FIG_DIR) -> list[str]:
+    """PNG figures from the stage-0 tables only (user rule 2026-10-26): ① 24-set ranges ② hedge-cost estimate."""
+    from lab import aa_experiments as exps
+    from lab import figures as figs
+    if not figs.available():
+        return []
+    plt = figs._plt()
+    dest.mkdir(parents=True, exist_ok=True)
+    t = exps.a42_0_sets(src)
+    names = t["배분"].tolist()[::-1]
+    t = t.set_index("배분").reindex(names)
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), sharey=True)
+    panels = (("CAGR 최저", "CAGR 최고", "대표 CAGR", "CAGR (%)", "#2f855a"), ("MDD 최악", "MDD 최선", "대표 MDD", "MDD (%)", "#2b6cb0"))
+    for ax, (lo, hi, rep, title, color) in zip(axes, panels):
+        y = list(range(len(names)))
+        ax.barh(y, t[hi] - t[lo], left=t[lo], color=color, alpha=0.55, label="24세트 범위")
+        ax.scatter(t[rep], y, marker="D", color="black", zorder=3, label="대표 세트 (real · h60 · CD91)")
+        for k, n in enumerate(names):
+            ax.annotate(f"{t.at[n, lo]:.2f} – {t.at[n, hi]:.2f}", (t.at[n, hi], k), xytext=(4, -3), textcoords="offset points", fontsize=8)
+        ax.set_title(title)
+        if "MDD" in title:
+            ax.axvline(-15, color="gray", ls="--", lw=1)
+    axes[0].set_yticks(range(len(names)))
+    axes[0].set_yticklabels(names)
+    axes[0].legend(fontsize=8, loc="upper left", bbox_to_anchor=(0.0, -0.08), ncol=2)
+    fig.suptitle("A42 0단계 ① 가격 가정 24가지에서 기존 배분 6개 (2000-09 – 2024-12, 분기 · 10bp)")
+    made = [figs._save(fig, dest / "1_price_sets.png").name]
+    h = exps.a42_0_hedge(src)
+    fig, ax = plt.subplots(figsize=(10, 4))
+    labels = []
+    for cash, color in (("base", "#2f855a"), ("cd91", "#2b6cb0")):
+        for _, r in h[h["원화 현금"] == cash].iterrows():
+            k = len(labels)
+            est = r["h 추정 (bp)"]
+            ax.errorbar(est, k, xerr=[[est - r["95% 하한 (bp)"]], [r["95% 상한 (bp)"] - est]], fmt="o", color=color, capsize=3)
+            labels.append(f"{r['이름']} · {'기준금리' if cash == 'base' else 'CD91'}")
+    for g in (0, 20, 40, 60):
+        ax.axvline(g, color="gray", ls=":", lw=1)
+    ax.set_yticks(range(len(labels)))
+    ax.set_yticklabels(labels, fontsize=8)
+    ax.set_xlabel("연 비용 (bp): 헤지 모형(비용 0) − 실제 ETF, 63일 블록 부트스트랩 95% 범위")
+    ax.set_title("A42 0단계 ② 환헤지 비용 추정 (2024-12까지). 대표값 60bp = 267440 · CD91 추정 70bp에 가장 가까운 격자", fontsize=10)
+    made.append(figs._save(fig, dest / "2_hedge_cost.png").name)
+    return made
+
+
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
+    ap.add_argument("--figures-only", action="store_true", help="그림만 다시 (표는 --out에 있는 것을 읽음)")
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    if args.figures_only:
+        print(figures(out))
+        return
     t0 = time.time()
     summ: dict = {}
 
@@ -155,6 +208,7 @@ def main(argv):
     summ["sets"] = {k: {**{c: float(v) for c, v in rng.loc[k].items()}, "rep_cagr": float(repr_rows.loc[k, "cagr"]),
                         "rep_mdd": float(repr_rows.loc[k, "mdd"])} for k in rng.index}
     summ["seconds"] = round(time.time() - t0, 1)
+    summ["figures"] = figures(out)
     (out / "summary.json").write_text(json.dumps(summ, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summ, ensure_ascii=False, indent=1)[:3000])
 
