@@ -722,7 +722,7 @@ FCOM,Fidelity MSCI Communication Services Index ETF,P,True,False,False,False,Fal
 FDIS,Fidelity MSCI Consumer Discretionary Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,1697842816.0,Country / Region,unknown,721.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 LMUB,iShares Long-Term National Muni Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,1691549312.0,Bond,unknown,722.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 BAFE,Brown Advisory Flexible Equity ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,1689542912.0,Other,unknown,723.0,False,,False,False,Other,Other,Other,Other,Other
-HYS,PIMCO 0-5 Year High Yield Corporat Bond Index Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,1686189824.0,Bond,unknown,724.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+HYS,PIMCO 0-5 Year High Yield Corporate Bond Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,1686189824.0,Bond,unknown,724.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 GEM,Goldman Sachs ActiveBeta Emerging Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,1683882240.0,Country / Region,unknown,725.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 TLTW,iShares TLT Premium Income+ ETF,Z,True,False,False,False,False,False,True,False,True,option_income,True,covered_call_option_income,premium income,1681928960.0,Other,unknown,726.0,False,,True,False,Other,Other,Other,Other,Other
 DFGX,Dimensional International Core Fixed Income ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,1676294528.0,Bond,unknown,727.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
@@ -746,7 +746,7 @@ FEX,First Trust Large Cap Core AlphaDEX Fund,Q,True,False,False,False,False,Fals
 JSCP,JPMorgan Short Duration Core Plus ETF,P,True,False,False,False,False,False,False,False,False,,False,,,1617169152.0,Bond,unknown,745.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 INCM,Franklin Income Focus ETF,P,True,False,False,False,False,False,False,False,False,,False,,,1613597824.0,Other,unknown,746.0,False,,False,False,Other,Other,Other,Other,Other
 DTD,WisdomTree U.S. Total Dividend Fund,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend,1613060864.0,Factor / Style,unknown,747.0,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
-CORP,PIMCO Investment Grade Corporate Bond Index Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,1602396032.0,Bond,unknown,748.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+CORP,PIMCO Investment Grade Corporate Bond Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,1602396032.0,Bond,unknown,748.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 NASA,Tema Space Innovators ETF,P,True,False,False,False,False,False,False,False,False,,False,,,1586640896.0,Other,unknown,749.0,False,,False,False,Other,Other,Other,Other,Other
 PWRD,TCW Transform Systems ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,1583251072.0,Other,unknown,750.0,False,,False,False,Other,Other,Other,Other,Other
 DBC,Invesco DB Commodity Index Tracking Fund,P,True,False,False,False,False,False,False,False,False,,False,,,1583250688.0,Commodity,unknown,751.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
@@ -1077,7 +1077,7 @@ DBEU,Xtrackers MSCI Europe Hedged Equity ETF,P,True,False,False,False,False,Fals
 EVSM,Eaton Vance Short Duration Municipal Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,758170496.0,Bond,unknown,1076.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 TUA,Simplify Short Term Treasury Futures Strategy ETF,P,True,False,False,False,False,False,False,False,False,,False,,,751044800.0,Bond,unknown,1077.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 FETH,Fidelity Ethereum Fund,Z,True,False,False,False,False,False,False,False,False,,False,,,750931264.0,Crypto,unknown,1078.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
-CMDT,PIMCO Commodity Strategy Active Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,750605056.0,Commodity,unknown,1079.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+CMDT,PIMCO Commodity and Bond Strategy Active Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,750605056.0,Commodity,unknown,1079.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 GTOP,Goldman Sachs Technology Opportunities ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,749471552.0,Sector,unknown,1080.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
 FEM,First Trust Emerging Markets AlphaDEX Fund,Q,True,False,False,False,False,False,False,False,False,,False,,,747033024.0,Country / Region,unknown,1081.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 DIV,Global X Super Dividend ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend,746963008.0,Factor / Style,unknown,1082.0,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
@@ -1227,7 +1227,7 @@ IBTL,iShares iBonds Dec 2031 Term Treasury ETF,Q,True,False,False,False,False,Fa
 SETM,Sprott Critical Materials ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,574871488.0,Sector,unknown,1226.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
 AQEC,AQE Core ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,574481152.0,Other,unknown,1227.0,False,,False,False,Other,Other,Other,Other,Other
 USSG,Xtrackers MSCI USA Selection Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,574231424.0,Country / Region,unknown,1228.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
-LONZ,PIMCO Senior Loan Active Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,574010368.0,Bond,unknown,1229.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+LONZ,PIMCO Senior Loan and Short-Term Active ETF,P,True,False,False,False,False,False,False,False,False,,False,,,574010368.0,Bond,unknown,1229.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 YLD,Principal Active High Yield ETF,P,True,False,False,False,False,False,False,False,False,,False,,,572786432.0,Bond,unknown,1230.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 HYBL,State Street Blackstone High Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,569136512.0,Bond,unknown,1231.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 DWLD,Davis Select Worldwide ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,567968768.0,Other,unknown,1232.0,False,,False,False,Other,Other,Other,Other,Other
@@ -4377,7 +4377,7 @@ EFZ,ProShares Short MSCI EAFE,P,True,False,False,False,False,False,False,False,F
 EHLS,Even Herd Long Short ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ELCF,Eventide Large Cap Focus ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 EMAG,Emerging Markets AI Mag 3 ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
-EMNT,PIMCO Enhanced Short Maturity Active ESG Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+EMNT,PIMCO Enhanced Short Maturity Active ESG and Bond Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 ETDG,Eventide Dividend Growth ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend growth,,Factor / Style,unknown,,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ETTY,Amplify Ethereum 3% Monthly Option Income ETF,Z,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Crypto,unknown,,False,,True,False,Crypto,Crypto,Crypto,Crypto,Crypto
 EUHY,iShares Euro High Yield Corporate Bond USD Hedged ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
