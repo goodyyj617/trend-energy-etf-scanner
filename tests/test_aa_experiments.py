@@ -184,3 +184,16 @@ def test_a41_preset_is_the_post_hoc_centre():
     text = c.at["(가) 평균·보완", "비중"]  # "code:percent;..."
     assert p.weights == {k: int(v) for k, v in (part.split(":") for part in text.split(";"))}
     assert "사후" in p.name and "월·분기" in p.name and "모형 가격" in p.note
+
+
+def test_a42_stage0_chart_data():
+    t = ex.a42_0_sets().set_index("배분")
+    assert list(t.index) == list(ex.A42_0_ORDER)
+    assert t.at["(가)", "−15% 안 세트"] == 24 and t.at["안정형 40", "−15% 안 세트"] == 24
+    assert (t.loc[["B2", "B4", "현재 보유", "S&P500"], "−15% 안 세트"] == 0).all()
+    assert (round(t.at["(가)", "대표 CAGR"], 2), round(t.at["(가)", "대표 MDD"], 2)) == (8.81, -13.68)
+    assert ((t["MDD 최선"] - t["MDD 최악"]) <= 1.25).all() and (t["CAGR 최저"] <= t["대표 CAGR"]).all()
+    h = ex.a42_0_hedge()
+    pick = h[(h["상품"] == "267440") & (h["원화 현금"] == "cd91")].iloc[0]
+    assert round(pick["h 추정 (bp)"]) == 70 and pick["95% 하한 (bp)"] < 0 < pick["95% 상한 (bp)"]
+

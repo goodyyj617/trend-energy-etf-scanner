@@ -2,6 +2,7 @@
 
     .venv/Scripts/python.exe scripts/aa_a42_fetch.py rates      # ECOS monthly CD91 / KTB → lab/aa_kr_rates.csv (2000-09 –)
     .venv/Scripts/python.exe scripts/aa_a42_fetch.py sealed     # 1990-01 – 2000-08 → Drive lab_exchange/a42_sealed/ + hashes
+    .venv/Scripts/python.exe scripts/aa_a42_fetch.py gold       # monthly gold 1990-01 – 2000-08 → sealed folder (datahub gold-prices)
     .venv/Scripts/python.exe scripts/aa_a42_fetch.py prices     # Naver/Yahoo for the A42 products (lab_data/kr, not committed)
 
 Sealing (design §0-5): everything dated before 2000-09-01 goes only to the sealed folder on Drive. This script never
@@ -116,7 +117,7 @@ def sealed() -> None:
         report.append((t, len(part)))
         time.sleep(0.5)
     print("봉인 시리즈 (행 수만):", report)
-    print("금: 1990년대 일간 금 가격은 키 없이 받을 출처를 찾지 못함(FRED LBMA 시리즈 삭제됨). 봉인 묶음에 없음.")
+    print("금: 일간 출처는 없음(FRED LBMA 시리즈 삭제됨). 월간은 `gold` 명령으로 따로 받는다.")
 
 
 FX_ECOS_PATH = ROOT / "lab" / "aa_usdkrw_ecos.csv.gz"
@@ -142,6 +143,18 @@ def fx() -> None:
     print(f"매매기준율 {len(df)}일 → {FX_ECOS_PATH.name}")
 
 
+GOLD_MONTHLY = "https://raw.githubusercontent.com/datasets/gold-prices/main/data/monthly.csv"  # datahub.io gold-prices (USD/oz, monthly)
+
+
+def sealed_gold() -> None:
+    """Monthly gold price (USD per troy ounce, datahub 'gold-prices') for 1990-01 – 2000-08 only, written unread."""
+    df = pd.read_csv(io.StringIO(_get(GOLD_MONTHLY).text))
+    d = pd.to_datetime(df["Date"].astype(str) + "-01")
+    part = df[(d >= pd.Timestamp("1990-01-01")) & (d <= pd.Timestamp(aa_sealed.SEAL_END))]
+    _write_sealed("gold_monthly.csv", part.to_csv(index=False))
+    print(f"봉인 금 (월간): {len(part)}개월 (값은 보지 않음)")
+
+
 def prices() -> None:
     from lab import aa_real
     s = aa_real.fetch()
@@ -150,4 +163,4 @@ def prices() -> None:
 
 if __name__ == "__main__":
     cmd = sys.argv[1:2]
-    {"rates": rates, "sealed": sealed, "prices": prices, "fx": fx}.get(cmd[0] if cmd else "", lambda: (_ for _ in ()).throw(SystemExit(__doc__)))()
+    {"rates": rates, "sealed": sealed, "gold": sealed_gold, "prices": prices, "fx": fx}.get(cmd[0] if cmd else "", lambda: (_ for _ in ()).throw(SystemExit(__doc__)))()
