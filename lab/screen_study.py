@@ -42,7 +42,7 @@ EXCLUDE_MENU: dict[str, list[float]] = {
     "x_thin": [0.5, 1, 2, 5],
 }
 K_MENU = [20, 50, 100, 200]
-SELECT_KEYS = list(screens.SELECT_SCORES)
+SELECT_KEYS = [k for k in screens.SELECT_SCORES if k not in screens.STAGE_K_SCORES]  # as registered (DECISIONS 77)
 ENTRY_VARIANTS: dict[str, dict] = {"always": {"always": None}, "above_ma100": {"above_ma": 100}}
 # fixed trading layer: widest trailing stop of 76, an ATR initial stop for risk sizing, 20 slots
 TRADING = dict(exits={"trailing_pct": 30, "atr_stop": 3.0}, max_positions=20, cost_bps=20.0, min_price=5.0,

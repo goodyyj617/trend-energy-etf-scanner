@@ -36,7 +36,7 @@ from .screen_study import ScreenedConfig
 from .target import target_report
 
 # ---- registered menu (DECISIONS 79)
-SCORE_KEYS = list(screens.SELECT_SCORES)
+SCORE_KEYS = [k for k in screens.SELECT_SCORES if k not in screens.STAGE_K_SCORES]  # as registered (41 scores)
 EXCLUDE_VARIANTS = {"hygiene": {}, "template": {"tt_fail": 25}}  # added to screens.HYGIENE_DEFAULT
 K_MENU = [20, 50, 100]
 ENTRY_VARIANTS = {"always": {"always": None}, "above_ma100": {"above_ma": 100}}

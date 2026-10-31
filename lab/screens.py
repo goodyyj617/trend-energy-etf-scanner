@@ -174,14 +174,19 @@ def _x_weak_industry(p: Panel, x: float) -> pd.DataFrame:
     return ind.rank(axis=1, pct=True) < x / 100.0
 
 
-def _x_ivol(p: Panel, x: float) -> pd.DataFrame:
-    """Idiosyncratic volatility: residual of daily returns on SPY over 63 days, top X% excluded."""
+def _ivol(p: Panel) -> pd.DataFrame:
+    """Idiosyncratic volatility: std of the residual of daily returns on SPY over 63 days."""
     r = p.close.pct_change(fill_method=None)
     m = r[BENCHMARK]
     cov = r.rolling(63, min_periods=40).cov(m)
     beta = cov.div(m.rolling(63, min_periods=40).var(), axis=0)
     resid = r - beta * m.to_numpy()[:, None]
-    return _top_share(resid.rolling(63, min_periods=40).std(), x)
+    return resid.rolling(63, min_periods=40).std()
+
+
+def _x_ivol(p: Panel, x: float) -> pd.DataFrame:
+    """Idiosyncratic volatility: residual of daily returns on SPY over 63 days, top X% excluded."""
+    return _top_share(_ivol(p), x)
 
 def _x_downtrend(p: Panel, x: float) -> pd.DataFrame:
     return _ret(p.close, 12, 1) < x / 100.0
@@ -581,6 +586,19 @@ SELECT_SCORES.update({
 for key, tier in {"s_quality": 2, "s_lowvol": 2, "s_small": 3, "s_large": 3, "s_dividend": 3, "s_reversal": 3, "s_industry_rs": 3}.items():
     from dataclasses import replace as _replace
     SELECT_SCORES[key] = _replace(SELECT_SCORES[key], tier=tier)
+
+# Stage K (DECISIONS 91) features without a score before: added here, kept out of the registered
+# menus of score_study and screen_study (STAGE_K_SCORES), so earlier results stay as they were.
+SELECT_SCORES.update({
+    s.key: s for s in [
+        Screen("s_low_price", "저가주 우선", "−log(종가)", "주가가 낮은 종목을 앞세웁니다(Stage H 계수). 파라미터 없음.",
+               None, lambda p, _: -np.log(p.close.where(p.close > 0))),
+        Screen("s_low_ivol", "고유 변동성 낮음", "−(SPY 대비 잔차 변동성, 63일)",
+               "시장과 무관한 흔들림이 작은 종목(Ang 등 2006). '고유 변동성 상위' 제외 스크린과 같은 값입니다. 파라미터 없음.",
+               None, lambda p, _: -_ivol(p), "보조지표", 2),
+    ]
+})
+STAGE_K_SCORES = ("s_low_price", "s_low_ivol")
 STYLE_TILTS = ("s_small", "s_large", "s_dividend", "s_reversal", "s_lowvol")  # single-factor tilts (kept: the user wants small caps testable)
 TIER_LABELS = {1: "1순위: 가격·거래량", 2: "2순위: 파생 지표", 3: "3순위: 규모·배당·업종"}
 
