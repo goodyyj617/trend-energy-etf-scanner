@@ -934,6 +934,28 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     pseudo-vs-pseudo, CAGR change vs cap-rank change, candidate histograms. Holdout unused. Runner
     lab/exclude_study.py (results lab_crsp/stage_m_exclude). Design:
     docs/research/lab/2026-11-01_stage_m_design.md.
+    Result (2026-11-01, run 03:12-04:14 KST; runner 7efff7c): excluded share of the buy rules'
+    signals M1 29.0%, M2 28.6%, M3 41.9% (E0 29.8 / 29.5 / 47.1%); a missing feature value excludes
+    nothing (0-0.9% of signals; not stated in the design). Reproduction: the 220 no-exclusion cells
+    (15 rules + 5 E0 seeds x 11 exits, 3,740 values) equal Stage L's tables to 1.1e-16, with the
+    T-bill cash series from Stage L's yfinance cache (a fresh download moved CAGR / MDD by ~1e-7).
+    Verdict: no rule has information. (b) beats the Binomial(15, p0) 95th percentile under M1 2
+    exits (H9, ST), M2 3 and M3 3 (PS, H9, ST) of the 11, below the registered 6; (a) under 9 / 10
+    / 9 exits (all but RS; also not MA for M1, PS for M3), contribution about 1.2x the pseudo (M3 1.3x). 10-stock
+    CAGR minus the pseudo median over the 165 cells: median +0.2 / +0.2 / +0.3 pp (1993-2007 -0.1 /
+    -0.0 / -0.2, 2008-2023 +0.4 / +0.6 / +0.7; the 2008-2023 distribution is right of
+    pseudo-vs-pseudo at p < 0.001, 1993-2007 not); (b) pass share 36-38% vs pseudo 25-26%. Against
+    no exclusion: median cell CAGR 6.6% -> 6.8 / 6.8 / 6.6% (change +0.24 / +0.31 / +0.42 pp), MDD
+    -53.3% -> -49.3 / -50.1 / -48.7%. 2017-2023 gap unchanged (median change +0.6 / +0.9 / +0.7 pp,
+    pseudo +0.1 / +0.2 / +0.0; cells >= SPY 13.2% 0 -> 0 of 165; best 12.9% M2 x E9 x ST). No cell
+    passed the SPY test at 20 bp (also none without exclusion), so no candidate, 40 bp run or DSR.
+    Size: kept trades moved 260-360 cap ranks larger, rank correlation with the CAGR change -0.13 /
+    -0.18 / -0.26 (not flagged). X1 (fixed 10% weight) same sign (+0.0 / +0.2 / +0.3 pp vs +0.2 /
+    +0.2 / +0.3 for the 1%-rule exits). Per-signal returns: rule vs pseudo-kept p < 0.05 in 96-97%
+    of cells (rule higher in 94-95%; pseudo vs pseudo 0.3-0.7%), median P(rule > pseudo) 0.52-0.53;
+    under H1 -20% losses 2.3% vs 5.6% (1993-2007) and 1.8% vs 4.7% (2008-2023) with +50% winners
+    unchanged. E0 (shown only): (b) passes under 8 / 8 / 10 exits, up to +2.1 pp (RS -1.8 to -2.0). Trials +495 (about 70,574).
+    Record: docs/research/lab/2026-11-01_stage_m_results.md.
 
 ## Open decisions
 

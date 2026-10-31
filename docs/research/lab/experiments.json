@@ -2,6 +2,31 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_m_exclude",
+      "title": "Stage M: '피할 종목' 제외를 고정하고 매수 15 × 매도 11에서 재시험 (vs 같은 날 같은 수의 가짜 제외)",
+      "date": "2026-11-01",
+      "status": "완료",
+      "decision": "92",
+      "memo": "docs/research/lab/2026-11-01_stage_m_results.md",
+      "results_dir": "lab_crsp/stage_m_exclude",
+      "kind": "",
+      "why": "Stage K에서 '나쁜 종목'(고유 변동성·변동성 상위, 낙폭 깊음, 52주 고가에서 멂)만 산 계좌가 무작위보다 연 4–9%p 못했다. 그 종목을 신호일에 미리 빼면(M1 고유 변동성 상위 30%, M2 60일 변동성 상위 30%, M3 셋의 합집합) 매수 15 × Stage L 매도 11 전체에서 같은 날 같은 수를 무작위로 뺀 가짜 제외 20개보다 나은지, 2017–2023 SPY 격차가 줄고 후보가 나오는지 본다. 결과를 본 뒤 고른 규칙이라 사후 시험이다.",
+      "results": [
+        "등록 기준으로는 세 규칙 모두 '정보 없음': 10종목 계좌 (b)에서 우연 95% 분위를 넘은 매도가 M1 2종(H9·ST), M2·M3 3종(PS·H9·ST)으로 기준 6종에 못 미쳤다. 신호당 기여 (a)는 9–10종에서 우연을 넘었다(가짜 대비 약 1.2배).",
+        "신호 하나의 질은 분명히 좋아졌다: 칸별 순위 검정 p<0.05가 96–97%(가짜끼리 0.3–0.7%), 매도 H1에서 −20% 이하 손실 2.3% vs 5.6%(1993–2007), 1.8% vs 4.7%(2008–2023), +50% 이상 비율은 거의 같음. 그러나 10종목 계좌의 가짜 대비 차이는 중앙값 +0.2–0.3%p이고 2008–2023(+0.4–0.7%p)에만 있었다. 제외 전보다 CAGR +0.2–0.4%p, MDD 2–3%p 얕음.",
+        "2017–2023 격차는 '그대로'(변화 중앙값 +0.6·+0.9·+0.7%p, 기준 +1%p). SPY 이상 칸은 제외 전후 모두 0/165, 후보 없음. 크기 효과(순위상관 −0.13 – −0.26)나 1% 룰 비중(X1에서도 같은 방향)만으로 설명되지는 않는다. 제외 없음 220칸은 Stage L 결과표와 최대 차 1.1e-16으로 같았다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_m_exclude/heatmap_M1.png", "caption": "M1 고유 변동성 상위 30% 제외: 매수 × 매도별 10종목 CAGR − 가짜 중앙값"},
+        {"path": "docs/research/lab/figures/stage_m_exclude/returns_kept_vs_pseudo.png", "caption": "신호 하나 수익률: 제외 규칙이 남긴 신호 vs 가짜 제외 (매수 15개 합산, H1)"},
+        {"path": "docs/research/lab/figures/stage_m_exclude/gap_2017_2023.png", "caption": "2017–2023 CAGR 제외 전 vs 후, SPY 13.2% 선"},
+        {"path": "docs/research/lab/figures/stage_m_exclude/excess_vs_pseudo.png", "caption": "495칸 초과 수익 분포 vs 가짜끼리, 두 반쪽"},
+        {"path": "docs/research/lab/figures/stage_m_exclude/size_diagnostic.png", "caption": "크기 진단: 시총 순위 이동 대 CAGR 변화"},
+        {"path": "docs/research/lab/figures/stage_m_exclude/heatmap_M2.png", "caption": "M2 60일 변동성 상위 30% 제외 히트맵"},
+        {"path": "docs/research/lab/figures/stage_m_exclude/heatmap_M3.png", "caption": "M3 합집합 제외 히트맵"}
+      ]
+    },
+    {
       "id": "stage_k_select",
       "title": "Stage K: 종목 선택 규칙 하나씩 (vs 같은 날 같은 수의 가짜 규칙)",
       "date": "2026-10-31",

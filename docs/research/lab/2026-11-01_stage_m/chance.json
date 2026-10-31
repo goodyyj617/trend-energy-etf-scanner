@@ -1,0 +1,1670 @@
+{
+ "by_rule": {
+  "M1": {
+   "by_exit": {
+    "X1": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 5,
+      "p0": 0.28,
+      "expected": 4.2,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E2",
+       "E8",
+       "E9",
+       "V1",
+       "V2"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.44534409165521843
+     }
+    },
+    "H1": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.23,
+      "expected": 3.45,
+      "q95": 6,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 4,
+      "p0": 0.26666666666666666,
+      "expected": 4.0,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E5",
+       "E7",
+       "E8",
+       "V1"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.4920592663397755
+     }
+    },
+    "CH": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 11,
+      "p0": 0.26,
+      "expected": 3.9000000000000004,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 7,
+      "p0": 0.26,
+      "expected": 3.9000000000000004,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E2",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V3",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.5432556750041155
+     }
+    },
+    "PS": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 8,
+      "p0": 0.25333333333333335,
+      "expected": 3.8000000000000003,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E4",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 7,
+      "p0": 0.25333333333333335,
+      "expected": 3.8000000000000003,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E2",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V3",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.0923060254407602
+     }
+    },
+    "LB": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 11,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 5,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "E8",
+       "V1",
+       "V3",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.0127964899258628
+     }
+    },
+    "MA": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 7,
+      "p0": 0.25666666666666665,
+      "expected": 3.8499999999999996,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E1",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 3,
+      "p0": 0.2633333333333333,
+      "expected": 3.9499999999999997,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "E8",
+       "V2"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": false,
+      "excess_1993_2023_pp": -0.8745867094403549
+     }
+    },
+    "H9": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 14,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 9,
+      "p0": 0.23333333333333334,
+      "expected": 3.5,
+      "q95": 6,
+      "information": true,
+      "passing": [
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V5"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.2477752541744076
+     }
+    },
+    "TP": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.25666666666666665,
+      "expected": 3.8499999999999996,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 3,
+      "p0": 0.27,
+      "expected": 4.050000000000001,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "V1",
+       "V6"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.3891272389811004
+     }
+    },
+    "ST": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 10,
+      "p0": 0.26,
+      "expected": 3.9000000000000004,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E2",
+       "E3",
+       "E6",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.0925033079871111
+     }
+    },
+    "RS": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 0,
+      "p0": 0.25,
+      "expected": 3.75,
+      "q95": 7,
+      "information": false,
+      "passing": []
+     },
+     "b": {
+      "observed": 3,
+      "p0": 0.2633333333333333,
+      "expected": 3.9499999999999997,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "V1",
+       "V3",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": false,
+      "b": false,
+      "excess_1993_2023_pp": -1.99399656920215
+     }
+    },
+    "MN": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 14,
+      "p0": 0.27666666666666667,
+      "expected": 4.15,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 3,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "V1",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": false,
+      "excess_1993_2023_pp": -0.2624538465937847
+     }
+    }
+   },
+   "exits_with_information": {
+    "a": [
+     "CH",
+     "H1",
+     "H9",
+     "LB",
+     "MN",
+     "PS",
+     "ST",
+     "TP",
+     "X1"
+    ],
+    "b": [
+     "H9",
+     "ST"
+    ]
+   },
+   "information": false
+  },
+  "M2": {
+   "by_exit": {
+    "X1": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.25333333333333335,
+      "expected": 3.8000000000000003,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 5,
+      "p0": 0.23333333333333334,
+      "expected": 3.5,
+      "q95": 6,
+      "information": false,
+      "passing": [
+       "E2",
+       "E9",
+       "V1",
+       "V2",
+       "V3"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.36558621028652677
+     }
+    },
+    "H1": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.25666666666666665,
+      "expected": 3.8499999999999996,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 6,
+      "p0": 0.26,
+      "expected": 3.9000000000000004,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E4",
+       "E7",
+       "E9",
+       "V1",
+       "V2",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.6071998330703848
+     }
+    },
+    "CH": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 11,
+      "p0": 0.2633333333333333,
+      "expected": 3.9499999999999997,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 5,
+      "p0": 0.25666666666666665,
+      "expected": 3.8499999999999996,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E2",
+       "E7",
+       "E8",
+       "V1",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.9783931025826781
+     }
+    },
+    "PS": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 8,
+      "p0": 0.25666666666666665,
+      "expected": 3.8499999999999996,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E4",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 8,
+      "p0": 0.2633333333333333,
+      "expected": 3.9499999999999997,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E2",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.9902471206061001
+     }
+    },
+    "LB": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 13,
+      "p0": 0.2866666666666667,
+      "expected": 4.3,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 5,
+      "p0": 0.27,
+      "expected": 4.050000000000001,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "E8",
+       "V1",
+       "V3",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.1349602442035576
+     }
+    },
+    "MA": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 8,
+      "p0": 0.2733333333333333,
+      "expected": 4.1,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E4",
+       "E7",
+       "E8",
+       "E9",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 4,
+      "p0": 0.25666666666666665,
+      "expected": 3.8499999999999996,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "E8",
+       "E9",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": false,
+      "excess_1993_2023_pp": -0.616324010428995
+     }
+    },
+    "H9": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 14,
+      "p0": 0.25333333333333335,
+      "expected": 3.8000000000000003,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 13,
+      "p0": 0.25,
+      "expected": 3.75,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.9719254966687907
+     }
+    },
+    "TP": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.25666666666666665,
+      "expected": 3.8499999999999996,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 2,
+      "p0": 0.25,
+      "expected": 3.75,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.027906295286062033
+     }
+    },
+    "ST": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.21666666666666667,
+      "expected": 3.25,
+      "q95": 6,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 11,
+      "p0": 0.24,
+      "expected": 3.5999999999999996,
+      "q95": 6,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V2",
+       "V3",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.743983788969367
+     }
+    },
+    "RS": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 1,
+      "p0": 0.28,
+      "expected": 4.2,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "V4"
+      ]
+     },
+     "b": {
+      "observed": 2,
+      "p0": 0.23666666666666666,
+      "expected": 3.55,
+      "q95": 6,
+      "information": false,
+      "passing": [
+       "V1",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": false,
+      "b": false,
+      "excess_1993_2023_pp": -1.8933732405176096
+     }
+    },
+    "MN": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 13,
+      "p0": 0.25,
+      "expected": 3.75,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 2,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": false,
+      "excess_1993_2023_pp": 0.06339083077991012
+     }
+    }
+   },
+   "exits_with_information": {
+    "a": [
+     "CH",
+     "H1",
+     "H9",
+     "LB",
+     "MA",
+     "MN",
+     "PS",
+     "ST",
+     "TP",
+     "X1"
+    ],
+    "b": [
+     "H9",
+     "PS",
+     "ST"
+    ]
+   },
+   "information": false
+  },
+  "M3": {
+   "by_exit": {
+    "X1": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 4,
+      "p0": 0.25333333333333335,
+      "expected": 3.8000000000000003,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E2",
+       "E7",
+       "E8",
+       "V1"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.42853422576069333
+     }
+    },
+    "H1": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.23666666666666666,
+      "expected": 3.55,
+      "q95": 6,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 5,
+      "p0": 0.2633333333333333,
+      "expected": 3.9499999999999997,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.7237294055001329
+     }
+    },
+    "CH": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 12,
+      "p0": 0.25,
+      "expected": 3.75,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 6,
+      "p0": 0.27,
+      "expected": 4.050000000000001,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E2",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 2.1066499190919754
+     }
+    },
+    "PS": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 7,
+      "p0": 0.2633333333333333,
+      "expected": 3.9499999999999997,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E1",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 8,
+      "p0": 0.26,
+      "expected": 3.9000000000000004,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V3",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.8225682784183954
+     }
+    },
+    "LB": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 13,
+      "p0": 0.25,
+      "expected": 3.75,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 6,
+      "p0": 0.2733333333333333,
+      "expected": 4.1,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.5617014192726806
+     }
+    },
+    "MA": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 8,
+      "p0": 0.22333333333333333,
+      "expected": 3.35,
+      "q95": 6,
+      "information": true,
+      "passing": [
+       "E1",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V4",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 2,
+      "p0": 0.2633333333333333,
+      "expected": 3.9499999999999997,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E7",
+       "E9"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.2596631176325512
+     }
+    },
+    "H9": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 14,
+      "p0": 0.22666666666666666,
+      "expected": 3.4,
+      "q95": 6,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 11,
+      "p0": 0.22333333333333333,
+      "expected": 3.35,
+      "q95": 6,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V2",
+       "V4",
+       "V5"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.1140244886756177
+     }
+    },
+    "TP": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.24,
+      "expected": 3.5999999999999996,
+      "q95": 6,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 5,
+      "p0": 0.2733333333333333,
+      "expected": 4.1,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E6",
+       "E7",
+       "E8",
+       "V1",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.5644959729829702
+     }
+    },
+    "ST": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 15,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E2",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 11,
+      "p0": 0.24666666666666667,
+      "expected": 3.7,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E2",
+       "E3",
+       "E5",
+       "E6",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 1.380403424956178
+     }
+    },
+    "RS": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 0,
+      "p0": 0.28,
+      "expected": 4.2,
+      "q95": 7,
+      "information": false,
+      "passing": []
+     },
+     "b": {
+      "observed": 1,
+      "p0": 0.2733333333333333,
+      "expected": 4.1,
+      "q95": 7,
+      "information": false,
+      "passing": [
+       "E8"
+      ]
+     },
+     "e0": {
+      "a": false,
+      "b": false,
+      "excess_1993_2023_pp": -1.817812301539787
+     }
+    },
+    "MN": {
+     "n_judged": 15,
+     "excluded_few_trades": 0,
+     "a": {
+      "observed": 14,
+      "p0": 0.25666666666666665,
+      "expected": 3.8499999999999996,
+      "q95": 7,
+      "information": true,
+      "passing": [
+       "E1",
+       "E3",
+       "E4",
+       "E5",
+       "E6",
+       "E7",
+       "E8",
+       "E9",
+       "V1",
+       "V2",
+       "V3",
+       "V4",
+       "V5",
+       "V6"
+      ]
+     },
+     "b": {
+      "observed": 3,
+      "p0": 0.23,
+      "expected": 3.45,
+      "q95": 6,
+      "information": false,
+      "passing": [
+       "E6",
+       "E7",
+       "V4"
+      ]
+     },
+     "e0": {
+      "a": true,
+      "b": true,
+      "excess_1993_2023_pp": 0.6603482585650577
+     }
+    }
+   },
+   "exits_with_information": {
+    "a": [
+     "CH",
+     "H1",
+     "H9",
+     "LB",
+     "MA",
+     "MN",
+     "ST",
+     "TP",
+     "X1"
+    ],
+    "b": [
+     "H9",
+     "PS",
+     "ST"
+    ]
+   },
+   "information": false
+  }
+ },
+ "gap": {
+  "M1": {
+   "cells": 165,
+   "median_change_pp": 0.6199719728068848,
+   "pseudo_median_change_pp": 0.07984169388935564,
+   "share_up": 0.6787878787878788,
+   "spy": 0.13220802070518545,
+   "ew": 0.08465346711145227,
+   "ge_spy_before": 0,
+   "ge_spy_after": 0,
+   "ge_ew_before": 29,
+   "ge_ew_after": 30,
+   "verdict": "그대로다"
+  },
+  "M2": {
+   "cells": 165,
+   "median_change_pp": 0.8651151026433102,
+   "pseudo_median_change_pp": 0.2334556381823425,
+   "share_up": 0.6909090909090909,
+   "spy": 0.13220802070518545,
+   "ew": 0.08465346711145227,
+   "ge_spy_before": 0,
+   "ge_spy_after": 0,
+   "ge_ew_before": 29,
+   "ge_ew_after": 33,
+   "verdict": "그대로다"
+  },
+  "M3": {
+   "cells": 165,
+   "median_change_pp": 0.7154233985571252,
+   "pseudo_median_change_pp": 0.03646666406504975,
+   "share_up": 0.6666666666666666,
+   "spy": 0.13220802070518545,
+   "ew": 0.08465346711145227,
+   "ge_spy_before": 0,
+   "ge_spy_after": 0,
+   "ge_ew_before": 29,
+   "ge_ew_after": 31,
+   "verdict": "그대로다"
+  }
+ },
+ "size": {
+  "M1": {
+   "median_shift": -287.5,
+   "median_shift_vs_pseudo": -238.75,
+   "rho_vs_none": -0.12607960420038009,
+   "rho_vs_pseudo": -0.23974877597722802,
+   "not_separated": false
+  },
+  "M2": {
+   "median_shift": -262.25,
+   "median_shift_vs_pseudo": -222.5,
+   "rho_vs_none": -0.18230778941710127,
+   "rho_vs_pseudo": -0.2252853450571512,
+   "not_separated": false
+  },
+  "M3": {
+   "median_shift": -361.75,
+   "median_shift_vs_pseudo": -299.25,
+   "rho_vs_none": -0.2585885975265087,
+   "rho_vs_pseudo": -0.41786692704738176,
+   "not_separated": false
+  }
+ },
+ "x1": {
+  "M1": {
+   "x1_b_pass": 5,
+   "x1_median_excess_pp": 0.0011177436350623404,
+   "risk_exits_median_excess_pp": 0.21401117420091997,
+   "x1_same_sign": true
+  },
+  "M2": {
+   "x1_b_pass": 5,
+   "x1_median_excess_pp": 0.24413428726881015,
+   "risk_exits_median_excess_pp": 0.18060420470634025,
+   "x1_same_sign": true
+  },
+  "M3": {
+   "x1_b_pass": 4,
+   "x1_median_excess_pp": 0.2637571742038408,
+   "risk_exits_median_excess_pp": 0.25922540180392606,
+   "x1_same_sign": true
+  }
+ },
+ "stats": {
+  "M1": {
+   "cells": 165,
+   "rule_p_lt_05": 0.9575757575757575,
+   "rule_p_lt_05_higher": 0.9454545454545454,
+   "pseudo_p_lt_05": 0.0033333333333333335,
+   "rule_ci_above_0": 0.6242424242424243,
+   "rule_ci_below_0": 0.030303030303030304,
+   "median_diff_pp": 0.24307368048300002,
+   "median_auc": 0.5244963704973871,
+   "e0_diff_pp": 0.27644468507119996,
+   "e0_p_lt_05": 1.0
+  },
+  "M2": {
+   "cells": 165,
+   "rule_p_lt_05": 0.9696969696969697,
+   "rule_p_lt_05_higher": 0.9515151515151515,
+   "pseudo_p_lt_05": 0.0036363636363636364,
+   "rule_ci_above_0": 0.6181818181818182,
+   "rule_ci_below_0": 0.024242424242424242,
+   "median_diff_pp": 0.25976739897944,
+   "median_auc": 0.5241543286753974,
+   "e0_diff_pp": 0.23657309091787998,
+   "e0_p_lt_05": 1.0
+  },
+  "M3": {
+   "cells": 165,
+   "rule_p_lt_05": 0.9696969696969697,
+   "rule_p_lt_05_higher": 0.9393939393939394,
+   "pseudo_p_lt_05": 0.007272727272727273,
+   "rule_ci_above_0": 0.6484848484848484,
+   "rule_ci_below_0": 0.048484848484848485,
+   "median_diff_pp": 0.3592490867785,
+   "median_auc": 0.5316599740291525,
+   "e0_diff_pp": 0.64340942752901,
+   "e0_p_lt_05": 1.0
+  }
+ },
+ "excluded": {
+  "M1": {
+   "base_share": 0.29152330968572565,
+   "kept_share_median": 0.6973244258092582
+  },
+  "M2": {
+   "base_share": 0.28763427374034567,
+   "kept_share_median": 0.6974247261475035
+  },
+  "M3": {
+   "base_share": 0.42979293676124325,
+   "kept_share_median": 0.5647817638425436
+  }
+ },
+ "candidates_20bp": [],
+ "candidates": [],
+ "trials": {
+  "before": 70079,
+  "new": 495
+ },
+ "sr_var_daily": 0.003266601299039582
+}
