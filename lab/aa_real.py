@@ -44,7 +44,19 @@ REAL_DIR = CACHE_DIR / "kr"
 SAME_DAY = frozenset({"069500", "122630", "459580"})  # KOSPI (model from EWY) and KRW cash: same calendar date
 SPLICE_LAG = 5  # Seoul trading days after the first real close
 SYN_REAL = {"SYN_IEF_U": "305080", "SYN_TLT_U": "476760"}  # synthetic product -> real product standing in for it
-EXTRA_CODES = {"308620": "KODEX 미국채10년선물", "453850": "ACE 미국30년국채액티브(H)"}  # real prices that are not products
+EXTRA_CODES = {"308620": "KODEX 미국채10년선물", "453850": "ACE 미국30년국채액티브(H)",  # real prices that are not products
+               "267440": "RISE 미국장기국채선물(H)", "304660": "KODEX 미국30년국채울트라선물(H)"}  # A42 0-2 hedge-cost estimate
+# A42 0-6: known faults in the real price files, applied only when a caller passes quirks=QUIRKS (opt-in, so every
+# result made before A42 is unchanged). kind "interp": the close on `date` is replaced by the geometric mean of the
+# closes around it; kind "keep": checked and left as it is (the reason says why).
+QUIRKS = (
+    {"code": "261240", "dates": ("2019-03-14",), "kind": "interp",
+     "reason": "KODEX 미국달러선물 2019-03-14 +22.0% 뒤 이튿날 −17.7%: 하루짜리 이상 체결(A33). 원/달러(DEXKOUS)는 그날 +0.4%, 이튿날 −0.1%였다."},
+    {"code": "069500", "dates": ("2026-07-28", "2026-07-29", "2026-07-30", "2026-07-31"), "kind": "keep",
+     "reason": "KODEX 200 2026-07-28 – 31 −11.2·−6.3·−2.0·+24.2%: EWY도 같은 주 −6.1·−4.8·+11.8%로 실제 시장 움직임. 그대로 둔다."},
+    {"code": "*", "dates": ("2025-12-29",), "kind": "keep",
+     "reason": "2025-12-29 분배금 21종(그중 11종은 이력상 유일한 분배): 대부분 그날 종가가 분배금만큼 떨어졌다. 실제 분배로 보고 그대로 둔다."},
+)
 # A41: earlier-listed real stand-ins, oldest first, used before a column's own real prices (opt-in, see hybrid_panel)
 A41_CHAINS = {"0046A0": ("261240",), "484790": ("453850",)}
 REAL_CODES = sorted(set(PRODUCTS) | set(EXTRA_CODES))
@@ -81,13 +93,30 @@ def total_return_index(close: pd.Series, dividends: pd.Series | None = None) -> 
     return (1.0 + r.fillna(0.0)).cumprod()
 
 
-def real_series(naver: pd.DataFrame, yahoo: pd.DataFrame) -> dict[str, pd.Series]:
-    """code -> Seoul-calendar total-return index."""
+def apply_quirks(code: str, close: pd.Series, quirks=QUIRKS) -> pd.Series:
+    """The close series of one code with the "interp" quirks applied (see QUIRKS)."""
+    close = close.copy()
+    idx = pd.DatetimeIndex(pd.to_datetime(close.index))
+    for q in quirks or ():
+        if q["kind"] != "interp" or q["code"] not in (code, "*"):
+            continue
+        for d in q["dates"]:
+            pos = idx.searchsorted(pd.Timestamp(d))
+            if 0 < pos < len(close) - 1 and idx[pos] == pd.Timestamp(d):
+                close.iloc[pos] = float(np.sqrt(close.iloc[pos - 1] * close.iloc[pos + 1]))
+    return close
+
+
+def real_series(naver: pd.DataFrame, yahoo: pd.DataFrame, quirks=None) -> dict[str, pd.Series]:
+    """code -> Seoul-calendar total-return index. ``quirks`` (e.g. QUIRKS) fixes known faults; None = as before."""
     out = {}
     for code, n in naver.groupby("code"):
         y = yahoo[yahoo["code"] == code]
         divs = y.set_index("date")["dividends"].astype(float) if "dividends" in y and len(y) else None
-        tr = total_return_index(n.set_index("date")["close"], divs)
+        close = n.set_index("date")["close"]
+        if quirks:
+            close = apply_quirks(str(code), close, quirks)
+        tr = total_return_index(close, divs)
         if len(tr) > SPLICE_LAG + 1:
             out[str(code)] = tr
     return out
@@ -191,8 +220,8 @@ def ensure_files(folder: Path | str = REAL_DIR, max_age_hours: float = REFRESH_H
         return f"실제 가격을 새로 받지 못했습니다 ({exc})."
 
 
-def apply_source(panel: Panel, source: str, folder: Path | str = REAL_DIR, chains: dict[str, tuple[str, ...]] | None = None
-                 ) -> tuple[Panel, dict[str, dict] | None, str]:
+def apply_source(panel: Panel, source: str, folder: Path | str = REAL_DIR, chains: dict[str, tuple[str, ...]] | None = None,
+                 quirks=None) -> tuple[Panel, dict[str, dict] | None, str]:
     """The panel for a price source ("real" or "model"), the splice info (None for the model) and a status line."""
     if source != "real":
         return panel, None, "모형만: 모든 상품이 전 기간 미국 대용 × 원/달러입니다."
@@ -200,7 +229,7 @@ def apply_source(panel: Panel, source: str, folder: Path | str = REAL_DIR, chain
     if files is None:
         return panel, None, (f"실제 가격 파일이 없어 모형으로 계산했습니다 ({Path(folder) / 'naver.csv.gz'}). "
                              "`python -m lab.aa_real fetch`로 받으세요.")
-    hyb, info = hybrid_panel(panel, real_series(*files), chains=chains)
+    hyb, info = hybrid_panel(panel, real_series(*files, quirks=quirks), chains=chains)
     n = sum(1 for d in info.values() if d["splice"] is not None)
     last = max((d["real_last"] for d in info.values() if d["real_last"] is not None), default=None)
     return hyb, info, f"실제 가격: {n}/{len(info)}종, 상장 5거래일 뒤부터 (실제 가격 ~ {last.date() if last is not None else '–'})"

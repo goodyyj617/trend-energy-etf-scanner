@@ -208,8 +208,8 @@ def test_stage2_real_columns_match_the_committed_real_price_run_by_weights():
 def test_real_products_table_has_a_start_date_for_every_product():
     rp = sr.load_real_products()
     own = rp[rp["kind"] == "product"]
-    from lab.aa_assets import ADDED_A41  # the A33 table (2026-10-26) predates the A41 products
-    assert set(own["model"]) == set(sr.PRODUCTS) - set(ADDED_A41)
+    from lab.aa_assets import ADDED_A41, ADDED_A42  # the A33 table (2026-10-26) predates the A41 / A42 products
+    assert set(own["model"]) == set(sr.PRODUCTS) - set(ADDED_A41) - set(ADDED_A42)
     assert set(rp.loc[rp["kind"] == "synthetic", "model"]) == set(sr.SYNTHETIC)
 
 

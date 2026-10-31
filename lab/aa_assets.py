@@ -22,6 +22,9 @@ from dataclasses import dataclass
 CASH = "CASH"  # uninvested KRW cash (Bank of Korea base rate)
 KRX_GOLD = "KRXGOLD"  # KRX 금시장 spot gold held in a 금현물 계좌 (not an ETF, no KRX ticker; DECISIONS A41)
 KRW_CASH, USD_CASH = "KRW_CASH", "USD_CASH"  # pseudo proxies for the cash-like products
+# A42: pseudo proxies built from Korean government bond yields (lab/aa_korea.ktb_returns, ECOS 721Y001 monthly)
+KTB3, KTB10, KTB30 = "KTB3", "KTB10", "KTB30"
+PSEUDO = (KRW_CASH, USD_CASH, KTB3, KTB10, KTB30)
 BENCHMARK_CODE = "379800"  # KODEX 미국S&P500, the KRW version of "SPY"
 CLASS_ORDER = ["주식", "채권", "금·실물", "현금·달러", "레버리지"]
 FX_LABELS = {"unhedged": "환노출", "hedged": "환헤지(H)", "krw": "원화", "krw_native": "원화(국내 주식)"}
@@ -43,11 +46,12 @@ class Product:
 
     @property
     def proxy_symbols(self) -> list[str]:
-        return [s for s, _ in self.proxy if s not in (KRW_CASH, USD_CASH)]
+        return [s for s, _ in self.proxy if s not in PSEUDO]
 
     @property
     def proxy_text(self) -> str:
-        names = {KRW_CASH: "한국은행 기준금리", USD_CASH: "달러 현금(미국 단기국채)"}
+        names = {KRW_CASH: "한국은행 기준금리", USD_CASH: "달러 현금(미국 단기국채)", KTB3: "국고채 3년 금리",
+                 KTB10: "국고채 10년 금리", KTB30: "국고채 30년 금리(2012-09 전 20년·10년)"}
         parts = [f"{names.get(s, s)}" + ("" if w == 1 else f" {w:g}") for s, w in self.proxy]
         lev = "" if self.leverage == 1 else f" × {self.leverage:g}배 (일일)"
         return " + ".join(parts) + lev
@@ -72,6 +76,8 @@ PRODUCTS: dict[str, Product] = {p.code: p for p in [
     # 미국 섹터 (DECISIONS A22, 2026-10-24 추가). KODEX S&P500 섹터 시리즈는 환노출로 봄(테크놀로지 상품 자료에 '원화 환산 지수,
     # 환헤지 미실시'. 나머지는 명시 없음).
     _p("245340", "TIGER 미국다우존스30", "주식", [("DIA", 1)], "unhedged", 0.35, "2016-07-01", note="다우존스 산업평균 30종목."),
+    _p("446720", "SOL 미국배당다우존스", "주식", [("SCHD", 1)], "unhedged", 0.01, "2022-11-15",
+       note="Dow Jones U.S. Dividend 100(가격지수) 추종, 분배금 지급(A42 0-4). 대용 SCHD(2011-10 –) ← DVY(2003-11 –), 그 전은 자료 없음."),
     _p("463640", "KODEX 미국S&P500유틸리티", "주식", [("XLU", 1)], "unhedged", 0.25, "2023-08-01",
        note="S&P 500 유틸리티 섹터. 방어 섹터(배당·낮은 변동성)."),
     _p("453630", "KODEX 미국S&P500필수소비재", "주식", [("XLP", 1)], "unhedged", 0.25, "2023-03-21",
@@ -97,6 +103,13 @@ PRODUCTS: dict[str, Product] = {p.code: p for p in [
        note="미국 10년 국채 선물, 환노출. 대용 IEF는 선물 롤 비용·금리차를 반영하지 못함(A33: 실제가 모형보다 연 1.2–1.9%p 낮음)."),
     _p("476760", "ACE 미국30년국채액티브", "채권", [("TLT", 1)], "unhedged", 0.05, "2024-03-12",
        note="미국 30년 국채, 환노출(같은 운용사의 453850은 환헤지판)."),
+    # 국고채 (DECISIONS A42 0-3, 2026-10-29 추가. 이름·첫 거래일·총보수·기초지수는 네이버 금융에서 확인)
+    _p("114260", "KODEX 국고채3년", "채권", [(KTB3, 1)], "krw", 0.15, "2009-07-29",
+       note="MKF 국고채지수(총수익). 상장 전 대용은 국고채 3년 금리의 쿠폰 + 듀레이션 2.8 × 금리 변화(월간 금리, 만기 고정 근사)."),
+    _p("148070", "KIWOOM 국고채10년", "채권", [(KTB10, 1)], "krw", 0.05, "2011-10-20",
+       note="KIS 국고채 10년(총수익). 상장 전 대용은 국고채 10년 금리(2000-10 –)로 만든 총수익(듀레이션 8.3)."),
+    _p("439870", "KODEX 국고채30년액티브", "채권", [(KTB30, 1)], "krw", 0.05, "2022-08-23",
+       note="KAP 국고채 30년 총수익. 상장 전 대용은 국고채 30년 금리(2012-09 –, 그 전 20년 2006-01 –, 그 전 10년)로 만든 총수익(듀레이션 19)."),
     # 금·실물
     _p("411060", "ACE KRX금현물", "금·실물", [("GLD", 1)], "unhedged", 0.19, "2021-12-15",
        note="KRX 금시장 가격(원화)을 따름 = 국제 금값 × 환율 근사. 국내 금 프리미엄(2025년 한때 +10% 이상)은 반영 안 됨. 다른 운용사의 KRX금현물 ETF도 같은 방식."),
@@ -127,6 +140,7 @@ PRODUCTS: dict[str, Product] = {p.code: p for p in [
 ]}
 # registered for A41 (2026-10-28), after the A31–A40 records were written: those records do not cover them
 ADDED_A41 = ("329750", "305080", "476760", KRX_GOLD, "0046A0")
+ADDED_A42 = ("114260", "148070", "439870", "446720")  # registered for A42 stage 0 (2026-10-29)
 PROXY_SYMBOLS = sorted({s for p in PRODUCTS.values() for s in p.proxy_symbols})
 DEFAULT_PRODUCTS = ["379800", "251350", "291890", "484790", "0091C0", "411060"]
 
