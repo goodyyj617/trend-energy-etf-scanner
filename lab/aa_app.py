@@ -2818,6 +2818,38 @@ def chart_a42_0_hedge() -> go.Figure:
     return fig
 
 
+def chart_a42_1_scenarios() -> go.Figure:
+    t = exps.a42_1_scenarios()
+    fig = go.Figure()
+    for k, name in enumerate(dict.fromkeys(t["배분"])):
+        part = t[t["배분"] == name]
+        fig.add_trace(go.Bar(x=part["이름"], y=part["손실"], name=name + ("" if part["판정"].iloc[0] else " (판정 미달)"),
+                             marker_color=PALETTE[k % len(PALETTE)], hovertemplate=name + "<br>%{x}: %{y:.1f}%<extra></extra>"))
+    fig.add_hline(y=-25, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=480, barmode="group", margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.3),
+                      title=dict(text="시나리오 8개의 선형 손실 (요인 노출 × 충격, 대표 가격 세트)<br>"
+                                      "<sup>점선 −25%: 8개 중 이보다 나쁜 것이 2개 이하면 통과. 충격은 실행 전에 고정(설계 §1)</sup>"),
+                      yaxis=dict(title="손실 (%)"), xaxis=dict(title=None, tickangle=-20))
+    return fig
+
+
+def chart_a42_1_check() -> go.Figure:
+    c = exps.a42_1_check()
+    fig = go.Figure()
+    for crisis, symbol in (("2008", "circle"), ("2020", "square"), ("2022", "triangle-up")):
+        p = c[c["위기"] == crisis]
+        for est, color in (("선형 추정", BLUE), ("로그 추정", AQUA)):
+            fig.add_trace(go.Scatter(x=p["실제"], y=p[est], mode="markers", name=f"{crisis} · {est}", marker=dict(symbol=symbol, size=10, color=color),
+                                     text=p["배분"], hovertemplate="%{text} · " + crisis + "<br>실제 %{x:.1f}% · " + est + " %{y:.1f}%<extra></extra>"))
+    lo, hi = float(c[["실제", "선형 추정", "로그 추정"]].min().min()) - 3, float(c[["실제", "선형 추정", "로그 추정"]].max().max()) + 3
+    fig.add_trace(go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", line=dict(color=GRAY, width=1), showlegend=False, hoverinfo="skip"))
+    fig.update_layout(height=480, margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="생성기 점검: 위기 구간 실제 수익 vs 노출 × 실제 요인 움직임 (판정 아님)<br>"
+                                      "<sup>2008은 주가 −55%와 원화 +68%가 겹쳐 선형 합이 크게 틀리고, 로그 움직임으로는 맞음</sup>"),
+                      xaxis=dict(title="실제 (%)"), yaxis=dict(title="추정 (%)"))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2854,6 +2886,8 @@ EXPERIMENT_CHARTS = {
     "a41_holdout": chart_a41_holdout,
     "a42_0_sets": chart_a42_0_sets,
     "a42_0_hedge": chart_a42_0_hedge,
+    "a42_1_scenarios": chart_a42_1_scenarios,
+    "a42_1_check": chart_a42_1_check,
 }
 
 

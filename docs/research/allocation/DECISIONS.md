@@ -633,4 +633,10 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     re-run: MDD moves 0.1–1.2 %p and the inside / outside split is the same in every set (안정형 40 and (가) inside in
     24 / 24, B2 / B4 / holdings / S&P500 in 0 / 24); CAGR moves 0.4–1.0 %p. FX timing (Seoul fixing): CAGR ≤ 0.013 %p,
     kept DEXKOUS by rule, but (가) MDD −13.71 → −12.19 %.
+    Stage 1 (2026-10-31, memo `2026-10-31_a42_stage1.md`): `lab/aa_exposure.py`, six monthly factors 2005–2024 on the
+    representative set, betas for all 37 products (median R² 0.90). Scenario verdict (≤ 2 of 8 worse than −25 %):
+    S&P500 fails (3), (가) / 안정형 40 / B2 / B4 / holdings pass (0–1). Worst for all is S1 (2022-type joint fall +
+    stronger won): −23 to −27 %. FX exposure 0.45–0.64 (unhedged USD assets); the 2008 window shows a won cushion of
+    14–38 %p (actual vs S8). Generator check: linear estimates fit 2020 / 2022 within 5 %p but miss 2008 badly (joint
+    −55 % equity / +68 % FX); log moves fit (info column). KTB factor is weak (monthly-average yields).
 
