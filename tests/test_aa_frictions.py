@@ -142,3 +142,21 @@ def test_decision_phase_and_half_years():
     sim = srch.StaticSim(p, ["A", "B", "C"], "2004-01-02", "2005-06-30", rebalance="S", rebalance_phase=2)
     eng = run_allocation(p, cfg(rebalance="S", rebalance_phase=2, end="2005-06-30"))
     assert np.allclose(sim.run(W)[0][0], eng.equity.to_numpy(), rtol=1e-9, atol=0)
+
+
+def test_static_sim_band_matches_the_engine():
+    p = panel(n=600)
+    W = np.array([[0.5, 0.3, 0.15, 0.05], [0.2, 0.2, 0.5, 0.1], [0.34, 0.33, 0.33, 0.0]])
+    plain = srch.StaticSim(p, ["A", "B", "C"], "2004-01-02", "2006-03-31", rebalance="M")
+    zero = srch.StaticSim(p, ["A", "B", "C"], "2004-01-02", "2006-03-31", rebalance="M", band=0.0)
+    assert np.array_equal(plain.run(W)[0], zero.run(W)[0])  # band 0: the old code path
+    for band, reb in ((3.0, "M"), (5.0, "Q"), (10.0, "A")):
+        sim = srch.StaticSim(p, ["A", "B", "C"], "2004-01-02", "2006-03-31", rebalance=reb, band=band)
+        paths, turn = sim.run(W)
+        for k, w in enumerate(W):
+            wt = {"A": w[0] * 100, "B": w[1] * 100, "C": w[2] * 100, CASH: w[3] * 100}
+            eng = run_allocation(p, AllocConfig("b", wt, "2004-01-01", "2006-03-31", rebalance=reb, band=band, cost_bps=10.0))
+            assert np.allclose(paths[k], eng.equity.to_numpy(), rtol=1e-9, atol=0), (band, reb, k)
+            assert np.isclose(turn[k], eng.turnover, rtol=1e-9)
+    tiny = srch.StaticSim(p, ["A", "B", "C"], "2004-01-02", "2006-03-31", rebalance="M", band=0.001).run(W)[0]
+    assert np.allclose(tiny, plain.run(W)[0], rtol=1e-9)  # a band nobody stays inside = trade every time
