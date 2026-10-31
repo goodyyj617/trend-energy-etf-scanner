@@ -906,6 +906,35 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     and X1 at 20 bp, only X1 at 40 bp (DSR 0.81 / 0.67, PSR vs SPY 0.82 / 0.68). Trials +261.
     Record: docs/research/lab/2026-10-31_stage_k_results.md.
 
+92. Stage M: a fixed "avoid" exclusion re-tested across all entries and exits (user decision
+    2026-11-01 02:46 KST, card after Stage K; registered before any run; POST-HOC: the exclusions
+    were chosen after seeing Stage K, so a pass means "holds across the other entries and exits of
+    the same data", not independent confirmation). Question: with the signal-day exclusion in place,
+    does the 10-stock account beat a same-day random exclusion of the same count across the 15 entries
+    x 11 Stage L exits, does the 2017-2023 gap to SPY shrink, and does a candidate appear? Three
+    exclusion rules, one cut (30% of the day's hygiene universe, as 91): M1 top-30% idiosyncratic vol
+    (63d vs SPY), M2 top-30% 60-day vol, M3 union of top-30% ivol / deepest-30% 12-month drawdown /
+    farthest-30% from the 52-week high (excluded share reported). No cap or price exclusion (user
+    rule: small caps stay). Entries: E1-E9, V1-V6 and E0 (5 seeds) from the saved Stage L tables
+    (exit_study.table_of; no engine run); exits: the 11 of 90 with their registered values; account A
+    and no-limit contribution, periods, costs as 87-91. Baselines: no exclusion (= Stage L, checked
+    first), 20 day-matched pseudo exclusions per cell (same count removed per day at random, 20
+    orders each), SPY / SPY200 / EW. Verdicts: per cell (3 x 15 x 11 = 495) (a) contribution and (b)
+    10-stock median CAGR above the pseudo median in both halves; chance per exit from
+    pseudo-vs-pseudo pass rates, Binomial(15, p0) 95th percentile; a rule "has information" only if
+    (b) exceeds the 95th percentile under >= 6 of the 11 exits; 2017-2023 gap = median change of the
+    165 cells and the count of cells >= SPY before/after (shrunk / same / grown at +-1 pp); candidates
+    as 90 (same rule x entry under >= 3 of 11 exits, 1993-2023 and 2017-2023 vs SPY on CAGR and MDD,
+    >= 30 trades, still >= 3 at 40 bp), DSR (N 70,079 + 495) and PSR for candidates only; size
+    diagnostic = rank correlation of the cap-rank shift with the CAGR change (|rho| >= 0.5 flagged as
+    "not separated from size"); per-signal statistics vs the pseudo-kept signals as 89/91 (no
+    signals-per-day figure); X1 (fixed 10% weight) reported separately for the sizing interaction.
+    Trials +495. Figures: per-rule entry x exit heatmaps, per-signal return histograms rule vs
+    pseudo, 2017-2023 CAGR before vs after scatter with the SPY line, excess histogram vs
+    pseudo-vs-pseudo, CAGR change vs cap-rank change, candidate histograms. Holdout unused. Runner
+    lab/exclude_study.py (results lab_crsp/stage_m_exclude). Design:
+    docs/research/lab/2026-11-01_stage_m_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;
