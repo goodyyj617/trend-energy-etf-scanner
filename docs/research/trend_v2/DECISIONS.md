@@ -854,6 +854,58 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     pseudo-triples 19 of 3,520 cells, none with >= 3 exits. 40 bp and DSR not needed. Limit: a
     random baseline that does not start in the exit state would be needed to separate forecasting
     from the mechanical effect (not registered). Record: docs/research/lab/2026-10-29_stage_l_results.md.
+91. Stage K: stock-selection rules one at a time (user decision 2026-10-31 21:19 KST, card after
+    Stage L; registered before any run). Question: among the stocks that signalled, does keeping only
+    those with one feature beat keeping the same number of stocks at random on the same days? Three
+    signal generators from the saved Stage I tables (no engine run): E0 random 1% (5 seeds, main
+    generator), V3 volume burst z4, E2 golden cross; exits H1 k2 / H1 k3 / X1 (long-hold exits: best in
+    absolute terms and without mechanical effect in Stage L); filter, account A (1% rule, 10% cap, 10
+    stocks, 20-session ban, 20 bp, T-bill cash, 100 random orders), no-limit contribution and periods
+    as 87-89. Fourteen features, each as the favoured 30% and the opposite 30% of the day's hygiene
+    universe (percentile on the signal day, no lookahead): K1 log price (low), K2 63-day idiosyncratic
+    vol vs SPY (low), K3 turnover (high), K4 cap rank (mid 1,001-2,000 vs large / small, shown only),
+    K5 12-1 month return (low), K6 industry RS 6-1 (high), K7 36-month return (low), K8 60-day vol
+    (low), K9 Kaufman efficiency 6m (high), K10 IBD RS (high), K11 52-week-high proximity (high), K12
+    63-day dollar volume (low), K13 12-month drawdown shallow (high), K14 3-month accumulation (high);
+    K1-K3, K5-K8 are the hypothesis set from Stage H coefficients and Stage E screens (same data, so
+    a survival check, not an independent confirmation), the rest exploratory. 29 lines x 3 generators x
+    3 exits = 261 settings; trials +261. Null per line: 40 day-matched pseudo rules (the same
+    generator's signals, on each day the same number kept at random; 20 orders each), so only "which
+    stock" differs. Verdicts as 87: (a) no-limit contribution and (b) 10-stock median CAGR above the
+    pseudo median in both halves under >= 2 of 3 exits; feature information = favoured side passes (b)
+    and the opposite side sits below the pseudo median in both halves (E0 decides; V3, E2 reported
+    for direction); chance counts from pseudo-vs-pseudo pass rates, Binomial(29, p0) 95th percentile,
+    the same for pseudo pairs; candidates as 87 (SPY in 1993-2023 and 2017-2023, >= 30 trades, >= 2
+    exits, still at 40 bp), DSR (N 69,818 + 261) and PSR for candidates only; no bar lowered. Per-signal
+    return statistics vs the line's pseudo signals as 89 (bootstrap CI, Mann-Whitney, KS, p < 0.05
+    share vs the pseudo share; no signals-per-day figure). Also shown per line: kept share and signals
+    a day (table), median cap rank of filled trades, stop-out and big-winner shares, holding days,
+    2017-2023. Figures: feature points over the pseudo 5-95% band (E0; V3/E2), per-signal return
+    histograms favoured vs pseudo, excess-CAGR histogram of the 87 lines vs pseudo, CAGR vs median cap
+    rank, candidate histograms. Limits: one cut (30%), features overlap (price, size, ivol, dollar
+    volume), selection only among signalled stocks. Holdout unused. Runner lab/select_study.py (new
+    scores for log price, idiosyncratic vol and 36-month return added to screens.SELECT_SCORES without
+    changing existing results; results lab_crsp/stage_k_select). Design:
+    docs/research/lab/2026-10-31_stage_k_design.md.
+    Result (2026-10-31, run 21:48-23:18 KST; runner 53f310e): two new scores were added (s_low_price,
+    s_low_ivol, kept out of the score_study / screen_study menus; x_ivol unchanged); K7 used the
+    identical existing s_reversal(36). Lines: no generator beats chance (E0 (a) 8 / 95th percentile
+    10, (b) 3 / 8; V3 8 / 10, 2 / 10; E2 10 / 11, 5 / 9; no line under 30 trades). Features: E0 has
+    information in K1 low price, K2 low idiosyncratic vol and K8 low 60-day vol (3 vs pseudo-pair
+    expectation 0.43, 95th percentile 2); E2 in K1, K6 industry RS, K11 52-week-high proximity (3 vs
+    2); V3 1 (K14). The information is mostly on the side to avoid: E0 mean over exits, 1993-2023
+    10-stock CAGR minus the pseudo median, opposite sides -7.3 pp (high ivol), -6.6 (high vol), -5.0
+    (deep drawdown), -4.3 (far from the 52-week high), small caps -3.6; favoured sides +0.5 (low
+    ivol), +0.8 (low vol), large caps +0.4, only low price +3.1 (+5.1 in 1993-2007, +1.1 in
+    2008-2023; 2017-2023 CAGR 4.4-8.9% vs SPY 13.2%). Of 261 cells 3% beat the pseudo 95th
+    percentile and 21-22% fell below its 5th. Hypothesis set: K1, K2, K8 survive; K3 reversed (high
+    turnover -4.3 pp); size favours large, not mid (rank correlation of cap-rank shift with excess
+    -0.58). Per-signal returns differ from the pseudo signals in 87% of cells (pseudo vs pseudo 0.8%,
+    a conservative null because pseudo rules overlap); CI above 0 in 28%, below in 48%; low vol keeps
+    -20% losses at about 1% (pseudo 7%), also under X1. No candidate: K14 x V3 passed SPY under H1 k2
+    and X1 at 20 bp, only X1 at 40 bp (DSR 0.81 / 0.67, PSR vs SPY 0.82 / 0.68). Trials +261.
+    Record: docs/research/lab/2026-10-31_stage_k_results.md.
+
 ## Open decisions
 
 - final trend-filter definition;

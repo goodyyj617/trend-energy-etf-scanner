@@ -2,6 +2,29 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_k_select",
+      "title": "Stage K: 종목 선택 규칙 하나씩 (vs 같은 날 같은 수의 가짜 규칙)",
+      "date": "2026-10-31",
+      "status": "완료",
+      "decision": "91",
+      "memo": "docs/research/lab/2026-10-31_stage_k_results.md",
+      "results_dir": "lab_crsp/stage_k_select",
+      "kind": "",
+      "why": "'언제' 사고파는 축에서 정보를 찾지 못해, '어떤 종목'을 고르는 축을 본다. 매수 신호가 난 종목(무작위 매수 E0, 거래량 폭발 V3, 골든크로스 E2) 가운데 특징 하나(13개 + 시총 구간)로 30%를 고르고, 같은 날 같은 수를 무작위로 고른 가짜 규칙 40개와 비교한다.",
+      "results": [
+        "줄 하나하나로는 우연과 구별되지 않았다(E0: (a) 8줄 / 우연 95% 분위 10, (b) 3줄 / 8). 특징 단위로는 E0에서 저가주(K1)·고유 변동성 낮음(K2)·변동성 낮음(K8) 3개가 우연 95% 분위(2)를 넘어 '정보 있음', E2에서는 K1·업종 상대강도·52주 고가 근접.",
+        "정보는 주로 '피해야 할 종목'에서 나왔다: 반대쪽(고유 변동성·변동성 높음, 낙폭 깊음, 52주 고가에서 멂, 소형)은 무작위보다 연 3.6–7.3%p 못했고, 유리한 쪽의 상승은 대개 1%p 안팎(저가주만 +3.1%p, 주로 1993–2007). 261칸 중 가짜 95% 선 넘음 3%, 5% 선 아래 21–22%.",
+        "Stage H·E 가설 7개 중 3개만 살아남았고 회전율은 부호가 반대(높은 회전율이 나쁨), 시총은 대형 쪽이 나음. SPY 후보 없음(K14 × V3가 20bp 매도 2종 → 40bp 1종)."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_k_select/points_E0.png", "caption": "E0: 특징별 유리한 쪽·반대쪽 vs 가짜 규칙 5–95%"},
+        {"path": "docs/research/lab/figures/stage_k_select/returns_favoured_E0.png", "caption": "신호 하나 수익률: 유리한 쪽 vs 가짜 규칙 (E0, H1 k3)"},
+        {"path": "docs/research/lab/figures/stage_k_select/excess_vs_pseudo.png", "caption": "261칸 초과 수익 분포 vs 가짜끼리"},
+        {"path": "docs/research/lab/figures/stage_k_select/cagr_vs_cap_rank.png", "caption": "10종목 CAGR 대 채운 거래의 시총 순위"},
+        {"path": "docs/research/lab/figures/stage_k_select/points_V3_E2.png", "caption": "V3·E2: 특징별 유리한 쪽·반대쪽 vs 가짜 규칙"}
+      ]
+    },
+    {
       "id": "stage_l_exits",
       "title": "Stage L: 매도 전략 11종으로 같은 매수 묶음 다시 시험 (vs 같은 빈도 무작위 매수)",
       "date": "2026-10-29",
