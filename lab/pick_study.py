@@ -283,20 +283,25 @@ def _placebo_year(Xtr, y, sym, Xte, test, Y, cols, rng, n):
 
 # --------------------------------------------------------------------------- 4. accounts
 
-def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLOTS, ban=BAN, log=None):
+def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLOTS, ban=BAN, log=None, psale=None,
+                pfrac=0.5):
     """10-stock 1%-rule account on the window arrays: signals of day i are bought at the open of
     ei (their next session) in `key` order (larger first) while a slot and cash are free; target
     value = w x equity at that open (capped by cash); no re-entry for `ban` sessions after an exit.
     Returns (equity, trades: [j, entry_i, exit_i, ret, weight, row]). With `log` (a dict) it is
     filled per day: invested (stock share of equity at the close), positions, left (signals of the
     day left unbought because slots or cash ran out), idle (free slots and no buyable signal),
-    banned (signals skipped by the re-entry rule) and held (symbols held at the close)."""
+    banned (signals skipped by the re-entry rule) and held (symbols held at the close).
+    psale (optional, per signal: window day of a partial sale or -1): sells pfrac of the shares at
+    that open, after the day's full sales and before its buys (as the engine's take_profit_pct);
+    the trade's return then combines both sales. Without psale the account is unchanged."""
     n = O.shape[0]
     by_day: dict[int, list[int]] = {}
     for r in np.argsort(-key, kind="stable"):
         if 0 <= ei[r] < n:
             by_day.setdefault(int(ei[r]), []).append(int(r))
     sells: dict[int, list[int]] = {}
+    partial_on: dict[int, list[int]] = {}
     pos: dict[int, dict] = {}
     last_exit: dict[int, int] = {}
     cash = 1.0
@@ -312,9 +317,19 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
             if px != px:
                 continue
             cash += p["shares"] * px * (1 - cost)
-            trades.append((j, p["entry_i"], i, px * (1 - cost) / (p["entry_px"] * (1 + cost)) - 1.0, p["weight"], p["r"]))
+            ret = (px * (1 - cost) / (p["entry_px"] * (1 + cost)) - 1.0 if "ppx" not in p
+                   else (pfrac * p["ppx"] + (1 - pfrac) * px) * (1 - cost) / (p["entry_px"] * (1 + cost)) - 1.0)
+            trades.append((j, p["entry_i"], i, ret, p["weight"], p["r"]))
             del pos[j]
             last_exit[j] = i
+        for j in partial_on.pop(i, ()):
+            p = pos.get(j)
+            if p is None or p.get("psale") != i or Oi[j] != Oi[j]:
+                continue
+            sold = p["shares"] * pfrac
+            cash += sold * Oi[j] * (1 - cost)
+            p["shares"] -= sold
+            p["ppx"] = float(Oi[j])
         left = banned = bought = 0
         if i in by_day and len(pos) < slots:
             held = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else LC[i - 1, j]) for j, p in pos.items())
@@ -338,6 +353,9 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
                 bought += 1
                 if closed[r] and sale[r] < n:
                     sells.setdefault(int(sale[r]), []).append(j)
+                if psale is not None and i < psale[r] < n:
+                    pos[j]["psale"] = int(psale[r])
+                    partial_on.setdefault(int(psale[r]), []).append(j)
         elif i in by_day:
             left = len(by_day[i])
         cash *= 1.0 + cash_r[i]
@@ -350,7 +368,9 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
             log.setdefault("banned", np.zeros(n, dtype=int))[i] = banned
             log.setdefault("held", [None] * n)[i] = list(pos)
     for j, p in pos.items():  # still open at the end: valued at the last close
-        trades.append((j, p["entry_i"], n - 1, LC[n - 1, j] / (p["entry_px"] * (1 + cost)) - 1.0, p["weight"], p["r"]))
+        ret = (LC[n - 1, j] / (p["entry_px"] * (1 + cost)) - 1.0 if "ppx" not in p
+               else (pfrac * p["ppx"] * (1 - cost) + (1 - pfrac) * LC[n - 1, j]) / (p["entry_px"] * (1 + cost)) - 1.0)
+        trades.append((j, p["entry_i"], n - 1, ret, p["weight"], p["r"]))
     return eq, pd.DataFrame(trades, columns=["j", "entry_i", "exit_i", "ret", "weight", "row"])
 
 
