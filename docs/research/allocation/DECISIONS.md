@@ -658,4 +658,9 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     none vs on: 2.0–4.9 %p). Without the limit the declared policy is 0.33–0.82 %p below (tax: ISA 일반형 0.52–0.88 %p).
     Costs (±0.01 %p) and the execution mode (±0.06 %p) hardly matter. Gold filled only by deposits and never sold
     deepens (가)'s MDD to −19 – −22 % with a single lump sum.
+    Stage 3b (2026-11-02, post hoc, memo section in `2026-11-01_a42_stage3.md`): new axis 'money over the ISA limit'
+    {cash, invested in the same ETFs in a general account: 15.4 % on overseas / bond ETF gains when sold and on
+    distributions (assumed yields), no netting; domestic equity and KRX gold gains free} → 648 policies; the declared
+    policy becomes the invested one. Gap to 'one account, lump sum, no cost' shrinks from 2.3–6.4 to 0.54–1.03 %p,
+    still marked for all eight; no MDD mark. What is left is mostly tax. Stage 3's 324 results are unchanged.
 

@@ -3,7 +3,12 @@ targets (allocation DECISIONS A42 §3).
 
     .venv/Scripts/python.exe scripts/aa_a42_stage3.py --quick --out %TEMP%\\a42s3_quick
     .venv/Scripts/python.exe scripts/aa_a42_stage3.py --out docs/research/allocation/2026-11-01_a42_stage3
+    .venv/Scripts/python.exe scripts/aa_a42_stage3.py --overflow --out docs/research/allocation/2026-11-02_a42_stage3b
     ... --figures-only
+
+--overflow (stage 3b, added after the stage-3 results): one more axis, what the general account does with the money
+over the ISA limit (cash / invested in the same ETFs), so 648 policies; the declared policy becomes the 'invest' one
+(post hoc, design change log). Without it the run is stage 3 as registered (324, declared policy with cash).
 
 Targets (user, 2026-11-01): R4 / R5 / R6 weights on 2024-12-31 and F1–F4; F5 S&P500 as the comparison line. The
 representative price set (real · h60 · CD91), research window 2000-09 – 2024-12 (each target from the first day all its
@@ -36,7 +41,8 @@ from lab.aa_composition import whole  # noqa: E402
 REP = PS.PriceSet("real", 60.0, "cd91")
 START, END = PS.START, "2024-12-31"
 CAGR_PP, MDD_PP = 0.005, 0.02
-AXIS_KO = {"accounts": "계좌", "deposits": "입금", "execution": "실행", "cost": "비용", "tax": "세금", "limit": "한도"}
+AXIS_KO = {"accounts": "계좌", "deposits": "입금", "execution": "실행", "cost": "비용", "tax": "세금", "limit": "한도",
+           "overflow": "한도 밖"}
 FIG_DIR = ROOT / "docs" / "research" / "allocation" / "figures" / "a42_stage3"
 FIXED = {"F1 60/40": {"379800": 60, "0091C0": 40}, "F2 안정형 40": "stable40", "F3 현재 보유": "aaa_2026",
          "F4 (가)": "a41_ga", "F5 S&P500": "sp500"}
@@ -80,25 +86,28 @@ def _one(args):
     name, pol = args
     codes, dates, rets, cash, wv = _CTX[name]
     r = AC.run_policy(rets, cash, dates, codes, wv, pol)
-    return {"대상": name, **AC.policy_row(pol), "기준선": pol == AC.BASELINE, "선언 정책": pol == AC.DECLARED,
+    return {"대상": name, **AC.policy_row(pol), "기준선": pol == AC.BASELINE, "선언 정책": pol == _CTX["__declared"],
             **{k: r[k] for k in ("twr_cagr", "twr_mdd", "irr", "final", "deposited", "general_cash_end", "years")},
+            **({"general_invested_end": r["general_invested_end"]} if _CTX["__overflow"] else {}),
             "세금 (원)": r["tax"], "비용 (원)": r["cost"],  # not "tax" / "cost": those are the policy's axis columns
             "시작": str(dates[0].date())}
 
 
-def run(out: Path, quick: bool, workers: int) -> dict:
+def run(out: Path, quick: bool, workers: int, overflow: bool = False) -> dict:
     work = out / "_work"
     work.mkdir(parents=True, exist_ok=True)
     p = PS.build(REP.prices, REP.hedge_bp, REP.cash, quirks=True)[0]
     T = targets(p)
     pd.DataFrame([{"대상": k, "비중": ";".join(f"{c}:{int(x)}" for c, x in v.items())} for k, v in T.items()]).to_csv(
         out / "targets.csv", index=False)
-    pols = [AC.BASELINE] + AC.all_policies()
+    declared = AC.DECLARED if overflow else AC.DECLARED_3
+    pols = [AC.BASELINE] + AC.all_policies(overflow)
     names = list(T)
     if quick:
-        pols = [AC.BASELINE, AC.DECLARED] + AC.all_policies()[::40]
+        pols = [AC.BASELINE, declared, AC.DECLARED_3] + AC.all_policies(overflow)[::40]
         names = names[:2]
     ctx = {n: target_arrays(p, T[n]) for n in names}
+    ctx["__declared"], ctx["__overflow"] = declared, overflow
     rows = []
     t0 = time.time()
     for n in names:
@@ -133,8 +142,9 @@ def verdicts(R: pd.DataFrame) -> pd.DataFrame:
                "선언 MDD (TWR)": d["twr_mdd"], "선언 IRR": d["irr"], "CAGR 차": b["twr_cagr"] - d["twr_cagr"],
                "MDD 차": b["twr_mdd"] - d["twr_mdd"], "선언 세금 (원)": d["세금 (원)"], "선언 비용 (원)": d["비용 (원)"],
                "선언 입금 (원)": d["deposited"], "선언 최종 (원)": d["final"],
-               "324 CAGR 최소": pol["twr_cagr"].min(), "324 CAGR 최대": pol["twr_cagr"].max(),
-               "324 MDD 최악": pol["twr_mdd"].min(), "324 IRR 최소": pol["irr"].min(), "324 IRR 최대": pol["irr"].max()}
+               f"{len(pol)} CAGR 최소": pol["twr_cagr"].min(), f"{len(pol)} CAGR 최대": pol["twr_cagr"].max(),
+               f"{len(pol)} MDD 최악": pol["twr_mdd"].min(), f"{len(pol)} IRR 최소": pol["irr"].min(),
+               f"{len(pol)} IRR 최대": pol["irr"].max()}
         row["CAGR 표시 (>0.5%p)"] = bool(row["CAGR 차"] > CAGR_PP)
         row["MDD 표시 (>2%p)"] = bool(abs(row["MDD 차"]) > MDD_PP)
         rows.append(row)
@@ -147,7 +157,7 @@ def axis_effects(R: pd.DataFrame) -> pd.DataFrame:
     pol = R[~R["기준선"]]
     rows = []
     for n, g in pol.groupby("대상", sort=False):
-        for ax, levels in AC.AXES.items():
+        for ax, levels in (AC.AXES_B if "overflow" in g else AC.AXES).items():
             m = g.groupby(ax)[["twr_cagr", "twr_mdd", "irr"]].mean()
             for lv in levels:
                 if lv in m.index:
@@ -166,7 +176,7 @@ def figures(out: Path, dest: Path = FIG_DIR) -> list[str]:
     dest.mkdir(parents=True, exist_ok=True)
     made = []
     V = pd.read_csv(out / "verdicts.csv")
-    R = pd.read_csv(out / "policies.csv.gz")
+    R = pd.read_csv(out / "policies.csv.gz", keep_default_na=False)
     E = pd.read_csv(out / "axis_effects.csv")
     x = np.arange(len(V))
     fig, ax = plt.subplots(figsize=(11, 4.8))
@@ -205,10 +215,35 @@ def figures(out: Path, dest: Path = FIG_DIR) -> list[str]:
     base = [R[(R["대상"] == n) & R["기준선"]]["twr_cagr"].iloc[0] * 100 for n in order]
     ax.scatter(range(1, len(order) + 1), base, color="#E45756", zorder=3, label="기준선 (한 계좌 · 목돈 · 비용 없음)")
     ax.set_ylabel("TWR CAGR (%)")
-    ax.set_title("③ 정책 324가지의 TWR CAGR 분포 (대상별)")
+    ax.set_title(f"③ 정책 {pol.groupby('대상').size().iloc[0]}가지의 TWR CAGR 분포 (대상별)")
     ax.legend(fontsize=8)
     made.append(str(figs._save(fig, dest / "3_spread.png")))
+    if "overflow" in R:
+        made.append(overflow_figure(R, dest, plt, figs))
     return made
+
+
+def overflow_figure(R: pd.DataFrame, dest: Path, plt, figs) -> str:
+    """④ stage 3b: declared policy with the money over the limit as cash vs invested, and the same without a limit."""
+    order = list(dict.fromkeys(R["대상"]))
+    base = R[R["기준선"]].set_index("대상")["twr_cagr"]
+
+    def pick(limit, overflow):
+        m = (R["accounts"] == "split") & (R["deposits"] == "monthly") & (R["execution"] == "full") & \
+            (R["cost"] == "product") & (R["tax"] == "general") & (R["limit"] == limit) & (R["overflow"] == overflow)
+        return R[m].set_index("대상")["twr_cagr"]
+    series = {"기준선 (한 계좌 · 목돈 · 비용 없음)": base, "선언: 한도 밖 현금 (3단계)": pick("isa", "cash"),
+              "선언: 한도 밖 일반 계좌 굴림 (3b)": pick("isa", "invest"), "선언에서 한도만 없음": pick("none", "cash")}
+    x = np.arange(len(order))
+    fig, ax = plt.subplots(figsize=(12, 5))
+    for k, (name, sr) in enumerate(series.items()):
+        ax.bar(x + (k - 1.5) * 0.2, sr.reindex(order).to_numpy() * 100, 0.2, label=name,
+               color=["#4C78A8", "#BBBBBB", "#F58518", "#72B7B2"][k])
+    ax.set_xticks(x, order, rotation=15)
+    ax.set_ylabel("TWR CAGR (%)")
+    ax.set_title("④ ISA 한도 밖의 돈: 현금으로 두기 vs 일반 계좌에서 같은 ETF로 굴리기 (선언 정책 세후)")
+    ax.legend(fontsize=8)
+    return str(figs._save(fig, dest / "4_overflow.png"))
 
 
 def main(argv):
@@ -216,17 +251,19 @@ def main(argv):
     ap.add_argument("--out", required=True)
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--figures-only", action="store_true")
+    ap.add_argument("--overflow", action="store_true", help="stage 3b: add the 'money over the limit' axis (648)")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 4))
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     if not args.figures_only:
         t0 = time.time()
-        summ = run(out, args.quick, args.workers)
+        summ = run(out, args.quick, args.workers, args.overflow)
         summ["seconds"] = round(time.time() - t0, 1)
         summ["quick"] = args.quick
+        summ["overflow"] = args.overflow
         (out / "summary.json").write_text(json.dumps(summ, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-    print(figures(out))
+    print(figures(out, FIG_DIR.with_name("a42_stage3b") if args.overflow else FIG_DIR))
 
 
 if __name__ == "__main__":

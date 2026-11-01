@@ -15,9 +15,15 @@
 - tax: "none", "general" (ISA 일반형: 200만 원 of net gain tax-free, 9.9 % above), "low" (서민형: 400만 원). The ISA is
   taxed when it is closed: every three years (closed and re-opened, the after-tax balance re-deposited) and at the end.
   The gold account is tax-free; cash parked in a general account earns the panel's cash rate less 15.4 % tax.
-- limit: "none" or "isa" (2,000만 원 a year, unused room carried over, 1억 원 per account). Money over the limit waits
-  as general-account cash and moves in when room opens (each January, or at a re-opening). With the limit on the ISA
-  is re-opened every three years even without tax (the way a holder resets the 1억 원 room).
+- limit: "none" or "isa" (2,000만 원 a year, unused room carried over, 1억 원 per account). Money over the limit goes
+  to a general account and moves into the ISA when room opens (each January, or at a re-opening). With the limit on
+  the ISA is re-opened every three years even without tax (the way a holder resets the 1억 원 room).
+- overflow (A42 stage 3b, added after the stage-3 results): what the general account does with that money. "cash"
+  (stage 3: the panel's cash rate, interest taxed 15.4 %) or "invest" (the same target weights in the same ETFs, the
+  same execution rule and product costs). In "invest" the gains of overseas and bond ETFs are taxed 15.4 % when sold
+  (no netting of losses) and their distributions 15.4 % each January on an assumed yield (`DIST_YIELD`: the price
+  series are total-return, so the distribution is also added to the cost basis); domestic equity ETFs and KRX gold
+  are not taxed on gains. Unsold gains are taxed at the end as if sold, like the ISA's closing tax.
 
 Returns money-weighted (IRR) and time-weighted (TWR) results; MDD is on the TWR index. With a single account, one lump
 sum, full rebalancing, no tax and no limit the TWR index equals `aa_engine.run_allocation`'s equity (tests).
@@ -56,13 +62,21 @@ _PRICE = {"379810": 25512, "379800": 22830, "453630": 12240, "453640": 14249, "4
 PRODUCT_FEES = {c: {"fee": 20.0 if c == GOLD else 1.5, "half_spread": (5.0 if c == GOLD else 2.5) / p * 1e4}
                 for c, p in _PRICE.items()}
 
+# assumed yearly distribution yield of the distributing ETFs, % (general account only; 0 = accumulating or none).
+# Rough levels for 2000–2024, not data: US equity indices by their dividend yield, bonds by a typical coupon.
+DIST_YIELD = {"379810": 0.7, "379800": 1.5, "453630": 2.5, "453640": 1.5, "463640": 3.0, "446720": 3.5, "251350": 1.8,
+              "291890": 2.5, "329750": 2.5, "0046A0": 2.5, "305080": 0.0, "0091C0": 3.0, "476760": 3.0, "484790": 3.0,
+              "114260": 2.5, "148070": 3.0, "439870": 3.0, "459580": 0.0, "411060": 0.0, GOLD: 0.0}
+
 AXES = {"accounts": ("single", "split"), "deposits": ("lump", "monthly", "lump_monthly"),
         "execution": ("full", "deposit", "band"), "cost": ("flat", "product", "double"),
         "tax": ("none", "general", "low"), "limit": ("none", "isa")}
 LABELS = {"single": "한 계좌", "split": "ISA + 금현물 분리", "lump": "목돈 1억", "monthly": "1,000만 + 매월 100만",
           "lump_monthly": "목돈 1억 + 매월 100만", "full": "전체", "deposit": "새 입금 + 연 1회 보정", "band": "밴드 5%p",
           "zero": "비용 없음", "flat": "10bp", "product": "상품별 수수료 + 반 스프레드", "double": "상품별 × 2",
-          "none": "없음", "general": "ISA 일반형", "low": "ISA 서민형", "isa": "연 2,000만 · 총 1억"}
+          "none": "없음", "general": "ISA 일반형", "low": "ISA 서민형", "isa": "연 2,000만 · 총 1억",
+          "cash": "한도 밖 현금", "invest": "한도 밖 일반 계좌 굴림"}
+AXES_B = {**AXES, "overflow": ("cash", "invest")}  # stage 3b: 648 policies
 
 
 @dataclass(frozen=True)
@@ -73,11 +87,15 @@ class Policy:
     cost: str = "flat"
     tax: str = "none"
     limit: str = "none"
+    overflow: str = "cash"
 
     def label(self) -> str:
         lim = "한도 없음" if self.limit == "none" else "한도 " + LABELS["isa"]
-        return " · ".join([LABELS[self.accounts], LABELS[self.deposits], LABELS[self.execution], LABELS[self.cost],
-                           "세금 " + LABELS[self.tax], lim])
+        parts = [LABELS[self.accounts], LABELS[self.deposits], LABELS[self.execution], LABELS[self.cost],
+                 "세금 " + LABELS[self.tax], lim]
+        if self.overflow != "cash":
+            parts.append(LABELS[self.overflow])
+        return " · ".join(parts)
 
     def deposit_rule(self) -> DepositRule:
         first = LUMP_KRW if self.deposits in ("lump", "lump_monthly") else FIRST_KRW
@@ -86,11 +104,22 @@ class Policy:
 
 
 BASELINE = Policy("single", "lump", "full", "zero", "none", "none")  # 한 계좌 · 목돈 · 비용 없음
-DECLARED = Policy("split", "monthly", "full", "product", "general", "isa")  # design §3 default (cost / limit: change log)
+DECLARED_3 = Policy("split", "monthly", "full", "product", "general", "isa")  # stage 3 (design §3 default + change log)
+DECLARED = Policy("split", "monthly", "full", "product", "general", "isa", "invest")  # stage 3b, post hoc (2026-11-02)
 
 
-def all_policies() -> list[Policy]:
-    return [Policy(*v) for v in itertools.product(*AXES.values())]
+def all_policies(overflow: bool = False) -> list[Policy]:
+    """The 324 stage-3 policies, or with `overflow` the 648 of stage 3b (each of the 324 with cash / invest)."""
+    return [Policy(*v) for v in itertools.product(*(AXES_B if overflow else AXES).values())]
+
+
+def taxable_in_general(code: str) -> bool:
+    """Gains taxed in a general account: overseas, bond and commodity ETFs yes; domestic equity ETFs and KRX gold no."""
+    from .aa_assets import PRODUCTS
+    if code == GOLD:
+        return False
+    p = PRODUCTS.get(code)
+    return not (p is not None and p.asset_class in ("주식", "레버리지") and all(s == "EWY" for s, _ in p.proxy))
 
 
 def cost_vector(codes: list[str], cost: str) -> np.ndarray:
@@ -149,8 +178,12 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
     dec = set(int(i) for i in decision_rows(dates, rebalance) if i < T - 1)
     first_of_year = set(pd.Series(np.arange(T), index=dates).groupby(dates.year).first().to_numpy()[1:].tolist())
 
+    invest = policy.overflow == "invest"
+    gw = isa_w  # the general account follows the ISA's targets (gold stays in the gold account when split)
+    gtax = np.array([taxable_in_general(c) for c in codes]) & taxed
+    gyield = np.array([DIST_YIELD.get(c, 0.0) / 100.0 for c in codes]) * gtax
     st = {"h": np.zeros(N), "gold": 0.0, "G": 0.0, "basis": 0.0, "allow": np.inf, "left": np.inf, "roll": None,
-          "cost": 0.0, "tax": 0.0}
+          "cost": 0.0, "tax": 0.0, "gh": np.zeros(N), "gb": np.zeros(N)}
     if limit:
         st["allow"], st["left"] = 0.0, float(ISA_TOTAL)
 
@@ -171,12 +204,63 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
         st["h"] = h + b
         st["cost"] += c
 
+    def buy_general(x: float) -> None:
+        if x <= 0:
+            return
+        h = st["gh"]
+        tgt = gw * (h.sum() + x)
+        gap = np.maximum(tgt - h, 0.0)
+        b = gap / gap.sum() * min(x, gap.sum()) if gap.sum() > 0 else np.zeros(N)
+        if x - b.sum() > 1e-9:
+            b = b + gw * (x - b.sum())
+        c = float(b @ cv)
+        if c:
+            b = b * x / (x + c)
+            c = x - b.sum()
+        st["gh"] = h + b
+        st["gb"] = st["gb"] + b
+        st["cost"] += c
+
+    def sell_general(s: np.ndarray) -> float:
+        """Sell amounts `s` (per product) from the general account; returns the proceeds after cost and tax."""
+        h = st["gh"]
+        frac = np.divide(s, h, out=np.zeros(N), where=h > 0)
+        gain = s - st["gb"] * frac
+        tax = float(GENERAL_RATE * np.maximum(gain, 0.0) @ gtax)
+        c = float(s @ cv)
+        st["gh"] = h - s
+        st["gb"] = st["gb"] * (1.0 - frac)
+        st["tax"] += tax
+        st["cost"] += c
+        return float(s.sum()) - c - tax
+
+    def rebalance_general() -> None:
+        h = st["gh"]
+        v = h.sum()
+        if v <= 0:
+            return
+        d = gw * v - h
+        sells = np.maximum(-d, 0.0)
+        frac = np.divide(sells, h, out=np.zeros(N), where=h > 0)
+        tax = float(GENERAL_RATE * np.maximum(sells - st["gb"] * frac, 0.0) @ gtax)
+        c = float(np.abs(d) @ cv) / 2.0
+        kept = h - sells
+        st["gb"] = st["gb"] * (1.0 - frac)
+        new = gw * (v - c - tax)
+        st["gb"] = st["gb"] + np.maximum(new - kept, 0.0)
+        st["gh"] = new
+        st["tax"] += tax
+        st["cost"] += c
+
     def into_isa(x: float, t: int, free: bool = False) -> None:
-        """New money for the ISA: up to the room, the rest waits as general cash."""
+        """New money for the ISA: up to the room, the rest goes to the general account (cash or invested)."""
         if limit:
             room = min(st["allow"], st["left"])
             y = min(x, room)
-            st["G"] += x - y
+            if invest:
+                buy_general(x - y)
+            else:
+                st["G"] += x - y
             st["allow"] -= y
             st["left"] -= y
             x = y
@@ -189,7 +273,8 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
 
     def route(x: float, t: int, free: bool) -> None:
         if split:
-            h_total = st["h"].sum() + st["gold"] + x
+            # the gold account's share is measured on everything invested (the general account too when it invests)
+            h_total = st["h"].sum() + st["gold"] + x + (st["gh"].sum() if invest else 0.0)
             gap = max(0.0, w[gi] * h_total - st["gold"])
             g = min(x, gap)
             if g > 0:
@@ -216,6 +301,11 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
         v = h.sum()
         return v > 0 and np.abs(h / v - w).max() > BAND_PP / 100.0
 
+    def off_band_general() -> bool:
+        h = st["gh"]
+        v = h.sum()
+        return v > 0 and np.abs(h / v - gw).max() > BAND_PP / 100.0
+
     V = np.empty(T)
     F = np.zeros(T)
     pending = False
@@ -225,17 +315,34 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
         if split:
             st["gold"] *= 1.0 + R[t, gi]
         st["G"] *= 1.0 + C[t] * gen_r
+        if invest:
+            st["gh"] = st["gh"] * (1.0 + R[t])
         if pending:
             if policy.execution == "full" or (policy.execution == "band" and off_band()) or \
                     (policy.execution == "deposit" and dates[t - 1].month == 12):
                 rebalance_isa()
+            if invest and (policy.execution == "full" or (policy.execution == "band" and off_band_general()) or
+                           (policy.execution == "deposit" and dates[t - 1].month == 12)):
+                rebalance_general()
             pending = False
+        if invest and t in first_of_year and st["gh"].sum() > 0:
+            dist = st["gh"] * gyield  # last year's distributions, taxed and reinvested
+            dtax = GENERAL_RATE * dist
+            st["gh"] = st["gh"] - dtax
+            st["gb"] = st["gb"] + dist - dtax
+            st["tax"] += float(dtax.sum())
         if limit and t in first_of_year:
             st["allow"] = min(st["allow"] + ISA_ANNUAL, st["left"])
             if st["G"] > 0:
                 g = st["G"]
                 st["G"] = 0.0
                 into_isa(g, t)
+            gv = st["gh"].sum()
+            if invest and gv > 0:
+                room = min(st["allow"], st["left"])
+                m = min(gv, room)
+                if m > 0:
+                    into_isa(sell_general(st["gh"] * (m / gv)), t)
         if st["roll"] is not None and t >= st["roll"]:
             v = st["h"].sum()
             tax = rule.tax(v - st["basis"]) if taxed else 0.0
@@ -252,9 +359,10 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
             route(deposits[t], t, free=(t == 0 and not charge_first))
         if t in dec:
             pending = True
-        V[t] = st["h"].sum() + st["gold"] + st["G"]
+        V[t] = st["h"].sum() + st["gold"] + st["G"] + st["gh"].sum()
     if taxed:
         final_tax = rule.tax(st["h"].sum() - st["basis"])
+        final_tax += float(GENERAL_RATE * np.maximum(st["gh"] - st["gb"], 0.0) @ gtax)  # general account, as if sold
         st["tax"] += final_tax
         V[-1] -= final_tax
     prev = np.concatenate([[np.nan], V[:-1]])
@@ -268,7 +376,8 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
     out = {"value": V, "flows": F, "twr": twr,
            "twr_cagr": float(twr[-1] ** (1.0 / max(years, 1e-9)) - 1.0), "twr_mdd": float((twr / peak - 1.0).min()),
            "irr": irr(flows, times), "final": float(V[-1]), "deposited": float(F.sum()), "tax": float(st["tax"]),
-           "cost": float(st["cost"]), "general_cash_end": float(st["G"]), "years": years}
+           "cost": float(st["cost"]), "general_cash_end": float(st["G"]), "general_invested_end": float(st["gh"].sum()),
+           "years": years}
     return out
 
 
@@ -276,5 +385,6 @@ def policy_row(policy: Policy) -> dict:
     return {**asdict(policy), "정책": policy.label()}
 
 
-__all__ = ["Policy", "BASELINE", "DECLARED", "AXES", "LABELS", "all_policies", "run_policy", "irr", "cost_vector",
+__all__ = ["Policy", "BASELINE", "DECLARED", "DECLARED_3", "AXES", "AXES_B", "DIST_YIELD", "taxable_in_general",
+           "LABELS", "all_policies", "run_policy", "irr", "cost_vector",
            "PRODUCT_FEES", "ISA_GENERAL", "ISA_LOW", "GENERAL_CASH", "policy_row"]

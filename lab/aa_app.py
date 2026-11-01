@@ -2906,6 +2906,18 @@ def chart_a42_3_axes() -> go.Figure:
     return fig
 
 
+def chart_a42_3_overflow() -> go.Figure:
+    t = exps.a42_3_overflow()
+    fig = go.Figure()
+    for col, color in (("기준선", BLUE), ("선언 · 한도 밖 현금", GRAY), ("선언 · 한도 밖 굴림", ORANGE), ("선언 · 한도 없음", AQUA)):
+        fig.add_trace(go.Bar(x=t["대상"], y=t[col], name=col, marker_color=color, hovertemplate="%{x}<br>" + col + " %{y:.2f}%<extra></extra>"))
+    fig.update_layout(height=460, barmode="group", margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="ISA 한도 밖의 돈: 현금으로 두기 vs 일반 계좌에서 같은 ETF로 굴리기 (선언 정책 세후 TWR CAGR)<br>"
+                                      "<sup>기준선 = 한 계좌 · 목돈 · 비용 없음. 굴리면 기준선과의 차이가 2.3–6.4%p → 0.54–1.03%p</sup>"),
+                      yaxis=dict(title="CAGR (%)"))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2948,6 +2960,7 @@ EXPERIMENT_CHARTS = {
     "a42_2_rebalance": chart_a42_2_rebalance,
     "a42_3_declared": chart_a42_3_declared,
     "a42_3_axes": chart_a42_3_axes,
+    "a42_3_overflow": chart_a42_3_overflow,
 }
 
 
