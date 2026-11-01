@@ -650,4 +650,12 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     MDD ≥ −17 % in all sets); frequency barely matters, a 10 %p band lowers the inside share by ~10 %p. Fix found
     while checking: SCHD is now carried back with DVY from 2003-11 (`aa_pricesets.LATE_CHAINS`). Points holding KTB
     10 / 30 or US dividend start later (2000-10 / 2003-11) and skip part or all of the dot-com fall.
+    Stage 3 (2026-11-01, memo `2026-11-01_a42_stage3.md`): `lab/aa_accounts.py` (deposits, ISA tax and limit, gold
+    account; single / lump / full / no tax / no limit equals run_allocation), `TaxRule.tax`, `DepositRule` amounts.
+    Targets R4 / R5 / R6 (2024-12 weights), F1–F4, F5 as the line; 324 policies. All eight are marked: the declared
+    policy after tax is 2.3–6.4 %p CAGR (TWR) below 'one account, lump sum, no cost'. Most of it is the ISA limit with
+    the design's 'money over the limit waits as general-account cash': at the end 59–84 % of the money is cash (limit
+    none vs on: 2.0–4.9 %p). Without the limit the declared policy is 0.33–0.82 %p below (tax: ISA 일반형 0.52–0.88 %p).
+    Costs (±0.01 %p) and the execution mode (±0.06 %p) hardly matter. Gold filled only by deposits and never sold
+    deepens (가)'s MDD to −19 – −22 % with a single lump sum.
 
