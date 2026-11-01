@@ -35,6 +35,8 @@ A41_MEMO = ALLOC / "2026-10-28_a41.md"
 A42_0_DIR = ALLOC / "2026-10-29_a42_stage0"  # A42 stage 0: data, 24 price sets, hedge-cost estimate
 A42_0_MEMO = ALLOC / "2026-10-29_a42_stage0.md"
 A42_0_ORDER = ("(가)", "안정형 40", "B2", "B4", "현재 보유", "S&P500")
+A42_1_DIR = ALLOC / "2026-10-31_a42_stage1"  # A42 stage 1: factor exposures and eight fixed scenarios
+A42_1_MEMO = ALLOC / "2026-10-31_a42_stage1.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -45,7 +47,7 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "comp_loo", "comp_swap", "comp_simple", "comp_reselect", "comp_model_gap",
               "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency",
               "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout",
-              "a42_0_sets", "a42_0_hedge")
+              "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check")
 
 
 @dataclass(frozen=True)
@@ -272,6 +274,24 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 국고채 대용은 월평균 금리로 만든 근사라 실제 ETF와 월 상관이 0.45–0.55뿐이고, 보정 모형의 겹침은 2024-12에서 잘랐습니다(보류 구간 자료가 섞이지 않게)."),
         ("a42_0_sets", "a42_0_hedge"), A42_0_MEMO,
         "PNG 그림은 docs/research/allocation/figures/a42_stage0/"),
+    Experiment(
+        "a42_1", "2026-10-31", "A42", "A42 1단계: 배분의 요인 노출과 과거에 없던 충격 8개",
+        "백테스트는 지나간 위기 네 번만 보여 줍니다. 그래서 배분마다 주식·성장주·미국 금리·한국 금리·환율·금 여섯 요인에 대한 노출을 숫자로 내고, "
+        "실행 전에 정해 둔 충격 8개(2022형 동반 하락 + 원화 강세, 원화 초강세, 금 폭락, 금리 급등, 성장주 역전, 스태그플레이션, 닷컴형, 원화 완충 없는 2008형)를 "
+        "넣어 봤습니다. 상품마다 2005–2024 월간 원화 수익(대표 가격 세트: 실제 우선 · 헤지 60bp · CD91)을 여섯 요인에 회귀해 베타를 내고, 배분 노출 = 비중 × 베타의 합, "
+        "시나리오 손실 = 노출 × 충격의 합(선형)입니다. 판정은 '8개 중 −25%보다 나쁜 것이 2개 이하'이고, 무엇도 고르지 않습니다.",
+        ("한 줄 답: 기존 배분 6개 중 S&P500만 시나리오 판정에 미달했고(−25%보다 나쁜 것 3개), (가)·안정형 40·B2·B4·현재 보유는 통과했습니다(0–1개).",
+         "가장 아픈 충격은 S1(2022형 동반 하락 + 원화 강세)입니다: (가) −27.0%, 현재 보유 −27.3%, B2 −25.9%, B4 −25.1%, 안정형 40 −23.1%, S&P500 −39.8%.",
+         "원화 노출이 큽니다: 원화가 1% 약해질 때 (가) +0.57%, B4 +0.64%, 안정형 40 +0.47%(달러 자산을 환헤지 없이 들고 있는 몫). 그래서 S2(원화 25% 강세)에서 "
+         "(가) −14.2%, B4 −16.0%입니다. 금 노출은 B2 0.34, (가) 0.29로 S3(금 −40%)에서 B2 −13.7%, (가) −11.7%입니다.",
+         "원화 완충: 2008 위기 구간(2007-10 – 2009-03) 실제 수익은 (가) +33.6%, 안정형 40 +9.9%, S&P500 −24.8%였지만, 원화가 움직이지 않는 S8에서는 "
+         "(가) −4.2%, 안정형 40 −11.6%, S&P500 −45.0%입니다. 그때 원화 약세(+68%)가 낙폭을 20–40%p 덮었다는 뜻입니다.",
+         "생성기 점검(판정 아님): 2020·2022는 선형 추정이 실제와 5%p 안에서 맞았습니다. 2008은 주가 −55%와 원화 +68%가 함께 움직여 선형 합이 크게 틀렸고"
+         "(S&P500 추정 +11.6% vs 실제 −24.8%), 같은 노출을 로그 움직임에 쓰면 −25.3%로 맞습니다. 큰 충격이 겹치는 시나리오(S1·S7·S8)의 선형 손실은 그만큼 거칩니다.",
+         "한계: 국고채 베타는 월평균 금리로 만든 요인이라 약하고(한국 금리 노출이 거의 0으로 나옴), 상장 전이 모형인 상품의 베타는 모형의 베타입니다. "
+         "선형 생성기라 레버리지 경로 의존과 위기 때 상관 변화를 잡지 못합니다."),
+        ("a42_1_scenarios", "a42_1_check"), A42_1_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a42_stage1/"),
 )
 
 
@@ -698,6 +718,23 @@ def a42_0_hedge(folder: Path | str = A42_0_DIR) -> pd.DataFrame:
     """A42 0-2: hedge-cost estimates (bp a year) with 95 % block-bootstrap intervals, per product and KRW cash."""
     h = pd.read_csv(Path(folder) / "hedge.csv", dtype={"상품": str})
     return h[["상품", "이름", "원화 현금", "겹침 시작", "겹침 일", "h 추정 (bp)", "95% 하한 (bp)", "95% 상한 (bp)"]].copy()
+
+
+def a42_1_scenarios(folder: Path | str = A42_1_DIR) -> pd.DataFrame:
+    """A42 stage 1: linear scenario losses (%) per allocation and scenario, long form, with the scenario names."""
+    from .aa_exposure import SCENARIOS
+    s = pd.read_csv(Path(folder) / "scenarios.csv", index_col=0)
+    long = s[list(SCENARIOS)].mul(100).reset_index(names="배분").melt(id_vars="배분", var_name="시나리오", value_name="손실")
+    long["이름"] = long["시나리오"].map(lambda k: f"{k} {SCENARIOS[k][0]}")
+    long["판정"] = long["배분"].map(s["판정"])
+    return long
+
+
+def a42_1_check(folder: Path | str = A42_1_DIR) -> pd.DataFrame:
+    """A42 stage 1 generator check: actual crisis-window return vs the linear and log estimates (%)."""
+    c = pd.read_csv(Path(folder) / "crisis_check.csv", dtype={"위기": str})
+    return pd.DataFrame({"배분": c["배분"], "위기": c["위기"], "실제": c["실제"] * 100, "선형 추정": c["선형 추정"] * 100,
+                         "로그 추정": c["로그 추정 (참고)"] * 100})
 
 
 def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:
