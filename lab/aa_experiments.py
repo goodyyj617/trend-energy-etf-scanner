@@ -37,6 +37,8 @@ A42_0_MEMO = ALLOC / "2026-10-29_a42_stage0.md"
 A42_0_ORDER = ("(가)", "안정형 40", "B2", "B4", "현재 보유", "S&P500")
 A42_1_DIR = ALLOC / "2026-10-31_a42_stage1"  # A42 stage 1: factor exposures and eight fixed scenarios
 A42_1_MEMO = ALLOC / "2026-10-31_a42_stage1.md"
+A42_2_DIR = ALLOC / "2026-10-31_a42_stage2"  # A42 stage 2: wide static search v2, second grid, walk-forward of the rules
+A42_2_MEMO = ALLOC / "2026-10-31_a42_stage2.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -47,7 +49,8 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "comp_loo", "comp_swap", "comp_simple", "comp_reselect", "comp_model_gap",
               "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency",
               "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout",
-              "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check")
+              "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check",
+              "a42_2_walk", "a42_2_rebalance")
 
 
 @dataclass(frozen=True)
@@ -292,6 +295,24 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "선형 생성기라 레버리지 경로 의존과 위기 때 상관 변화를 잡지 못합니다."),
         ("a42_1_scenarios", "a42_1_check"), A42_1_MEMO,
         "PNG 그림은 docs/research/allocation/figures/a42_stage1/"),
+    Experiment(
+        "a42_2", "2026-10-31", "A42", "A42 2단계: 비중을 고르는 규칙을 시간 밖에서 시험",
+        "지금까지는 같은 자료에서 좋은 비중을 골랐기 때문에, 고른 비중을 그 자료로 다시 검증할 수 없었습니다. 그래서 비중 대신 비중을 고르는 규칙을 시험했습니다. "
+        "매년 12월 마지막 거래일에 그때까지의 자료만으로 규칙이 비중을 고르고 다음 1년을 들고 가는 walk-forward(2006–2024)입니다. 규칙은 R1 '−15% 안 최고 CAGR', "
+        "R2 평탄 영역 중심, R3 칼마 최대(확장 창과 직전 10년 창), R4 17개 동일 비중, R5 역변동성, R6 주식 위험 몫 상한, R7 최소 분산, R8 최대 분산화(직전 3년)이고, "
+        "고정 배분 F1 60/40, F2 안정형 40, F3 현재 보유, F4 (가), F5 S&P500을 같이 돌렸습니다. 후보는 17개 상품(국고채 3·10·30년, 미국 배당 추가)의 표본 4종 × 2^20점(레버리지 팔 포함 약 420만 점)이고, "
+        "그중 8만 점에 가격 세트 24개 × 리밸런싱 48가지를 걸었습니다.",
+        ("한 줄 답: 최고 성적을 고르는 규칙은 시간 밖에서 무너졌습니다. R1·R2의 walk-forward MDD는 −28 – −30%로 S&P500(−29.6%)과 비슷했고, R1(확장 창)은 동일 비중보다 모든 면에서 나빴습니다.",
+         "무너진 곳: 2008년 말 '금 + 미국30년(H)'을 골랐다가 2009년 −9%, 2012년 말 '국고채30년 + 금'을 골랐다가 2013년 −17%, 2021년 말 '나스닥100 + 미국30년(H)'을 골랐다가 2022년 −27 – −28%. "
+         "매번 직전에 가장 좋았던 조합으로 옮겨 탄 뒤 그 조합이 꺾였습니다.",
+         "시간 밖에서 버틴 규칙: R4 동일 비중 8.25% / −11.3%, R6 주식 위험 몫 상한 7.91% / −10.7%, R5 역변동성 5.76% / −5.7%. R3·R7·R8은 단기 자금으로 쏠려 2.7–2.8%였습니다. "
+         "사후 배분 (가) 9.93% / −13.7%, 60/40 9.52% / −15.8%는 시험 구간을 본 뒤 정한 배분이라 시간 밖 결과가 아닙니다.",
+         "PBO(과적합 확률): R1 0.92, R2 0.58. 전체 구간 평탄 중심(나스닥 10 · S&P 24 · 금 31 · 미국10년(H) 8 · 국고채30년 27, 10.05% / −14.9%)은 이웃 안 비율 59%, "
+         "선언 정책 변형 안 비율 12.5%로 판정 2·3에서 미달했습니다.",
+         "가격 세트 24개는 구역을 거의 바꾸지 않았습니다: 대표 세트 '안' 5만 점 중 49,996점이 24세트 모두 −17% 안. 리밸런싱 주기(월·분기·반기·연)는 '안' 비율을 거의 바꾸지 않았고(60–62%), 밴드 10%p는 48–52%로 낮췄습니다.",
+         "한계: 국고채 10·30년(2000-10)과 미국 배당(2003-11)을 담은 점은 늦게 시작해 닷컴을 건너뜁니다. 국고채 상장 전은 월평균 금리로 만든 근사입니다. 원화·대용 자료·표본 내 연구입니다."),
+        ("a42_2_walk", "a42_2_rebalance"), A42_2_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a42_stage2/"),
 )
 
 
@@ -735,6 +756,25 @@ def a42_1_check(folder: Path | str = A42_1_DIR) -> pd.DataFrame:
     c = pd.read_csv(Path(folder) / "crisis_check.csv", dtype={"위기": str})
     return pd.DataFrame({"배분": c["배분"], "위기": c["위기"], "실제": c["실제"] * 100, "선형 추정": c["선형 추정"] * 100,
                          "로그 추정": c["로그 추정 (참고)"] * 100})
+
+
+def a42_2_walk(folder: Path | str = A42_2_DIR) -> pd.DataFrame:
+    """A42 stage 2: walk-forward of the picking rules and the fixed allocations (2006–2024), % units."""
+    t = pd.read_csv(Path(folder) / "walkforward_table.csv")
+    out = pd.DataFrame({"규칙": t["규칙"], "창": t["창"], "CAGR": t["cagr"] * 100, "MDD": t["mdd"] * 100,
+                        "24세트 최악 MDD": t["24세트 최악 MDD"] * 100, "최장 회복 (월)": t["최장 회복 (월)"],
+                        "규칙 통과": t["규칙 통과 (24세트 ≥ −17%)"], "고르는 데 실패": t["고르는 데 실패 (R4에 열위)"]})
+    out["이름"] = [r if w in ("고정", "훈련 없음", "직전 3년") else f"{r} ({w})" for r, w in zip(out["규칙"], out["창"])]
+    return out
+
+
+def a42_2_rebalance(folder: Path | str = A42_2_DIR) -> pd.DataFrame:
+    """A42 stage 2 grid: share of the grid points inside −15 % per rebalancing frequency and band (representative set,
+    mean over the three decision offsets), %."""
+    g = pd.read_csv(Path(folder) / "grid_settings.csv")
+    rep = g[g["세트"] == "real·h60·cd91"]
+    t = rep.groupby(["주기", "밴드"])["안 비율"].mean().mul(100).unstack()
+    return t.reindex(["M", "Q", "S", "A"]).rename(index={"M": "월", "Q": "분기", "S": "반기", "A": "연"})
 
 
 def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:
