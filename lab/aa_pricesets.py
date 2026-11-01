@@ -55,6 +55,7 @@ def all_sets() -> list[PriceSet]:
 
 
 _USD_CACHE: dict = {}
+LATE_CHAINS = {"SCHD": "DVY"}  # proxy → substitute that starts after the research start (partial history, A42 0-4)
 
 
 def usd_extended(start: str = START, unseal: bool = False):
@@ -65,6 +66,13 @@ def usd_extended(start: str = START, unseal: bool = False):
         usd, failed = download_panel(sorted(set(PROXY_SYMBOLS) | {"IEF", "TLT", "SHY"}), end=DATA_END)
         subs, failed_s = download_panel(sorted({c for v in loc.SUBSTITUTES.values() for c in v}), end=DATA_END)
         ext, table = loc.extend_history(usd, subs, start)
+        # A42 0-4: SCHD is carried back with DVY from DVY's own first day (2003-11), not from `start` — extend_history
+        # only takes substitutes that cover `start`, so it left SCHD at 2011-10 (found in stage 2, design change log)
+        for proxy, sub in LATE_CHAINS.items():
+            if proxy in ext.close.columns and sub in subs.close.columns and subs.close[sub].first_valid_index() is not None:
+                s0 = str(subs.close[sub].first_valid_index().date())
+                ext, more = loc.extend_history(ext, subs, max(s0, start), candidates={proxy: (sub,)})
+                table = pd.concat([table[table["대용"] != proxy], more], ignore_index=True)
         _USD_CACHE[key] = (ext, table, failed + failed_s)
     return _USD_CACHE[key]
 

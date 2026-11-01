@@ -639,4 +639,15 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     stronger won): −23 to −27 %. FX exposure 0.45–0.64 (unhedged USD assets); the 2008 window shows a won cushion of
     14–38 %p (actual vs S8). Generator check: linear estimates fit 2020 / 2022 within 5 %p but miss 2008 badly (joint
     −55 % equity / +68 % FX); log moves fit (info column). KTB factor is weak (monthly-average yields).
+    Stage 2 (2026-10-31, memo `2026-10-31_a42_stage2.md`): `lab/aa_wide.py`, `StaticSim(band=)`, 17 products + a
+    leverage arm, T1 / T2 / T3 / TL × 2^20 (seed 2042), 80,000 grid points × 24 price sets × 48 rebalancing settings.
+    Walk-forward 2006–2024 (yearly re-pick, hold one year): the 'best CAGR inside −15 %' rule R1 and the flat-region
+    centre R2 fail (MDD −28 to −30 %, about S&P500's −29.6 %; R1 expanding is dominated by equal weight); they rotate
+    into the last window's winner and lose in 2009, 2013 and 2022. Rules that never look at results pass: R4 equal
+    weight 8.25 / −11.3 %, R6 equity risk-share cap 7.91 / −10.7 %, R5 inverse vol 5.76 / −5.7 % (R3 / R7 / R8 end in
+    cash, 2.7–2.8 %). PBO: R1 0.92, R2 0.58. Full-window flat centre fails verdicts 2 (neighbours 59 %) and 3
+    (declared-policy variants 12.5 %). The 24 price sets hardly move zones (49,996 of 50,000 'inside' points keep
+    MDD ≥ −17 % in all sets); frequency barely matters, a 10 %p band lowers the inside share by ~10 %p. Fix found
+    while checking: SCHD is now carried back with DVY from 2003-11 (`aa_pricesets.LATE_CHAINS`). Points holding KTB
+    10 / 30 or US dividend start later (2000-10 / 2003-11) and skip part or all of the dot-com fall.
 
