@@ -45,7 +45,8 @@ class StaticSim:
     """
 
     def __init__(self, panel: Panel, syms: list[str], start: str, end: str, rebalance: str = "Q",
-                 cost_bps: float = 10.0, rebalance_offset: int = 0, frictions=None, rebalance_phase: int = 0):
+                 cost_bps: float = 10.0, rebalance_offset: int = 0, frictions=None, rebalance_phase: int = 0,
+                 band: float = 0.0):
         missing = [s for s in syms if s not in panel.symbols]
         if missing:
             raise ValueError(f"가격 데이터가 없는 자산: {', '.join(short(s) for s in missing)}")
@@ -81,6 +82,7 @@ class StaticSim:
         fr = resolve(frictions)
         self._cost_vec = fr.cost_vector(self.columns, cost_bps) if fr is not None else None
         self.n_days = len(dates)
+        self.band = float(band)  # percent points; a decision trades only if some weight is off target by more (A42)
 
     @property
     def n_cols(self) -> int:
@@ -93,6 +95,8 @@ class StaticSim:
             W = W[None, :]
         if W.shape[1] != self.n_cols:
             raise ValueError(f"비중 열 수가 {self.n_cols}(자산 + 현금)이어야 합니다: {W.shape[1]}")
+        if self.band > 0:
+            return self._run_band(W)
         K, T, G = W.shape[0], self.n_days, self._G
         paths = np.empty((K, T))
         turn = np.zeros(K)
@@ -115,6 +119,38 @@ class StaticSim:
                     value = pre - (np.abs(W * pre[:, None] - hold) @ self._cost_vec) / 2.0
                 paths[:, e] = value
                 turn += tr / prev
+        years = max(T, 1) / TRADING_DAYS
+        return paths, turn / years
+
+    def _run_band(self, W: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Like run, but each path keeps its own holdings and trades at a decision only when the largest gap between
+        its weights on the execution day and the target exceeds the band (aa_engine.simulate's rule)."""
+        K, T, G = W.shape[0], self.n_days, self._G
+        band = self.band / 100.0
+        paths = np.empty((K, T))
+        turn = np.zeros(K)
+        H = W.copy()  # holdings in money at the start of the segment (value 1 before day 0)
+        starts = [-1] + self._trade_rows.tolist()
+        for j, s in enumerate(starts):
+            trade = j + 1 < len(starts)
+            e = starts[j + 1] if trade else T - 1
+            seg = G[s + 2:e + 2] / G[s + 1]
+            block = H @ seg.T
+            paths[:, s + 1:e + 1] = block
+            if trade:
+                hold = H * seg[-1]
+                pre = hold.sum(axis=1)
+                prev = block[:, -2] if block.shape[1] >= 2 else H.sum(axis=1)
+                go = np.abs(hold / pre[:, None] - W).max(axis=1) > band
+                tr = np.abs(W * pre[:, None] - hold).sum(axis=1) / 2.0
+                if self._cost_vec is None:
+                    cost = tr * self.cost
+                else:
+                    cost = (np.abs(W * pre[:, None] - hold) @ self._cost_vec) / 2.0
+                value = np.where(go, pre - cost, pre)
+                H = np.where(go[:, None], W * value[:, None], hold)
+                paths[:, e] = value
+                turn += np.where(go, tr / prev, 0.0)
         years = max(T, 1) / TRADING_DAYS
         return paths, turn / years
 
