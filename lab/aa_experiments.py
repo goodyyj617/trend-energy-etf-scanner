@@ -41,6 +41,8 @@ A42_2_DIR = ALLOC / "2026-10-31_a42_stage2"  # A42 stage 2: wide static search v
 A42_2_MEMO = ALLOC / "2026-10-31_a42_stage2.md"
 A42_3_DIR = ALLOC / "2026-11-01_a42_stage3"  # A42 stage 3: 324 operating policies (accounts, deposits, tax, ISA limit)
 A42_3_MEMO = ALLOC / "2026-11-01_a42_stage3.md"
+A42_4_DIR = ALLOC / "2026-11-02_a42_stage4"  # A42 stage 4: dynamic layers (signals, actions, vol target …) on six targets
+A42_4_MEMO = ALLOC / "2026-11-02_a42_stage4.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -52,7 +54,8 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency",
               "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout",
               "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check",
-              "a42_2_walk", "a42_2_rebalance", "a42_3_declared", "a42_3_axes")
+              "a42_2_walk", "a42_2_rebalance", "a42_3_declared", "a42_3_axes",
+              "a42_4_tradeoff", "a42_4_checks")
 
 
 @dataclass(frozen=True)
@@ -330,6 +333,21 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 한도 밖의 돈을 현금으로 두는 것은 설계의 가정입니다. 세금은 2026-10 기준을 단순하게 넣었고, 상품별 비용은 측정한 호가가 아니라 1틱 반 스프레드 가정입니다. 원화·대용 자료·표본 내 연구입니다."),
         ("a42_3_declared", "a42_3_axes"), A42_3_MEMO,
         "PNG 그림은 docs/research/allocation/figures/a42_stage3/"),
+    Experiment(
+        "a42_4", "2026-11-02", "A42", "A42 4단계: 동적 층 873가지 × 대상 6개, 가짜 신호와 같은 비용 정적으로 거르기",
+        "A38(추세 필터)과 A40(카나리아)을 남은 대상 위에서 한꺼번에 조합했습니다. 대상은 R4·R5·R6의 2024-12 비중과 안정형 40·(가)·현재 보유이고, "
+        "신호 6(VAA·BAA 카나리아, HAA(TIP), S&P500 200일선, 신용 스프레드, VIX, 나스닥 자기 추세) × 행동 4(나스닥 → 방어 / 안전 묶음, 모든 주식 → CD, 나스닥 ↔ 방어 10%p) "
+        "× 확인 2 × 분할 매매 3 × 변동성 목표 3 × 쿨다운 2, 신호 없음 9를 더해 대상마다 873가지이고, 각각에 HAA50+BAA50 국내판 위성을 0·25·50% 섞었습니다. "
+        "판정은 설계 그대로: 대표 세트에서 ① MDD 개선이 가짜 신호 200개의 95%보다 크고 ② 같은 비용 정적보다 MDD 3%p 이상 얕고 ③ CAGR 손실 1%p 이하, 두 극단 세트에서도 ② 유지.",
+        ("한 줄 답: 15,714개 중 113개(0.7%)가 통과했습니다. 다만 가짜 신호를 이긴 비율(①)이 7.7%로 우연 기준 5%를 겨우 넘습니다.",
+         "통과는 F3 현재 보유 86, R4 12, 안정형 40 11, R6 3, (가) 1, R5 0입니다.",
+         "R4·R6의 통과는 거의 변동성 목표 10%의 효과입니다. 신호 없이 변동성 목표만 걸어도 R4 MDD −11.3 → −7.5%(CAGR −0.2%p)이고, 신호를 더한 몫은 MDD 0–0.5%p입니다. "
+         "예외로 R4 + HAA 카나리아(TIP) + 모든 주식 → CD(변동성 목표 없음)는 MDD −7.9%, CAGR이 정적보다 0.4%p 높습니다.",
+         "신호의 효과가 뚜렷한 곳은 현재 보유(F3)에서 200일선·나스닥 추세·카나리아로 주식을 CD로 옮기는 것입니다: MDD −17.5 → −7 – −11%. 다만 86개 중 85개가 위성 25·50%와 함께일 때입니다.",
+         "안정형 40·현재 보유는 나스닥100이 없어 '나스닥 → …' 행동이 아무것도 바꾸지 않습니다. 변동성 목표는 R4·R6에서만 MDD를 3–4%p 줄였습니다.",
+         "한계: 설정이 1만 5천 개가 넘어 통과 목록 일부는 우연일 수 있습니다(5단계에서 봉인 구간으로 다시 봄). 위성은 2007년부터, 매일 고정 비율로 섞었습니다. 원화·대용 자료·표본 내 연구입니다."),
+        ("a42_4_tradeoff", "a42_4_checks"), A42_4_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a42_stage4/"),
 )
 
 
@@ -809,6 +827,26 @@ def a42_3_axes(folder: Path | str = A42_3_DIR) -> pd.DataFrame:
     axis = {"accounts": "계좌", "deposits": "입금", "execution": "실행", "cost": "비용", "tax": "세금", "limit": "한도"}
     e["행"] = [f"{axis[a]} · {LABELS[lv]}" for a, lv in zip(e["축"], e["수준"])]
     return e.pivot_table(index="행", columns="대상", values="CAGR 효과", sort=False) * 100
+
+
+def a42_4_verdicts(folder: Path | str = A42_4_DIR) -> pd.DataFrame:
+    """A42 stage 4 verdict table (representative set), percent columns for the charts."""
+    v = pd.read_csv(Path(folder) / "verdicts.csv.gz", keep_default_na=False, na_values=[""])
+    for c in ("MDD 개선", "CAGR 손실"):
+        v[c] = v[c] * 100
+    for c in ("① 가짜 95%보다 개선", "② 같은 비용보다 3%p", "③ CAGR 손실 ≤ 1%p", "극단 두 세트 ② 유지"):
+        v[c] = v[c].astype(str).eq("True")
+    return v
+
+
+def a42_4_checks(folder: Path | str = A42_4_DIR) -> pd.DataFrame:
+    """Share of settings (%) passing each check, per target (satellite 0 %), plus the number that passed all."""
+    v = a42_4_verdicts(folder)
+    v0 = v[v["위성"] == 0.0]
+    checks = ["① 가짜 95%보다 개선", "② 같은 비용보다 3%p", "③ CAGR 손실 ≤ 1%p", "극단 두 세트 ② 유지"]
+    t = v0.groupby("대상", sort=False)[checks].mean() * 100
+    t["통과 수 (위성 0·25·50% 합)"] = v.groupby("대상", sort=False)["판정"].apply(lambda s: int((s == "통과").sum()))
+    return t.reset_index()
 
 
 def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:

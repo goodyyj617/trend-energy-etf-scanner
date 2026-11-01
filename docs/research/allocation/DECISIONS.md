@@ -658,4 +658,10 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     none vs on: 2.0–4.9 %p). Without the limit the declared policy is 0.33–0.82 %p below (tax: ISA 일반형 0.52–0.88 %p).
     Costs (±0.01 %p) and the execution mode (±0.06 %p) hardly matter. Gold filled only by deposits and never sold
     deepens (가)'s MDD to −19 – −22 % with a single lump sum.
+    Stage 4 (2026-11-02, memo `2026-11-02_a42_stage4.md`): `lab/aa_layers.py`, 873 settings × 6 targets (R4 / R5 /
+    R6, F2 / F4 / F3) × satellite 0 / 25 / 50 %, 200 placebos, equal-cost static, three price sets. 113 of 15,714
+    pass the A40-type verdict, but only 7.7 % beat 95 % of the placebos (chance 5 %). R4 / R6 passes are almost all
+    the 10 % volatility target (signal adds 0–0.5 %p MDD); F3 현재 보유 gains most from moving equity to CD on the
+    200-day line / nasdaq trend / canary (MDD −17.5 → −7 – −11 %, mostly with the satellite); R4 + HAA canary + CD
+    (no vol target) passes alone. F2 / F3 hold no nasdaq, so the nasdaq actions do nothing there.
 
