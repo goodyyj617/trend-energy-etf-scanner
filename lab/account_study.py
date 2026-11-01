@@ -55,6 +55,7 @@ CAPACITY_LIMIT = 0.05  # order above 5% of the 20-day average dollar volume (as 
 N_TRIALS_BEFORE = ms.N_TRIALS_BEFORE + ms.N_NEW  # 70,574
 N_NEW = 1_200  # 20 settings x 15 buy rules x 4 exits
 FIG_EXIT = "H1"
+NULL_LABEL = "N10_W2_P0_o1"  # the null of the per-signal tests (order 1 vs 0; not "null", which read_csv reads as missing)
 SEED = 93
 _W: dict = {}
 
@@ -532,7 +533,7 @@ def signal_stats(bought: pd.DataFrame) -> pd.DataFrame:
                 continue
             r = gs["ret"].to_numpy(dtype=float)
             r = r[np.isfinite(r)]
-            row = {"setting": st if o == 0 else "null", "gen": gen, "exit": x, "n": len(r), **pj.ret_stats(r, ref, ref_boot, rng)}
+            row = {"setting": st if o == 0 else NULL_LABEL, "gen": gen, "exit": x, "n": len(r), **pj.ret_stats(r, ref, ref_boot, rng)}
             for c, f in (("mean", np.mean), ("big50", lambda a: (a >= 0.5).mean()), ("loss20", lambda a: (a <= -0.2).mean())):
                 row[c] = float(f(r)) if len(r) else np.nan
                 row[f"ref_{c}"] = float(f(ref))
@@ -808,8 +809,8 @@ def main(argv: list[str]) -> None:
     hist.to_csv(out / "hist.csv", index=False)
     cand.to_csv(out / "candidates.csv", index=False)
     acc.groupby(["setting", "gen", "exit", "kind", "k"]).median(numeric_only=True).to_csv(out / "accounts.csv")
-    st_null = stats[stats["setting"] == "null"]
-    st_set = stats[stats["setting"] != "null"]
+    st_null = stats[stats["setting"] == NULL_LABEL]
+    st_set = stats[stats["setting"] != NULL_LABEL]
     ch = {"q1": {"grew": bool(t["grew"].any()), "settings_grew": t.loc[t["grew"], "setting"].tolist(),
                  "base": t.set_index("setting").loc[setting_name(BASE)].to_dict()},
           "q2": {"p0_pooled": p0_q2, "q95": int(t2["q95"].iloc[0]) if len(t2) else None,

@@ -988,6 +988,29 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     cells not independent. Runner lab/account_study.py (pick_study.replay_risk slots / w / key; no
     engine change; results lab_crsp/stage_n_account). Design:
     docs/research/lab/2026-11-01_stage_n_design.md.
+    Result (2026-11-02, run 01:28-02:47 KST; runner 2c7ec59, aggregation rerun after renaming the
+    per-signal null label, which read_csv read as missing): random orders reuse Stage M's draws (M1
+    rule, pseudo 0-9) and Stage L's (no exclusion), so settings share random numbers; N=10 / W2 / P0
+    (X1: W1) equals Stage M on 64 cells, 1,964 values, max difference 9.7e-17. Details fixed before
+    the run (not in the design): Q1 counts cells whose 1993-2023 CAGR exceeds the 95th percentile of
+    the 10 pseudo medians; Q2's p0 pools the 100 seed leave-one-out tests of the 20 settings (0.09);
+    per-signal tests use the first random order vs N=10 / W2 / P0's first, null = its order 1 vs 0.
+    Q1: transfer (median over 60 cells of M1 minus the pseudo median) +0.23 / +0.31 pp at the base
+    (halves); no N >= 20 setting gained >= 0.5 pp in both halves (W1 +0.10-0.17 / +0.15-0.23, W2
+    -0.06 to +0.05), so "transfer grew" is no; most random-order settings still had more cells
+    beyond the pseudo 95th percentile than chance (15-30 vs q95 11-12). Transfer ratio rises with N
+    only because per-signal contribution shrinks with 1/N. Q2: entries beating the same setting's
+    E0 in both halves under >= 3 of 4 exits 0-1 at random order (q95 3); beyond chance only for P2
+    at N=10 (4) and 20 (5), mainly because largest-first E0 fell (N=10: 9.0% -> 7.9%). Q3: 11 cells
+    passed the SPY test, all under P1 / P2; only N10 / P1 x E5 (H1, H9) held >= 2 exits at 20 and 40
+    bp, and N20 / P1 x E5 failed, so no candidate (no DSR). Medians over 60 cells: W2 random order
+    CAGR 8.3% (N=10) -> 8.8% (N=50), MDD -44.8% -> -43.7%; W3 within 0.2 pp of W2; P1 8.9-9.3%,
+    MDD -40 to -42%, but same-order E0 9.2-9.7% and 2017-2023 8.1-9.0% (SPY 9.9% / -55%, 2017-2023
+    13.2%). Bought-signal returns: unchanged by slots / sizing (p < 0.05 in 0-3% of cells, null 5%);
+    P1 differs in 52-62% (-20% losses 4.6-6.1% vs 11.7%), P2 in 7-10%. W2 trades bound by the 1/N
+    cap 51% (W3 7%); positions ~N; $1M account at N=10: median order 2.1% of 20-day dollar volume,
+    27% of orders above 5% (N=50: 0.4%, 3%). Trials +1,200 (about 71,774). Record:
+    docs/research/lab/2026-11-01_stage_n_results.md.
 
 ## Open decisions
 
