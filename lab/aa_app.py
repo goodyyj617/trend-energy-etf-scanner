@@ -2881,6 +2881,31 @@ def chart_a42_2_rebalance() -> go.Figure:
     return fig
 
 
+def chart_a42_3_declared() -> go.Figure:
+    t = exps.a42_3_declared()
+    fig = go.Figure()
+    for col, color in (("기준선 CAGR", BLUE), ("선언 CAGR (TWR)", ORANGE), ("선언 IRR", AQUA)):
+        fig.add_trace(go.Bar(x=t["대상"], y=t[col], name=col.replace("기준선", "기준선: 한 계좌 · 목돈 · 비용 없음").replace("선언", "선언 정책 세후"),
+                             marker_color=color, hovertemplate="%{x}<br>" + col + " %{y:.2f}%<extra></extra>"))
+    fig.update_layout(height=460, barmode="group", margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="같은 비중, 운영 방식만 다르게: 기준선 vs 선언 정책(분리 계좌 · 1,000만 + 매월 100만 · ISA 일반형 · 한도)<br>"
+                                      "<sup>여덟 대상 모두 CAGR 차 > 0.5%p로 표시. 차이의 대부분은 ISA 한도 밖의 돈을 현금으로 두는 가정에서 옴</sup>"),
+                      yaxis=dict(title="CAGR (%)"))
+    return fig
+
+
+def chart_a42_3_axes() -> go.Figure:
+    t = exps.a42_3_axes()
+    lim = float(np.nanmax(np.abs(t.to_numpy()))) or 1.0
+    fig = go.Figure(go.Heatmap(z=t.to_numpy(), x=list(t.columns), y=list(t.index), colorscale="RdBu", zmin=-lim, zmax=lim,
+                               text=[[f"{v:+.2f}" for v in row] for row in t.to_numpy()], texttemplate="%{text}",
+                               hovertemplate="%{y} · %{x}: %{z:+.2f}%p<extra></extra>"))
+    fig.update_layout(height=560, margin=dict(l=10, r=10, t=70, b=10), yaxis=dict(autorange="reversed"),
+                      title=dict(text="정책 축별 TWR CAGR 주효과 (%p, 다른 축은 모든 수준의 평균)<br>"
+                                      "<sup>한도와 세금이 크고, 비용과 실행 방식은 ±0.06%p 안</sup>"))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2921,6 +2946,8 @@ EXPERIMENT_CHARTS = {
     "a42_1_check": chart_a42_1_check,
     "a42_2_walk": chart_a42_2_walk,
     "a42_2_rebalance": chart_a42_2_rebalance,
+    "a42_3_declared": chart_a42_3_declared,
+    "a42_3_axes": chart_a42_3_axes,
 }
 
 
