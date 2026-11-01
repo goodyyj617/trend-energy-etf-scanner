@@ -957,6 +957,38 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     unchanged. E0 (shown only): (b) passes under 8 / 8 / 10 exits, up to +2.1 pp (RS -1.8 to -2.0). Trials +495 (about 70,574).
     Record: docs/research/lab/2026-11-01_stage_m_results.md.
 
+93. Stage N: account and sizing rules (user decision 2026-11-01 23:01 KST, card after Stage M;
+    registered before any run). Question: Stage M improved per-signal quality but barely moved the
+    10-stock account; does changing the account (slots, sizing, fill priority) let the signal quality
+    reach the account (Q1), let entry rules beat same-account random entry more often (Q2), and give a
+    candidate beating SPY (Q3)? Fixed: filter as 81-92 plus the M1 exclusion of 92 (post-hoc, stated);
+    entries E1-E9, V1-V6 and E0 (5 seeds) from the saved Stage L tables; exits X1, H1, H9, ST (the
+    long-hold exits of 90; X1 sized with ATR14 x3 as a sizing distance only). Account settings, two
+    2-D grids sharing the slot axis (no 3-D exhaustive grid): slots N in {10, 20, 30, 50}; grid A
+    sizing W in {W1 equal 1/N (comparison only, not the user's 1% rule), W2 min(r / stop distance,
+    1/N), W3 min(r / stop distance, 2/N)} with r = 10% / N (N=10: 1%, the current account), random
+    order; grid B fill priority P in {P0 random (100 orders), P1 lowest idiosyncratic vol first, P2
+    largest cap first} at W2; 20 distinct settings. Rest as 87-92 (20-session ban, 20 bp, T-bill
+    cash, periods, no holdout). Baselines: N=10/W2/P0 M1 cells must equal Stage M (checked first);
+    per setting 10 day-matched pseudo exclusions (20 orders each, same order rule), the no-exclusion
+    account, E0 under the same setting, SPY / SPY200 / EW. Verdicts: Q1 = median over the 60 entry x
+    exit cells of (M1 CAGR - pseudo median); "transfer grew" only if some N >= 20 setting exceeds
+    N=10/W2/P0 by >= 0.5 pp in both halves and its count of cells beyond the pseudo 95th percentile
+    exceeds Binomial(60, p0) q95 (p0 from pseudo-vs-pseudo); transfer ratio (account excess /
+    no-limit contribution excess) reported. Q2 = entries (of 15) whose median CAGR beats the same
+    setting's E0 median in both halves under >= 3 of 4 exits, chance from E0 seed leave-one-out,
+    Binomial(15, p0) q95. Q3 candidates: W2/W3 only, setting x entry with CAGR > SPY and |MDD| <
+    |SPY MDD| in 1993-2023 and 2017-2023, >= 30 trades, under >= 2 of 4 exits, still >= 2 at 40 bp,
+    and the same entry passing at an adjacent N in the same grid; DSR (N 70,574 + 1,200) and PSR vs
+    SPY / same-setting E0 for candidates only. Per-signal statistics of the bought signals vs
+    N=10/W2/P0 (bootstrap CI, Mann-Whitney, KS, +50% / -20% shares); no signals-per-day figure.
+    Shown: average positions, cash share, fill rate, weight distribution and cap-bound share, cap
+    rank of fills, turnover, order size vs dollar volume (100k / 1M accounts). Trials +1,200 (20 x
+    15 x 4). Limits: one risk budget (10% total), no pyramiding (engine change), P1/P2 single orders,
+    cells not independent. Runner lab/account_study.py (pick_study.replay_risk slots / w / key; no
+    engine change; results lab_crsp/stage_n_account). Design:
+    docs/research/lab/2026-11-01_stage_n_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;
