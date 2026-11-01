@@ -39,6 +39,8 @@ A42_1_DIR = ALLOC / "2026-10-31_a42_stage1"  # A42 stage 1: factor exposures and
 A42_1_MEMO = ALLOC / "2026-10-31_a42_stage1.md"
 A42_2_DIR = ALLOC / "2026-10-31_a42_stage2"  # A42 stage 2: wide static search v2, second grid, walk-forward of the rules
 A42_2_MEMO = ALLOC / "2026-10-31_a42_stage2.md"
+A42_3_DIR = ALLOC / "2026-11-01_a42_stage3"  # A42 stage 3: 324 operating policies (accounts, deposits, tax, ISA limit)
+A42_3_MEMO = ALLOC / "2026-11-01_a42_stage3.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -50,7 +52,7 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "canary_scatter", "canary_verdicts", "canary_placebo", "canary_trades", "canary_currency",
               "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout",
               "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check",
-              "a42_2_walk", "a42_2_rebalance")
+              "a42_2_walk", "a42_2_rebalance", "a42_3_declared", "a42_3_axes")
 
 
 @dataclass(frozen=True)
@@ -313,6 +315,21 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 국고채 10·30년(2000-10)과 미국 배당(2003-11)을 담은 점은 늦게 시작해 닷컴을 건너뜁니다. 국고채 상장 전은 월평균 금리로 만든 근사입니다. 원화·대용 자료·표본 내 연구입니다."),
         ("a42_2_walk", "a42_2_rebalance"), A42_2_MEMO,
         "PNG 그림은 docs/research/allocation/figures/a42_stage2/"),
+    Experiment(
+        "a42_3", "2026-11-01", "A42", "A42 3단계: 같은 비중, 운영 방식 324가지",
+        "지금까지의 백테스트는 한 계좌에 목돈을 한 번 넣고 세금 없이 비용 10bp로 분기마다 맞춘다는 가정이었습니다. 실제로는 ISA 한도(연 2,000만 원·총 1억 원)와 만기 과세가 있고, "
+        "금현물은 별도 계좌라 ISA 안에서 팔아 맞출 수 없으며, 돈도 매달 나눠 들어옵니다. 그래서 비중은 그대로 두고 계좌(한 계좌 / ISA + 금현물 분리) × 입금(목돈 1억 / 1,000만 + 매월 100만 / 둘 다) "
+        "× 실행(전체 / 새 입금 + 연 1회 / 밴드 5%p) × 비용(10bp / 상품별 / 두 배) × 세금(없음 / ISA 일반형 / 서민형) × ISA 한도(없음 / 있음) 324가지를 돌렸습니다. "
+        "대상은 R4·R5·R6의 2024-12 비중과 60/40·안정형 40·현재 보유·(가), 비교선 S&P500입니다. 수익률은 시간 가중(TWR)과 금액 가중(IRR) 둘 다, MDD는 TWR 기준입니다.",
+        ("한 줄 답: 운영 방식이 CAGR을 0.3%p(세금만)에서 6%p(한도 + 현금 대기)까지 바꿉니다. 여덟 대상 모두 '선언 정책 세후 CAGR이 기준선보다 0.5%p 넘게 낮음' 표시가 붙었습니다(2.3–6.4%p).",
+         "가장 큰 원인은 ISA 한도입니다. 설계대로 한도 밖의 돈을 일반 계좌 현금(CD91, 이자 15.4% 과세)으로 기다리게 했더니, 3년마다 ISA를 다시 열 때 만기 잔액 대부분이 현금으로 빠져 "
+         "끝에는 전체 돈의 59–84%가 현금이었습니다. 한도 '없음'과 '있음'의 차이는 CAGR 2.0–4.9%p입니다. 한도 밖의 돈을 일반 계좌에서 ETF로 굴린다면 차이는 훨씬 작습니다.",
+         "한도를 빼면 세금이 주된 차이입니다: 선언 정책에서 한도만 없애면 기준선과의 차이는 0.33–0.82%p, 세금만 켜면 ISA 일반형 0.52–0.88%p, 서민형 0.47–0.83%p가 줄어듭니다.",
+         "비용(10bp / 상품별 / 두 배)과 실행 방식(전체 / 새 입금 + 연 1회 / 밴드 5%p)은 거의 상관없습니다: 효과가 각각 ±0.01%p, ±0.06%p 안입니다.",
+         "금 30%인 (가)는 분리 계좌 · 목돈 1회에서 MDD가 −19 – −22%로 깊어집니다(금을 새 입금으로만 채우고 팔지 않아 금 비중이 흘러감). 매월 입금이 있으면 −13 – −15%입니다.",
+         "한계: 한도 밖의 돈을 현금으로 두는 것은 설계의 가정입니다. 세금은 2026-10 기준을 단순하게 넣었고, 상품별 비용은 측정한 호가가 아니라 1틱 반 스프레드 가정입니다. 원화·대용 자료·표본 내 연구입니다."),
+        ("a42_3_declared", "a42_3_axes"), A42_3_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a42_stage3/"),
 )
 
 
@@ -775,6 +792,23 @@ def a42_2_rebalance(folder: Path | str = A42_2_DIR) -> pd.DataFrame:
     rep = g[g["세트"] == "real·h60·cd91"]
     t = rep.groupby(["주기", "밴드"])["안 비율"].mean().mul(100).unstack()
     return t.reindex(["M", "Q", "S", "A"]).rename(index={"M": "월", "Q": "분기", "S": "반기", "A": "연"})
+
+
+def a42_3_declared(folder: Path | str = A42_3_DIR) -> pd.DataFrame:
+    """A42 stage 3: per target, the baseline (one account, lump sum, no cost) vs the declared policy after tax, %."""
+    v = pd.read_csv(Path(folder) / "verdicts.csv")
+    return pd.DataFrame({"대상": v["대상"], "기준선 CAGR": v["기준선 CAGR"] * 100, "선언 CAGR (TWR)": v["선언 CAGR (TWR)"] * 100,
+                         "선언 IRR": v["선언 IRR"] * 100, "기준선 MDD": v["기준선 MDD"] * 100, "선언 MDD (TWR)": v["선언 MDD (TWR)"] * 100,
+                         "표시": v["CAGR 표시 (>0.5%p)"] | v["MDD 표시 (>2%p)"]})
+
+
+def a42_3_axes(folder: Path | str = A42_3_DIR) -> pd.DataFrame:
+    """A42 stage 3: main effect of each policy level on TWR CAGR (%p), axis levels × targets."""
+    from .aa_accounts import LABELS
+    e = pd.read_csv(Path(folder) / "axis_effects.csv", keep_default_na=False)
+    axis = {"accounts": "계좌", "deposits": "입금", "execution": "실행", "cost": "비용", "tax": "세금", "limit": "한도"}
+    e["행"] = [f"{axis[a]} · {LABELS[lv]}" for a, lv in zip(e["축"], e["수준"])]
+    return e.pivot_table(index="행", columns="대상", values="CAGR 효과", sort=False) * 100
 
 
 def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:

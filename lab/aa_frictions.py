@@ -8,12 +8,13 @@ before this module existed (tests/test_aa_frictions.py).
   spread). When enabled they are added to the common ``cost_bps`` of each trade, product by product.
 - Fund fees (총보수) are not here: the model already subtracts them before listing and real prices include them.
 - Accounts: every product belongs to an account (``aa_assets.Product.account``: "isa" or "gold"); ``account``
-  overrides that map. Taxes are named per account (``TaxRule``); the numbers default to 0 and nothing computes a tax
-  yet: ``after_tax`` raises until the rules are written and checked against the law at the time they are switched on.
-  Known examples to check then (2026-10): ISA 일반형 비과세 200만 원 then 9.9 % 분리과세 on the net gain at maturity;
-  금현물 계좌 매매차익 비과세; a general account taxes 국내 상장 해외 ETF gains and distributions at 15.4 %.
-- ``DepositRule`` describes the 'gold by new deposits only' version (new money goes to the most underweight side
-  first, gold is never sold). It is a setting only; running it raises until the deposit simulation exists.
+  overrides that map. ``TaxRule`` is a tax on net gain: ``tax(gain)`` = rate × (gain − exempt), never negative
+  (A42 §3, rules as of 2026-10: ISA 일반형 200만 원 비과세 then 9.9 % at closing, 서민형 400만 원; 금현물 계좌 매매차익
+  비과세; general-account interest 15.4 %). Check the law again before using the numbers for a real decision.
+- ``DepositRule`` is the deposit schedule (first amount, then a fixed amount each month) and the products that are
+  never sold ('gold by new deposits only': new money goes to the most underweight side first).
+- Taxes and deposits move money in and out, so the weight simulators below (`run_allocation`, `StaticSim`) do not take
+  them and still raise when they are switched on; `lab/aa_accounts.py` (`run_policy`) runs them (A42 §3).
 """
 from __future__ import annotations
 
@@ -34,13 +35,18 @@ class TaxRule:
     rate: float = 0.0  # rate on the taxable part
     note: str = ""
 
+    def tax(self, gain: float) -> float:
+        return max(0.0, float(gain) - self.exempt_krw) * self.rate
+
 
 @dataclass(frozen=True)
 class DepositRule:
-    """'New deposits only' rebalancing for products that cannot be sold or moved freely (setting only)."""
+    """Deposit schedule and the products that are only bought with new money (aa_accounts.run_policy)."""
     every: str = "M"  # "M" | "Q"
-    amount_pct: float = 0.0  # each deposit as a percent of the starting value
+    amount_pct: float = 0.0  # each deposit as a percent of the starting value (when amount_krw is 0)
     never_sell: tuple[str, ...] = ()
+    first_krw: float = 0.0  # deposit on the first day, KRW
+    amount_krw: float = 0.0  # each later deposit, KRW
 
 
 @dataclass(frozen=True)
@@ -72,9 +78,9 @@ class Frictions:
         if not self.active:
             return
         if any(t.rate or t.exempt_krw for t in self.taxes):
-            raise NotImplementedError("세금 계산은 아직 없습니다. 켜기 전에 그 시점의 제도를 확인해 규칙을 넣어야 합니다.")
+            raise NotImplementedError("세금은 입금·인출이 있는 계좌 시뮬레이터(lab/aa_accounts.py)에서만 계산합니다.")
         if self.deposits is not None:
-            raise NotImplementedError("'새 입금으로만' 리밸런싱은 설정만 있고 계산은 아직 없습니다.")
+            raise NotImplementedError("입금 규칙은 계좌 시뮬레이터(lab/aa_accounts.py)에서만 계산합니다.")
 
 
 OFF = Frictions()
@@ -88,8 +94,9 @@ def resolve(fr: Frictions | None) -> Frictions | None:
     return fr
 
 
-def after_tax(*_args, **_kwargs):
-    raise NotImplementedError("세금 계산은 아직 없습니다(DECISIONS A41 §7).")
+def after_tax(value: float, basis: float, rule: TaxRule | None) -> float:
+    """Value after the tax due when an account with this cost basis is closed (no rule = no tax)."""
+    return float(value) - (rule.tax(float(value) - float(basis)) if rule is not None else 0.0)
 
 
 __all__ = ["ACCOUNTS", "TaxRule", "DepositRule", "Frictions", "OFF", "resolve", "after_tax", "CASH"]
