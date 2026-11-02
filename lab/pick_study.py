@@ -284,7 +284,7 @@ def _placebo_year(Xtr, y, sym, Xte, test, Y, cols, rng, n):
 # --------------------------------------------------------------------------- 4. accounts
 
 def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLOTS, ban=BAN, log=None, psale=None,
-                pfrac=0.5):
+                pfrac=0.5, force_exit=None):
     """10-stock 1%-rule account on the window arrays: signals of day i are bought at the open of
     ei (their next session) in `key` order (larger first) while a slot and cash are free; target
     value = w x equity at that open (capped by cash); no re-entry for `ban` sessions after an exit.
@@ -294,8 +294,13 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
     banned (signals skipped by the re-entry rule) and held (symbols held at the close).
     psale (optional, per signal: window day of a partial sale or -1): sells pfrac of the shares at
     that open, after the day's full sales and before its buys (as the engine's take_profit_pct);
-    the trade's return then combines both sales. Without psale the account is unchanged."""
+    the trade's return then combines both sales. Without psale the account is unchanged.
+    force_exit (optional, window days): every holding is sold at that day's open, after the day's
+    full and partial sales and before its buys (a holding without an open price is sold at its next
+    open); the re-entry ban applies as after any exit. Without force_exit the account is unchanged."""
     n = O.shape[0]
+    force = set(int(i) for i in force_exit) if force_exit is not None else None
+    carry: set[int] = set()
     by_day: dict[int, list[int]] = {}
     for r in np.argsort(-key, kind="stable"):
         if 0 <= ei[r] < n:
@@ -330,6 +335,23 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
             cash += sold * Oi[j] * (1 - cost)
             p["shares"] -= sold
             p["ppx"] = float(Oi[j])
+        if force is not None and (i in force or carry):
+            for j in (list(pos) if i in force else list(carry)):
+                p = pos.get(j)
+                if p is None:  # sold by its own exit meanwhile
+                    carry.discard(j)
+                    continue
+                px = Oi[j]
+                if px != px:
+                    carry.add(j)
+                    continue
+                cash += p["shares"] * px * (1 - cost)
+                ret = (px * (1 - cost) / (p["entry_px"] * (1 + cost)) - 1.0 if "ppx" not in p
+                       else (pfrac * p["ppx"] + (1 - pfrac) * px) * (1 - cost) / (p["entry_px"] * (1 + cost)) - 1.0)
+                trades.append((j, p["entry_i"], i, ret, p["weight"], p["r"]))
+                del pos[j]
+                last_exit[j] = i
+                carry.discard(j)
         left = banned = bought = 0
         if i in by_day and len(pos) < slots:
             held = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else LC[i - 1, j]) for j, p in pos.items())
