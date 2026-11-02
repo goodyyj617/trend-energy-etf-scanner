@@ -14,6 +14,11 @@ import pandas as pd
 ALLOC = Path(__file__).resolve().parents[1] / "docs" / "research" / "allocation"
 STAGE5 = ALLOC / "2026-11-02_a42_stage5" / "final_with_sealed.csv"
 AS_OF = "2026-11-02"
+HEADLINE = ("레버리지 없이 MDD −15% 안에서 얻을 수 있는 CAGR의 천장은 약 9%다. 미리 정한 판정과 1990년대 시험을 모두 넘은 정적 배분은 "
+            "(가)(8.81% / −13.7%)와 안정형 40(7.80% / −13.7%) 둘뿐이고, 좋은 조합의 공통 구조는 나스닥100 하나 + KRX 금 25–30% + 환헤지 미국채 + "
+            "원화 현금이다. 결과를 보고 고른 비중은 시간 밖에서 무너졌고(walk-forward MDD −28%), 신호는 우연과 구분되지 않았다(가짜 신호를 이긴 비율 7.7%). "
+            "낙폭을 더 줄이는 확실한 방법은 변동성 목표다. 모두 과거 자료의 결과이고 실거래 성과를 보장하지 않는다.")
+
 
 
 @dataclass(frozen=True)

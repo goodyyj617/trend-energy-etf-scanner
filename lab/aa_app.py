@@ -2924,6 +2924,9 @@ def chart_a42_3_overflow() -> go.Figure:
                       title=dict(text="ISA 한도 밖의 돈: 현금으로 두기 vs 일반 계좌에서 같은 ETF로 굴리기 (선언 정책 세후 TWR CAGR)<br>"
                                       "<sup>기준선 = 한 계좌 · 목돈 · 비용 없음. 굴리면 기준선과의 차이가 2.3–6.4%p → 0.54–1.03%p</sup>"),
                       yaxis=dict(title="CAGR (%)"))
+    return fig
+
+
 def chart_a42_4_tradeoff() -> go.Figure:
     v = exps.a42_4_verdicts()
     v = v[v["위성"] == 0.0]
@@ -3040,6 +3043,9 @@ EXPERIMENT_CHARTS = {
 
 def experiments_page() -> None:
     st.title("실험 기록")
+    # 사용자 규칙(2026-11-02): 실험 기록 맨 위에는 현재까지의 큰 결론을 둔다. 원본은 lab/aa_summary.py.
+    st.info("**현재까지의 큰 결론** — " + summ.HEADLINE)
+    st.page_link(SUMMARY_PAGE, label="한눈에 보는 결론 페이지로", icon="⭐")
     st.caption("자산배분 연구실에서 돌린 실험을 최신순으로 모았습니다. 실험마다 **왜 했는지**, **핵심 결과**, **그래프**가 있습니다. "
                "그래프는 저장소에 기록된 결과 파일로 그리므로 가격 데이터 없이 열립니다. 점에 마우스를 올리면 값이 나옵니다. "
                "모든 숫자는 원화 표본 내 결과(기간은 실험마다 적음, 대부분 2005–2026)이고 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
@@ -3384,9 +3390,10 @@ for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES) and "_editor" not in str(_k):
         st.session_state[_k] = st.session_state[_k]
 
+SUMMARY_PAGE = st.Page(summary_page, title="한눈에 보는 결론", icon="⭐", default=True)
 RESEARCH_PAGE = st.Page(research_page, title="전략 연구", icon="🧺")
 nav = st.navigation({
-    "결론": [st.Page(summary_page, title="한눈에 보는 결론", icon="⭐", default=True)],
+    "결론": [SUMMARY_PAGE],
     "쓰기": [st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
              st.Page(dynamic_page, title="동적 프리셋 (사후)", icon="🛰️")],
     "직접 돌려 보기": [RESEARCH_PAGE,
