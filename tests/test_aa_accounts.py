@@ -96,7 +96,10 @@ def test_split_account_never_sells_gold():
 def test_policy_grid_has_324_and_defaults():
     pols = AC.all_policies()
     assert len(pols) == 324 and len(set(pols)) == 324
-    assert AC.DECLARED in pols and AC.BASELINE not in pols  # the baseline has no cost: run separately
+    assert AC.DECLARED_3 in pols and AC.BASELINE not in pols  # the baseline has no cost: run separately
+    both = AC.all_policies(overflow=True)
+    assert len(both) == 648 and AC.DECLARED in both and AC.DECLARED.overflow == "invest"
+    assert set(pols) == {q for q in both if q.overflow == "cash"}  # stage 3's 324 are the 'cash' half
     assert CASH not in AC.PRODUCT_FEES
 
 
@@ -106,3 +109,35 @@ def test_stage3_result_files_for_the_app():
     assert len(d) == 8 and d["표시"].dtype == bool
     a = ex.a42_3_axes()
     assert a.shape == (16, 8)  # 2 + 3 + 3 + 3 + 3 + 2 levels
+
+
+def test_taxable_in_general():
+    assert AC.taxable_in_general("379800") and AC.taxable_in_general("114260") and AC.taxable_in_general("411060")
+    assert not AC.taxable_in_general("KRXGOLD") and not AC.taxable_in_general("069500")
+
+
+def test_overflow_invest_changes_nothing_without_a_limit():
+    p, codes = _panel(900)
+    for tax in ("none", "general"):
+        a = _run(p, codes, AC.Policy("split", "monthly", "full", "product", tax, "none", "cash"))
+        b = _run(p, codes, AC.Policy("split", "monthly", "full", "product", tax, "none", "invest"))
+        assert np.array_equal(a["value"], b["value"]) and a["tax"] == b["tax"]
+
+
+def test_overflow_invest_keeps_the_money_working():
+    p, codes = _panel(1500)
+    cash = _run(p, codes, AC.Policy("single", "lump", "full", "product", "none", "isa", "cash"))
+    inv = _run(p, codes, AC.Policy("single", "lump", "full", "product", "none", "isa", "invest"))
+    assert cash["general_cash_end"] > 0 and inv["general_cash_end"] == 0.0 and inv["general_invested_end"] > 0
+    ideal = _run(p, codes, AC.Policy("single", "lump", "full", "product", "none", "none"))
+    # no tax: the invested general account follows the same targets, so the result is close to having no limit
+    assert abs(inv["twr_cagr"] - ideal["twr_cagr"]) < abs(cash["twr_cagr"] - ideal["twr_cagr"])
+    taxed = _run(p, codes, AC.Policy("single", "lump", "full", "product", "general", "isa", "invest"))
+    assert taxed["tax"] > 0 and taxed["final"] < inv["final"]
+
+
+def test_stage3b_result_file_for_the_app():
+    from lab import aa_experiments as ex
+    t = ex.a42_3_overflow()
+    assert len(t) == 8 and not t.isna().any().any()
+    assert (t["선언 · 한도 밖 굴림"] > t["선언 · 한도 밖 현금"]).all()
