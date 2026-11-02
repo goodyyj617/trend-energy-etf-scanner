@@ -1048,6 +1048,24 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     target.fit_weights; no engine change; results lab_crsp/stage_o_goal, aggregates
     docs/research/lab/2026-11-02_stage_o/, figures figures/stage_o_goal/). Design:
     docs/research/lab/2026-11-02_stage_o_design.md.
+    Result (2026-11-02, run 22:34-23:22 KST; runner df558e2): repro passed (2,560 cells, 28,160 plain
+    CAGR / MDD / trade values equal Stage N to 9.7e-17). 3-year windows: 28 (1994-96 to 2021-23; the
+    design's 29 counted 1993, which target.windows drops because the window starts 1993-02-01).
+    Benchmarks at the 15% budget: SPY mix w* 0.25, 4.5% (halves 5.7 / 3.4%, 2017-2023 4.8%); SPY200
+    w* 0.70, 6.8% (7.1 / 6.6%, 7.9%); EW w* 0.22, 4.4%. Q1: no goal-passing system (0 of 80 setting x
+    exit medians beat SPY200 in any judged period; 29 beat the SPY mix in all three); system values
+    4.0-5.4%, best N10 / W2 / P1 x X1 5.4% (w* 0.43, 2008-2023 4.0%), window share vs SPY200 0.21-0.36,
+    vs the mix 0.39-0.71. No candidate: of 1,200 cells 431 beat the mix in all three periods, none
+    beat SPY200 in all three (3 in the full period only: V6 x P1 x H1 at N20 / N30 7.4 / 7.2% and E4 x
+    P1 x H9 at N20 6.8%, all below SPY200 in 2008-2023); none of the 400 E0 seed cells passed. Q2:
+    the exit order survives drawdown matching (X1 4.9%, H1 4.8%, TP 4.4%, ST 4.3%, H9 4.1%, MN 4.0%,
+    LB / CH 3.3%, MA 2.8%, PS 1.9%, RS 1.0%); fast exits were not shallower (MA -50%, PS -56% vs X1
+    -41%). Q3: account w* 0.25-0.44 (60-cell medians 0.26-0.37; W1 lowest, P1 highest) vs SPY200 0.70,
+    confirming the synthesis estimate; the full-period w* is set by 2008 (half-refit w* +0.17 for
+    1993-2007, +0.01 for 2008-2023). M1 adds about 0.1 pp, P1 0.4-0.5 pp over random order at W2;
+    entries stay at E0's level (E0 4.2-4.9%). At the user's goal, index-level trend following
+    (SPY200 + T-bills) beat every stock-level trend account by 1.4-2.8 pp a year. Trials +0 (71,774).
+    Record: docs/research/lab/2026-11-02_stage_o_results.md.
 
 ## Open decisions
 
