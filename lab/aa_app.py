@@ -18,6 +18,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lab import aa_b_tests as bt  # noqa: E402
+from lab import aa_dynamic as dyn  # noqa: E402
 from lab import aa_experiments as exps  # noqa: E402
 from lab import aa_landscape as ls  # noqa: E402
 from lab import aa_notes as notes  # noqa: E402
@@ -913,6 +914,8 @@ def rebalance_page() -> None:
                "입력한 보유 내역은 이 컴퓨터의 lab_results/aa_holdings.json에만 저장됩니다(Git 제외).")
     targets_src: dict[str, object] = {f"프리셋 · {p.name}": AllocConfig(p.name, p.weights, DEFAULT_START, str(panel.last_date.date()))
                                       for p in PRESETS.values()}
+    for p in dyn.DYNAMIC_PRESETS.values():
+        targets_src[f"동적 프리셋 · {p.name}"] = p
     for meta in store.list_saved():
         obj = store.config_of(meta)
         if isinstance(obj, AllocConfig) and usable(obj, panel):
@@ -926,7 +929,12 @@ def rebalance_page() -> None:
     pick = st.selectbox("목표 전략", keys, key="rb_target")
     cfg = targets_src[pick]
     try:
-        tw, why = current_targets(panel, cfg)
+        if isinstance(cfg, dyn.DynamicPreset):
+            with st.spinner("오늘까지의 신호를 계산하는 중…"):
+                tw, why = dyn.current_targets(panel, cfg, load_dyn_inputs(str(date.today())))
+            why = f"동적 프리셋(사후), 오늘 신호 상태 기준 — {why}"
+        else:
+            tw, why = current_targets(panel, cfg)
     except ValueError as exc:
         st.error(str(exc))
         return
@@ -3242,9 +3250,90 @@ def btests_page() -> None:
                      column_config={c: st.column_config.NumberColumn(c, format="%.2f%%") for c in ("CAGR", "MDD")})
 
 
+# =========================================================================== dynamic presets (A42, post hoc)
+
+@st.cache_resource(show_spinner="A42 대표 가격 세트(실제 우선 · 헤지 60bp · CD91)를 만드는 중… (처음 한 번 1분 안팎)")
+def load_a42_set():
+    from lab import aa_pricesets as aps
+    return aps.build("real", 60.0, "cd91", quirks=True)[0]
+
+
+@st.cache_resource(show_spinner="신호용 미국 ETF 가격(카나리아·HAA·BAA)을 불러오는 중…")
+def load_dyn_inputs(day: str) -> dict:
+    return dyn.inputs(day)
+
+
+def dyn_badge(p) -> str:
+    return f'<span style="background:#eb6834;color:white;border-radius:4px;padding:1px 6px;font-size:0.8em">{p.badge}</span>'
+
+
+def dynamic_page() -> None:
+    data = data_or_stop()
+    sidebar(data)
+    st.title("동적 프리셋 (A42, 사후)")
+    st.caption("A42 5단계에서 최종 판정과 봉인 구간을 모두 넘은 대표 중 사용자가 고른 세 개입니다(2026-11-02 등록). "
+               "결과를 본 뒤 고른 것이라 모두 '사후'입니다. 설정은 5단계 결과 파일과 같고, 테스트가 5단계 숫자와 같은지 확인합니다.")
+    keys = list(dyn.DYNAMIC_PRESETS)
+    if st.session_state.get("dyn_preset") not in keys:
+        st.session_state["dyn_preset"] = keys[0]
+    key = st.selectbox("동적 프리셋", keys, format_func=lambda k: dyn.DYNAMIC_PRESETS[k].name, key="dyn_preset")
+    p = dyn.DYNAMIC_PRESETS[key]
+    st.markdown(f"{dyn_badge(p)} **{p.name}**", unsafe_allow_html=True)
+    st.write(p.note)
+    with st.expander("한계 (꼭 읽어 주세요)", expanded=True):
+        st.markdown("\n".join(f"- {x}" for x in p.limits))
+    st.caption("기본 비중: " + " · ".join(f"{short(c)} {w:g}%" for c, w in p.weights.items()))
+    mode = st.radio("가격과 기간", ["a42", "live"], horizontal=True, key=init("dyn_mode", "a42"),
+                    format_func={"a42": "A42 대표 가격 세트 · 2000-09 – 2024-12 (5단계 숫자와 같음)",
+                                 "live": "사이드바 가격 기준 · 2000-09 – 오늘"}.get)
+    if st.button("▶ 이 프리셋 돌리기", key="btn_dyn_run"):
+        panel = load_a42_set() if mode == "a42" else data["panel"]
+        end = dyn.END if mode == "a42" else str(panel.last_date.date())
+        with st.spinner("신호를 계산하고 돌리는 중…"):
+            inp = load_dyn_inputs("2026-10-27" if mode == "a42" else str(date.today()))
+            st.session_state["dyn_result"] = (key, mode, dyn.run(panel, p, inp, end=end))
+    got = st.session_state.get("dyn_result")
+    if got and got[0] == key and got[1] == mode:
+        r = got[2]
+        eq, base = r["equity"], r["static"]
+        panel = load_a42_set() if mode == "a42" else data["panel"]
+        spx = panel.close["379800"].reindex(eq.index).ffill()
+        spx = spx / spx.iloc[0]
+
+        def cm(s):
+            v = s.to_numpy()
+            return (v[-1] / v[0]) ** (252 / max(len(v) - 1, 1)) - 1, float((v / np.maximum.accumulate(v) - 1).min())
+        rows = [("이 동적 프리셋", *cm(eq)), (f"기본 비중 정적 ({p.base})", *cm(base)), ("KODEX 미국S&P500", *cm(spx))]
+        cols = st.columns(3)
+        for c, (n, cg, md) in zip(cols, rows):
+            c.metric(n, f"CAGR {cg * 100:.2f}%", f"MDD {md * 100:.1f}%", delta_color="off")
+        fig = go.Figure()
+        for s, n, color in ((eq, "동적 프리셋", ORANGE), (base, "기본 비중 정적", BLUE), (spx, "S&P500", GRAY)):
+            fig.add_trace(go.Scatter(x=s.index, y=s, name=n, line=dict(color=color, width=1.6)))
+        risk = r["states"] > 0
+        fig.add_trace(go.Scatter(x=r["states"].index, y=np.where(risk, eq.max() * 1.05, np.nan), mode="lines", name="위험 신호 켜짐",
+                                 line=dict(color=RED, width=6), opacity=0.5))
+        fig.update_layout(height=460, yaxis=dict(type="log", title="자산 (시작 = 1)"), margin=dict(l=10, r=10, t=40, b=10),
+                          legend=dict(orientation="h", y=-0.15), title=f"{r['dates'][0].date()} – {r['dates'][-1].date()}, 분기 리밸런싱, 10bp")
+        st.plotly_chart(fig, width="stretch")
+        st.caption(f"위험 신호가 켜진 날: {int(risk.sum()):,}일 / {len(risk):,}일. 신호는 그날 종가로 읽고 다음 거래일 종가에 매매합니다. "
+                   "위성(HAA50·BAA50)은 매일 같은 비율로 섞었고 비용은 없습니다.")
+    st.subheader("오늘 신호 상태 기준 목표 비중")
+    if st.button("오늘 상태 계산", key="btn_dyn_now"):
+        with st.spinner("오늘까지의 신호를 계산하는 중…"):
+            tw, why = dyn.current_targets(data["panel"], p, load_dyn_inputs(str(date.today())))
+        st.session_state["dyn_now"] = (key, tw, why)
+    now = st.session_state.get("dyn_now")
+    if now and now[0] == key:
+        st.caption(now[2])
+        st.dataframe(pd.DataFrame({"상품": [label(c) for c in now[1]], "목표 비중": list(now[1].values())}).sort_values("목표 비중", ascending=False),
+                     hide_index=True, width="stretch", column_config={"목표 비중": st.column_config.NumberColumn(format="percent")})
+        st.caption("리밸런싱 계산기에서 이 프리셋을 목표로 고르면 같은 비중으로 주문을 계산합니다.")
+
+
 # =========================================================================== navigation
 
-PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_", "gs_", "bt_")
+PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_", "gs_", "bt_", "dyn_")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES) and "_editor" not in str(_k):
         st.session_state[_k] = st.session_state[_k]
@@ -3255,6 +3344,7 @@ nav = st.navigation([
     st.Page(compare_page, title="전략 비교", icon="📊"),
     st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
     st.Page(tactical_page, title="전술 전략 · 검증", icon="🧭"),
+    st.Page(dynamic_page, title="동적 프리셋 (사후)", icon="🛰️"),
     st.Page(search_page, title="전역 탐색 결과", icon="🔭"),
     st.Page(btests_page, title="B2–B5 시험 모음", icon="🎯"),
     st.Page(experiments_page, title="실험 기록", icon="🧪"),
