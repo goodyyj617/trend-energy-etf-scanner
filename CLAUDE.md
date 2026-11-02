@@ -104,6 +104,7 @@ CI(`.github/workflows/tests.yml`)는 PR마다 **Python 3.11**, pandas 2.2와 3.x
 - **`refine.py`**: 확인 조건 시험. 한 계열에 진입 블록을 하나씩(기본값으로만) 더해 같은 격자를 다시 돌리고, 네 기준의 파레토 개선 여부로 판정한다(DECISIONS 35–36).
 - 연구 기록: `docs/research/lab/` (날짜별 메모). 연구를 대신 수행했다면 결과·규칙·한계를 여기에 남긴다.
   **사용자 규칙(2026-10-26): 모든 시험·실험은 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다.** 메모 맨 위에 `## 왜 했는지` / `## 핵심 결과` / `## 그림`을 두고, 그림은 집계 결과만 PNG로 `docs/research/lab/figures/<study>/`에 커밋한다(CRSP 원자료 금지, `lab/figures.py`, 끝난 연구는 `scripts/make_study_figures.py`). 같은 내용을 `docs/research/lab/experiments.json`(맨 앞이 최신)에 넣으면 앱의 ‘실험 기록’ 페이지(`lab/experiments.py`)가 보여 준다. 새 연구 실행기는 끝날 때 그림을 직접 만든다(`combo_study.write_figures` 참고).
+  **사용자 규칙(2026-11-02): '실험 기록' 페이지 맨 위에는 현재까지의 큰 결론을 사용자가 알아보기 쉽게 둔다.** `experiments.json`의 `overview`(헤드라인 + 절: 가장 나은 시스템 · 축별로 알게 된 것 · 받아들인 것 · 열린 질문)를 새 실험마다 같은 PR에서 고친다. `updated`가 가장 최근 실험 날짜보다 이르면 `tests/test_experiments.py`가 실패한다. 사용자가 받아들인 판단(2017–2023에 SPY에 지는 것은 구조적, 수익은 드문 대박에서)도 여기에 적는다.
 - **`research_log.py`**: `lab_results/trials.csv`(시험한 전략 로그 → DSR의 N), `trial_returns.npz`(시험별 월간 수익률 → 평균 상관 ρ → 유효 N)와 `lab_results/holdout.json`(보류 구간 설정·변경·평가 기록).
   앱에서 실행한 백테스트·격자 칸·점검 변형은 모두 여기에 기록된다. `lab.batch`로 돌린 시험도 기록된다. 그 밖의 스크립트로 돌린 실험은 기록되지 않는다.
   ρ는 상관 행렬을 만들지 않고 열 합의 내적으로 구한다(2만여 개 시험에서 수십 초 → 1초 미만, 값은 반올림 오차 1e-15 수준까지 같음). 앱은 매 화면 갱신마다 묻지만 파일이 바뀌었을 때만 다시 읽는다.
