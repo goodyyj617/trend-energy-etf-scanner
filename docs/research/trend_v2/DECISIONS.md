@@ -1109,6 +1109,26 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     macro.series; replay_risk gains an optional forced-exit argument, default off and bit-identical;
     no engine change; results lab_crsp/stage_p_regime, aggregates docs/research/lab/2026-11-02_stage_p/,
     figures figures/stage_p_regime/). Design: docs/research/lab/2026-11-02_stage_p_design.md.
+    Result (2026-11-03, run 2026-11-02 23:52 - 11-03 00:13 KST; runner 969ed5f): repro passed (the 128
+    no-gate cells, 3,200 values, equal Stage O to 9.7e-17; in the dry run an always-on regime equalled
+    no gate on all 624 curves). Window off shares: R1 31%, R2 10%, R3 44%, R4 19%, R5 64%. Medians
+    over the 8 systems (dd_cagr 1993-2023, w*, plain MDD): no gate 5.2%, 0.39, -37%; A1: R1 6.4%,
+    0.52, -28%; R2 5.0%; R3 6.1%, 0.55, -27%; R4 5.8%, 0.48, -32%; R5 6.5%, 0.58, -25% (2007-2009
+    drawdown -36% -> -14 to -29% for R1/R3/R4/R5; plain CAGR kept at 9.1-9.4%); A2: 4.0-5.0%, time
+    in market 36-89%, trade mean +24% -> +1 to +10% (big winners cut). Q1: "gate helps" (above no
+    gate in all three periods and above the placebo q95) in 7 / 4 / 6 / 5 of 8 systems for R1 / R3 /
+    R4 / R5 A1 against Binomial(8, p0) q95 = 2; R2 A1 and every A2 0. Q2: no goal-passing system;
+    best N50 / W2 / P1 x H1 x R5 A1 6.95% (w* 0.66) above SPY200 + T-bill (6.8%) over 1993-2023 but
+    5.6% vs 6.6% in 2008-2023; A1 systems beat EW x the same regime in 38 of 40. Q3: 21 of 1,200
+    cells pass the per-cell test (R3 A1 8, R1 A1 5, R5 A1 5, R4 A1 2, R2 A2 1); both exits at 20 and
+    40 bp only for N10 / P1 x E7 x R3 A1 (best cell, X1 9.1%, halves 10.1 / 8.2%, w* 0.68) and N20 /
+    P1 x V1 x R3 A1, neither with a passing neighbour, so no candidate (no DSR); E0 seeds' cell pass
+    rate 0-0.4 per setting x exit x gate. Same-gate E0 rises with the rules (4.9-5.5% -> 5.4-7.2%),
+    so the gain is the account's, not the entries'. Per-trade tests (N20 / W2 / P1 x X1): A1 raises the
+    trade mean (R5 +33.5% vs +24.4%, CI +5.7 to +12.4 pp) but placebo gates also reach p < 0.05
+    (A1 5-70%, A2 85-100%), so the per-trade tests are reported, not used; A1's blocked signals were
+    not uniformly worse (R1 / R4 blocked means +21 / +24% vs bought +17%, with more -20% losses).
+    Trials +1,200 (about 72,974). Record: docs/research/lab/2026-11-02_stage_p_results.md.
 
 ## Open decisions
 
