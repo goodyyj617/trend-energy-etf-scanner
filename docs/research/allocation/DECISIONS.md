@@ -663,4 +663,21 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     distributions (assumed yields), no netting; domestic equity and KRX gold gains free} → 648 policies; the declared
     policy becomes the invested one. Gap to 'one account, lump sum, no cost' shrinks from 2.3–6.4 to 0.54–1.03 %p,
     still marked for all eight; no MDD mark. What is left is mostly tax. Stage 3's 324 results are unchanged.
+    Stage 4 (2026-11-02, memo `2026-11-02_a42_stage4.md`): `lab/aa_layers.py`, 873 settings × 6 targets (R4 / R5 /
+    R6, F2 / F4 / F3) × satellite 0 / 25 / 50 %, 200 placebos, equal-cost static, three price sets. 113 of 15,714
+    pass the A40-type verdict, but only 7.7 % beat 95 % of the placebos (chance 5 %). R4 / R6 passes are almost all
+    the 10 % volatility target (signal adds 0–0.5 %p MDD); F3 현재 보유 gains most from moving equity to CD on the
+    200-day line / nasdaq trend / canary (MDD −17.5 → −7 – −11 %, mostly with the satellite); R4 + HAA canary + CD
+    (no vol target) passes alone. F2 / F3 hold no nasdaq, so the nasdaq actions do nothing there.
+    Stage 5 and result (2026-11-02, memo `2026-11-02_a42_stage5.md`): the final verdict V1–V5 passes 118 of 123
+    candidates (fails: S&P500, 60/40, holdings static). The sealed window (1991-03 – 2000-08, proxies, opened once per
+    target, logged in `holdout.json`) passes 116 (fails: R4 / R6 static at −22.4 / −21.9 % with their missing KTB /
+    dividend share spread over the rest, R4 + HAA + CD with no TIP data, 60/40, S&P500); 115 pass both. Ledger
+    (`trials_ledger.csv`): about 98 million trials, mostly the stage-2 grid; DSR 0.51–1.00 but optimistic (SR variance
+    from the candidates only). Nothing registered; proposed (distinct product sets): (가) static, holdings + nasdaq
+    trend → CD + satellite 50 %, (가) + canary + vol 8 % + satellite 50 %, 안정형 40, R6 + HAA + CD + vol 10 %. The
+    monthly real-price record (`lab/aa_track.py`, workflow `aa_a42_track.yml`) started; first evaluation 2027-11.
+    Overall reading of A42: picking the best weights does not hold out of time (stage 2); rules that never look at
+    results, the volatility target, and moving equity to CD on a trend signal are what survived; operating costs are
+    mostly tax and the ISA limit (stage 3).
 
