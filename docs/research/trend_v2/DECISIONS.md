@@ -1012,6 +1012,43 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     27% of orders above 5% (N=50: 0.4%, 3%). Trials +1,200 (about 71,774). Record:
     docs/research/lab/2026-11-01_stage_n_results.md.
 
+94. Stage O: judge by drawdown-matched return (user decision 2026-11-02 21:57 KST, card after the
+    Stage B-N synthesis, "change the criterion first"; registered before any run). Question: the
+    Stage I-N criterion (CAGR > SPY and |MDD| < |SPY MDD| in 1993-2023 and 2017-2023) demanded both
+    the return of a cap-weighted mega-cap index and a shallower drawdown; the user accepted the
+    2017-2023 loss as structural (2026-11-02 21:47 KST). Re-score the Stage N grid with the user's
+    goal metrics of 64-65 (lab/target.py), already registered but never used as the verdict: Q1 does
+    any account setting x entry x exit beat, at a 15% drawdown budget, the SPY + T-bill mix and SPY200
+    (+ T-bill) in 1993-2023 and both halves; Q2 does the exit order of 90 (long holds first) survive
+    drawdown matching, since fast exits have shallower drawdowns; Q3 how much capital w* each account
+    can use versus SPY200. Fixed: filter, entries (E1-E9, V1-V6, E0 5 seeds), exits X1 / H1 / H9 /
+    ST, the 20 settings and the same 100 random orders (Stage M / L draws) as 93, M1 and no-exclusion
+    accounts, no pseudo exclusions, 20 bp (40 bp for the candidate condition), T-bill cash, no
+    holdout; the exit axis adds Stage L's other 7 exits at N=10 / W2 / P0 only. Metrics per curve:
+    w* = largest weight on the 0.01 grid whose daily w x strategy + (1-w) x T-bill blend has
+    1993-2023 MDD >= -15%; dd_cagr of that blend for 1993-2023, both halves and 2017-2023 at the
+    full-period w* (half-refit w* reported for stability); 3-year calendar windows (29, step 1 year)
+    share won and worst excess against each benchmark at its own w*; benchmarks SPY mix, SPY200, EW,
+    each at its own w*; cell value = median over the 100 orders. Verdicts: repro first (plain CAGR /
+    MDD must equal 93's accounts table, else no run); "goal-passing system" = setting x exit whose
+    median dd_cagr over the 15 entries beats both benchmarks in the full period and both halves (the
+    same setting's E0 shown, not required); "candidate" = W2 / W3 setting x entry x exit with
+    dd_cagr above both benchmarks in all three periods, window share >= 0.5 against both, >= 30
+    trades, >= 2 of 4 exits, still >= 2 at 40 bp, and the same entry passing at an adjacent N;
+    2017-2023 reported, not gated; a candidate also beating the same cell's E0 in both halves is
+    labelled "entry-specific", otherwise "system candidate"; chance from the 5 E0 seeds under the
+    same test, Binomial(15, p0) q95; DSR (N 71,774, no new trials) and PSR vs the SPY mix for
+    candidates only. Trials +0: the same strategies re-measured; the criterion was switched after
+    seeing Stage N, so a passing cell is a candidate only until the user names it for the holdout.
+    No lowering of the 15% budget, the two-halves condition or the two-benchmark condition if
+    nothing passes. Limits: w* fitted on the full-period in-sample MDD (optimistic for all,
+    half-refit shows instability), daily-rebalanced blend is an approximation with costs on the
+    strategy side only, M1 post hoc, cells not independent. No new trades, so no return histogram
+    (Stage N's stand). Runner lab/goal_study.py (account_study's table preparation and replay,
+    target.fit_weights; no engine change; results lab_crsp/stage_o_goal, aggregates
+    docs/research/lab/2026-11-02_stage_o/, figures figures/stage_o_goal/). Design:
+    docs/research/lab/2026-11-02_stage_o_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;
