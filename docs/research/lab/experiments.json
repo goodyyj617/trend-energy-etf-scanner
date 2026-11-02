@@ -2,6 +2,30 @@
   "_rule": "실험마다 (1) 왜 했는지 (2) 핵심 결과 요약 (3) 그림을 남긴다. 새 실험은 이 목록 맨 앞에 넣고, 그림은 docs/research/lab/figures/<study>/ 아래 PNG(집계 결과만)로 커밋한다. '실험 기록' 페이지가 이 파일을 읽는다.",
   "experiments": [
     {
+      "id": "stage_n_account",
+      "title": "Stage N: 계좌 · 비중 규칙 (자리 수 × 비중, 자리 수 × 우선순위)",
+      "date": "2026-11-02",
+      "status": "완료",
+      "decision": "93",
+      "memo": "docs/research/lab/2026-11-01_stage_n_results.md",
+      "results_dir": "lab_crsp/stage_n_account",
+      "kind": "",
+      "why": "Stage M에서 고유 변동성 상위 30% 제외(M1)가 신호 질은 높였지만 10종목 1% 룰 계좌로는 거의 옮겨지지 않았다. 자리 수(10·20·30·50), 비중(동일·1% 룰·상한 2/N), 우선순위(무작위·덜 흔들리는 종목 먼저·큰 회사 먼저)를 바꾸면 그 질이 계좌로 옮겨지는지(Q1), 매수 규칙이 같은 계좌의 무작위 매수를 더 자주 이기는지(Q2), SPY 후보가 나오는지(Q3)를 본다. M1 제외는 사후 선택이다.",
+      "results": [
+        "Q1: 옮겨짐(M1 − 가짜 제외, 60칸 중앙값)이 기준 N=10·W2·P0의 +0.23 / +0.31%p(두 반쪽)에서 어느 N≥20 설정에서도 두 반쪽 모두 +0.5%p 이상 늘지 않았다(1% 룰에서 −0.06 – +0.05%p). 무작위 순 설정 대부분에서 가짜 95% 분위를 넘는 칸은 우연보다 많았다(M1 자체의 정보는 다시 확인).",
+        "Q2: 무작위 순 설정에서 같은 계좌 E0를 이긴 매수는 0–1개(우연 95% 분위 3). 큰 회사 먼저(P2) N=10·20만 넘었는데, 주로 같은 순서의 E0가 나빠진 탓(9.0% → 7.9%). Q3: SPY 기준 통과 11칸은 모두 P1·P2, 매도 2종 이상·40bp는 N10·P1 × E5뿐이고 이웃 N에서 실패해 후보 없음.",
+        "덜 흔들리는 종목 먼저(P1)는 60칸 중앙값 CAGR +0.6–0.7%p, MDD −45% → −40%, 산 신호의 −20% 이하 손실 4.6–6.1%(기준 11.7%)로 가장 큰 차이를 냈지만, 같은 순서의 E0도 함께 좋아졌고 2017–2023은 8.1–9.0%(SPY 13.2%)였다. 자리 수·비중을 바꾸면 산 신호의 분포는 그대로(p<0.05 0–3%, 영 분포 5%). N=10·W2·P0은 Stage M과 64칸 1,964값이 최대 차 1e-16으로 같았다."
+      ],
+      "figures": [
+        {"path": "docs/research/lab/figures/stage_n_account/q1_transfer.png", "caption": "Q1: 자리 수별 옮겨짐(M1 − 가짜 제외), 비중·우선순위별"},
+        {"path": "docs/research/lab/figures/stage_n_account/grid_A.png", "caption": "격자 A: 자리 수 × 비중, 60칸 중앙값 CAGR (SPY 대비)"},
+        {"path": "docs/research/lab/figures/stage_n_account/grid_B.png", "caption": "격자 B: 자리 수 × 우선순위, 60칸 중앙값 CAGR (SPY 대비)"},
+        {"path": "docs/research/lab/figures/stage_n_account/q2_vs_e0.png", "caption": "Q2: 같은 계좌 E0를 이긴 매수 수와 우연 95% 분위"},
+        {"path": "docs/research/lab/figures/stage_n_account/bought_returns.png", "caption": "계좌가 산 신호 하나의 수익률: 기준 vs N=20 설정·P1·P2 (H1)"},
+        {"path": "docs/research/lab/figures/stage_n_account/cagr_mdd_scatter.png", "caption": "W2·W3 설정 × 매수 × 매도의 CAGR·MDD, 2017–2023 색"}
+      ]
+    },
+    {
       "id": "stage_m_exclude",
       "title": "Stage M: '피할 종목' 제외를 고정하고 매수 15 × 매도 11에서 재시험 (vs 같은 날 같은 수의 가짜 제외)",
       "date": "2026-11-01",
