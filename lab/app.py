@@ -1373,9 +1373,17 @@ def experiments_page() -> None:
                           help="예: H:\\내 드라이브\\CRSP. 비워 두면 저장소에 있는 그림만 보여 줍니다.")
     try:
         rows = xp.load()
+        ov = xp.load_overview()
     except (OSError, ValueError) as err:
         st.error(f"실험 목록을 읽지 못했습니다: {err}")
         return
+    with st.container(border=True):
+        st.subheader("현재까지의 큰 결론")
+        st.caption(f"{ov['through']}까지 · {ov['updated']} 갱신")
+        st.markdown(f"**{ov['headline']}**")
+        for sec in ov["sections"]:
+            st.markdown(f"**{sec['title']}**")
+            st.markdown("\n".join(f"- {p}" for p in sec["points"]))
     for e in rows:
         st.divider()
         st.subheader(e["title"])

@@ -17,6 +17,14 @@ def test_registry_entries_are_complete_and_figures_committed():
             assert (xp.ROOT / e["memo"]).exists(), e["memo"]
 
 
+def test_overview_is_current():
+    """User rule 2026-11-02: the big-picture conclusion on top is updated with every new experiment."""
+    ov = xp.load_overview()
+    assert ov["headline"].strip() and ov["sections"]
+    assert all(s["title"].strip() and s["points"] for s in ov["sections"])
+    assert ov["updated"] >= max(e["date"] for e in xp.load()), "새 실험을 넣었으면 overview도 고칠 것"
+
+
 def test_chart_frame_reads_summaries(tmp_path):
     pd.DataFrame({"sample": ["full", "recent"], "entry": "always", "layer": "hold", "score": "s_rs",
                   "median_goal_excess": [0.01, -0.02]}).to_csv(tmp_path / "summary.csv", index=False)

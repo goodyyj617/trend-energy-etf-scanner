@@ -29,6 +29,22 @@ def load(path: Path | None = None) -> list[dict]:
     return sorted(rows, key=lambda e: e["date"], reverse=True)
 
 
+OVERVIEW_REQUIRED = ("updated", "through", "headline", "sections")
+
+
+def load_overview(path: Path | None = None) -> dict:
+    """The current big-picture conclusion shown at the top of the page (user rule 2026-11-02: kept
+    up to date with every new experiment)."""
+    data = json.loads((path or REGISTRY).read_text(encoding="utf-8"))
+    ov = data.get("overview")
+    if not ov:
+        raise ValueError("experiments.json: overview(현재까지의 큰 결론) 없음")
+    missing = [k for k in OVERVIEW_REQUIRED if k not in ov]
+    if missing:
+        raise ValueError(f"experiments.json: overview에 {missing} 없음")
+    return ov
+
+
 def default_drive() -> str:
     for p in DRIVE_GUESSES:
         if (p / "lab_crsp").exists():
