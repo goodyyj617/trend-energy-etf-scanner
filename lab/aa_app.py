@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lab import aa_b_tests as bt  # noqa: E402
 from lab import aa_dynamic as dyn  # noqa: E402
+from lab import aa_summary as summ  # noqa: E402
 from lab import aa_experiments as exps  # noqa: E402
 from lab import aa_landscape as ls  # noqa: E402
 from lab import aa_notes as notes  # noqa: E402
@@ -3331,6 +3332,51 @@ def dynamic_page() -> None:
         st.caption("리밸런싱 계산기에서 이 프리셋을 목표로 고르면 같은 비중으로 주문을 계산합니다.")
 
 
+# =========================================================================== conclusion (one page)
+
+def summary_page() -> None:
+    st.title("한눈에 보는 결론")
+    st.caption(f"어떤 조합이 왜 좋은가만 모았습니다 ({summ.AS_OF} 기준). 숫자는 2000-09 – 2024-12 원화, 분기 리밸런싱, 거래 비용 10bp, "
+               "A42 대표 가격 세트(실제 가격 우선 · 환헤지 비용 60bp · CD91). '1990년대 MDD'는 한 번도 안 본 1991-03 – 2000-08 자료로 한 번만 본 낙폭입니다. "
+               "세부 숫자와 시험 과정은 왼쪽 '세부 기록'과 docs/research/allocation/SUMMARY.md에 있습니다.")
+    st.info("목표는 '레버리지 없이 MDD −15% 안에서 수익을 최대로'입니다. 아래 다섯 개가 그 기준과 1990년대 시험(−20% 안)을 모두 넘었습니다. "
+            "모두 과거 자료로 본 결과이고, 실거래 성과를 보장하지 않습니다.")
+    sd = summ.scatter_data()
+    fig = go.Figure()
+    g = sd[sd["구분"] == "다른 후보"]
+    fig.add_trace(go.Scatter(x=g["MDD"], y=g["CAGR"], mode="markers", name="다른 후보 (5단계 123개)", marker=dict(size=5, color="#cfcfcf"),
+                             hoverinfo="skip"))
+    for kind, color in (("추천", ORANGE), ("기준 미달", RED)):
+        h = sd[sd["구분"] == kind]
+        fig.add_trace(go.Scatter(x=h["MDD"], y=h["CAGR"], mode="markers+text", name=kind, text=h["표시"], textposition="top center",
+                                 marker=dict(size=11, color=color), hovertemplate="%{text}<br>CAGR %{y:.2f}% · MDD %{x:.1f}%<extra></extra>"))
+    fig.add_vrect(x0=-15, x1=0, fillcolor=AQUA, opacity=0.08, line_width=0)
+    fig.add_vline(x=-15, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=430, margin=dict(l=10, r=10, t=40, b=10), legend=dict(orientation="h", y=-0.2),
+                      title="수익(CAGR)과 최대 낙폭(MDD): 오른쪽 위일수록 좋음, 점선 오른쪽이 목표(−15% 안)",
+                      xaxis=dict(title="MDD (%)", range=[-48, 0]), yaxis=dict(title="CAGR (%)"))
+    st.plotly_chart(fig, width="stretch")
+    st.subheader("추천 조합 다섯 개")
+    for p in summ.PICKS:
+        with st.container(border=True):
+            c1, c2, c3, c4 = st.columns([3.2, 1, 1, 1.2])
+            c1.markdown(f"**{p.rank}. {p.name}**  \n<small>{p.kind}</small>", unsafe_allow_html=True)
+            c2.metric("CAGR", f"{p.cagr:.2f}%")
+            c3.metric("MDD", f"{p.mdd:.1f}%")
+            c4.metric("1990년대 MDD", f"{p.sealed_mdd:.1f}%")
+            st.caption(p.weights)
+            a, b = st.columns(2)
+            a.markdown("**왜 좋은가**\n" + "\n".join(f"- {x}" for x in p.why))
+            b.markdown("**조심할 점**\n" + "\n".join(f"- {x}" for x in p.watch))
+            st.caption(f"앱에서: {p.where}")
+    st.subheader("기준에 못 미친 것")
+    st.dataframe(pd.DataFrame([{"배분": n, "CAGR": c, "MDD": m, "왜": w} for n, c, m, w in summ.NOT_GOOD]), hide_index=True, width="stretch",
+                 column_config={"CAGR": st.column_config.NumberColumn(format="%.2f%%"), "MDD": st.column_config.NumberColumn(format="%.1f%%")})
+    st.subheader("왜 이 조합들인가: 연구에서 배운 것")
+    for title, text in summ.LESSONS:
+        st.markdown(f"**{title}** — {text}")
+
+
 # =========================================================================== navigation
 
 PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_", "gs_", "bt_", "dyn_")
@@ -3338,19 +3384,20 @@ for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES) and "_editor" not in str(_k):
         st.session_state[_k] = st.session_state[_k]
 
-RESEARCH_PAGE = st.Page(research_page, title="전략 연구", icon="🧺", default=True)
-nav = st.navigation([
-    RESEARCH_PAGE,
-    st.Page(compare_page, title="전략 비교", icon="📊"),
-    st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
-    st.Page(tactical_page, title="전술 전략 · 검증", icon="🧭"),
-    st.Page(dynamic_page, title="동적 프리셋 (사후)", icon="🛰️"),
-    st.Page(search_page, title="전역 탐색 결과", icon="🔭"),
-    st.Page(btests_page, title="B2–B5 시험 모음", icon="🎯"),
-    st.Page(experiments_page, title="실험 기록", icon="🧪"),
-    st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
-    st.Page(notes_page, title="발견 · 경고 · 캠페인", icon="📝"),
-    st.Page(saved_page, title="저장된 전략", icon="💾"),
-    st.Page(glossary_page, title="용어 · 상품 설명", icon="📖"),
-])
+RESEARCH_PAGE = st.Page(research_page, title="전략 연구", icon="🧺")
+nav = st.navigation({
+    "결론": [st.Page(summary_page, title="한눈에 보는 결론", icon="⭐", default=True)],
+    "쓰기": [st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
+             st.Page(dynamic_page, title="동적 프리셋 (사후)", icon="🛰️")],
+    "직접 돌려 보기": [RESEARCH_PAGE,
+                  st.Page(compare_page, title="전략 비교", icon="📊"),
+                  st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
+                  st.Page(tactical_page, title="전술 전략 · 검증", icon="🧭"),
+                  st.Page(saved_page, title="저장된 전략", icon="💾")],
+    "세부 기록": [st.Page(experiments_page, title="실험 기록", icon="🧪"),
+              st.Page(search_page, title="전역 탐색 결과", icon="🔭"),
+              st.Page(btests_page, title="B2–B5 시험 모음", icon="🎯"),
+              st.Page(notes_page, title="발견 · 경고 · 캠페인", icon="📝"),
+              st.Page(glossary_page, title="용어 · 상품 설명", icon="📖")],
+})
 nav.run()

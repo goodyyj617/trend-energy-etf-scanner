@@ -24,7 +24,7 @@ SCHEME = "aalab"
 HOST, PORT = "127.0.0.1", 8511
 APP = ROOT / "lab" / "aa_app.py"
 # aalab://<name> -> page url path (st.navigation derives it from the page function name)
-PAGES = {"": "", "research": "", "compare": "compare_page", "scorecard": "scorecard_page", "tactical": "tactical_page",
+PAGES = {"": "", "summary": "", "research": "research_page", "compare": "compare_page", "scorecard": "scorecard_page", "tactical": "tactical_page",
          "dynamic": "dynamic_page",
          "search": "search_page", "btests": "btests_page", "experiments": "experiments_page",
          "rebalance": "rebalance_page",
