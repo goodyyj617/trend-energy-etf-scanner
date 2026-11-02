@@ -1,0 +1,45 @@
+name: A42 real-price record
+
+# Sealed window ② of allocation DECISIONS A42 §5: on the first weekdays of each month, last month's real-price
+# return of each tracked allocation (docs/research/allocation/2026-11-02_a42_stage5/track.csv) with its expected
+# range, as a comment on the "📈 A42 실제 가격 기록" issue. The script posts once per month (it looks for the month's
+# marker in the issue) and commits nothing; no weight is ever changed from this record. First evaluation 2027-11.
+on:
+  workflow_dispatch:
+    inputs:
+      deliver:
+        description: "Post the comment (false = dry run: only print it in the log)"
+        type: boolean
+        default: true
+      month:
+        description: "Month to report, YYYY-MM (empty = last month)"
+        type: string
+        default: ""
+  schedule:
+    - cron: "30 0 1-4 * 1-5"   # 09:30 KST on the first weekdays; the first run that finds the month unposted posts it
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: aa-a42-track
+  cancel-in-progress: false
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Record last month
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -m lab.aa_track ${{ (github.event_name == 'schedule' || inputs.deliver) && '--deliver' || '' }} ${{ inputs.month && format('--month {0}', inputs.month) || '' }}

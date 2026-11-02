@@ -1,0 +1,27 @@
+{
+  "final": {
+    "candidates": 123,
+    "pass": 118,
+    "border": 0,
+    "sets": 24,
+    "seconds": 193.4
+  },
+  "sealed": {
+    "opened": 123,
+    "total": 123,
+    "pass": 116
+  },
+  "ledger": {
+    "ledger_total": 97980934,
+    "sr_var_daily": 3.274424596712807e-05,
+    "rows": 123
+  },
+  "track": {
+    "tracked": [
+      "F4 (가)",
+      "F3 현재 보유",
+      "F2 안정형 40",
+      "R6 주식 위험 몫 상한"
+    ]
+  }
+}

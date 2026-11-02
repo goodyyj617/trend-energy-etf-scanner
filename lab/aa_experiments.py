@@ -44,6 +44,8 @@ A42_3_MEMO = ALLOC / "2026-11-01_a42_stage3.md"
 A42_3B_DIR = ALLOC / "2026-11-02_a42_stage3b"  # A42 stage 3b (post hoc): + 'money over the ISA limit' axis, 648 policies
 A42_4_DIR = ALLOC / "2026-11-02_a42_stage4"  # A42 stage 4: dynamic layers (signals, actions, vol target …) on six targets
 A42_4_MEMO = ALLOC / "2026-11-02_a42_stage4.md"
+A42_5_DIR = ALLOC / "2026-11-02_a42_stage5"  # A42 stage 5: final verdict, sealed window, ledger, representatives
+A42_5_MEMO = ALLOC / "2026-11-02_a42_stage5.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -56,7 +58,7 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout",
               "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check",
               "a42_2_walk", "a42_2_rebalance", "a42_3_declared", "a42_3_axes", "a42_3_overflow",
-              "a42_4_tradeoff", "a42_4_checks")
+              "a42_4_tradeoff", "a42_4_checks", "a42_5_final", "a42_5_sealed")
 
 
 @dataclass(frozen=True)
@@ -353,6 +355,21 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 설정이 1만 5천 개가 넘어 통과 목록 일부는 우연일 수 있습니다(5단계에서 봉인 구간으로 다시 봄). 위성은 2007년부터, 매일 고정 비율로 섞었습니다. 원화·대용 자료·표본 내 연구입니다."),
         ("a42_4_tradeoff", "a42_4_checks"), A42_4_MEMO,
         "PNG 그림은 docs/research/allocation/figures/a42_stage4/"),
+    Experiment(
+        "a42_5", "2026-11-02", "A42", "A42 5단계: 최종 판정, 1990년대 봉인 구간 한 번 열기, 시험 장부, 대표 제안",
+        "0–4단계는 같은 연구 구간(2000-09 – 2024-12) 안에서 걸렀습니다. 5단계는 미리 정한 최종 판정 다섯 개(대표 세트 MDD −15% 안, 가격 세트 24개 모두 −17% 안, "
+        "선언 정책 변형 90% 이상 −15% 안, 시나리오 판정, 규칙 비중이면 walk-forward 통과)를 후보 123개에 걸고, 한 번도 보지 않은 1991-03 – 2000-08 자료를 "
+        "대상마다 한 번만 열어 MDD −20% 안인지 봤습니다. A31–A42의 시험 수를 장부에 적어 DSR을 냈고, 등록은 하지 않고 대표 5개를 제안합니다.",
+        ("한 줄 답: 최종 판정 118개 통과, 봉인 구간까지 통과 115개입니다. 정적 배분 중에서는 (가)와 안정형 40만 봉인 구간까지 견뎠습니다.",
+         "최종 판정 탈락: S&P500(MDD −45.4%), 60/40(−23.7%), 현재 보유 정적(−17.5%). 봉인 구간 미달: R4·R6 정적(−22.4·−21.9%, 자료 없는 국고채·미국 배당 몫을 나머지에 나눔), "
+         "R4 + HAA + CD(봉인 구간에 TIP 자료가 없어 정적과 같음), 60/40, S&P500.",
+         "대표 제안(등록 안 함): ① (가) 정적 8.81% / −13.7%(봉인 −18.4%), ② 현재 보유 + 나스닥 추세 → CD + 위성 50% 8.84% / −10.3%(봉인 −17.5%), "
+         "③ (가) + 카나리아 + 변동성 목표 8% + 위성 50% 9.07% / −8.7%(봉인 −7.8%), ④ 안정형 40 7.80% / −13.7%(봉인 −17.4%), ⑤ R6 + HAA + CD + 변동성 목표 10% 7.49% / −7.2%(봉인 −10.3%).",
+         "시험 장부 합계 약 9,800만 번(대부분 2단계 격자). DSR은 0.51–1.00이지만 Sharpe 분산을 후보 123개 사이에서 재서 낙관적입니다.",
+         "매달 첫 평일에 (가)·현재 보유·안정형 40·R6의 지난달 실제 가격 수익과 예상 범위를 이슈에 남기는 GitHub Action을 켰습니다. 첫 평가는 2027-11입니다.",
+         "한계: 봉인 구간은 대용 자료이고(금은 월간), 국고채·미국 배당·선진국·신흥국 자료가 없어 그 몫을 나머지에 나눴습니다. 동적 층의 통과는 4단계에서 가짜 신호를 겨우 넘은 것입니다."),
+        ("a42_5_final", "a42_5_sealed"), A42_5_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a42_stage5/"),
 )
 
 
@@ -866,6 +883,14 @@ def a42_4_checks(folder: Path | str = A42_4_DIR) -> pd.DataFrame:
     t = v0.groupby("대상", sort=False)[checks].mean() * 100
     t["통과 수 (위성 0·25·50% 합)"] = v.groupby("대상", sort=False)["판정"].apply(lambda s: int((s == "통과").sum()))
     return t.reset_index()
+
+
+def a42_5_table(folder: Path | str = A42_5_DIR) -> pd.DataFrame:
+    """A42 stage 5: final verdict and sealed window per candidate, % units."""
+    m = pd.read_csv(Path(folder) / "final_with_sealed.csv")
+    for c in ("cagr", "mdd", "순위값 (매달 시작 CAGR 하위 10%)", "24세트 최악 MDD", "봉인 구간 MDD", "이어 붙인 MDD"):
+        m[c] = m[c] * 100
+    return m
 
 
 def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:

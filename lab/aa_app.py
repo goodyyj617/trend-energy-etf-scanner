@@ -2947,6 +2947,38 @@ def chart_a42_4_checks() -> go.Figure:
     return fig
 
 
+def chart_a42_5_final() -> go.Figure:
+    m = exps.a42_5_table()
+    fig = go.Figure()
+    for k, (kind, g) in enumerate(m.groupby("종류", sort=False)):
+        ok = g["최종"].astype(str).str.contains("통과")
+        fig.add_trace(go.Scatter(x=g["mdd"], y=g["순위값 (매달 시작 CAGR 하위 10%)"], mode="markers", name=kind, text=g["이름"] + " · " + g["최종"],
+                                 marker=dict(size=9, color=PALETTE[k % len(PALETTE)], symbol=np.where(ok, "circle", "x")),
+                                 hovertemplate="%{text}<br>MDD %{x:.1f}% · 순위값 %{y:.2f}%<extra></extra>"))
+    fig.add_vline(x=-15, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=500, margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="최종 판정: 후보 123개의 MDD와 순위값(매달 시작 CAGR 하위 10%), 대표 세트<br>"
+                                      "<sup>× = 탈락 (S&P500 · 60/40 · 현재 보유 정적). 점선 −15%</sup>"),
+                      xaxis=dict(title="MDD (%), 2000-09 – 2024-12"), yaxis=dict(title="순위값 (%)"))
+    return fig
+
+
+def chart_a42_5_sealed() -> go.Figure:
+    m = exps.a42_5_table()
+    m = m[m["봉인 구간 MDD"].notna()]
+    fig = go.Figure()
+    for k, (kind, g) in enumerate(m.groupby("종류", sort=False)):
+        fig.add_trace(go.Scatter(x=g["mdd"], y=g["봉인 구간 MDD"], mode="markers", name=kind, text=g["이름"],
+                                 marker=dict(size=9, color=PALETTE[k % len(PALETTE)]),
+                                 hovertemplate="%{text}<br>연구 구간 MDD %{x:.1f}% · 봉인 구간 MDD %{y:.1f}%<extra></extra>"))
+    fig.add_hline(y=-20, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=500, margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="봉인 구간(1991-03 – 2000-08)을 대상마다 한 번 열어 본 MDD vs 연구 구간 MDD<br>"
+                                      "<sup>점선 −20% = 봉인 판정. 자료 없는 상품(국고채·미국 배당·선진국·신흥국)은 봉인 구간 동안 나머지에 비례 배분</sup>"),
+                      xaxis=dict(title="연구 구간 MDD (%)"), yaxis=dict(title="봉인 구간 MDD (%)"))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -2992,6 +3024,8 @@ EXPERIMENT_CHARTS = {
     "a42_3_overflow": chart_a42_3_overflow,
     "a42_4_tradeoff": chart_a42_4_tradeoff,
     "a42_4_checks": chart_a42_4_checks,
+    "a42_5_final": chart_a42_5_final,
+    "a42_5_sealed": chart_a42_5_sealed,
 }
 
 
