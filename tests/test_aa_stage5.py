@@ -58,3 +58,14 @@ def test_stage5_chart_data():
     from lab import aa_experiments as ex
     m = ex.a42_5_table()
     assert len(m) == 123 and m["봉인 구간 MDD"].notna().sum() == 123
+
+
+def test_summary_numbers_match_stage5():
+    from lab import aa_summary as S
+    m = pd.read_csv(OUT / "final_with_sealed.csv").set_index("이름")
+    for p in S.PICKS:
+        r = m.loc[p.stage5_name]
+        assert round(r["cagr"] * 100, 2) == p.cagr and round(r["mdd"] * 100, 1) == p.mdd
+        assert round(r["봉인 구간 MDD"] * 100, 1) == p.sealed_mdd
+        assert r["최종"] == "통과" and r["봉인 판정 (MDD ≥ −20%)"] == "통과"
+    assert (S.ALLOC / "SUMMARY.md").exists() and len(S.scatter_data()) == len(m)

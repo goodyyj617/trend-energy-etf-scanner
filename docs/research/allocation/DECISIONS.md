@@ -680,4 +680,10 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     Overall reading of A42: picking the best weights does not hold out of time (stage 2); rules that never look at
     results, the volatility target, and moving equity to CD on a trend signal are what survived; operating costs are
     mostly tax and the ISA limit (stage 3).
+    Registration (2026-11-02, user): representatives ② (holdings + D1 → CD, confirm 10, cooldown 21, 4 tranches,
+    satellite 50 %), ③ ((가) + K2 → safe, cooldown 21, vol 8 %, satellite 50 %) and ⑤ (R6 2024-12 + K3 → CD, vol 10 %)
+    become post-hoc dynamic presets (`lab/aa_dynamic.py`, app page '동적 프리셋 (사후)', rebalancing calculator targets
+    from today's signal state). Settings copied from the stage-5 files; re-running them gives the stage-5 numbers
+    (`tests/test_aa_dynamic.py`). Their notes carry the badge and the limits (placebo pass rate 7.7 %, satellite from
+    2007 only and not sealed-tested, no K3 signal in the sealed window for ⑤).
 

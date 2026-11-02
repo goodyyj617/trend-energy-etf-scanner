@@ -18,6 +18,8 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lab import aa_b_tests as bt  # noqa: E402
+from lab import aa_dynamic as dyn  # noqa: E402
+from lab import aa_summary as summ  # noqa: E402
 from lab import aa_experiments as exps  # noqa: E402
 from lab import aa_landscape as ls  # noqa: E402
 from lab import aa_notes as notes  # noqa: E402
@@ -913,6 +915,8 @@ def rebalance_page() -> None:
                "입력한 보유 내역은 이 컴퓨터의 lab_results/aa_holdings.json에만 저장됩니다(Git 제외).")
     targets_src: dict[str, object] = {f"프리셋 · {p.name}": AllocConfig(p.name, p.weights, DEFAULT_START, str(panel.last_date.date()))
                                       for p in PRESETS.values()}
+    for p in dyn.DYNAMIC_PRESETS.values():
+        targets_src[f"동적 프리셋 · {p.name}"] = p
     for meta in store.list_saved():
         obj = store.config_of(meta)
         if isinstance(obj, AllocConfig) and usable(obj, panel):
@@ -926,7 +930,12 @@ def rebalance_page() -> None:
     pick = st.selectbox("목표 전략", keys, key="rb_target")
     cfg = targets_src[pick]
     try:
-        tw, why = current_targets(panel, cfg)
+        if isinstance(cfg, dyn.DynamicPreset):
+            with st.spinner("오늘까지의 신호를 계산하는 중…"):
+                tw, why = dyn.current_targets(panel, cfg, load_dyn_inputs(str(date.today())))
+            why = f"동적 프리셋(사후), 오늘 신호 상태 기준 — {why}"
+        else:
+            tw, why = current_targets(panel, cfg)
     except ValueError as exc:
         st.error(str(exc))
         return
@@ -2915,6 +2924,9 @@ def chart_a42_3_overflow() -> go.Figure:
                       title=dict(text="ISA 한도 밖의 돈: 현금으로 두기 vs 일반 계좌에서 같은 ETF로 굴리기 (선언 정책 세후 TWR CAGR)<br>"
                                       "<sup>기준선 = 한 계좌 · 목돈 · 비용 없음. 굴리면 기준선과의 차이가 2.3–6.4%p → 0.54–1.03%p</sup>"),
                       yaxis=dict(title="CAGR (%)"))
+    return fig
+
+
 def chart_a42_4_tradeoff() -> go.Figure:
     v = exps.a42_4_verdicts()
     v = v[v["위성"] == 0.0]
@@ -3031,6 +3043,9 @@ EXPERIMENT_CHARTS = {
 
 def experiments_page() -> None:
     st.title("실험 기록")
+    # 사용자 규칙(2026-11-02): 실험 기록 맨 위에는 현재까지의 큰 결론을 둔다. 원본은 lab/aa_summary.py.
+    st.info("**현재까지의 큰 결론** — " + summ.HEADLINE)
+    st.page_link(SUMMARY_PAGE, label="한눈에 보는 결론 페이지로", icon="⭐")
     st.caption("자산배분 연구실에서 돌린 실험을 최신순으로 모았습니다. 실험마다 **왜 했는지**, **핵심 결과**, **그래프**가 있습니다. "
                "그래프는 저장소에 기록된 결과 파일로 그리므로 가격 데이터 없이 열립니다. 점에 마우스를 올리면 값이 나옵니다. "
                "모든 숫자는 원화 표본 내 결과(기간은 실험마다 적음, 대부분 2005–2026)이고 ‘승인’이나 ‘실거래 가능’을 뜻하지 않습니다.")
@@ -3242,25 +3257,154 @@ def btests_page() -> None:
                      column_config={c: st.column_config.NumberColumn(c, format="%.2f%%") for c in ("CAGR", "MDD")})
 
 
+# =========================================================================== dynamic presets (A42, post hoc)
+
+@st.cache_resource(show_spinner="A42 대표 가격 세트(실제 우선 · 헤지 60bp · CD91)를 만드는 중… (처음 한 번 1분 안팎)")
+def load_a42_set():
+    from lab import aa_pricesets as aps
+    return aps.build("real", 60.0, "cd91", quirks=True)[0]
+
+
+@st.cache_resource(show_spinner="신호용 미국 ETF 가격(카나리아·HAA·BAA)을 불러오는 중…")
+def load_dyn_inputs(day: str) -> dict:
+    return dyn.inputs(day)
+
+
+def dyn_badge(p) -> str:
+    return f'<span style="background:#eb6834;color:white;border-radius:4px;padding:1px 6px;font-size:0.8em">{p.badge}</span>'
+
+
+def dynamic_page() -> None:
+    data = data_or_stop()
+    sidebar(data)
+    st.title("동적 프리셋 (A42, 사후)")
+    st.caption("A42 5단계에서 최종 판정과 봉인 구간을 모두 넘은 대표 중 사용자가 고른 세 개입니다(2026-11-02 등록). "
+               "결과를 본 뒤 고른 것이라 모두 '사후'입니다. 설정은 5단계 결과 파일과 같고, 테스트가 5단계 숫자와 같은지 확인합니다.")
+    keys = list(dyn.DYNAMIC_PRESETS)
+    if st.session_state.get("dyn_preset") not in keys:
+        st.session_state["dyn_preset"] = keys[0]
+    key = st.selectbox("동적 프리셋", keys, format_func=lambda k: dyn.DYNAMIC_PRESETS[k].name, key="dyn_preset")
+    p = dyn.DYNAMIC_PRESETS[key]
+    st.markdown(f"{dyn_badge(p)} **{p.name}**", unsafe_allow_html=True)
+    st.write(p.note)
+    with st.expander("한계 (꼭 읽어 주세요)", expanded=True):
+        st.markdown("\n".join(f"- {x}" for x in p.limits))
+    st.caption("기본 비중: " + " · ".join(f"{short(c)} {w:g}%" for c, w in p.weights.items()))
+    mode = st.radio("가격과 기간", ["a42", "live"], horizontal=True, key=init("dyn_mode", "a42"),
+                    format_func={"a42": "A42 대표 가격 세트 · 2000-09 – 2024-12 (5단계 숫자와 같음)",
+                                 "live": "사이드바 가격 기준 · 2000-09 – 오늘"}.get)
+    if st.button("▶ 이 프리셋 돌리기", key="btn_dyn_run"):
+        panel = load_a42_set() if mode == "a42" else data["panel"]
+        end = dyn.END if mode == "a42" else str(panel.last_date.date())
+        with st.spinner("신호를 계산하고 돌리는 중…"):
+            inp = load_dyn_inputs("2026-10-27" if mode == "a42" else str(date.today()))
+            st.session_state["dyn_result"] = (key, mode, dyn.run(panel, p, inp, end=end))
+    got = st.session_state.get("dyn_result")
+    if got and got[0] == key and got[1] == mode:
+        r = got[2]
+        eq, base = r["equity"], r["static"]
+        panel = load_a42_set() if mode == "a42" else data["panel"]
+        spx = panel.close["379800"].reindex(eq.index).ffill()
+        spx = spx / spx.iloc[0]
+
+        def cm(s):
+            v = s.to_numpy()
+            return (v[-1] / v[0]) ** (252 / max(len(v) - 1, 1)) - 1, float((v / np.maximum.accumulate(v) - 1).min())
+        rows = [("이 동적 프리셋", *cm(eq)), (f"기본 비중 정적 ({p.base})", *cm(base)), ("KODEX 미국S&P500", *cm(spx))]
+        cols = st.columns(3)
+        for c, (n, cg, md) in zip(cols, rows):
+            c.metric(n, f"CAGR {cg * 100:.2f}%", f"MDD {md * 100:.1f}%", delta_color="off")
+        fig = go.Figure()
+        for s, n, color in ((eq, "동적 프리셋", ORANGE), (base, "기본 비중 정적", BLUE), (spx, "S&P500", GRAY)):
+            fig.add_trace(go.Scatter(x=s.index, y=s, name=n, line=dict(color=color, width=1.6)))
+        risk = r["states"] > 0
+        fig.add_trace(go.Scatter(x=r["states"].index, y=np.where(risk, eq.max() * 1.05, np.nan), mode="lines", name="위험 신호 켜짐",
+                                 line=dict(color=RED, width=6), opacity=0.5))
+        fig.update_layout(height=460, yaxis=dict(type="log", title="자산 (시작 = 1)"), margin=dict(l=10, r=10, t=40, b=10),
+                          legend=dict(orientation="h", y=-0.15), title=f"{r['dates'][0].date()} – {r['dates'][-1].date()}, 분기 리밸런싱, 10bp")
+        st.plotly_chart(fig, width="stretch")
+        st.caption(f"위험 신호가 켜진 날: {int(risk.sum()):,}일 / {len(risk):,}일. 신호는 그날 종가로 읽고 다음 거래일 종가에 매매합니다. "
+                   "위성(HAA50·BAA50)은 매일 같은 비율로 섞었고 비용은 없습니다.")
+    st.subheader("오늘 신호 상태 기준 목표 비중")
+    if st.button("오늘 상태 계산", key="btn_dyn_now"):
+        with st.spinner("오늘까지의 신호를 계산하는 중…"):
+            tw, why = dyn.current_targets(data["panel"], p, load_dyn_inputs(str(date.today())))
+        st.session_state["dyn_now"] = (key, tw, why)
+    now = st.session_state.get("dyn_now")
+    if now and now[0] == key:
+        st.caption(now[2])
+        st.dataframe(pd.DataFrame({"상품": [label(c) for c in now[1]], "목표 비중": list(now[1].values())}).sort_values("목표 비중", ascending=False),
+                     hide_index=True, width="stretch", column_config={"목표 비중": st.column_config.NumberColumn(format="percent")})
+        st.caption("리밸런싱 계산기에서 이 프리셋을 목표로 고르면 같은 비중으로 주문을 계산합니다.")
+
+
+# =========================================================================== conclusion (one page)
+
+def summary_page() -> None:
+    st.title("한눈에 보는 결론")
+    st.caption(f"어떤 조합이 왜 좋은가만 모았습니다 ({summ.AS_OF} 기준). 숫자는 2000-09 – 2024-12 원화, 분기 리밸런싱, 거래 비용 10bp, "
+               "A42 대표 가격 세트(실제 가격 우선 · 환헤지 비용 60bp · CD91). '1990년대 MDD'는 한 번도 안 본 1991-03 – 2000-08 자료로 한 번만 본 낙폭입니다. "
+               "세부 숫자와 시험 과정은 왼쪽 '세부 기록'과 docs/research/allocation/SUMMARY.md에 있습니다.")
+    st.info("목표는 '레버리지 없이 MDD −15% 안에서 수익을 최대로'입니다. 아래 다섯 개가 그 기준과 1990년대 시험(−20% 안)을 모두 넘었습니다. "
+            "모두 과거 자료로 본 결과이고, 실거래 성과를 보장하지 않습니다.")
+    sd = summ.scatter_data()
+    fig = go.Figure()
+    g = sd[sd["구분"] == "다른 후보"]
+    fig.add_trace(go.Scatter(x=g["MDD"], y=g["CAGR"], mode="markers", name="다른 후보 (5단계 123개)", marker=dict(size=5, color="#cfcfcf"),
+                             hoverinfo="skip"))
+    for kind, color in (("추천", ORANGE), ("기준 미달", RED)):
+        h = sd[sd["구분"] == kind]
+        fig.add_trace(go.Scatter(x=h["MDD"], y=h["CAGR"], mode="markers+text", name=kind, text=h["표시"], textposition="top center",
+                                 marker=dict(size=11, color=color), hovertemplate="%{text}<br>CAGR %{y:.2f}% · MDD %{x:.1f}%<extra></extra>"))
+    fig.add_vrect(x0=-15, x1=0, fillcolor=AQUA, opacity=0.08, line_width=0)
+    fig.add_vline(x=-15, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=430, margin=dict(l=10, r=10, t=40, b=10), legend=dict(orientation="h", y=-0.2),
+                      title="수익(CAGR)과 최대 낙폭(MDD): 오른쪽 위일수록 좋음, 점선 오른쪽이 목표(−15% 안)",
+                      xaxis=dict(title="MDD (%)", range=[-48, 0]), yaxis=dict(title="CAGR (%)"))
+    st.plotly_chart(fig, width="stretch")
+    st.subheader("추천 조합 다섯 개")
+    for p in summ.PICKS:
+        with st.container(border=True):
+            c1, c2, c3, c4 = st.columns([3.2, 1, 1, 1.2])
+            c1.markdown(f"**{p.rank}. {p.name}**  \n<small>{p.kind}</small>", unsafe_allow_html=True)
+            c2.metric("CAGR", f"{p.cagr:.2f}%")
+            c3.metric("MDD", f"{p.mdd:.1f}%")
+            c4.metric("1990년대 MDD", f"{p.sealed_mdd:.1f}%")
+            st.caption(p.weights)
+            a, b = st.columns(2)
+            a.markdown("**왜 좋은가**\n" + "\n".join(f"- {x}" for x in p.why))
+            b.markdown("**조심할 점**\n" + "\n".join(f"- {x}" for x in p.watch))
+            st.caption(f"앱에서: {p.where}")
+    st.subheader("기준에 못 미친 것")
+    st.dataframe(pd.DataFrame([{"배분": n, "CAGR": c, "MDD": m, "왜": w} for n, c, m, w in summ.NOT_GOOD]), hide_index=True, width="stretch",
+                 column_config={"CAGR": st.column_config.NumberColumn(format="%.2f%%"), "MDD": st.column_config.NumberColumn(format="%.1f%%")})
+    st.subheader("왜 이 조합들인가: 연구에서 배운 것")
+    for title, text in summ.LESSONS:
+        st.markdown(f"**{title}** — {text}")
+
+
 # =========================================================================== navigation
 
-PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_", "gs_", "bt_")
+PERSIST_PREFIXES = ("r_", "sc_", "mix_", "cmp_", "rb_", "m_", "tac_", "val_", "cv_", "sw_", "gs_", "bt_", "dyn_")
 for _k in list(st.session_state.keys()):
     if str(_k).startswith(PERSIST_PREFIXES) and "_editor" not in str(_k):
         st.session_state[_k] = st.session_state[_k]
 
-RESEARCH_PAGE = st.Page(research_page, title="전략 연구", icon="🧺", default=True)
-nav = st.navigation([
-    RESEARCH_PAGE,
-    st.Page(compare_page, title="전략 비교", icon="📊"),
-    st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
-    st.Page(tactical_page, title="전술 전략 · 검증", icon="🧭"),
-    st.Page(search_page, title="전역 탐색 결과", icon="🔭"),
-    st.Page(btests_page, title="B2–B5 시험 모음", icon="🎯"),
-    st.Page(experiments_page, title="실험 기록", icon="🧪"),
-    st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
-    st.Page(notes_page, title="발견 · 경고 · 캠페인", icon="📝"),
-    st.Page(saved_page, title="저장된 전략", icon="💾"),
-    st.Page(glossary_page, title="용어 · 상품 설명", icon="📖"),
-])
+SUMMARY_PAGE = st.Page(summary_page, title="한눈에 보는 결론", icon="⭐", default=True)
+RESEARCH_PAGE = st.Page(research_page, title="전략 연구", icon="🧺")
+nav = st.navigation({
+    "결론": [SUMMARY_PAGE],
+    "쓰기": [st.Page(rebalance_page, title="리밸런싱 계산기", icon="🧮"),
+             st.Page(dynamic_page, title="동적 프리셋 (사후)", icon="🛰️")],
+    "직접 돌려 보기": [RESEARCH_PAGE,
+                  st.Page(compare_page, title="전략 비교", icon="📊"),
+                  st.Page(scorecard_page, title="성적표 · 믹스", icon="🏁"),
+                  st.Page(tactical_page, title="전술 전략 · 검증", icon="🧭"),
+                  st.Page(saved_page, title="저장된 전략", icon="💾")],
+    "세부 기록": [st.Page(experiments_page, title="실험 기록", icon="🧪"),
+              st.Page(search_page, title="전역 탐색 결과", icon="🔭"),
+              st.Page(btests_page, title="B2–B5 시험 모음", icon="🎯"),
+              st.Page(notes_page, title="발견 · 경고 · 캠페인", icon="📝"),
+              st.Page(glossary_page, title="용어 · 상품 설명", icon="📖")],
+})
 nav.run()
