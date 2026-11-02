@@ -2915,6 +2915,35 @@ def chart_a42_3_overflow() -> go.Figure:
                       title=dict(text="ISA 한도 밖의 돈: 현금으로 두기 vs 일반 계좌에서 같은 ETF로 굴리기 (선언 정책 세후 TWR CAGR)<br>"
                                       "<sup>기준선 = 한 계좌 · 목돈 · 비용 없음. 굴리면 기준선과의 차이가 2.3–6.4%p → 0.54–1.03%p</sup>"),
                       yaxis=dict(title="CAGR (%)"))
+def chart_a42_4_tradeoff() -> go.Figure:
+    v = exps.a42_4_verdicts()
+    v = v[v["위성"] == 0.0]
+    fig = go.Figure()
+    for k, (name, g) in enumerate(v.groupby("대상", sort=False)):
+        fig.add_trace(go.Scatter(x=g["CAGR 손실"], y=g["MDD 개선"], mode="markers", name=name, marker=dict(size=4, color=PALETTE[k % len(PALETTE)], opacity=0.5),
+                                 text=g["설정 이름"], hovertemplate=name + "<br>%{text}<br>CAGR 손실 %{x:.2f}%p · MDD 개선 %{y:.2f}%p<extra></extra>"))
+    ok = v[v["판정"] == "통과"]
+    fig.add_trace(go.Scatter(x=ok["CAGR 손실"], y=ok["MDD 개선"], mode="markers", name="판정 통과",
+                             marker=dict(size=10, color="rgba(0,0,0,0)", line=dict(color="black", width=1.5)),
+                             text=ok["대상"] + " · " + ok["설정 이름"], hovertemplate="%{text}<extra></extra>"))
+    fig.add_vline(x=1, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=520, margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="동적 층 873가지: 정적 대비 CAGR 손실 vs MDD 개선 (대표 세트, 위성 0%)<br>"
+                                      "<sup>점선 CAGR 손실 1%p. 검은 원 = 판정 통과(① 가짜 95% ② 같은 비용 정적 3%p ③ CAGR 손실 ≤ 1%p, 두 극단 세트 ②)</sup>"),
+                      xaxis=dict(title="CAGR 손실 (%p)"), yaxis=dict(title="MDD 개선 (%p)"))
+    return fig
+
+
+def chart_a42_4_checks() -> go.Figure:
+    t = exps.a42_4_checks()
+    fig = go.Figure()
+    for k, col in enumerate(["① 가짜 95%보다 개선", "② 같은 비용보다 3%p", "③ CAGR 손실 ≤ 1%p", "극단 두 세트 ② 유지"]):
+        fig.add_trace(go.Bar(x=t["대상"], y=t[col], name=col, marker_color=PALETTE[k], hovertemplate="%{x}<br>" + col + " %{y:.1f}%<extra></extra>"))
+    fig.update_layout(height=440, barmode="group", margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="판정 항목별로 통과한 설정의 비율 (%, 대표 세트, 위성 0%)<br>"
+                                      "<sup>① 가짜 신호를 이긴 비율이 우연 기준 5% 근처. 통과 수: " +
+                                      ", ".join(f"{a} {b}" for a, b in zip(t["대상"], t["통과 수 (위성 0·25·50% 합)"])) + "</sup>"),
+                      yaxis=dict(title="설정 비율 (%)"))
     return fig
 
 
@@ -2961,6 +2990,8 @@ EXPERIMENT_CHARTS = {
     "a42_3_declared": chart_a42_3_declared,
     "a42_3_axes": chart_a42_3_axes,
     "a42_3_overflow": chart_a42_3_overflow,
+    "a42_4_tradeoff": chart_a42_4_tradeoff,
+    "a42_4_checks": chart_a42_4_checks,
 }
 
 
