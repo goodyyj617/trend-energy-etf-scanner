@@ -1067,6 +1067,49 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     (SPY200 + T-bills) beat every stock-level trend account by 1.4-2.8 pp a year. Trials +0 (71,774).
     Record: docs/research/lab/2026-11-02_stage_o_results.md.
 
+95. Stage P: market-regime gate on the stock account (user decision 2026-11-02 23:34 KST, card
+    after Stage O, "reduce drawdown with a regime filter"; registered before any run). Question:
+    Stage O showed the stock accounts lose to SPY200 + T-bill (6.8% at the 15% budget, w* 70%) only
+    because their drawdowns (-40 to -52%, mostly 2008 and 2000-2002) leave 25-44% of capital usable;
+    does gating on the market regime shallow the drawdown enough to raise the drawdown-matched return
+    above SPY200 + T-bill (Q2), is the gain larger than same-share placebo regimes (Q1), and is there
+    a candidate cell (Q3)? Since SPY200 is itself a one-rule regime strategy, the test also asks what
+    stock-level trend following adds on the same gate, so "equal-weight universe x the same regime
+    (A2)" is a fourth benchmark. Fixed: filter, entries (E1-E9, V1-V6, E0 5 seeds), the M1 account
+    only, exits X1 and H1 (Stage O's best two, post hoc), settings N10/W2/P0 (comparison), N10 / N20
+    / N50 x W2 x P1 (post hoc), same random orders, 20 bp (40 bp for the candidate condition), T-bill
+    cash, no holdout. Regimes, the registered macro-block defaults, not tuned here: R1 SPY close >
+    SMA200 (market_trend), R2 T10Y3M > 0 (curve_ok, t-1), R3 BAA10Y <= its 200-observation SMA
+    (credit_calm, t-1), R4 VIX < 25 (vix_calm, t-1), R5 all four; state at close t applies to
+    trades at the t+1 open. Actions: A1 block new entries while off; A2 = A1 plus sell every holding
+    at the open after the regime turns off, cash (T-bill) while off, normal re-entry when on (the
+    20-session ban kept). 10 gates + no gate. Placebos: per regime 20 circular shifts of its on/off
+    series by >= 252 sessions (seeded), same actions, run at N10/W2/P0 (20 orders) and N20/W2/P1 with
+    X1 and the 15 entries only. Metrics as 94 (w*, dd_cagr by period at the full-period w*, half
+    refits, 28 three-year windows) plus time in market, switches, 2000-2002 and 2008 drawdowns.
+    Verdicts: repro first (no-gate cells equal Stage O; an always-on regime equals no gate bit for
+    bit, tested); "gate helps" per setting x exit x gate = system value (median over 15 entries) above
+    no gate in the full period and both halves and above the 95th percentile of the 20 placebos of
+    that regime x action (other settings borrow N20/W2/P1's placebo distribution, stated as an
+    approximation), counted over the 8 setting x exit systems against Binomial(8, p0) q95 from
+    placebo-vs-placebo; "goal-passing system" as 94 (beats SPY mix and SPY200 in all three judged
+    periods), with "also beats EW x same regime" flagged separately; "candidate" = P1 setting x entry
+    x exit x gate above both benchmarks in the three periods, window share >= 0.5 against both, >= 30
+    trades, both exits, both at 40 bp, and the same entry x gate passing at an adjacent N
+    (10-20-50); 2017-2023 reported, not gated; entry-specific vs system candidate by the same cell's
+    E0; chance from the 5 E0 seeds, Binomial(15, p0) q95. Per-trade statistics (user rule
+    2026-10-29) at N20/W2/P1 x X1: A2 truncates trades, so no gate vs each gate (histogram, bootstrap
+    CI of the mean difference, Mann-Whitney, -20% / +50% shares), the share of p < 0.05 among gates
+    next to the placebo share; A1 compares bought vs blocked signals. Trials +1,200 (10 x 4 x 15 x
+    2; DSR N 72,974 for candidates). No change of thresholds or budget if nothing passes. Limits:
+    the gain comes from two or three episodes, so the placebo comparison and the two-halves condition
+    stand in for a test; R1 is the benchmark's own rule (the EW x regime benchmark separates the
+    stock effect); A2 pays whipsaw costs; settings and exits post hoc; w* in-sample. Runner
+    lab/regime_study.py (goal_study's tables, metrics and benchmarks; regimes from blocks /
+    macro.series; replay_risk gains an optional forced-exit argument, default off and bit-identical;
+    no engine change; results lab_crsp/stage_p_regime, aggregates docs/research/lab/2026-11-02_stage_p/,
+    figures figures/stage_p_regime/). Design: docs/research/lab/2026-11-02_stage_p_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;
