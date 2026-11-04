@@ -4373,6 +4373,7 @@ EFZ,ProShares Short MSCI EAFE,P,True,False,False,False,False,False,False,False,F
 EHLS,Even Herd Long Short ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ELCF,Eventide Large Cap Focus ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 EMAG,Emerging Markets AI Mag 3 ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
+EMIL,VanEck EM Focus Inflation Bond ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 EMNT,PIMCO Enhanced Short Maturity Active ESG and Bond Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 ETDG,Eventide Dividend Growth ETF,P,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend growth,,Factor / Style,unknown,,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ETTY,Amplify Ethereum 3% Monthly Option Income ETF,Z,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Crypto,unknown,,False,,True,False,Crypto,Crypto,Crypto,Crypto,Crypto
@@ -4463,6 +4464,7 @@ SVTN,Corgi FTSE 7-10 Year U.S. Treasury Bond ETF,Z,True,False,False,False,False,
 TBF,ProShares Short 20+ Year Treasury,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 TBX,ProShares Short 7 10 Year Treasury,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 TETH,21Shares Ethereum ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
+THCR,THOR Conservative Risk Dynamic ETF,N,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 THRU,Tema Commodity Infrastructure ETF,F,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 TIPG,Northern Trust 2046 Inflation-Linked Distributing Ladder ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 TLCE,Thrivent Large Cap Stock ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
@@ -4480,6 +4482,7 @@ UBIQ,AAM Ubiquitous ETF,P,True,False,False,False,False,False,False,False,False,,
 UPSD,Aptus Large Cap Upside ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 VGTX,XFUNDS Technology Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 VOXP,Vox Populi ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+VTVX,XFUNDS Value Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 WBEM,William Blair Emerging Markets Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 WBIE,William Blair International Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 WBMO,VanEck Wealth Builder ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
