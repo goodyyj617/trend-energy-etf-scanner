@@ -4403,6 +4403,7 @@ ABLD,Abacus FCF Real Assets Leaders ETF,Z,True,False,False,False,False,False,Fal
 ABLG,Abacus FCF International Leaders ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 ABOT,Abacus FCF Innovation Leaders ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ABXB,Abacus Flexible Bond Leaders ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+ACEM,American Century Emerging Markets Insights ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 ACGR,American Century Large Cap Growth ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 ACJL,"Buffered Bulldog ETF by C.J. Lawrence, a division of Apollon",P,True,False,False,False,False,False,False,True,True,buffer,False,,,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
 ACLC,American Century Large Cap Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
@@ -4412,13 +4413,16 @@ AIBE,FINQ CORE U.S. Large Cap AI-Managed Equity ETF,P,True,False,False,False,Fal
 AIQD,MicroSectors -3? Short Artificial Intelligence (AI) ETNs,P,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 AIQU,MicroSectors 3? Long Artificial Intelligence (AI) ETNs,P,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 AMHI,American Beacon Aberdeen Municipal High Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+BBLX,BondBloxx Core Plus ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BTCI,NEOS Bitcoin High Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 BUCK,Simplify Treasury Option Income ETF,P,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 BUXX,Strive Enhanced Income Short Maturity ETF,N,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 CEF,Sprott Physical Gold and Silver Trust Units,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 CLSE,Convergence Long/Short Equity ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 DDX,Defined Duration 10 ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+DFIT,Davidson Intermediate Taxable ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 DFSD,Dimensional Short-Duration Fixed Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+DLAY,Tuttle Capital AI Bottleneck ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 DOJE,REX-Osprey DOGE ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 DWSH,AdvisorShares Dorsey Wright Short ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 EFZ,ProShares Short MSCI EAFE,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
@@ -4436,6 +4440,7 @@ FFLG,Fidelity Fundamental Large Cap Growth ETF,Z,True,False,False,False,False,Fa
 FFLS,The Future Fund Long/Short ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 FFSM,Fidelity Fundamental Small-Mid Cap ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 FIBT,Franklin US Innovation Bitcoin DRIP Index ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
+FMIG,FMI Global Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 FTLS,First Trust Long/Short Equity,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 FTPA,Franklin Pennsylvania Municipal Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 FTSM,First Trust Enhanced Short Maturity ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
@@ -4448,6 +4453,7 @@ HF,DGA Core Plus Absolute Return ETF,N,True,False,False,False,False,False,False,
 HFEQ,Unlimited HFEQ Equity Long/Short ETF,N,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 HFSI,Hartford Strategic Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 HSBH,HSBC Holdings plc ADRhedged,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+INJC,Canary Staked INJ ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 INK,AB Equity Premium Income ETF,Q,True,False,False,False,False,False,True,False,True,option_income,True,covered_call_option_income,premium income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 IPB,"Merrill Lynch & Co., Inc. 6.0518% Index Plus Trust Certificates Series 2003-1",N,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 IROC,Invesco Rochester High Yield Municipal ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
