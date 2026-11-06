@@ -109,7 +109,7 @@ def equal_weight_index(panel: Panel, eligible: pd.DataFrame) -> np.ndarray:
     c = panel.close
     r = (c / c.ffill().shift(1) - 1.0).to_numpy(dtype=float)
     held = eligible.reindex(index=c.index, columns=c.columns, fill_value=False).shift(1, fill_value=False).to_numpy(dtype=bool)
-    held &= np.isfinite(r)
+    held = held & np.isfinite(r)  # new array: pandas 3 may hand back a read-only view
     n = held.sum(axis=1)
     day = np.where(n > 0, np.where(held, r, 0.0).sum(axis=1) / np.maximum(n, 1), 0.0)
     return np.cumprod(1.0 + day)
