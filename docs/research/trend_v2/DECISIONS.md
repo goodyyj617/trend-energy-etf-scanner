@@ -1130,6 +1130,48 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     not uniformly worse (R1 / R4 blocked means +21 / +24% vs bought +17%, with more -20% losses).
     Trials +1,200 (about 72,974). Record: docs/research/lab/2026-11-02_stage_p_results.md.
 
+96. Stage Q: large-cap universe on the regime-gated account (user decision 2026-11-03 01:40 KST,
+    card after Stage P, "large-cap universe + A1"; registered before any run). Question: with the A1
+    gate of 95 the stock account roughly matches SPY200 + T-bill over 1993-2023 but still trails it
+    in 2008-2023 (best 5.6% vs 6.6%); the synthesis and the Stage H diagnosis attributed the
+    2008-2023 gap to size (fills' median cap rank 467, SPY beta 0.72), an untested reading. Does
+    restricting entries to signal-day cap rank <= 1,000 or <= 500 raise the 2008-2023
+    drawdown-matched return (Q1), beyond day-matched random restrictions of the same count, give a
+    goal-passing system (Q2) or a candidate (Q3)? Fixed: filter and M1 as 92-95 (M1 still the top
+    30% of the 3,000 universe, not recomputed inside the band), entries E1-E9, V1-V6, E0 (5 seeds),
+    exits X1 and H1, settings N10/W2/P0, N10 / N20 / N50 x W2 x P1, gates none, R1 / R3 / R4 / R5
+    A1 (the four that beat placebos in 95; R2 and A2 dropped), same random orders, 20 bp (40 bp for
+    candidates), T-bill cash, no holdout. Universes by the signal-day 21-day average cap rank
+    (cap_rank): U3000 (all, = Stage P), U1000, U500 (Stage D's band edges, not tuned); entries only,
+    holdings keep their exits. Pseudo restrictions: per band, 10 seeded day-matched random keeps of
+    the same daily count among the M1-passing signals (as exclude_study.pseudo_mask), run at
+    N10/W2/P0 (20 orders) and N20/W2/P1 with X1, gates none and R5 A1, 15 entries; other cells borrow
+    N20/W2/P1 x X1's distribution for the same gate (approximation). Metrics as 94-95 plus fills'
+    cap rank, SPY beta, positions and cash share. Benchmarks: SPY mix, SPY200 (94), and per band the
+    top-N equal-weight universe + T-bill and that universe x the same regime (cash when off), each at
+    its own w*. Verdicts: repro first (U3000 cells equal Stage P; an unbounded band equals U3000 bit
+    for bit, tested); "large caps help" per setting x exit x gate x band = system value (median over
+    15 entries) >= 0.5 pp above U3000 in 2008-2023, not more than 1.0 pp below in 1993-2007, and
+    above the maximum of its 10 pseudo restrictions in 2008-2023, counted over the 8 systems against
+    Binomial(8, p0) q95 from pseudo-vs-max-of-other-9; "goal-passing system" as 94-95, with "also
+    beats top-N EW x same regime" flagged; "candidate" = P1 setting x entry x exit x gate x band
+    above both benchmarks in 1993-2023 and both halves, window share >= 0.5 against both, >= 30
+    trades, both exits, both at 40 bp, and the same entry x gate passing at an adjacent N
+    (10-20-50) and at the other band (500-1,000); 2017-2023 reported, not gated; entry-specific vs
+    system candidate by the same cell's E0; chance from the 5 E0 seeds, Binomial(15, p0) q95; DSR
+    (N 74,174) and PSR for candidates only. Per-trade statistics at N20/W2/P1 x X1 x R5 A1: U3000
+    vs U1000 vs U500 vs pseudo (histogram, bootstrap CI, Mann-Whitney, -20% / +50% shares, share of
+    p < 0.05 next to pseudo-vs-pseudo). Trials +1,200 (2 bands x 5 gates x 4 settings x 15 entries
+    x 2 exits). No change of band edges, regime thresholds or budget if nothing passes. This does not
+    drop small caps from the research (user rule); U3000 stays the reference. Limits: fewer signals
+    may leave slots empty (cash lowers drawdown mechanically; the pseudo restrictions match the
+    count), M1 interacts with size, no cap weighting (W2 sizing kept), settings / exits / gates post
+    hoc, w* in-sample, regime gains from two or three episodes, borrowed pseudo distributions, cells
+    not independent. Runner lab/large_study.py (regime_study's tables, regimes, replay, metrics and
+    benchmarks; entry mask from the base tables' cap_rank; no engine or replay_risk change; results
+    lab_crsp/stage_q_large, aggregates docs/research/lab/2026-11-03_stage_q/, figures
+    figures/stage_q_large/). Design: docs/research/lab/2026-11-03_stage_q_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;
