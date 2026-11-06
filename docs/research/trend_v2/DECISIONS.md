@@ -1171,6 +1171,32 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     benchmarks; entry mask from the base tables' cap_rank; no engine or replay_risk change; results
     lab_crsp/stage_q_large, aggregates docs/research/lab/2026-11-03_stage_q/, figures
     figures/stage_q_large/). Design: docs/research/lab/2026-11-03_stage_q_design.md.
+    Result (2026-11-06, run 2026-11-06 20:17 - 20:37 KST; runner bf4692c): repro passed (the 640 U3000
+    cells, 19,200 values, equal Stage P to 9.7e-17; in the dry run a rank-9,999 band equalled U3000 on
+    all 1,248 curves). U1000 / U500 keep 58% / 31% of the M1 signals. Pre-run detail: N20 / W2 / P1 x
+    X1 pseudo restrictions were run for all five gates (the "same gate" distribution the other cells
+    borrow; not counted as trials). Q1: narrowing barely moves the system values - median change over
+    the 40 systems in 2008-2023 +0.09 pp (U1000) / +0.19 pp (U500), range -1.0 to +1.1 pp, 1993-2007
+    -0.36 / -0.31 pp; the fills' median cap rank falls 690 -> 430 -> 240 but SPY beta stays 0.46 ->
+    0.46 -> 0.48 and positions / cash share are unchanged; "large caps help" in 1 of 80 (U500 x R3 A1
+    x N10 / P1 x H1, +0.53 pp; Binomial q95 0 from 0 of 10 pseudo passes, so formally beyond chance
+    but weak); pseudo medians sit within -0.5 to +0.2 pp of U3000. The size reading of the 2008-2023
+    gap is not supported. Per trade (N20 / W2 / P1 x X1 x R5 A1) U500 beats its pooled pseudos (mean
+    +37.6% vs +32.2%, CI +2.1 to +8.9 pp, p 0.001; pseudo vs pseudo 0 of 20 at p < 0.05) but not
+    U3000 (+33.5%, p 0.70) - not transferred to the account. Q2: no goal-passing system (best
+    narrowed 2008-2023 5.8%, N50 / P1 x X1 x R1 A1 x U1000, vs 6.6%); top-N EW + T-bill 4.2 / 4.5 /
+    4.6%, best EW x regime 5.1% (U500 x R1); systems beat the band's EW x same gate in 116 of 120.
+    Q3: cells passing 20 / 15 / 27 of 600 (U3000 / U1000 / U500; E7 6 / 9 / 10); four candidates,
+    all one family: N10 and N20 / W2 / P1 x E7 (+DI cross) x R3 A1 x U1000 and U500, both exits at
+    20 and 40 bp, entry-specific (beat E0 in both halves), dd_cagr 7.3-8.8% (halves 7.8-10.4 /
+    6.8-8.9%, 2017-2023 6.8-10.2%); E0 seeds pass 4 of 400 narrowed seed cells (p0 0 in the
+    candidates' cells); DSR (N 74,174) 0.999 for all eight cells but lenient here (every trial earns
+    above T-bill: daily SR mean 0.058, sd 0.006); PSR against the SPY mix 0.50-0.85. Caveats recorded:
+    the family is Stage P's post-hoc best cell; its U3000 cells are as high or higher (N10 x X1
+    9.1%, N20 x H1 fails 2008-2023 at 6.2%, which is what failed the neighbour rule in 95), so the
+    candidates come from the band neighbour (U500 is a subset of U1000), not from a size effect.
+    Holdout not looked at (only when the user names a cell). Trials +1,200 (74,174). Record:
+    docs/research/lab/2026-11-03_stage_q_results.md.
 
 ## Open decisions
 
