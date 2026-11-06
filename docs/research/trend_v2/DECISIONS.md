@@ -1198,6 +1198,47 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     Holdout not looked at (only when the user names a cell). Trials +1,200 (74,174). Record:
     docs/research/lab/2026-11-03_stage_q_results.md.
 
+97. Holdout check of the Stage Q candidate family (user decision 2026-11-06 21:20 KST, card after
+    Stage Q, "후보 보류 구간 1회 확인"; registered before the holdout is opened). The holdout (2024-01-01
+    on) is looked at once, for this family only, and never again for it; nothing below is changed
+    after the result. Cells: N10 and N20 / W2 / P1 x E7 (+DI(14) crosses above -DI(14), ADX(14) >= 20,
+    first day) x R3 A1 (no new entries while the t-1 BAA10Y spread is above its 200-observation SMA)
+    x U1000 and U500 (signal-day 21-day average cap rank), M1 exclusion, exits X1 (25% trailing) and
+    H1 (X1 + ATR14 x 3), 20 bp, idle cash at the T-bill rate: 4 cells, 8 curves; the family's 4 U3000
+    curves are reported, not judged. The CRSP panel ends in late 2024, so the holdout is 2024-01-02 to
+    the panel's last date (about one year; recorded); stated before the run: one year has almost no
+    power, a pass means "not inconsistent with the research period", a fail may be the 2017-2023
+    structural pattern (mega-cap-led market, beta about 0.5) rather than proof of overfitting; 2024 is
+    known to be a year with SPY above its 200-day line almost throughout (public index fact, no panel
+    value seen). Fixed numbers: w* of each curve from the Stage Q goal table (1993-2023, column w; not
+    refitted), baselines at their research w* (SPY200 0.70, SPY 0.25, top-3,000 EW 0.22); daily blend
+    w x account + (1 - w) x T-bill as lab/target.py. Main view: the account continuing from 1993
+    (2023's last close = 1); reference view: the same account started in cash on the first 2024
+    session. Verdict: (1) repro before opening - the 8 + 4 curves rebuilt on signal tables extended
+    to the panel end, cut at 2023-12-31, must equal Stage Q's 1993-2023 goal values to 1e-9 (signal
+    rows before 2024 equal Stage L's except exit fields of trades open at the end of 2023); the repro
+    step computes and prints nothing on dates >= 2024-01-01; if it fails, the holdout is not opened.
+    (2) A curve passes if its blend's holdout return exceeds the SPY200 + T-bill blend's and its blend
+    MDD >= -15%; (3) a cell passes if both exits pass; (4) the family passes the holdout if at least
+    3 of the 4 cells pass, otherwise it does not ("beats only SPY + T-bill" noted separately); (5)
+    calibration: per curve the 2024 excess (blend minus SPY200 blend, calendar return) as a
+    percentile of its own 1994-2023 calendar-year excesses, and of the "similar years" (SPY above its
+    200-day SMA on >= 95% of the year's sessions); a median percentile over the 8 curves below 5%, or
+    any blend MDD below -15%, is reported as "worse than the research range"; (6) the CHARTER final
+    Gate on the unblended account (return >= 0.80 x SPY, |MDD| <= 0.75 x |SPY MDD|) is reported, but
+    the family verdict is (4) since 64 made drawdown-matched return the goal; (7) per trade on N20 /
+    U1000 x X1: holdout entries vs the same curve's research trades (histogram, bootstrap CI,
+    Mann-Whitney, -20% / +50% shares; open trades marked at the panel's last close), low power stated.
+    40 bp reported. No trials added (no search). One-look guards: stages build -> repro -> holdout;
+    holdout refuses to run without the repro pass file, if the user's main-clone
+    lab_results/holdout.json already holds an evaluation named "D97 ...", or if the results folder
+    has holdout_done.json; it records the 8 curves with research_log.record_holdout_evaluation in the
+    main clone (--results-dir) and a copy in docs/research/lab/2026-11-06_holdout/holdout_record.json.
+    Delisting exits apply only to series that end before the panel's last date. Runner
+    lab/holdout_study.py (no engine or replay_risk change; tests), results lab_crsp/holdout_d97,
+    aggregates docs/research/lab/2026-11-06_holdout/, figures figures/holdout_d97/. Design:
+    docs/research/lab/2026-11-06_holdout_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;
