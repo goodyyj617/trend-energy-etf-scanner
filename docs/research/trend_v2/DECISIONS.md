@@ -1012,6 +1012,233 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     27% of orders above 5% (N=50: 0.4%, 3%). Trials +1,200 (about 71,774). Record:
     docs/research/lab/2026-11-01_stage_n_results.md.
 
+94. Stage O: judge by drawdown-matched return (user decision 2026-11-02 21:57 KST, card after the
+    Stage B-N synthesis, "change the criterion first"; registered before any run). Question: the
+    Stage I-N criterion (CAGR > SPY and |MDD| < |SPY MDD| in 1993-2023 and 2017-2023) demanded both
+    the return of a cap-weighted mega-cap index and a shallower drawdown; the user accepted the
+    2017-2023 loss as structural (2026-11-02 21:47 KST). Re-score the Stage N grid with the user's
+    goal metrics of 64-65 (lab/target.py), already registered but never used as the verdict: Q1 does
+    any account setting x entry x exit beat, at a 15% drawdown budget, the SPY + T-bill mix and SPY200
+    (+ T-bill) in 1993-2023 and both halves; Q2 does the exit order of 90 (long holds first) survive
+    drawdown matching, since fast exits have shallower drawdowns; Q3 how much capital w* each account
+    can use versus SPY200. Fixed: filter, entries (E1-E9, V1-V6, E0 5 seeds), exits X1 / H1 / H9 /
+    ST, the 20 settings and the same 100 random orders (Stage M / L draws) as 93, M1 and no-exclusion
+    accounts, no pseudo exclusions, 20 bp (40 bp for the candidate condition), T-bill cash, no
+    holdout; the exit axis adds Stage L's other 7 exits at N=10 / W2 / P0 only. Metrics per curve:
+    w* = largest weight on the 0.01 grid whose daily w x strategy + (1-w) x T-bill blend has
+    1993-2023 MDD >= -15%; dd_cagr of that blend for 1993-2023, both halves and 2017-2023 at the
+    full-period w* (half-refit w* reported for stability); 3-year calendar windows (29, step 1 year)
+    share won and worst excess against each benchmark at its own w*; benchmarks SPY mix, SPY200, EW,
+    each at its own w*; cell value = median over the 100 orders. Verdicts: repro first (plain CAGR /
+    MDD must equal 93's accounts table, else no run); "goal-passing system" = setting x exit whose
+    median dd_cagr over the 15 entries beats both benchmarks in the full period and both halves (the
+    same setting's E0 shown, not required); "candidate" = W2 / W3 setting x entry x exit with
+    dd_cagr above both benchmarks in all three periods, window share >= 0.5 against both, >= 30
+    trades, >= 2 of 4 exits, still >= 2 at 40 bp, and the same entry passing at an adjacent N;
+    2017-2023 reported, not gated; a candidate also beating the same cell's E0 in both halves is
+    labelled "entry-specific", otherwise "system candidate"; chance from the 5 E0 seeds under the
+    same test, Binomial(15, p0) q95; DSR (N 71,774, no new trials) and PSR vs the SPY mix for
+    candidates only. Trials +0: the same strategies re-measured; the criterion was switched after
+    seeing Stage N, so a passing cell is a candidate only until the user names it for the holdout.
+    No lowering of the 15% budget, the two-halves condition or the two-benchmark condition if
+    nothing passes. Limits: w* fitted on the full-period in-sample MDD (optimistic for all,
+    half-refit shows instability), daily-rebalanced blend is an approximation with costs on the
+    strategy side only, M1 post hoc, cells not independent. No new trades, so no return histogram
+    (Stage N's stand). Runner lab/goal_study.py (account_study's table preparation and replay,
+    target.fit_weights; no engine change; results lab_crsp/stage_o_goal, aggregates
+    docs/research/lab/2026-11-02_stage_o/, figures figures/stage_o_goal/). Design:
+    docs/research/lab/2026-11-02_stage_o_design.md.
+    Result (2026-11-02, run 22:34-23:22 KST; runner df558e2): repro passed (2,560 cells, 28,160 plain
+    CAGR / MDD / trade values equal Stage N to 9.7e-17). 3-year windows: 28 (1994-96 to 2021-23; the
+    design's 29 counted 1993, which target.windows drops because the window starts 1993-02-01).
+    Benchmarks at the 15% budget: SPY mix w* 0.25, 4.5% (halves 5.7 / 3.4%, 2017-2023 4.8%); SPY200
+    w* 0.70, 6.8% (7.1 / 6.6%, 7.9%); EW w* 0.22, 4.4%. Q1: no goal-passing system (0 of 80 setting x
+    exit medians beat SPY200 in any judged period; 29 beat the SPY mix in all three); system values
+    4.0-5.4%, best N10 / W2 / P1 x X1 5.4% (w* 0.43, 2008-2023 4.0%), window share vs SPY200 0.21-0.36,
+    vs the mix 0.39-0.71. No candidate: of 1,200 cells 431 beat the mix in all three periods, none
+    beat SPY200 in all three (3 in the full period only: V6 x P1 x H1 at N20 / N30 7.4 / 7.2% and E4 x
+    P1 x H9 at N20 6.8%, all below SPY200 in 2008-2023); none of the 400 E0 seed cells passed. Q2:
+    the exit order survives drawdown matching (X1 4.9%, H1 4.8%, TP 4.4%, ST 4.3%, H9 4.1%, MN 4.0%,
+    LB / CH 3.3%, MA 2.8%, PS 1.9%, RS 1.0%); fast exits were not shallower (MA -50%, PS -56% vs X1
+    -41%). Q3: account w* 0.25-0.44 (60-cell medians 0.26-0.37; W1 lowest, P1 highest) vs SPY200 0.70,
+    confirming the synthesis estimate; the full-period w* is set by 2008 (half-refit w* +0.17 for
+    1993-2007, +0.01 for 2008-2023). M1 adds about 0.1 pp, P1 0.4-0.5 pp over random order at W2;
+    entries stay at E0's level (E0 4.2-4.9%). At the user's goal, index-level trend following
+    (SPY200 + T-bills) beat every stock-level trend account by 1.4-2.8 pp a year. Trials +0 (71,774).
+    Record: docs/research/lab/2026-11-02_stage_o_results.md.
+
+95. Stage P: market-regime gate on the stock account (user decision 2026-11-02 23:34 KST, card
+    after Stage O, "reduce drawdown with a regime filter"; registered before any run). Question:
+    Stage O showed the stock accounts lose to SPY200 + T-bill (6.8% at the 15% budget, w* 70%) only
+    because their drawdowns (-40 to -52%, mostly 2008 and 2000-2002) leave 25-44% of capital usable;
+    does gating on the market regime shallow the drawdown enough to raise the drawdown-matched return
+    above SPY200 + T-bill (Q2), is the gain larger than same-share placebo regimes (Q1), and is there
+    a candidate cell (Q3)? Since SPY200 is itself a one-rule regime strategy, the test also asks what
+    stock-level trend following adds on the same gate, so "equal-weight universe x the same regime
+    (A2)" is a fourth benchmark. Fixed: filter, entries (E1-E9, V1-V6, E0 5 seeds), the M1 account
+    only, exits X1 and H1 (Stage O's best two, post hoc), settings N10/W2/P0 (comparison), N10 / N20
+    / N50 x W2 x P1 (post hoc), same random orders, 20 bp (40 bp for the candidate condition), T-bill
+    cash, no holdout. Regimes, the registered macro-block defaults, not tuned here: R1 SPY close >
+    SMA200 (market_trend), R2 T10Y3M > 0 (curve_ok, t-1), R3 BAA10Y <= its 200-observation SMA
+    (credit_calm, t-1), R4 VIX < 25 (vix_calm, t-1), R5 all four; state at close t applies to
+    trades at the t+1 open. Actions: A1 block new entries while off; A2 = A1 plus sell every holding
+    at the open after the regime turns off, cash (T-bill) while off, normal re-entry when on (the
+    20-session ban kept). 10 gates + no gate. Placebos: per regime 20 circular shifts of its on/off
+    series by >= 252 sessions (seeded), same actions, run at N10/W2/P0 (20 orders) and N20/W2/P1 with
+    X1 and the 15 entries only. Metrics as 94 (w*, dd_cagr by period at the full-period w*, half
+    refits, 28 three-year windows) plus time in market, switches, 2000-2002 and 2008 drawdowns.
+    Verdicts: repro first (no-gate cells equal Stage O; an always-on regime equals no gate bit for
+    bit, tested); "gate helps" per setting x exit x gate = system value (median over 15 entries) above
+    no gate in the full period and both halves and above the 95th percentile of the 20 placebos of
+    that regime x action (other settings borrow N20/W2/P1's placebo distribution, stated as an
+    approximation), counted over the 8 setting x exit systems against Binomial(8, p0) q95 from
+    placebo-vs-placebo; "goal-passing system" as 94 (beats SPY mix and SPY200 in all three judged
+    periods), with "also beats EW x same regime" flagged separately; "candidate" = P1 setting x entry
+    x exit x gate above both benchmarks in the three periods, window share >= 0.5 against both, >= 30
+    trades, both exits, both at 40 bp, and the same entry x gate passing at an adjacent N
+    (10-20-50); 2017-2023 reported, not gated; entry-specific vs system candidate by the same cell's
+    E0; chance from the 5 E0 seeds, Binomial(15, p0) q95. Per-trade statistics (user rule
+    2026-10-29) at N20/W2/P1 x X1: A2 truncates trades, so no gate vs each gate (histogram, bootstrap
+    CI of the mean difference, Mann-Whitney, -20% / +50% shares), the share of p < 0.05 among gates
+    next to the placebo share; A1 compares bought vs blocked signals. Trials +1,200 (10 x 4 x 15 x
+    2; DSR N 72,974 for candidates). No change of thresholds or budget if nothing passes. Limits:
+    the gain comes from two or three episodes, so the placebo comparison and the two-halves condition
+    stand in for a test; R1 is the benchmark's own rule (the EW x regime benchmark separates the
+    stock effect); A2 pays whipsaw costs; settings and exits post hoc; w* in-sample. Runner
+    lab/regime_study.py (goal_study's tables, metrics and benchmarks; regimes from blocks /
+    macro.series; replay_risk gains an optional forced-exit argument, default off and bit-identical;
+    no engine change; results lab_crsp/stage_p_regime, aggregates docs/research/lab/2026-11-02_stage_p/,
+    figures figures/stage_p_regime/). Design: docs/research/lab/2026-11-02_stage_p_design.md.
+    Result (2026-11-03, run 2026-11-02 23:52 - 11-03 00:13 KST; runner 969ed5f): repro passed (the 128
+    no-gate cells, 3,200 values, equal Stage O to 9.7e-17; in the dry run an always-on regime equalled
+    no gate on all 624 curves). Window off shares: R1 31%, R2 10%, R3 44%, R4 19%, R5 64%. Medians
+    over the 8 systems (dd_cagr 1993-2023, w*, plain MDD): no gate 5.2%, 0.39, -37%; A1: R1 6.4%,
+    0.52, -28%; R2 5.0%; R3 6.1%, 0.55, -27%; R4 5.8%, 0.48, -32%; R5 6.5%, 0.58, -25% (2007-2009
+    drawdown -36% -> -14 to -29% for R1/R3/R4/R5; plain CAGR kept at 9.1-9.4%); A2: 4.0-5.0%, time
+    in market 36-89%, trade mean +24% -> +1 to +10% (big winners cut). Q1: "gate helps" (above no
+    gate in all three periods and above the placebo q95) in 7 / 4 / 6 / 5 of 8 systems for R1 / R3 /
+    R4 / R5 A1 against Binomial(8, p0) q95 = 2; R2 A1 and every A2 0. Q2: no goal-passing system;
+    best N50 / W2 / P1 x H1 x R5 A1 6.95% (w* 0.66) above SPY200 + T-bill (6.8%) over 1993-2023 but
+    5.6% vs 6.6% in 2008-2023; A1 systems beat EW x the same regime in 38 of 40. Q3: 21 of 1,200
+    cells pass the per-cell test (R3 A1 8, R1 A1 5, R5 A1 5, R4 A1 2, R2 A2 1); both exits at 20 and
+    40 bp only for N10 / P1 x E7 x R3 A1 (best cell, X1 9.1%, halves 10.1 / 8.2%, w* 0.68) and N20 /
+    P1 x V1 x R3 A1, neither with a passing neighbour, so no candidate (no DSR); E0 seeds' cell pass
+    rate 0-0.4 per setting x exit x gate. Same-gate E0 rises with the rules (4.9-5.5% -> 5.4-7.2%),
+    so the gain is the account's, not the entries'. Per-trade tests (N20 / W2 / P1 x X1): A1 raises the
+    trade mean (R5 +33.5% vs +24.4%, CI +5.7 to +12.4 pp) but placebo gates also reach p < 0.05
+    (A1 5-70%, A2 85-100%), so the per-trade tests are reported, not used; A1's blocked signals were
+    not uniformly worse (R1 / R4 blocked means +21 / +24% vs bought +17%, with more -20% losses).
+    Trials +1,200 (about 72,974). Record: docs/research/lab/2026-11-02_stage_p_results.md.
+
+96. Stage Q: large-cap universe on the regime-gated account (user decision 2026-11-03 01:40 KST,
+    card after Stage P, "large-cap universe + A1"; registered before any run). Question: with the A1
+    gate of 95 the stock account roughly matches SPY200 + T-bill over 1993-2023 but still trails it
+    in 2008-2023 (best 5.6% vs 6.6%); the synthesis and the Stage H diagnosis attributed the
+    2008-2023 gap to size (fills' median cap rank 467, SPY beta 0.72), an untested reading. Does
+    restricting entries to signal-day cap rank <= 1,000 or <= 500 raise the 2008-2023
+    drawdown-matched return (Q1), beyond day-matched random restrictions of the same count, give a
+    goal-passing system (Q2) or a candidate (Q3)? Fixed: filter and M1 as 92-95 (M1 still the top
+    30% of the 3,000 universe, not recomputed inside the band), entries E1-E9, V1-V6, E0 (5 seeds),
+    exits X1 and H1, settings N10/W2/P0, N10 / N20 / N50 x W2 x P1, gates none, R1 / R3 / R4 / R5
+    A1 (the four that beat placebos in 95; R2 and A2 dropped), same random orders, 20 bp (40 bp for
+    candidates), T-bill cash, no holdout. Universes by the signal-day 21-day average cap rank
+    (cap_rank): U3000 (all, = Stage P), U1000, U500 (Stage D's band edges, not tuned); entries only,
+    holdings keep their exits. Pseudo restrictions: per band, 10 seeded day-matched random keeps of
+    the same daily count among the M1-passing signals (as exclude_study.pseudo_mask), run at
+    N10/W2/P0 (20 orders) and N20/W2/P1 with X1, gates none and R5 A1, 15 entries; other cells borrow
+    N20/W2/P1 x X1's distribution for the same gate (approximation). Metrics as 94-95 plus fills'
+    cap rank, SPY beta, positions and cash share. Benchmarks: SPY mix, SPY200 (94), and per band the
+    top-N equal-weight universe + T-bill and that universe x the same regime (cash when off), each at
+    its own w*. Verdicts: repro first (U3000 cells equal Stage P; an unbounded band equals U3000 bit
+    for bit, tested); "large caps help" per setting x exit x gate x band = system value (median over
+    15 entries) >= 0.5 pp above U3000 in 2008-2023, not more than 1.0 pp below in 1993-2007, and
+    above the maximum of its 10 pseudo restrictions in 2008-2023, counted over the 8 systems against
+    Binomial(8, p0) q95 from pseudo-vs-max-of-other-9; "goal-passing system" as 94-95, with "also
+    beats top-N EW x same regime" flagged; "candidate" = P1 setting x entry x exit x gate x band
+    above both benchmarks in 1993-2023 and both halves, window share >= 0.5 against both, >= 30
+    trades, both exits, both at 40 bp, and the same entry x gate passing at an adjacent N
+    (10-20-50) and at the other band (500-1,000); 2017-2023 reported, not gated; entry-specific vs
+    system candidate by the same cell's E0; chance from the 5 E0 seeds, Binomial(15, p0) q95; DSR
+    (N 74,174) and PSR for candidates only. Per-trade statistics at N20/W2/P1 x X1 x R5 A1: U3000
+    vs U1000 vs U500 vs pseudo (histogram, bootstrap CI, Mann-Whitney, -20% / +50% shares, share of
+    p < 0.05 next to pseudo-vs-pseudo). Trials +1,200 (2 bands x 5 gates x 4 settings x 15 entries
+    x 2 exits). No change of band edges, regime thresholds or budget if nothing passes. This does not
+    drop small caps from the research (user rule); U3000 stays the reference. Limits: fewer signals
+    may leave slots empty (cash lowers drawdown mechanically; the pseudo restrictions match the
+    count), M1 interacts with size, no cap weighting (W2 sizing kept), settings / exits / gates post
+    hoc, w* in-sample, regime gains from two or three episodes, borrowed pseudo distributions, cells
+    not independent. Runner lab/large_study.py (regime_study's tables, regimes, replay, metrics and
+    benchmarks; entry mask from the base tables' cap_rank; no engine or replay_risk change; results
+    lab_crsp/stage_q_large, aggregates docs/research/lab/2026-11-03_stage_q/, figures
+    figures/stage_q_large/). Design: docs/research/lab/2026-11-03_stage_q_design.md.
+    Result (2026-11-06, run 2026-11-06 20:17 - 20:37 KST; runner bf4692c): repro passed (the 640 U3000
+    cells, 19,200 values, equal Stage P to 9.7e-17; in the dry run a rank-9,999 band equalled U3000 on
+    all 1,248 curves). U1000 / U500 keep 58% / 31% of the M1 signals. Pre-run detail: N20 / W2 / P1 x
+    X1 pseudo restrictions were run for all five gates (the "same gate" distribution the other cells
+    borrow; not counted as trials). Q1: narrowing barely moves the system values - median change over
+    the 40 systems in 2008-2023 +0.09 pp (U1000) / +0.19 pp (U500), range -1.0 to +1.1 pp, 1993-2007
+    -0.36 / -0.31 pp; the fills' median cap rank falls 690 -> 430 -> 240 but SPY beta stays 0.46 ->
+    0.46 -> 0.48 and positions / cash share are unchanged; "large caps help" in 1 of 80 (U500 x R3 A1
+    x N10 / P1 x H1, +0.53 pp; Binomial q95 0 from 0 of 10 pseudo passes, so formally beyond chance
+    but weak); pseudo medians sit within -0.5 to +0.2 pp of U3000. The size reading of the 2008-2023
+    gap is not supported. Per trade (N20 / W2 / P1 x X1 x R5 A1) U500 beats its pooled pseudos (mean
+    +37.6% vs +32.2%, CI +2.1 to +8.9 pp, p 0.001; pseudo vs pseudo 0 of 20 at p < 0.05) but not
+    U3000 (+33.5%, p 0.70) - not transferred to the account. Q2: no goal-passing system (best
+    narrowed 2008-2023 5.8%, N50 / P1 x X1 x R1 A1 x U1000, vs 6.6%); top-N EW + T-bill 4.2 / 4.5 /
+    4.6%, best EW x regime 5.1% (U500 x R1); systems beat the band's EW x same gate in 116 of 120.
+    Q3: cells passing 20 / 15 / 27 of 600 (U3000 / U1000 / U500; E7 6 / 9 / 10); four candidates,
+    all one family: N10 and N20 / W2 / P1 x E7 (+DI cross) x R3 A1 x U1000 and U500, both exits at
+    20 and 40 bp, entry-specific (beat E0 in both halves), dd_cagr 7.3-8.8% (halves 7.8-10.4 /
+    6.8-8.9%, 2017-2023 6.8-10.2%); E0 seeds pass 4 of 400 narrowed seed cells (p0 0 in the
+    candidates' cells); DSR (N 74,174) 0.999 for all eight cells but lenient here (every trial earns
+    above T-bill: daily SR mean 0.058, sd 0.006); PSR against the SPY mix 0.50-0.85. Caveats recorded:
+    the family is Stage P's post-hoc best cell; its U3000 cells are as high or higher (N10 x X1
+    9.1%, N20 x H1 fails 2008-2023 at 6.2%, which is what failed the neighbour rule in 95), so the
+    candidates come from the band neighbour (U500 is a subset of U1000), not from a size effect.
+    Holdout not looked at (only when the user names a cell). Trials +1,200 (74,174). Record:
+    docs/research/lab/2026-11-03_stage_q_results.md.
+
+97. Holdout check of the Stage Q candidate family (user decision 2026-11-06 21:20 KST, card after
+    Stage Q, "후보 보류 구간 1회 확인"; registered before the holdout is opened). The holdout (2024-01-01
+    on) is looked at once, for this family only, and never again for it; nothing below is changed
+    after the result. Cells: N10 and N20 / W2 / P1 x E7 (+DI(14) crosses above -DI(14), ADX(14) >= 20,
+    first day) x R3 A1 (no new entries while the t-1 BAA10Y spread is above its 200-observation SMA)
+    x U1000 and U500 (signal-day 21-day average cap rank), M1 exclusion, exits X1 (25% trailing) and
+    H1 (X1 + ATR14 x 3), 20 bp, idle cash at the T-bill rate: 4 cells, 8 curves; the family's 4 U3000
+    curves are reported, not judged. The CRSP panel ends in late 2024, so the holdout is 2024-01-02 to
+    the panel's last date (about one year; recorded); stated before the run: one year has almost no
+    power, a pass means "not inconsistent with the research period", a fail may be the 2017-2023
+    structural pattern (mega-cap-led market, beta about 0.5) rather than proof of overfitting; 2024 is
+    known to be a year with SPY above its 200-day line almost throughout (public index fact, no panel
+    value seen). Fixed numbers: w* of each curve from the Stage Q goal table (1993-2023, column w; not
+    refitted), baselines at their research w* (SPY200 0.70, SPY 0.25, top-3,000 EW 0.22); daily blend
+    w x account + (1 - w) x T-bill as lab/target.py. Main view: the account continuing from 1993
+    (2023's last close = 1); reference view: the same account started in cash on the first 2024
+    session. Verdict: (1) repro before opening - the 8 + 4 curves rebuilt on signal tables extended
+    to the panel end, cut at 2023-12-31, must equal Stage Q's 1993-2023 goal values to 1e-9 (signal
+    rows before 2024 equal Stage L's except exit fields of trades open at the end of 2023); the repro
+    step computes and prints nothing on dates >= 2024-01-01; if it fails, the holdout is not opened.
+    (2) A curve passes if its blend's holdout return exceeds the SPY200 + T-bill blend's and its blend
+    MDD >= -15%; (3) a cell passes if both exits pass; (4) the family passes the holdout if at least
+    3 of the 4 cells pass, otherwise it does not ("beats only SPY + T-bill" noted separately); (5)
+    calibration: per curve the 2024 excess (blend minus SPY200 blend, calendar return) as a
+    percentile of its own 1994-2023 calendar-year excesses, and of the "similar years" (SPY above its
+    200-day SMA on >= 95% of the year's sessions); a median percentile over the 8 curves below 5%, or
+    any blend MDD below -15%, is reported as "worse than the research range"; (6) the CHARTER final
+    Gate on the unblended account (return >= 0.80 x SPY, |MDD| <= 0.75 x |SPY MDD|) is reported, but
+    the family verdict is (4) since 64 made drawdown-matched return the goal; (7) per trade on N20 /
+    U1000 x X1: holdout entries vs the same curve's research trades (histogram, bootstrap CI,
+    Mann-Whitney, -20% / +50% shares; open trades marked at the panel's last close), low power stated.
+    40 bp reported. No trials added (no search). One-look guards: stages build -> repro -> holdout;
+    holdout refuses to run without the repro pass file, if the user's main-clone
+    lab_results/holdout.json already holds an evaluation named "D97 ...", or if the results folder
+    has holdout_done.json; it records the 8 curves with research_log.record_holdout_evaluation in the
+    main clone (--results-dir) and a copy in docs/research/lab/2026-11-06_holdout/holdout_record.json.
+    Delisting exits apply only to series that end before the panel's last date. Runner
+    lab/holdout_study.py (no engine or replay_risk change; tests), results lab_crsp/holdout_d97,
+    aggregates docs/research/lab/2026-11-06_holdout/, figures figures/holdout_d97/. Design:
+    docs/research/lab/2026-11-06_holdout_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;

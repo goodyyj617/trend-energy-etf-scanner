@@ -7,7 +7,8 @@
 #   daytime (DayStart <= hour < DayEnd, local time): priority BelowNormal, affinity = the last DayCores
 #                                                    logical cores
 #   night:                                           priority Normal, all cores
-# The run itself is not stopped or restarted. Exits when no matching process is left.
+# The run itself is not stopped or restarted. Exits when no matching process is left. Other copies of
+# this script (same -Match) are not counted, so two throttles never keep each other alive.
 # Use with scripts/crsp_remote.py: start the run, then start this script with -Match <study module>
 # (e.g. -Match lab.stage_c_study) in a second window or as a hidden process.
 param(
@@ -24,7 +25,7 @@ $dayMask = [IntPtr]::new([long](([math]::Pow(2, $DayCores) - 1) * [math]::Pow(2,
 
 function Get-Tree {
     $procs = Get-CimInstance Win32_Process
-    $ids = @($procs | Where-Object { $_.CommandLine -and $_.CommandLine -like "*$Match*" -and $_.ProcessId -ne $PID } |
+    $ids = @($procs | Where-Object { $_.CommandLine -and $_.CommandLine -like "*$Match*" -and $_.CommandLine -notlike "*cpu_daytime.ps1*" -and $_.ProcessId -ne $PID } |
         ForEach-Object { $_.ProcessId })
     $seen = @{}
     while ($ids.Count) {
