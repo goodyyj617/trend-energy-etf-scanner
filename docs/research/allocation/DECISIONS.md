@@ -687,3 +687,24 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     (`tests/test_aa_dynamic.py`). Their notes carry the badge and the limits (placebo pass rate 7.7 %, satellite from
     2007 only and not sealed-tested, no K3 signal in the sealed window for ⑤).
 
+A43. Test the rule that picks a dynamic setting out of time, not the picked setting (design fixed 2026-11-06 before
+    the run, memo `2026-11-06_a43_design.md`; code `lab/aa_timesplit.py`, run `scripts/aa_a43_timesplit.py`).
+    Why: the user's favourite stage-5 representative ③ ((가) + K2 canary → safe bundle, cooldown 21, vol target 8 %,
+    satellite 50 %, 9.07 / −8.7 %) decomposes (2026-11-06, from the stage-4 files) into a CAGR edge that comes from the
+    satellite and an MDD of −8.7 % that needs all three parts; it beats the placebo 95 % line (−8.84 %) by 0.14 %p and
+    all eight one-step setting neighbours fail that line, so ③ is a single-cell peak. Instead of searching around it,
+    the stage-4 selection itself is tested: the same paths (873 settings × 6 targets × satellite 0 / 25 / 50 %, three
+    price sets, 200 placebos, same seeds) are cut into fixed windows (halves 2000-09 – 2012-12 / 2013-01 – 2024-12 and
+    thirds 2000-09 – 2008-12 / 2009-01 – 2016-12 / 2017-01 – 2024-12), the stage-4 verdict is applied inside a selection
+    window, and the passers (rule A) and the best passer by rank value (rule B, the stage-5 representative rule) are
+    measured in the test window, four directions (전반 → 후반, 후반 → 전반, 1+2 → 3, 2+3 → 1). Chance = hypergeometric
+    p of the kept count. Judgements fixed: J1 rule A carries information if in all four directions the kept share is
+    ≥ 2× the base pass rate with p < 0.05 (one failure 약함, two 없음); J2 the (가) pick holds if it passes ①②③ in
+    the test window in all four directions (①③ only 약함, else 무너짐); J3 ③ itself passes ①②③ in both halves.
+    Reading fixed in advance: J1 없음 and J2 무너짐 → the stage-4/5 selection does not transfer in time and ③'s
+    dynamic parts are not a validated finding; what remains is the no-signal reference inside −15 % in both halves
+    ((가) 50 + satellite 50, or a vol target alone). J1 있음 → ③ stays a candidate and the next step is the
+    account-condition test. Limits written before the run: both halves were already seen by stage 4 (this tests the
+    procedure's time stability, not fresh data); the satellite exists only from 2007-02; R4–R6 start 2003-11; the
+    1 %p / 3 %p thresholds are kept unchanged for the shorter windows. Paths are cut, not re-started, at a window's
+    first day (the '전체' window must reproduce the stage-4 verdicts: `--check-stage4`).
