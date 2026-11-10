@@ -240,8 +240,8 @@ def judgements(TR: pd.DataFrame, BP: pd.DataFrame, R3: pd.DataFrame) -> dict:
     fails = int((~ok.fillna(False)).sum())
     j1 = "있음" if fails == 0 else ("약함" if fails == 1 else "없음")
     b = BP[BP["대상"] == "F4 (가)"]
-    strict = b["시험 엄격 통과"].fillna(False).astype(bool) if "시험 엄격 통과" in b else pd.Series(dtype=bool)
-    loose = b["시험 완화 ①③"].fillna(False).astype(bool) if "시험 완화 ①③" in b else pd.Series(dtype=bool)
+    strict = b["시험 엄격 통과"].map(lambda x: bool(x) if pd.notna(x) else False).astype(bool) if "시험 엄격 통과" in b else pd.Series(dtype=bool)
+    loose = b["시험 완화 ①③"].map(lambda x: bool(x) if pd.notna(x) else False).astype(bool) if "시험 완화 ①③" in b else pd.Series(dtype=bool)
     picked = (b["선택"] != "없음") & (b["선택"] != "시험 구간 없음") if "선택" in b else pd.Series(dtype=bool)
     if len(b) == 0 or not picked.any():
         j2 = "선택 없음"
