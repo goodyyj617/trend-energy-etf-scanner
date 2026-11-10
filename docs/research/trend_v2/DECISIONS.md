@@ -1238,6 +1238,64 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     lab/holdout_study.py (no engine or replay_risk change; tests), results lab_crsp/holdout_d97,
     aggregates docs/research/lab/2026-11-06_holdout/, figures figures/holdout_d97/. Design:
     docs/research/lab/2026-11-06_holdout_design.md.
+    Postponed (user decision 2026-11-11 01:40 KST, after the 2026-11-10 review): not run yet; the
+    holdout waits for 98. If fewer than 3 of the 4 cells stay candidates on the raw-price universe
+    the holdout is cancelled unopened; otherwise it runs on the raw-price definitions with 98's
+    tables as the repro target.
+
+98. Stage R: price and dollar-volume filters on raw prices (user decision 2026-11-11 01:40 KST:
+    fix the review's holes first, starting with the first; registered before any run). Defect found
+    in the 2026-11-10 review (docs/research/lab/2026-11-10_review.md): the hygiene screens h_price,
+    h_liquidity, h_illiquid and the engine's min_price / min_dollar_volume read the total-return
+    adjusted close (lab/crsp.adjust, anchored at the panel's last date), so "price >= $5" and "$1M
+    dollar volume" on day t depend on splits and dividends after t: later heavy splitters (usually
+    large winners) are excluded in the past, later reverse splitters pass. Every stage from C to Q
+    used that universe. Questions: Q1 how many stock-days are wrongly excluded / included, when and
+    in which cap band; Q2 were the wrongly excluded stock-days followed by higher returns; Q3 how
+    much do the equal-weight baseline, random-entry accounts and the candidate family change on the
+    corrected universe; Q4 does the Stage Q candidate family stay a candidate. Corrected basis
+    ("raw"): raw_close = CRSP |PRC|, raw_volume = VOL, stored beside the panel (existing panel files
+    untouched, CRSP data never in the repository); h_price raw_close < 5, h_liquidity 21-day mean of
+    raw_close x raw_volume < $1M, Amihud |return| / (raw_close x raw_volume); indicators, ATR,
+    signals and returns stay on adjusted prices (ratios); M1 / P1 definitions unchanged, recomputed
+    on the corrected universe; cap_rank unchanged. The basis is an argument (default "adjusted" =
+    bit-identical, tested; panels without raw_close unchanged); other dollar-level uses in the code
+    are listed in the result memo, not changed here. Window 1993-02 to 2023-12; nothing on dates
+    >= 2024-01-01 is computed or printed. Measured: (Q1) counts and shares by year, 5-year block,
+    cap band and screen (descriptive; top-30 names table on Drive only); (Q2) forward 252-session
+    total return of wrongly excluded (and wrongly included) stock-days minus the same day's mean of
+    names passing both bases, yearly means, mean and t over the 31 years, median, share >= +100%;
+    (Q3) on both bases: equal-weight universe index; unlimited-slot calendar-time portfolio
+    (pick_study.calendar_weighted, 1% rule) of E0 (5 seeds; same draws on both bases by
+    construction) and E7 x X1 / H1 with M1 - the main measure, no path dependence; slot accounts as
+    Stage P / Q (N10 / W2 / P0 100 orders, N10 / N20 / N50 x W2 x P1; X1, H1; gates none and R3 A1;
+    U3000 / U1000 / U500; E0 5 seeds and E7; 20 and 40 bp) with Stage O-Q metrics, single cells not
+    trusted (path dependence), E0 medians over 40 curves with the seed spread as noise; per trade:
+    signals new on the raw basis vs signals common to both (E0 pooled, E7; X1): histogram, bootstrap
+    CI, Mann-Whitney, +50% / -20% shares, and the adjusted-only signals likewise. Verdict: (1) repro
+    first - an E7 table rebuilt on basis "adjusted" equals the stored Stage L table and the
+    adjusted-basis slot accounts equal Stage Q's goal table to 1e-9, else stop; (2) size = the
+    largest absolute value over 1993-2023 and both halves of (a) EW index CAGR difference, (b)
+    unlimited E0 CAGR difference (median of 5 seeds x 2 exits), (c) median difference of
+    drawdown-matched return over the 40 slot-account E0 curves (no gate, U3000, 20 bp): "small" if
+    all three < 0.2 pp (prior results kept and annotated), "large" if any >= 0.5 pp (the 15 entries'
+    tables rebuilt and the core of Stages I, O, P, Q rerun, scope registered as a new decision),
+    otherwise "medium" (tables rebuilt, Stages P and Q rerun); in every case the default basis
+    becomes raw from the result PR on (raw is the correct definition, not the better-scoring one);
+    (3) direction: signs of (a)-(c) and the Q2 t value, recorded against the review's inference;
+    (4) relative verdicts: E7 minus E0 median per setting x exit on both bases, cells with the same
+    sign in both halves counted; (5) candidates: the four cells re-judged with 96's candidate
+    conditions on the raw basis (curve w* refitted in-sample as before, SPY / SPY200 benchmarks
+    unchanged) - >= 3 passing: 97 proceeds on raw definitions; <= 2: 97 cancelled unopened; (6)
+    reported only: 2008-2023 matched return of N20 / N50 x P1 x R3 A1 systems vs SPY200 + T-bill,
+    SPY beta, 2017-2023 CAGR. No trials added (same cells, corrected data definition). Limits:
+    bid/ask midpoints on no-trade days; Nasdaq volume before 2001 overstated on both bases; nominal
+    $1M threshold and flat 20 bp cost untouched (later items of the review); slot-account
+    differences carry path-dependence noise; 0.2 / 0.5 pp are practical, not statistical,
+    thresholds (a fifth and a half of the 2008-2023 gap). Runner lab/basis_study.py (no change to
+    engine or replay_risk arithmetic; one basis argument), results lab_crsp/stage_r_basis,
+    aggregates docs/research/lab/2026-11-11_stage_r/, figures figures/stage_r_basis/. Design:
+    docs/research/lab/2026-11-11_stage_r_design.md.
 
 ## Open decisions
 
