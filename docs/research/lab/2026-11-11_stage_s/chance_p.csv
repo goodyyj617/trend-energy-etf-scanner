@@ -1,0 +1,161 @@
+setting,exit,filter,entries,passing,passing_list,seeds_passing,p0,q95,beyond_chance,basis
+N10_W2_P0,H1,R1A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R1A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R2A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R2A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R3A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R3A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R4A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R4A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R5A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R5A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,H1,R1A1,15,2,E5 V1,0,0.0,0,True,adjusted
+N10_W2_P1,H1,R1A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,H1,R2A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,H1,R2A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,H1,R3A1,15,2,E7 V1,1,0.2,6,False,adjusted
+N10_W2_P1,H1,R3A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,H1,R4A1,15,0,,2,0.4,9,False,adjusted
+N10_W2_P1,H1,R4A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,H1,R5A1,15,0,,1,0.2,6,False,adjusted
+N10_W2_P1,H1,R5A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,H1,R1A1,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,H1,R1A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,H1,R2A1,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,H1,R2A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,H1,R3A1,15,1,V1,0,0.0,0,True,adjusted
+N20_W2_P1,H1,R3A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,H1,R4A1,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,H1,R4A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,H1,R5A1,15,2,E7 V1,2,0.4,9,False,adjusted
+N20_W2_P1,H1,R5A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,H1,R1A1,15,1,E9,0,0.0,0,True,adjusted
+N50_W2_P1,H1,R1A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,H1,R2A1,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,H1,R2A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,H1,R3A1,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,H1,R3A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,H1,R4A1,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,H1,R4A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,H1,R5A1,15,0,,1,0.2,6,False,adjusted
+N50_W2_P1,H1,R5A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R1A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R1A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R2A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R2A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R3A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R3A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R4A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R4A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R5A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,X1,R5A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,X1,R1A1,15,2,E1 E4,0,0.0,0,True,adjusted
+N10_W2_P1,X1,R1A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,X1,R2A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,X1,R2A2,15,1,V6,0,0.0,0,True,adjusted
+N10_W2_P1,X1,R3A1,15,1,E7,0,0.0,0,True,adjusted
+N10_W2_P1,X1,R3A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,X1,R4A1,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,X1,R4A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P1,X1,R5A1,15,1,V2,0,0.0,0,True,adjusted
+N10_W2_P1,X1,R5A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,X1,R1A1,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,X1,R1A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,X1,R2A1,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,X1,R2A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,X1,R3A1,15,3,E2 E7 V1,1,0.2,6,False,adjusted
+N20_W2_P1,X1,R3A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,X1,R4A1,15,2,V2 V4,1,0.2,6,False,adjusted
+N20_W2_P1,X1,R4A2,15,0,,0,0.0,0,False,adjusted
+N20_W2_P1,X1,R5A1,15,2,E7 V2,0,0.0,0,True,adjusted
+N20_W2_P1,X1,R5A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,X1,R1A1,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,X1,R1A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,X1,R2A1,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,X1,R2A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,X1,R3A1,15,1,E7,0,0.0,0,True,adjusted
+N50_W2_P1,X1,R3A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,X1,R4A1,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,X1,R4A2,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,X1,R5A1,15,0,,0,0.0,0,False,adjusted
+N50_W2_P1,X1,R5A2,15,0,,0,0.0,0,False,adjusted
+N10_W2_P0,H1,R1A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,H1,R1A2,15,0,,0,0.0,0,False,raw
+N10_W2_P0,H1,R2A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,H1,R2A2,15,0,,0,0.0,0,False,raw
+N10_W2_P0,H1,R3A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,H1,R3A2,15,0,,0,0.0,0,False,raw
+N10_W2_P0,H1,R4A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,H1,R4A2,15,0,,0,0.0,0,False,raw
+N10_W2_P0,H1,R5A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,H1,R5A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,H1,R1A1,15,2,E5 V1,0,0.0,0,True,raw
+N10_W2_P1,H1,R1A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,H1,R2A1,15,0,,0,0.0,0,False,raw
+N10_W2_P1,H1,R2A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,H1,R3A1,15,1,V1,0,0.0,0,True,raw
+N10_W2_P1,H1,R3A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,H1,R4A1,15,1,V2,2,0.4,9,False,raw
+N10_W2_P1,H1,R4A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,H1,R5A1,15,0,,2,0.4,9,False,raw
+N10_W2_P1,H1,R5A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,H1,R1A1,15,1,V1,0,0.0,0,True,raw
+N20_W2_P1,H1,R1A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,H1,R2A1,15,1,V6,0,0.0,0,True,raw
+N20_W2_P1,H1,R2A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,H1,R3A1,15,3,E7 E8 V1,0,0.0,0,True,raw
+N20_W2_P1,H1,R3A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,H1,R4A1,15,0,,0,0.0,0,False,raw
+N20_W2_P1,H1,R4A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,H1,R5A1,15,2,V1 V6,2,0.4,9,False,raw
+N20_W2_P1,H1,R5A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,H1,R1A1,15,2,V1 V6,0,0.0,0,True,raw
+N50_W2_P1,H1,R1A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,H1,R2A1,15,0,,0,0.0,0,False,raw
+N50_W2_P1,H1,R2A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,H1,R3A1,15,1,V1,1,0.2,6,False,raw
+N50_W2_P1,H1,R3A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,H1,R4A1,15,0,,0,0.0,0,False,raw
+N50_W2_P1,H1,R4A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,H1,R5A1,15,3,E4 E7 V6,1,0.2,6,False,raw
+N50_W2_P1,H1,R5A2,15,0,,0,0.0,0,False,raw
+N10_W2_P0,X1,R1A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,X1,R1A2,15,0,,0,0.0,0,False,raw
+N10_W2_P0,X1,R2A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,X1,R2A2,15,0,,0,0.0,0,False,raw
+N10_W2_P0,X1,R3A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,X1,R3A2,15,0,,0,0.0,0,False,raw
+N10_W2_P0,X1,R4A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,X1,R4A2,15,1,E2,0,0.0,0,True,raw
+N10_W2_P0,X1,R5A1,15,0,,0,0.0,0,False,raw
+N10_W2_P0,X1,R5A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,X1,R1A1,15,1,E4,0,0.0,0,True,raw
+N10_W2_P1,X1,R1A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,X1,R2A1,15,0,,0,0.0,0,False,raw
+N10_W2_P1,X1,R2A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,X1,R3A1,15,1,E7,0,0.0,0,True,raw
+N10_W2_P1,X1,R3A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,X1,R4A1,15,0,,0,0.0,0,False,raw
+N10_W2_P1,X1,R4A2,15,0,,0,0.0,0,False,raw
+N10_W2_P1,X1,R5A1,15,2,E7 V2,0,0.0,0,True,raw
+N10_W2_P1,X1,R5A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,X1,R1A1,15,0,,0,0.0,0,False,raw
+N20_W2_P1,X1,R1A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,X1,R2A1,15,0,,0,0.0,0,False,raw
+N20_W2_P1,X1,R2A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,X1,R3A1,15,3,E2 E7 V1,1,0.2,6,False,raw
+N20_W2_P1,X1,R3A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,X1,R4A1,15,1,V4,1,0.2,6,False,raw
+N20_W2_P1,X1,R4A2,15,0,,0,0.0,0,False,raw
+N20_W2_P1,X1,R5A1,15,2,E7 V2,0,0.0,0,True,raw
+N20_W2_P1,X1,R5A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,X1,R1A1,15,0,,0,0.0,0,False,raw
+N50_W2_P1,X1,R1A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,X1,R2A1,15,0,,0,0.0,0,False,raw
+N50_W2_P1,X1,R2A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,X1,R3A1,15,1,E7,0,0.0,0,True,raw
+N50_W2_P1,X1,R3A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,X1,R4A1,15,0,,0,0.0,0,False,raw
+N50_W2_P1,X1,R4A2,15,0,,0,0.0,0,False,raw
+N50_W2_P1,X1,R5A1,15,0,,0,0.0,0,False,raw
+N50_W2_P1,X1,R5A2,15,0,,0,0.0,0,False,raw

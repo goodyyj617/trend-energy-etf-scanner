@@ -809,7 +809,7 @@ def judge(d: dict) -> dict:
     cellsQ, candQ = ls.candidates(gQ, benchQ, pass40Q)
     chQ = ls.chance(d["accQ"], cellsQ, benchQ)
     out.update(sysP=sysP, psP=psP, helpsP=helpsP, cntP=cntP, cellsP=cellsP, candP=candP, chP=chP, sysQ=sysQ, psQ=psQ, helpsQ=helpsQ,
-               cntQ=cntQ, cellsQ=cellsQ, candQ=candQ, chQ=chQ, bench=bench, ewr=ewr, ewb=ewb)
+               cntQ=cntQ, cellsQ=cellsQ, candQ=candQ, chQ=chQ, bench=bench, ewr=ewr, ewb=ewb, gP=gP, gQ=gQ)
     # K1
     k1, k1s = k1_table(gP, d["unl"], d["accP"])
     out.update(k1=k1, k1_seeds=k1s)
@@ -1008,11 +1008,11 @@ def fig_scatter(agg: Path, J: dict) -> Path:
     fig, axes = plt.subplots(1, 3, figsize=(17, 5.4))
     kp = ["setting", "gen", "exit", "filter"]
     groups = []
-    for scope, key, keys in (("P", "cellsP", kp), ("Q", "cellsQ", kp + ["band"])):
-        a_ = J["adjusted"][key]
-        r_ = J["raw"][key]
-        a_ = a_[(a_["gen"] != "E0") & (a_["cost"] == pj.COST_BPS)].set_index(keys)
-        r_ = r_[(r_["gen"] != "E0") & (r_["cost"] == pj.COST_BPS)].set_index(keys)
+    for scope, key, keys in (("P", "gP", kp), ("Q", "gQ", kp + ["band"])):
+        def sel(g: pd.DataFrame) -> pd.DataFrame:
+            g = g[(g["gen"] != "E0") & (g["cost"] == pj.COST_BPS) & (g["mode"] == "grid")]
+            return (g[g["band"].isin(ls.NARROW)] if scope == "Q" else g).set_index(keys)
+        a_, r_ = sel(J["adjusted"][key]), sel(J["raw"][key])
         idx = a_.index.intersection(r_.index)
         groups.append((scope, a_.loc[idx], r_.loc[idx]))
     bench = J["raw"]["bench"]
@@ -1084,7 +1084,7 @@ def fig_bands(agg: Path, J: dict) -> Path:
         ax.grid(alpha=0.3)
     axes[0].legend(fontsize=7, frameon=False, ncol=2)
     km = {b: J[b]["K"]["K5"]["median_d2008"] for b in J}
-    fig.suptitle("사는 범위를 좁힐 때 (시스템 8개 중앙값; 실선 실제 가격, 점선 수정주가) — U3000 대비 2008–2023 변화 중앙값(40개): "
+    fig.suptitle("사는 범위를 좁힐 때 (시스템 8개 중앙값; 실선 실제 가격, 점선 수정주가)\nU3000 대비 2008–2023 변화 중앙값(시스템 40개): "
                  + ", ".join(f"{bb} {BASIS_LABEL[b]} {km[b][bb] * 100:+.2f}%p" for bb in ls.NARROW for b in J), fontsize=10)
     return figures._save(fig, agg / "figures" / "bands_2008.png")
 

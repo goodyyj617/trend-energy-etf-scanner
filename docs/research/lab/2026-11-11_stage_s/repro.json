@@ -1,0 +1,123 @@
+{
+ "regimes_equal": true,
+ "b_tables": [
+  {
+   "table": "E2__X1",
+   "rows_new": 47561,
+   "rows_stored": 47561,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "table": "E2__H1",
+   "rows_new": 47561,
+   "rows_stored": 47561,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "table": "V3__X1",
+   "rows_new": 32871,
+   "rows_stored": 32871,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "table": "V3__H1",
+   "rows_new": 32871,
+   "rows_stored": 32871,
+   "equal": true,
+   "max_return_diff": 0.0
+  }
+ ],
+ "c_eligible": {
+  "rows": 8316,
+  "cells": 110270160,
+  "true_a": 16647499,
+  "true_b": 16647499,
+  "differ": 0
+ },
+ "c_goal": {
+  "cells": 192,
+  "values": 6528,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "c_goal_20bp_cells": 96,
+ "c_unlimited": {
+  "cells": 12,
+  "values": 348,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "a_base": {
+  "cells": 3607834,
+  "values": 21647004,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "a_p_goal": {
+  "cells": 7408,
+  "values": 222240,
+  "max_diff": 4.440892098500626e-16,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "a_q_goal": {
+  "cells": 4020,
+  "values": 136680,
+  "max_diff": 3.552713678800501e-15,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "a_p_40bp": {
+  "cells": 6,
+  "values": 180,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "a_q_40bp": {
+  "cells": 14,
+  "values": 476,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "a_p_benchmarks": {
+  "cells": 8,
+  "values": 144,
+  "max_diff": 9.367506770274758e-17,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "a_q_benchmarks": {
+  "cells": 18,
+  "values": 324,
+  "max_diff": 9.71445146547012e-17,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "pass": true
+}

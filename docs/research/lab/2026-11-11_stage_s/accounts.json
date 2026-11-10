@@ -1,0 +1,29 @@
+{
+ "stage_r_20bp": {
+  "cells": 96,
+  "values": 3264,
+  "max_diff": 9.71445146547012e-17,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "stage_r_40bp_present": {
+  "cells": 10,
+  "values": 340,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "o_rule_vs_p_none": {
+  "cells": 128,
+  "values": 2176,
+  "max_diff": 9.71445146547012e-17,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ }
+}

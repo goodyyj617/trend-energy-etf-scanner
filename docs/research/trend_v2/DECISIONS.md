@@ -1388,6 +1388,42 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     change; stages repro -> tables -> accounts -> report), results lab_crsp/stage_s_raw,
     aggregates docs/research/lab/2026-11-11_stage_s/, figures figures/stage_s_raw/. Design:
     docs/research/lab/2026-11-11_stage_s_design.md.
+    Result (2026-11-11, run 02:58 - 04:21 KST; runner 8352507): repro passed before the raw run - (a)
+    the stored Stage L tables through the new path equal Stage P's goal table (7,408 cells, 222,240
+    values, max diff 4.4e-16) and Stage Q's (4,020 cells, 136,680 values, 3.6e-15), their 40 bp cells
+    (6 + 14, same sets, diff 0) and benchmark tables; (b) E2 and V3 x X1 / H1 rebuilt on adjusted equal
+    the stored tables row for row; (c) the raw eligible mask equals Stage R's (110,270,160 cells, 0
+    differ) and the E7 / E0 accounts equal Stage R's raw results (192 cells = 96 x 20 / 40 bp, diff 0);
+    in the full raw run the E7 / E0 cells again equal Stage R (max 9.7e-17). Pre-run details: K1 (a)
+    per exit x half above the largest E0 seed, (b) all three periods above E0's table row, chance =
+    each seed against the other four; K3 "falls to chance" = helps <= q95; near miss = fails only the
+    matched-return comparisons by <= 0.5 pp; bundle C via goal_study.run_job keeping the 4 settings.
+    The 13 rebuilt entries' tables grew 1-5% (E9 shrank 0.4%); M1 passes 70.7% of 3,756,640 signals.
+    All five conclusions hold (raw vs adjusted): K1 entries above random 0 / 15 vs 0 / 15 (part (a)
+    only E9 on both bases, margin +0.09 pp raw; part (b) >= 6 of 8 only E7 and V6 raw, V4 and V6
+    adjusted; E0 seeds 0 / 5 on both); K2 goal-passing no-gate systems 0 / 8 vs 0 / 8 (median 5.49% vs
+    5.19%, best 5.79% vs 5.43%; without M1 also 0); K3 "gate helps" R1 / R3 / R4 / R5 A1 6 / 5 / 4 / 5
+    vs 7 / 4 / 6 / 5 against q95 2, every A2 0, R2 A1 0; K4 goal-passing 0 / 120 vs 0 / 120 (16 vs 4
+    beat SPY200 + T-bill over 1993-2023, none in 2008-2023; best 2008-2023 5.99% vs 5.77% against
+    6.56%); K5 median 2008-2023 change over 40 systems U1000 +0.02 vs +0.09 pp, U500 +0.08 vs +0.19
+    pp, "large caps help" 0 vs 1 of 80. Over the 2,520 cells (15 entries, P grid at U3000 and Q's
+    narrowed bands) raw minus adjusted is +0.18 / +0.30 / +0.04 pp (1993-2023 / 1993-2007 /
+    2008-2023); A1 system medians R1 6.55%, R3 6.68%, R5 6.70% (adjusted 6.38 / 6.12 / 6.48%); all 96
+    A1 systems stay below SPY200 + T-bill in 2008-2023 (median gap -1.71 pp, beta 0.46). Candidates
+    (descriptive): 95's conditions none (29 passing U3000 cells; N20 x V1 x R3 A1 passes both exits
+    at 20 and 40 bp but has no passing neighbour), 96's conditions the same 2 cells as 98 (N20 / W2 /
+    P1 x E7 x R3 A1 x U1000 and U500, entry-specific); N10 x E7 x R3 A1 x U1000 again misses by 0.10 pp
+    (H1, 2008-2023); 70 cells miss by <= 0.5 pp, 68 of them on SPY200's 2008-2023; E0 seeds pass 10 /
+    400 (U3000) and 8 / 400 (bands); no DSR / PSR, holdout closed. Reported: EW + T-bill 4.87 / 6.53 /
+    3.34% (adjusted 4.41 / 5.98 / 2.96%); systems beating the band's EW x same gate 111 of 120 (116);
+    M1 effect median +0.17 pp (+0.05); P1 - P0 at N10 median +0.10 pp (+0.19); unlimited accounts +0.54
+    pp CAGR (40 curves, median). Per trade (15 entries x X1): new-on-raw signals +42.4% vs common
+    +14.2% (+28.1 pp, CI +27.7 to +28.6), +50% share 27.9% vs 14.7%; per entry +25.1 to +33.0 pp
+    against +27.0 to +29.7 pp for the 5 E0 seeds (every p < 0.001, so p values separate nothing);
+    adjusted-only -1.6% (-15.8 pp). Per 99 (3): the hygiene-filter hole is closed, the overview's
+    O-core / P / Q numbers are now the raw-basis ones and Stages C-N and the rest of O are labelled
+    adjusted-basis; next review item is the user's call. Trials +0 (74,174). Record:
+    docs/research/lab/2026-11-11_stage_s_results.md.
 
 ## Open decisions
 
