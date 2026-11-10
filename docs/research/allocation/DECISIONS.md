@@ -708,3 +708,26 @@ A43. Test the rule that picks a dynamic setting out of time, not the picked sett
     procedure's time stability, not fresh data); the satellite exists only from 2007-02; R4–R6 start 2003-11; the
     1 %p / 3 %p thresholds are kept unchanged for the shorter windows. Paths are cut, not re-started, at a window's
     first day (the '전체' window must reproduce the stage-4 verdicts: `--check-stage4`).
+
+A44. Decision-date, cost and mixing test of the satellite inside ② and ③ (design fixed 2026-11-11 before the run,
+    memo `2026-11-11_a44_design.md`; code `lab/aa_satellite.py`, run `scripts/aa_a44_satellite.py`). Why: the
+    2026-11-10 review found, from `scripts/aa_a42_stage5.py` `set_job`, that stage 5's policy variants shifted only
+    the core; the HAA50+BAA50 satellite (50 % of ② and ③, the source of ③'s CAGR edge) was computed once at month
+    end and mixed at a free daily fixed ratio, although alone it had failed the A30 date gate (A28: MDD −16.0 … −32.7 %
+    by decision day). The four cores stay exactly as registered ((가) static, ③'s core, 현재 보유 static, ②'s core);
+    the satellite is decided 0 / 1 / 5 / 10 / 15 trading days after month end or in four tranches (0/5/10/15, not
+    rebalanced against each other), at 10 / 20 bp, and the core/satellite split is restored daily for free (stage 5,
+    must reproduce the stage-5 numbers to 1e-6), monthly or quarterly at 10 bp on the amount moved; shares 50 %
+    (judged) and 25 %; representative price set (two extreme sets for information); whole window 2000-09 – 2024-12
+    (judged) and the satellite-live window from 2007-04. Verdicts per combination at 50 % · quarterly restoring ·
+    10 bp: W1 worst MDD over the five decision days ≥ −20 % (A30 on the combination); W2 zone of that worst MDD
+    (안 / 경계 / 밖); W3 at 20 bp the satellite adds CAGR over the same core without it in ≥ 4 of 5 decision days and
+    the worst MDD is at most 1 %p deeper than that core's; flag '날짜 민감' when the MDD spread exceeds 3 %p.
+    유지 = W1 · 안 · W3, 경계 = W1 · 경계 · W3, else 탈락; the four-tranche row is reported next to it ('4분할로만 운용
+    가능' when only it is 안). Reading fixed in advance: ③ 탈락 → its numbers are relabelled as a single-path month-end
+    figure and satellite combinations leave the recommendations; ③ 유지 → the satellite survives dates and costs and
+    the question whether K2 / vol target add anything is A43's. No offset, share or rule is chosen from the result.
+    Limits written before the run: the satellite exists only from 2007-02; the core's own dates are not co-shifted;
+    the Korean product mapping (DBC → CD, hedged bonds) is as in stage 5; no tax or ISA limit; five offsets are five
+    points, not a distribution; the tested combinations are post hoc. Not added to the DSR trial count (nothing is
+    selected); one descriptive line in `trials_ledger.csv` after the run.
