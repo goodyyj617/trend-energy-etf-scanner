@@ -779,6 +779,10 @@ def stage_report(a) -> dict:
         et, ev = error_size(J)
         et.to_csv(agg / "error_size.csv", index=False)
         verdict["error_size"] = ev
+    else:
+        why = "측정 점검 (가) · (나)를 통과하지 못해 T1 · T2 계좌를 돌리지 않음 (설계 판정 2)"
+        verdict["error_size"] = {"label": "판정하지 않음", "why": why}
+        verdict["combined"] = {k: "판정하지 않음 (T1 없음)" for k in labels.get("T0", {})}
     am = above_ma200(J)
     am.to_csv(agg / "above_ma200.csv", index=False)
     verdict["above_ma200"] = am.to_dict("records")
@@ -815,11 +819,30 @@ def stage_report(a) -> dict:
     for f in out.glob("repro_*.csv.gz"):
         (agg / f.name).write_bytes(f.read_bytes())
     verdict["predictions"] = predictions(a, J, pt)
+    tk = tick_summary(a)
+    tk.to_csv(agg / "check_tick_summary.csv", index=False)
+    verdict["tick_check"] = {"cells": int(len(tk)), "edge_below_half_tick": int((tk["edge_half_bp"] < tk["half_tick_bp"]).sum())}
     (agg / "verdict.json").write_text(json.dumps(verdict, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
     if figures.available():
         write_figures(a, agg, J, pt)
     log("판정: " + json.dumps({"labels": labels, "combined": verdict.get("combined"), "error": verdict.get("error_size")}, ensure_ascii=False))
     return verdict
+
+
+def tick_summary(a) -> pd.DataFrame:
+    """Cross-check 2 (reported): per tick era (1/8: 1993-01 - 1997-06 by quarter start, 1/16: to 2000-12) x
+    cap x price bucket, the stock-quarter mean of half tick / price against the cell's EDGE half-spread
+    (cells with their own >= 100 stock-quarters, quarter-count weighted over years)."""
+    t = pd.read_csv(cost_dir(a) / "check_tick.csv")
+    t = t[(t["source"] == "칸") & (t["price_b"] != 255)]
+    t = t.assign(tick=np.where(t["year"] <= 1996, "1/8 (1993–1996)", np.where(t["year"] >= 1998, "1/16 (1998–2000)", "1997 (둘 섞임)")))
+    rows = []
+    for (tk, c, pb), g in t.groupby(["tick", "cap_b", "price_b"]):
+        w = g["n"].to_numpy(float)
+        rows.append({"tick": tk, "cap": CAP_LABELS[int(c)], "price": PRICE_LABELS[int(pb)], "stock_quarters": int(w.sum()),
+                     "half_tick_bp": float(np.average(g["half_tick_bp"], weights=w)), "edge_half_bp": float(np.average(g["half_bp_raw"], weights=w)),
+                     "years_edge_below_tick": int((g["half_bp_raw"] < g["half_tick_bp"]).sum()), "years": len(g)})
+    return pd.DataFrame(rows)
 
 
 def predictions(a, J: dict, pt: pd.DataFrame) -> list[dict]:
@@ -868,12 +891,16 @@ def fig_years(agg: Path, a) -> Path:
     fig, ax = plt.subplots(figsize=(11, 5.2))
     for c in range(N_CAP):
         s = yc[yc["cap_b"] == c].sort_values("year")
-        ax.plot(s["year"], s["half_bp"], marker="o", ms=3, lw=1.5, color=(figures.COLORS + ["#555555"])[c], label=f"시총 {CAP_LABELS[c]}")
+        col = (figures.COLORS + ["#555555"])[c]
+        v = np.maximum(s["half_bp"].to_numpy(), FLOOR_BP)  # q mean <= 0 -> drawn at the 1 bp floor (hollow)
+        ax.plot(s["year"], v, marker="o", ms=3, lw=1.5, color=col, label=f"시총 {CAP_LABELS[c]}")
+        z = s["half_bp"].to_numpy() < FLOOR_BP
+        ax.scatter(s["year"].to_numpy()[z], v[z], s=40, facecolors="white", edgecolors=col, zorder=3)
     ax.axhline(20, color="#222", ls="--", lw=1, label="지금까지의 가정 (편도 20bp)")
     ax.axvline(2001, color="#bbb", lw=0.8)
     ax.set_yscale("log")
     ax.set_ylabel("편도 비용 = EDGE 스프레드 / 2 (bp, 로그)")
-    ax.set_title("연도별 편도 비용 추정 (종목 · 분기 EDGE, 주가 구간 합침; 2001 = 소수점 호가 전환)", fontsize=10.5)
+    ax.set_title("연도별 편도 비용 추정 (종목 · 분기 EDGE, 주가 구간 합침; 2001 = 소수점 호가 전환; 속 빈 점 = q 평균 ≤ 0이라 하한 1bp)", fontsize=10)
     ax.grid(alpha=0.3, which="both")
     ax.legend(fontsize=8, frameon=False)
     return figures._save(fig, agg / "figures" / "cost_years.png")
@@ -887,7 +914,7 @@ def fig_cells(agg: Path, a) -> Path:
     fig, axes = plt.subplots(1, 3, figsize=(17, 4.8))
     for ax, e in zip(axes, ERAS):
         t = cells[cells["era"] == e].pivot_table(index="cap_b", columns="price_b", values="cost_bp", aggfunc="mean")
-        im = ax.imshow(np.log10(t.to_numpy()), cmap="viridis_r", vmin=0, vmax=np.log10(CAP_BP), aspect="auto")
+        ax.imshow(np.log10(t.to_numpy()), cmap="viridis_r", vmin=0, vmax=np.log10(CAP_BP), aspect="auto")
         for i in range(t.shape[0]):
             for j in range(t.shape[1]):
                 ax.text(j, i, f"{t.iloc[i, j]:.0f}", ha="center", va="center", fontsize=8, color="white" if t.iloc[i, j] > 40 else "black")
@@ -896,13 +923,12 @@ def fig_cells(agg: Path, a) -> Path:
         ax.set_title(f"{e} (편도 bp, 연도 평균)", fontsize=10)
         ax.set_xlabel("실제 주가 (달러)")
     axes[0].set_ylabel("시총 순위")
-    fig.colorbar(im, ax=axes, shrink=0.8, label="log10 편도 bp")
-    fig.suptitle("시총 × 주가 칸의 편도 비용 (T1, 하한 1bp · 상한 500bp, 100개 미만 칸은 대체 값)", fontsize=11)
+    fig.suptitle("시총 × 주가 칸의 측정 편도 비용 (bp, 색은 로그; 하한 1bp · 상한 500bp, 100개 미만 칸은 대체 값) — 점검 (가) 실패 시 계좌에는 쓰지 않음", fontsize=10.5)
     return figures._save(fig, agg / "figures" / "cost_cells.png")
 
 
-def fig_scatter(agg: Path, J: dict) -> Path:
-    """(3) Every cell's T0 vs T1 drawdown-matched return, three periods."""
+def fig_scatter(agg: Path, J: dict, other: str = "T1") -> Path:
+    """(3) Every cell's T0 vs T1 (TZ when T1 was not run) drawdown-matched return, three periods."""
     plt = figures._plt()
     fig, axes = plt.subplots(1, 3, figsize=(17, 5.4))
     kp = ["setting", "gen", "exit", "filter"]
@@ -912,7 +938,7 @@ def fig_scatter(agg: Path, J: dict) -> Path:
             def sel(g):
                 g = g[(g["gen"] != "E0") & (g["cost"] == pj.COST_BPS) & (g["mode"] == "grid")]
                 return (g[g["band"].isin(ls.NARROW)] if scope == "Q" else g).set_index(keys)
-            x0, x1 = sel(J["T0"][key]), sel(J["T1"][key])
+            x0, x1 = sel(J["T0"][key]), sel(J[other][key])
             idx = x0.index.intersection(x1.index)
             ax.scatter(x0.loc[idx, f"dd_cagr_{p}"] * 100, x1.loc[idx, f"dd_cagr_{p}"] * 100, s=5, alpha=0.45, color=col,
                        label=("U3000 · 국면 11가지" if scope == "P" else "U1000 · U500 · 국면 5가지") + f" ({len(idx)}칸)")
@@ -920,15 +946,15 @@ def fig_scatter(agg: Path, J: dict) -> Path:
             ally.append(x1.loc[idx, f"dd_cagr_{p}"].to_numpy())
         lo, hi = min(ax.get_xlim()[0], ax.get_ylim()[0]), max(ax.get_xlim()[1], ax.get_ylim()[1])
         ax.plot([lo, hi], [lo, hi], color="#222", lw=0.8)
-        ax.axhline(J["T1"]["bench"]["ma200"][f"dd_cagr_{p}"] * 100, color="#8e44ad", ls="--", lw=1, label="SPY 200일선 + 국채 (T1)")
+        ax.axhline(J[other]["bench"]["ma200"][f"dd_cagr_{p}"] * 100, color="#8e44ad", ls="--", lw=1, label=f"SPY 200일선 + 국채 ({other})")
         d = np.median(np.concatenate(ally) - np.concatenate(allx)) * 100
         ax.set_title(f"{p} · 차이 중앙값 {d:+.2f}%p", fontsize=10)
         ax.set_xlabel("T0 편도 20bp (%)")
-        ax.set_ylabel("T1 측정 비용 (%)")
+        ax.set_ylabel(f"{MODEL_LABEL[other]} (%)")
         ax.grid(alpha=0.3)
     axes[0].legend(fontsize=7.5, frameon=False, loc="upper left")
-    fig.suptitle("칸마다 T0 vs T1 낙폭 15% 맞춤 수익 (매수 15개 × 설정 4 × 매도 2)", fontsize=11)
-    return figures._save(fig, agg / "figures" / "scatter_t0_t1.png")
+    fig.suptitle(f"칸마다 T0 vs {other} 낙폭 15% 맞춤 수익 (매수 15개 × 설정 4 × 매도 2)", fontsize=11)
+    return figures._save(fig, agg / "figures" / f"scatter_t0_{other.lower()}.png")
 
 
 def fig_gates(agg: Path, J: dict) -> Path:
@@ -949,7 +975,7 @@ def fig_gates(agg: Path, J: dict) -> Path:
         ax.set_title(f"{p} 낙폭 15% 맞춤 수익 (%) · 점선 = 같은 모형의 SPY 200일선 + 국채", fontsize=9.5)
         ax.grid(alpha=0.3, axis="y")
     axes[0].legend(fontsize=8, frameon=False, loc="lower left")
-    fig.suptitle("국면별 시스템 중앙값 (8개 시스템, U3000) — 비용 모형 네 가지", fontsize=11)
+    fig.suptitle("국면별 시스템 중앙값 (8개 시스템, U3000) — 비용 모형별", fontsize=11)
     return figures._save(fig, agg / "figures" / "gates_models.png")
 
 
@@ -980,43 +1006,69 @@ def fig_paid(agg: Path, pt: pd.DataFrame) -> Path | None:
 
 
 def fig_k(agg: Path, J: dict) -> Path:
-    """(6) K1-K5 values under the four models."""
+    """(6) K1-K5 values under the models that were run (each panel with its 'changed' line)."""
     plt = figures._plt()
     ms_ = list(J)
-    fig, axes = plt.subplots(1, 5, figsize=(21, 4.6))
-    vals = {
-        "K1 '무작위보다 나음' 매수 수 (바뀜 ≥ 2)": [J[m]["K"]["K1"]["above_random"] for m in ms_],
-        "K2 국면 없음 목표 통과 (바뀜 ≥ 1)": [J[m]["K"]["K2"]["passing"] for m in ms_],
-        "K3 A1 '도움' 수 R1 · R3 · R4 · R5 (우연 분위)": None,
-        "K4 국면 · 범위 120개 목표 통과 (바뀜 ≥ 1)": [J[m]["K"]["K4"]["passing"] for m in ms_],
-        "K5 U500 − U3000 2008–2023 중앙값 (%p, 바뀜 ≥ +0.5)": [J[m]["K"]["K5"]["median_d2008"]["U500"] * 100 for m in ms_],
-    }
-    for ax, (t, v) in zip(axes, vals.items()):
-        if v is None:
-            for k, m in enumerate(ms_):
-                c = J[m]["K"]["K3"]["counts"]
-                ax.bar(np.arange(4) + (k - 1.5) * 0.2, [c[f]["helps"] for f in rb.A1], width=0.2, color=MODEL_COLOR[m], label=MODEL_LABEL[m])
-                ax.scatter(np.arange(4) + (k - 1.5) * 0.2, [c[f]["q95"] for f in rb.A1], marker="_", s=80, color="#222")
-            ax.set_xticks(range(4), rb.A1)
-        else:
-            ax.bar(range(len(ms_)), v, color=[MODEL_COLOR[m] for m in ms_])
-            ax.set_xticks(range(len(ms_)), ms_)
-            if t.startswith("K5"):
-                u1 = [J[m]["K"]["K5"]["median_d2008"]["U1000"] * 100 for m in ms_]
-                ax.scatter(range(len(ms_)), u1, color="#222", marker="D", s=20, label="U1000")
-                ax.axhline(50 * 0.01, color="#c0392b", ls="--", lw=1)
-                ax.legend(fontsize=7, frameon=False)
-        ax.set_title(t, fontsize=8.5)
+    k = len(ms_)
+    wdt = 0.8 / k
+    off = [(i - (k - 1) / 2) * wdt for i in range(k)]
+    fig, axes = plt.subplots(1, 5, figsize=(23, 5), gridspec_kw={"width_ratios": [1, 1.1, 2.2, 1.1, 1]})
+    # K1
+    ax = axes[0]
+    for i, m in enumerate(ms_):
+        K1 = J[m]["K"]["K1"]
+        v = [K1["above_random"], K1["a_pass"], K1["b_pass"], K1["seeds_above_random"]]
+        ax.bar(np.arange(4) + off[i], v, width=wdt, color=MODEL_COLOR[m], label=MODEL_LABEL[m])
+        for x, y in zip(np.arange(4) + off[i], v):
+            ax.text(x, y + 0.1, str(y), ha="center", fontsize=8)
+    ax.axhline(rb.K1_CHANGED, color="#c0392b", ls="--", lw=1)
+    ax.set_xticks(range(4), ["나음\n(바뀜 ≥ 2)", "(가) 통과", "(나) 통과", "E0 씨앗\n나음"], fontsize=8)
+    ax.set_ylim(0, 15)
+    ax.set_title("K1 매수 15개 vs 무작위 매수", fontsize=9.5)
+    # K2 / K4: best system vs SPY200 + T-bill per period
+    for ax, kk, key, sel, t in ((axes[1], "K2", "sysP", lambda s: s["filter"] == "none", "K2 국면 없음 8개"),
+                                (axes[3], "K4", "sysQ", lambda s: s["filter"].isin(ls.FILTERS), "K4 국면 · 범위 120개")):
+        for i, m in enumerate(ms_):
+            s = J[m][key][sel(J[m][key])]
+            v = [float(s[f"dd_cagr_{p}"].max()) * 100 for p in ERR_PERIODS]
+            ax.bar(np.arange(3) + off[i], v, width=wdt, color=MODEL_COLOR[m], label=MODEL_LABEL[m])
+            ax.scatter(np.arange(3) + off[i], [J[m]["bench"]["ma200"][f"dd_cagr_{p}"] * 100 for p in ERR_PERIODS], marker="_", s=150, color="#8e44ad")
+        ax.set_xticks(range(3), ERR_PERIODS, fontsize=8)
+        ax.set_title(f"{t}: 기간별 최고 시스템 (%)\n보라 막대 = 같은 모형의 SPY 200일선 + 국채; 목표 통과 "
+                     + " · ".join(f"{m} {J[m]['K'][kk]['passing']}" for m in ms_), fontsize=9)
         ax.grid(alpha=0.3, axis="y")
-    axes[2].legend(fontsize=7, frameon=False)
-    fig.suptitle("큰 결론 다섯 가지의 값 — 비용 모형 네 가지", fontsize=11)
+    # K3: helps for every gate
+    ax = axes[2]
+    fs = [f for f in rs.FILTERS if f != "none"]
+    for i, m in enumerate(ms_):
+        c = J[m]["K"]["K3"]["counts"]
+        ax.bar(np.arange(len(fs)) + off[i], [c[f]["helps"] for f in fs], width=wdt, color=MODEL_COLOR[m], label=MODEL_LABEL[m])
+        ax.scatter(np.arange(len(fs)) + off[i], [c[f]["q95"] for f in fs], marker="_", s=90, color="#222")
+    ax.set_xticks(range(len(fs)), fs, fontsize=8)
+    ax.set_ylim(0, 8)
+    ax.set_title("K3 국면 필터의 '도움' 수 (8개 시스템 중; 검은 막대 = 우연 95% 분위)\nA1(R1 · R3 · R4 · R5)은 분위 위, A2는 분위 이하여야 '유지'", fontsize=9)
+    ax.legend(fontsize=8, frameon=False, loc="upper right")
+    ax.grid(alpha=0.3, axis="y")
+    # K5
+    ax = axes[4]
+    for i, m in enumerate(ms_):
+        v = [J[m]["K"]["K5"]["median_d2008"][b] * 100 for b in ls.NARROW]
+        ax.bar(np.arange(2) + off[i], v, width=wdt, color=MODEL_COLOR[m], label=MODEL_LABEL[m])
+    ax.axhline(rb.K5_PP * 100, color="#c0392b", ls="--", lw=1)
+    ax.axhline(0, color="#333", lw=0.8)
+    ax.set_xticks(range(2), [f"{b} − U3000" for b in ls.NARROW], fontsize=8)
+    ax.set_ylim(-0.2, 0.6)
+    ax.set_title("K5 2008–2023 변화 중앙값 (%p, 40개 시스템)\n붉은 점선 = 바뀜 경계 +0.5%p", fontsize=9)
+    ax.grid(alpha=0.3, axis="y")
+    lab = {m: rb.k_labels(J[m]["K"]) for m in ms_}
+    fig.suptitle("큰 결론 다섯 가지의 값 — " + " / ".join(f"{MODEL_LABEL[m]}: " + " ".join(f"{kk} {v}" for kk, v in lab[m].items()) for m in ms_), fontsize=10.5)
     return figures._save(fig, agg / "figures" / "k_models.png")
 
 
 def write_figures(a, agg: Path, J: dict, pt: pd.DataFrame) -> list:
     paths = [fig_years(agg, a), fig_cells(agg, a)]
-    if "T1" in J:
-        paths.append(fig_scatter(agg, J))
+    if "T1" in J or "TZ" in J:
+        paths.append(fig_scatter(agg, J, "T1" if "T1" in J else "TZ"))
     paths += [fig_gates(agg, J), fig_paid(agg, pt), fig_k(agg, J)]
     return [p for p in paths if p is not None]
 

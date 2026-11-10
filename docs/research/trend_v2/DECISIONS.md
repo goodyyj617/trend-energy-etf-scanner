@@ -1494,6 +1494,41 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     lab_crsp/stage_t_cost, aggregates docs/research/lab/2026-11-11_stage_t/ (cell cost table
     included: aggregates, not source data), figures figures/stage_t_cost/. Design:
     docs/research/lab/2026-11-11_stage_t_design.md.
+    Result (2026-11-11, run 05:06 - 06:21 KST; runner 015767e): repro passed - T0 through the lookup path
+    (constant 20 / 40 bp tables, SPY200 costless) equals Stage S's raw tables with max diff 0 (P 7,408
+    cells / 222,240 values, Q 4,020 / 136,680, 40 bp 4 + 14 cells as the same set, O core 960, unlimited
+    40, benchmarks 8 + 18 rows) and gives the same K1-K5; with a number replay_risk / calendar_weighted /
+    top_n_ew / ew_regime are bit-identical to the previous commit's code (tested). Measurement: 522,515
+    stock-quarters (25% with negative s); cells 555 own, 375 year x cap fallback, none at era level. The
+    source files carry no BID / ASK columns (cross-check 1 not done; BIDLO / ASKHI are the day's low /
+    high); cross-check 3 not done (data download awaiting the user's permission). One-way cost, era mean
+    of the price-pooled yearly values, 1-500 / 501-1000 / 1001-2000 / 2001-3000: 1993-2000 17.7 / 36.0 /
+    69.1 / 126.8 bp, 2001-2007 21.2 / 19.4 / 36.8 / 72.7, 2008-2023 15.0 / 16.2 / 27.5 / 73.9 (2010-2023:
+    1-500 11.2, 2001-3000 65.0). Check (a) FAILED: every year 1-500 < 2001-3000 held, but in 2001-2007
+    1-500 > 501-1000 (pooled over the era too: 22.0 vs 21.5); (b) passed. The two large-cap buckets swing
+    from 0 (mean q <= 0: 2006, 2017, 2019, 2021, 2023) to 49-55 bp (2008) with the market's volatility;
+    against half-tick / price before 2001 the estimate is below the physical minimum in 4 of 52 groups,
+    all within the top 1,000 (1/8 era, 1-500 x >= $50: 0 vs 9.5 bp), and 1.3-11x the half tick for
+    small caps. Per verdict 2, T1 / T2 accounts were not run; only TZ. Verdicts 3, 4's combined label,
+    5's T1 / T2 numbers, 6 (candidates) and the paid-cost table were therefore not judged. TZ (zero cost
+    for accounts and benchmarks): 2,520 cells rise by a median +0.21 / +0.22 / +0.19 pp (1993-2023 /
+    1993-2007 / 2008-2023); 8 no-gate systems +0.20 / +0.19 / +0.18 pp, 96 A1 systems +0.18 / +0.18 /
+    +0.16 pp, the A2 systems about +1.1 pp. A1 systems above SPY200 + T-bill: 2008-2023 0 / 96 under T0
+    and TZ (best 5.99% -> 6.24% vs 6.56%; below the 10 of verdict 5, so the 2008-2023 gap does not depend
+    on the cost assumption), 1993-2007 86 -> 93, 1993-2023 16 -> 29. K under TZ: K1 holds (0 / 15, E0
+    seeds 0 / 5), K2 holds (0 / 8, best 5.98%), K4 holds (0 / 120), K5 holds (U1000 -0.01, U500 +0.03 pp);
+    K3 CHANGED - the A1 gates still beat their placebos (R1 / R3 / R4 / R5 helps 6 / 6 / 5 / 5, q95 2) but
+    R1 A2 (2, q95 0) and R4 A2 (4, q95 2) exceed chance, and R4 A2's system median (6.20%) passes R4 A1's
+    (5.94%): dropping A2 rests on the 20 bp assumption. Under T0 all five hold (= Stage S). Because K2 and
+    K4 hold at zero cost, "no goal-passing system" holds under any cost model; K1 / K3 / K5 compare two
+    accounts and TZ is no bound for them. Reported: systems beating the band's EW x same gate 111 -> 92
+    of 120 (the EW x regime benchmarks paid 20 bp per switch: EW x R3 5.66% -> 6.86%). Predictions: one-
+    way 1993-2000 within range (17.7, 126.8 bp), 2010-2023 both above (11.2 vs <= 5, 65.0 vs 10-30 bp),
+    TZ 2008-2023 count within (0 <= 3), K1-K5 holding not met at TZ (K3), the rest not measured. The
+    cost hole stays open; the next step (another large-cap measure, e.g. the authors' CRSP estimates; a
+    small-cap-only cost model; or stopping the cost axis) and whether to revisit A2 are the user's call.
+    The judgement cost stays 20 bp. Trials +0 (74,174); no holdout, no DSR / PSR. Record:
+    docs/research/lab/2026-11-11_stage_t_results.md.
 
 ## Open decisions
 

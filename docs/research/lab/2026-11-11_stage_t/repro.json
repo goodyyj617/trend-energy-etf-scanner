@@ -1,0 +1,96 @@
+{
+ "p_goal": {
+  "cells": 7408,
+  "values": 222240,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "q_goal": {
+  "cells": 4020,
+  "values": 136680,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "p_40bp": {
+  "cells": 4,
+  "values": 120,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "q_40bp": {
+  "cells": 14,
+  "values": 476,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "o_goal": {
+  "cells": 960,
+  "values": 28800,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "unlimited": {
+  "cells": 40,
+  "values": 1160,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "benchmarks_p": {
+  "cells": 8,
+  "values": 144,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "benchmarks_q": {
+  "cells": 18,
+  "values": 324,
+  "max_diff": 0.0,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "labels_T0": {
+  "K1": "유지",
+  "K2": "유지",
+  "K3": "유지",
+  "K4": "유지",
+  "K5": "유지"
+ },
+ "labels_stage_s": {
+  "K1": "유지",
+  "K2": "유지",
+  "K3": "유지",
+  "K4": "유지",
+  "K5": "유지"
+ },
+ "k_equal": {
+  "K1": true,
+  "K2": true,
+  "K3": true,
+  "K4": true,
+  "K5": true
+ },
+ "pass": true
+}

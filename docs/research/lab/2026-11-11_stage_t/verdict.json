@@ -1,0 +1,638 @@
+{
+ "repro": {
+  "p_goal": {
+   "cells": 7408,
+   "values": 222240,
+   "max_diff": 0.0,
+   "missing": 0,
+   "extra": 0,
+   "over_tol": 0,
+   "pass": true
+  },
+  "q_goal": {
+   "cells": 4020,
+   "values": 136680,
+   "max_diff": 0.0,
+   "missing": 0,
+   "extra": 0,
+   "over_tol": 0,
+   "pass": true
+  },
+  "p_40bp": {
+   "cells": 4,
+   "values": 120,
+   "max_diff": 0.0,
+   "missing": 0,
+   "extra": 0,
+   "over_tol": 0,
+   "pass": true
+  },
+  "q_40bp": {
+   "cells": 14,
+   "values": 476,
+   "max_diff": 0.0,
+   "missing": 0,
+   "extra": 0,
+   "over_tol": 0,
+   "pass": true
+  },
+  "o_goal": {
+   "cells": 960,
+   "values": 28800,
+   "max_diff": 0.0,
+   "missing": 0,
+   "extra": 0,
+   "over_tol": 0,
+   "pass": true
+  },
+  "unlimited": {
+   "cells": 40,
+   "values": 1160,
+   "max_diff": 0.0,
+   "missing": 0,
+   "extra": 0,
+   "over_tol": 0,
+   "pass": true
+  },
+  "benchmarks_p": {
+   "cells": 8,
+   "values": 144,
+   "max_diff": 0.0,
+   "missing": 0,
+   "extra": 0,
+   "over_tol": 0,
+   "pass": true
+  },
+  "benchmarks_q": {
+   "cells": 18,
+   "values": 324,
+   "max_diff": 0.0,
+   "missing": 0,
+   "extra": 0,
+   "over_tol": 0,
+   "pass": true
+  },
+  "labels_T0": {
+   "K1": "유지",
+   "K2": "유지",
+   "K3": "유지",
+   "K4": "유지",
+   "K5": "유지"
+  },
+  "labels_stage_s": {
+   "K1": "유지",
+   "K2": "유지",
+   "K3": "유지",
+   "K4": "유지",
+   "K5": "유지"
+  },
+  "k_equal": {
+   "K1": true,
+   "K2": true,
+   "K3": true,
+   "K4": true,
+   "K5": true
+  },
+  "pass": true
+ },
+ "measure": {
+  "stock_quarters": 522515,
+  "finite": 522291,
+  "negative_s": 130685,
+  "checks": {
+   "a_years_1_500_below_2001_3000": {
+    "1993": true,
+    "1994": true,
+    "1995": true,
+    "1996": true,
+    "1997": true,
+    "1998": true,
+    "1999": true,
+    "2000": true,
+    "2001": true,
+    "2002": true,
+    "2003": true,
+    "2004": true,
+    "2005": true,
+    "2006": true,
+    "2007": true,
+    "2008": true,
+    "2009": true,
+    "2010": true,
+    "2011": true,
+    "2012": true,
+    "2013": true,
+    "2014": true,
+    "2015": true,
+    "2016": true,
+    "2017": true,
+    "2018": true,
+    "2019": true,
+    "2020": true,
+    "2021": true,
+    "2022": true,
+    "2023": true
+   },
+   "a_years_fail": [],
+   "a_era_order": {
+    "1993-2000": true,
+    "2001-2007": false,
+    "2008-2023": true
+   },
+   "era_mean_bp": {
+    "1993-2000": {
+     "1–500": 17.713170325154575,
+     "501–1000": 35.96361365642495,
+     "1001–2000": 69.13752772499925,
+     "2001–3000": 126.84041346203827
+    },
+    "2001-2007": {
+     "1–500": 21.205420595113733,
+     "501–1000": 19.43022088757552,
+     "1001–2000": 36.84782341819105,
+     "2001–3000": 72.65834476760696
+    },
+    "2008-2023": {
+     "1–500": 15.048648435672114,
+     "501–1000": 16.194388587725516,
+     "1001–2000": 27.547849175519406,
+     "2001–3000": 73.88755441645984
+    }
+   },
+   "b_1993_2000_above_2008_2023": {
+    "1–500": true,
+    "501–1000": true,
+    "1001–2000": true,
+    "2001–3000": true
+   },
+   "a_pass": false,
+   "b_pass": true,
+   "pass": false
+  },
+  "raw_columns": [
+   "PERMNO",
+   "date",
+   "SHRCD",
+   "EXCHCD",
+   "SICCD",
+   "TICKER",
+   "DLSTCD",
+   "NWPERM",
+   "DLRET",
+   "BIDLO",
+   "ASKHI",
+   "PRC",
+   "VOL",
+   "RET",
+   "SHROUT",
+   "CFACPR",
+   "CFACSHR",
+   "OPENPRC",
+   "RETX",
+   "TOTAL_RET"
+  ],
+  "bid_ask_columns": [],
+  "cross_check_1": "하지 않음 — 원자료에 종가 매수 · 매도 호가(BID · ASK) 열이 없음",
+  "cross_check_3": "하지 않음 (자료 내려받기 승인 대기)",
+  "cells_by_source": {
+   "연도 × 시총": 375,
+   "칸": 555
+  }
+ },
+ "models": [
+  "T0",
+  "TZ"
+ ],
+ "K": {
+  "T0": {
+   "K1": {
+    "above_random": 0,
+    "entries": [],
+    "a_pass": 1,
+    "b_pass": 2,
+    "seeds_above_random": 0,
+    "seeds_a": 0,
+    "seeds_b": 1,
+    "changed": false
+   },
+   "K2": {
+    "systems": 8,
+    "passing": 0,
+    "best": 0.0579280251381095,
+    "median": 0.0549270159807062,
+    "median_2008-2023": 0.03846459792557435,
+    "no_m1_passing": 0,
+    "changed": false
+   },
+   "K3": {
+    "counts": {
+     "R1A1": {
+      "helps": 6,
+      "q95": 2,
+      "p0": 0.1,
+      "beyond_chance": true
+     },
+     "R1A2": {
+      "helps": 0,
+      "q95": 0,
+      "p0": 0.0,
+      "beyond_chance": false
+     },
+     "R2A1": {
+      "helps": 0,
+      "q95": 2,
+      "p0": 0.1,
+      "beyond_chance": false
+     },
+     "R2A2": {
+      "helps": 0,
+      "q95": 2,
+      "p0": 0.075,
+      "beyond_chance": false
+     },
+     "R3A1": {
+      "helps": 5,
+      "q95": 2,
+      "p0": 0.1,
+      "beyond_chance": true
+     },
+     "R3A2": {
+      "helps": 0,
+      "q95": 0,
+      "p0": 0.0,
+      "beyond_chance": false
+     },
+     "R4A1": {
+      "helps": 4,
+      "q95": 2,
+      "p0": 0.1,
+      "beyond_chance": true
+     },
+     "R4A2": {
+      "helps": 0,
+      "q95": 1,
+      "p0": 0.025,
+      "beyond_chance": false
+     },
+     "R5A1": {
+      "helps": 5,
+      "q95": 2,
+      "p0": 0.1,
+      "beyond_chance": true
+     },
+     "R5A2": {
+      "helps": 0,
+      "q95": 0,
+      "p0": 0.0,
+      "beyond_chance": false
+     }
+    },
+    "a1_fell_to_chance": [],
+    "a2_beyond_chance": [],
+    "changed": false
+   },
+   "K4": {
+    "systems": 120,
+    "passing": 0,
+    "passing_list": [],
+    "changed": false
+   },
+   "K5": {
+    "median_d2008": {
+     "U1000": 0.00015416610339090073,
+     "U500": 0.0008102130227461007
+    },
+    "systems_per_band": {
+     "U1000": 40,
+     "U500": 40
+    },
+    "helps": {
+     "U1000 none": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U1000 R1A1": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U1000 R3A1": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U1000 R4A1": {
+      "helps": 0,
+      "q95": 2,
+      "beyond_chance": false
+     },
+     "U1000 R5A1": {
+      "helps": 0,
+      "q95": 2,
+      "beyond_chance": false
+     },
+     "U500 none": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U500 R1A1": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U500 R3A1": {
+      "helps": 0,
+      "q95": 2,
+      "beyond_chance": false
+     },
+     "U500 R4A1": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U500 R5A1": {
+      "helps": 0,
+      "q95": 2,
+      "beyond_chance": false
+     }
+    },
+    "helps_total": 0,
+    "changed": false
+   }
+  },
+  "TZ": {
+   "K1": {
+    "above_random": 0,
+    "entries": [],
+    "a_pass": 1,
+    "b_pass": 3,
+    "seeds_above_random": 0,
+    "seeds_a": 0,
+    "seeds_b": 1,
+    "changed": false
+   },
+   "K2": {
+    "systems": 8,
+    "passing": 0,
+    "best": 0.0597508757457316,
+    "median": 0.057175877215117854,
+    "median_2008-2023": 0.04013850197153805,
+    "no_m1_passing": 0,
+    "changed": false
+   },
+   "K3": {
+    "counts": {
+     "R1A1": {
+      "helps": 6,
+      "q95": 2,
+      "p0": 0.1,
+      "beyond_chance": true
+     },
+     "R1A2": {
+      "helps": 2,
+      "q95": 0,
+      "p0": 0.0,
+      "beyond_chance": true
+     },
+     "R2A1": {
+      "helps": 0,
+      "q95": 2,
+      "p0": 0.1,
+      "beyond_chance": false
+     },
+     "R2A2": {
+      "helps": 0,
+      "q95": 2,
+      "p0": 0.075,
+      "beyond_chance": false
+     },
+     "R3A1": {
+      "helps": 6,
+      "q95": 2,
+      "p0": 0.075,
+      "beyond_chance": true
+     },
+     "R3A2": {
+      "helps": 1,
+      "q95": 2,
+      "p0": 0.05,
+      "beyond_chance": false
+     },
+     "R4A1": {
+      "helps": 5,
+      "q95": 2,
+      "p0": 0.1,
+      "beyond_chance": true
+     },
+     "R4A2": {
+      "helps": 4,
+      "q95": 2,
+      "p0": 0.05,
+      "beyond_chance": true
+     },
+     "R5A1": {
+      "helps": 5,
+      "q95": 2,
+      "p0": 0.1,
+      "beyond_chance": true
+     },
+     "R5A2": {
+      "helps": 0,
+      "q95": 0,
+      "p0": 0.0,
+      "beyond_chance": false
+     }
+    },
+    "a1_fell_to_chance": [],
+    "a2_beyond_chance": [
+     "R1A2",
+     "R4A2"
+    ],
+    "changed": true
+   },
+   "K4": {
+    "systems": 120,
+    "passing": 0,
+    "passing_list": [],
+    "changed": false
+   },
+   "K5": {
+    "median_d2008": {
+     "U1000": -5.871235859064919e-05,
+     "U500": 0.00034611688469999777
+    },
+    "systems_per_band": {
+     "U1000": 40,
+     "U500": 40
+    },
+    "helps": {
+     "U1000 none": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U1000 R1A1": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U1000 R3A1": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U1000 R4A1": {
+      "helps": 0,
+      "q95": 2,
+      "beyond_chance": false
+     },
+     "U1000 R5A1": {
+      "helps": 0,
+      "q95": 2,
+      "beyond_chance": false
+     },
+     "U500 none": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U500 R1A1": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U500 R3A1": {
+      "helps": 0,
+      "q95": 2,
+      "beyond_chance": false
+     },
+     "U500 R4A1": {
+      "helps": 0,
+      "q95": 0,
+      "beyond_chance": false
+     },
+     "U500 R5A1": {
+      "helps": 0,
+      "q95": 2,
+      "beyond_chance": false
+     }
+    },
+    "helps_total": 0,
+    "changed": false
+   }
+  }
+ },
+ "labels": {
+  "T0": {
+   "K1": "유지",
+   "K2": "유지",
+   "K3": "유지",
+   "K4": "유지",
+   "K5": "유지"
+  },
+  "TZ": {
+   "K1": "유지",
+   "K2": "유지",
+   "K3": "바뀜",
+   "K4": "유지",
+   "K5": "유지"
+  }
+ },
+ "trials": {
+  "cumulative": 74174,
+  "new": 0
+ },
+ "error_size": {
+  "label": "판정하지 않음",
+  "why": "측정 점검 (가) · (나)를 통과하지 못해 T1 · T2 계좌를 돌리지 않음 (설계 판정 2)"
+ },
+ "combined": {
+  "K1": "판정하지 않음 (T1 없음)",
+  "K2": "판정하지 않음 (T1 없음)",
+  "K3": "판정하지 않음 (T1 없음)",
+  "K4": "판정하지 않음 (T1 없음)",
+  "K5": "판정하지 않음 (T1 없음)"
+ },
+ "above_ma200": [
+  {
+   "model": "T0",
+   "systems": 96,
+   "above_1993-2023": 16,
+   "above_1993-2007": 86,
+   "above_2008-2023": 0,
+   "ma200_1993-2023": 0.0681890601267503,
+   "ma200_1993-2007": 0.0709847597109245,
+   "ma200_2008-2023": 0.0655866479080895,
+   "median_1993-2023": 0.061974488822991544,
+   "median_1993-2007": 0.0776131687844554,
+   "median_2008-2023": 0.0484755627525842,
+   "best_2008-2023": 0.0598853701066466
+  },
+  {
+   "model": "TZ",
+   "systems": 96,
+   "above_1993-2023": 29,
+   "above_1993-2007": 93,
+   "above_2008-2023": 0,
+   "ma200_1993-2023": 0.0681890601267503,
+   "ma200_1993-2007": 0.0709847597109245,
+   "ma200_2008-2023": 0.0655866479080895,
+   "median_1993-2023": 0.0637167617644451,
+   "median_1993-2007": 0.07957922238990485,
+   "median_2008-2023": 0.0504539820322526,
+   "best_2008-2023": 0.062438307862167
+  }
+ ],
+ "tz_2008_gap": {
+  "above": 0,
+  "depends_on_cost": false
+ },
+ "k5": {
+  "T0": {
+   "U1000": 0.00015416610339090073,
+   "U500": 0.0008102130227461007
+  },
+  "TZ": {
+   "U1000": -5.871235859064919e-05,
+   "U500": 0.00034611688469999777
+  }
+ },
+ "predictions": [
+  {
+   "예상": "편도 1993–2000, 1–500 (bp)",
+   "범위": "10–30",
+   "결과": 17.713170325154575,
+   "맞음": true
+  },
+  {
+   "예상": "편도 1993–2000, 2001–3000 (bp)",
+   "범위": "60–150",
+   "결과": 126.84041346203828,
+   "맞음": true
+  },
+  {
+   "예상": "편도 2010–2023, 1–500 (bp)",
+   "범위": "≤5",
+   "결과": 11.190657028464502,
+   "맞음": false
+  },
+  {
+   "예상": "편도 2010–2023, 2001–3000 (bp)",
+   "범위": "10–30",
+   "결과": 65.01045005746597,
+   "맞음": false
+  },
+  {
+   "예상": "TZ에서 2008–2023 SPY200 + 국채를 넘는 A1 시스템 (96개 중)",
+   "범위": "≤3",
+   "결과": 0.0,
+   "맞음": true
+  }
+ ],
+ "tick_check": {
+  "cells": 52,
+  "edge_below_half_tick": 4
+ }
+}
