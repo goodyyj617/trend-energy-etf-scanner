@@ -1,5 +1,5 @@
 """Stage R (lab/basis_study.py, DECISIONS 98): raw-price basis for the price and dollar-volume filters."""
-from dataclasses import replace
+import os
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,7 @@ def test_registered():
     assert bs.CANDIDATE == ("E7", "R3A1") and len(bs.CANDIDATE_CELLS) == 4 and bs.CANDIDATES_TO_PROCEED == 3
     assert bs.E7_VALUE == 20 and bs.FWD == 252 and bs.LEVEL_SCREENS == ("h_price", "h_liquidity", "h_illiquid")
     assert sc.HYGIENE == {"h_history": 12, "h_price": 5, "h_liquidity": 1, "h_illiquid": 20}
-    assert crsp.DEFAULT_BASIS in ("adjusted", "raw")
+    assert crsp.DEFAULT_BASIS == os.environ.get("LAB_PRICE_BASIS", "raw")  # raw since Stage R
 
 
 def _panel(n=320, seed=1, raw=None):
@@ -152,6 +152,9 @@ def test_crsp_raw_series_and_basis_loading(tmp_path, monkeypatch):
     adj = crsp.load_panel(tmp_path / "panel", "adjusted")
     raw = crsp.load_panel(tmp_path / "panel", "raw")
     assert not has_raw(adj) and has_raw(raw)
+    monkeypatch.setattr(crsp, "DEFAULT_BASIS", "raw")
+    assert has_raw(crsp.load_panel(tmp_path / "panel"))  # the default loads the raw series when they exist
+    assert not has_raw(crsp.load_panel(tmp_path / "panel", "adjusted"))
     d0 = dates[100]
     assert raw.extra["raw_close"].loc[d0, "1"] == pytest.approx(4 * adj.close.loc[d0, "1"], rel=1e-5)  # pre-split
     assert raw.extra["raw_close"].loc[dates[-1], "1"] == pytest.approx(adj.close.loc[dates[-1], "1"], rel=1e-5)

@@ -1242,6 +1242,11 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     holdout waits for 98. If fewer than 3 of the 4 cells stay candidates on the raw-price universe
     the holdout is cancelled unopened; otherwise it runs on the raw-price definitions with 98's
     tables as the repro target.
+    Cancelled (2026-11-11, by 98's registered rule): on the raw-price universe only 2 of the 4 cells
+    stay candidates (N20 / P1 x U1000 and U500; N10 x U1000 fails its H1 cell, 2008-2023 6.46% vs
+    SPY200 + T-bill 6.56%, and N10 x U500 then loses its other-band neighbour), so the holdout is not
+    opened for this family and stays unused. Looking at the two remaining cells would need a new
+    decision.
 
 98. Stage R: price and dollar-volume filters on raw prices (user decision 2026-11-11 01:40 KST:
     fix the review's holes first, starting with the first; registered before any run). Defect found
@@ -1296,6 +1301,34 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     engine or replay_risk arithmetic; one basis argument), results lab_crsp/stage_r_basis,
     aggregates docs/research/lab/2026-11-11_stage_r/, figures figures/stage_r_basis/. Design:
     docs/research/lab/2026-11-11_stage_r_design.md.
+    Result (2026-11-11, run 01:59 - 02:25 KST; runner acfa500): repro passed before the raw run - the
+    adjusted-basis eligible mask rebuilt with the new code equals the stored one (110,270,160 cells,
+    0 differ), the rebuilt E7 x X1 / H1 and E0 x X1 / H1 tables (12) equal the stored Stage C v2 / H /
+    J / I tables row for row, and the adjusted slot accounts equal Stage Q's goal table (96 cells,
+    3,360 values, max diff 0; 40 bp 10 cells, 0). Raw series: |PRC| x SHROUT equals the panel's cap on
+    36.0 million cells; raw price on 99.95% of listed cells. Q1 (1993-2023, hygiene universe): of 16.27
+    million raw-passing stock-days 942,832 (5.8%, 121 a day) were wrongly excluded and 353,618 (2.2%)
+    wrongly included; wrongly excluded 16.3% in 1993-97 falling to 0.8% in 2018-23 (top-500 14.6% in
+    1993-97), wrongly included mostly ranks 1,001-3,000 (3.8%); screens of the wrongly excluded: price
+    65%, dollar volume 45% (the dividend factor of the adjusted close, large in the 1990s), Amihud 1%.
+    Q2 (forward 252 sessions, 1993-2022, 30 years): wrongly excluded minus both-pass +15.1 pp a year
+    (t 6.1, 27 of 30 positive; median +16.6% vs +5.8%, >= +100% 8.0% vs 3.7%), wrongly included -22.3
+    pp (t -7.0). Q3: (a) equal-weight CAGR +1.74 / +2.17 / +1.36 pp (1993-2023 / 1993-2007 /
+    2008-2023; 10.16% -> 11.90%); (b) unlimited E0 median +0.56 / +1.00 / +0.14 pp; (c) slot E0 40
+    curves, matched return +0.21 / +0.35 / +0.14 pp (seed sd 0.35-0.51 pp): size "large" (2.17 pp);
+    direction all positive, as the review inferred. Relative: E7 - E0 same sign in both halves on
+    both bases in 2 of the 8 registered cells (no gate, U3000; differences near 0), 22 of 24 under R3
+    A1 (E7 above E0 1993-2023 in 23 of 24 on raw). Per trade (X1): signals new on raw beat common ones
+    by +28.0 pp (E7, CI +26.3 to +29.7) and +28.4 pp (E0), +50% share 27% vs 15%; adjusted-only
+    signals -15.8 / -16.2 pp, -20% share 39-40%; common signals' returns identical. Q4: 2 of 4
+    candidate cells pass on raw (N20 x U1000, U500; entry-specific), so 97 is cancelled unopened;
+    the adjusted basis reproduces Stage Q's 4. (6) R3 A1 x U3000 2008-2023 rises 0.1-0.5 pp, E0
+    systems still 0.3-1.1 pp below SPY200 + T-bill (6.56%), beta 0.44-0.48 unchanged. Follow-up
+    registered by the "large" verdict (15 entries' tables rebuilt, core of Stages I, O, P, Q rerun,
+    scope as a new decision) not started. Default basis switched to raw (lab/crsp.DEFAULT_BASIS;
+    LAB_PRICE_BASIS=adjusted reproduces Stages C-Q); the raw series are in the Drive panel folder.
+    Other dollar-level uses listed in the memo, unchanged. Trials +0 (74,174). Record:
+    docs/research/lab/2026-11-11_stage_r_results.md.
 
 ## Open decisions
 

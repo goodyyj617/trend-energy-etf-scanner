@@ -20,8 +20,11 @@ Raw prices (DECISIONS 98): extra_raw_close / extra_raw_volume beside the panel h
 volume on it depends on later splits and dividends; on the "raw" basis the hygiene screens and the
 engine's min_price / min_dollar_volume read the raw series instead (lab/data.level_close,
 level_dollar_volume). load_panel(basis=...) chooses: "adjusted" never loads them (the definitions
-of Stages C-Q), "raw" loads them when they exist. The default is DEFAULT_BASIS, which the
-environment variable LAB_PRICE_BASIS overrides for any runner and its worker processes.
+of Stages C-Q), "raw" loads them when they exist. The default is DEFAULT_BASIS ("raw" since
+Stage R; a panel folder without the raw files still loads as before), which the environment variable
+LAB_PRICE_BASIS (e.g. "adjusted" to rebuild a Stage C-Q table) overrides for any runner and its
+worker processes. Runners that read a stored eligible_daily.parquet or stored signal tables keep the
+basis those files were made on.
 
 Delisting: on the trading day after a stock's last CRSP row with a delisting code, one
 synthetic bar is added at last close x (1 + DLRET), so the engine's forced "delist" exit sells
@@ -50,7 +53,8 @@ EXTRA = ("cap", "dividend")  # per-symbol series beyond OHLCV: market value ($M)
 TOP_N = 1000
 DAILY_CAP_WINDOW = 21  # sessions of market value averaged for the daily universe (DECISIONS 81)
 RAW_EXTRA = (RAW_CLOSE, RAW_VOLUME)
-DEFAULT_BASIS = os.environ.get("LAB_PRICE_BASIS", "adjusted")
+# raw since Stage R (DECISIONS 98): the corrected definition. LAB_PRICE_BASIS=adjusted reproduces Stages C-Q.
+DEFAULT_BASIS = os.environ.get("LAB_PRICE_BASIS", "raw")
 
 
 def source_files(src: Path) -> list[Path]:
