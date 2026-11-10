@@ -1425,6 +1425,76 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     adjusted-basis; next review item is the user's call. Trials +0 (74,174). Record:
     docs/research/lab/2026-11-11_stage_s_results.md.
 
+100. Stage T: the trading-cost assumption (next hole of the 2026-11-10 review; user decision
+    2026-11-11 01:40 KST: fix the review's holes first; which hole next was put to the user on a
+    card at 04:40 KST and the recommended one is worked on meanwhile; registered before any run).
+    Every account so far paid a flat 20 bp one way (40 bp only in the candidate conditions) in
+    every year and for every size, and the SPY200 benchmark paid nothing on its switches
+    (goal_study.bench_curves). Flat 20 bp may be too low for the 1990s and small / low-priced
+    names (1/8 and 1/16 dollar ticks before 2001) - the half where the stock systems lead - and
+    too high for recent large caps, where they trail; the candidate margins (0.1-0.5 pp) are of
+    the size a 10 bp error could move. Questions: how far and in which direction is 20 bp off (era
+    x size x price); how much the drawdown-matched return moves under a measured cost; are K1-K5
+    (99's definitions) robust to the cost assumption, at zero cost and at twice the measured cost.
+    No new rule, value or combination: Stage S's raw-basis tables and grids, only the cost changes.
+    Measurement: EDGE effective-spread estimator (Ardia, Guidotti & Kroencke 2024, JFE 161, 103916,
+    doi:10.1016/j.jfineco.2024.103916; the authors' reference implementation, MIT, copied with
+    attribution to lab/edge_spread.py; abstract, README and code read, the paper's tables not) on
+    the panel's adjusted OHLC per stock x calendar quarter (>= 40 complete days, sign=True), 1993-01
+    to 2023-12; q = sign(s) * s^2 pooled by cell = year x cap-rank bucket (1-500, 501-1000,
+    1001-2000, 2001-3000, beyond) x raw-price bucket (< 5, 5-10, 10-20, 20-50, >= 50 dollars),
+    stock-quarters assigned by their median rank and median raw close; cell spread S = sqrt(max(
+    mean q, 0)) (truncated at the cell, not per stock, to avoid the small-spread upward bias);
+    cells under 100 stock-quarters fall back to year x cap bucket, then era (1993-2000 / 2001-2007
+    / 2008-2023) x cap bucket; one-way cost = S / 2, floor 1 bp, cap 500 bp; a fill at day t's open
+    uses t's year, t-1's cap rank and t-1's raw close. No commission, no market impact. Cost
+    models: T0 flat 20 bp with the benchmarks as before (repro); TZ zero for everything (the bound
+    most favourable to the systems: what holds at TZ holds under any cost); T1 measured cell costs,
+    SPY200 paying SPY's cell on each switch, top-N EW paying member cells on membership changes
+    and the members' mean cell cost on regime switches, the universe EW left costless as before
+    (primary); T2 = 2 x T1 (opening-fill spreads, estimator error). Rerun per model TZ / T1 / T2,
+    with Stage S's tables, base table, regimes, seeds and random streams: (A) regime_study's full
+    grid, (B) large_study's full grid, (C) the 8 no-gate systems with and without M1, (D) the
+    unlimited accounts, (E) the benchmarks; 1993-02 to 2023-12, nothing from 2024 on; no per-trade
+    bundle (no new signals) but the cost actually paid (fill-value-weighted one-way bp) by setting
+    x band x era. Verdicts: (1) repro first, else stop: T0 through the new path equals Stage S's
+    raw result tables to 1e-9 and the scalar-cost path of replay_risk / calendar_weighted /
+    top_n_ew / ew_regime is bit-identical (test). (2) Measurement gate before T1 / T2 accounts:
+    (a) with price pooled, the 1-500 bucket below the 2001-3000 bucket in every year and the three
+    era means strictly ordered 1-500 < 501-1000 < 1001-2000 < 2001-3000; (b) every cap bucket's
+    1993-2000 mean above its 2008-2023 mean; if either fails only TZ and the cost table are
+    reported. Cross-checks reported, not judged: closing quoted half-spread if the source files
+    carry BID / ASK, half-tick / price before 2001, the authors' published CRSP monthly estimates
+    (doi:10.7910/DVN/YAY4H6) if they can be fetched. (3) Size of the 20 bp error: median T1 - T0
+    drawdown-matched return over (i) the 8 no-gate systems and (ii) the 96 A1 systems in 1993-2023,
+    1993-2007, 2008-2023; "large" if any |median| >= 0.5 pp (98's boundary), else "small". (4) K1-K5
+    with 99's definitions and "changed" conditions against the same model's benchmarks; primary T1;
+    per conclusion "robust to cost" if it holds under TZ, T1 and T2, "holds, sensitive to the cost
+    level" if it holds under T1 but changes under TZ or T2, "changed" if it changes under T1. (5)
+    Three numbers apart: the count of the 96 A1 systems above SPY200 + T-bill in 2008-2023 per
+    model - if >= 10 under TZ the 2008-2023 gap is recorded as depending on the cost assumption and
+    measuring recent large-cap costs better becomes the next item; the same count for 1993-2007 and
+    1993-2023 under T0 / T1 / T2 (reported); K5's narrowing effect per model (reported). (6)
+    Candidates, descriptive: 96's conditions with T1 / T2 in place of 20 / 40 bp; holdout closed,
+    no DSR / PSR. (7) All of K1-K5 hold under T1: the cost hole is closed and the overview gets
+    one line on cost robustness; whether the judgement cost changes from 20 bp to the measured one
+    is a change of criteria and goes to the user - until then the headline numbers stay at 20 bp
+    with T1 alongside. Any changed: that conclusion is rewritten with both numbers and the user is
+    told. Predictions written down first: one-way 1993-2000 10-30 bp (1-500) and 60-150 bp
+    (2001-3000), 2010-2023 <= 5 bp and 10-30 bp; cost paid by the accounts 30-70 bp in 1993-2000
+    and 5-15 bp after 2010; T1 - T0 -0.2 to -0.8 pp in 1993-2007 and 0 to +0.3 pp in 2008-2023;
+    K1-K5 hold; at most 3 of 96 above the benchmark in 2008-2023 under TZ. Trials +0 (74,174).
+    Limits: the estimator cannot resolve very small spreads (recent large caps, roughly below 5-10
+    bp at the cell level; hence TZ as the bound); the cell value is a root mean square and leans to
+    the wider names in a cell, so T1 is slightly unfavourable to P1 / M1 accounts; fills are at the
+    open, where spreads are wider than the daily average (T2 covers that direction); no commission
+    or impact (Stage D: orders small against dollar volume at 0.1-1 M dollar accounts); M1 / P1 /
+    exits / settings chosen at 20 bp and not re-selected; same 31-year sample. Runner
+    lab/cost_study.py (stages repro -> measure -> accounts -> report), results
+    lab_crsp/stage_t_cost, aggregates docs/research/lab/2026-11-11_stage_t/ (cell cost table
+    included: aggregates, not source data), figures figures/stage_t_cost/. Design:
+    docs/research/lab/2026-11-11_stage_t_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;
