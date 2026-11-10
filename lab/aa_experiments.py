@@ -46,6 +46,8 @@ A42_4_DIR = ALLOC / "2026-11-02_a42_stage4"  # A42 stage 4: dynamic layers (sign
 A42_4_MEMO = ALLOC / "2026-11-02_a42_stage4.md"
 A42_5_DIR = ALLOC / "2026-11-02_a42_stage5"  # A42 stage 5: final verdict, sealed window, ledger, representatives
 A42_5_MEMO = ALLOC / "2026-11-02_a42_stage5.md"
+A44_DIR = ALLOC / "2026-11-11_a44_satellite"  # A44: decision date, cost and mixing of the satellite inside ② and ③
+A44_MEMO = ALLOC / "2026-11-11_a44_satellite.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -58,7 +60,8 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "a41_map", "a41_sobol", "a41_include", "a41_rebalance", "a41_holdout",
               "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check",
               "a42_2_walk", "a42_2_rebalance", "a42_3_declared", "a42_3_axes", "a42_3_overflow",
-              "a42_4_tradeoff", "a42_4_checks", "a42_5_final", "a42_5_sealed")
+              "a42_4_tradeoff", "a42_4_checks", "a42_5_final", "a42_5_sealed",
+              "a44_offsets", "a44_alone")
 
 
 @dataclass(frozen=True)
@@ -370,6 +373,21 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 봉인 구간은 대용 자료이고(금은 월간), 국고채·미국 배당·선진국·신흥국 자료가 없어 그 몫을 나머지에 나눴습니다. 동적 층의 통과는 4단계에서 가짜 신호를 겨우 넘은 것입니다."),
         ("a42_5_final", "a42_5_sealed"), A42_5_MEMO,
         "PNG 그림은 docs/research/allocation/figures/a42_stage5/"),
+    Experiment(
+        "a44", "2026-11-11", "A44", "A44: ②·③ 안의 위성 50%를 결정일·비용·섞는 방식만 바꿔 다시 재기",
+        "11-10 점검에서 A42 5단계의 정책 변형이 본체만 옮겼고, ②·③ 자산의 절반인 위성(HAA 50 + BAA 공격형 50, 국내 상품판)은 "
+        "'월말 결정 한 경로, 본체와 섞는 비용 0'으로만 쟀다는 것을 코드에서 확인했습니다. 위성 단독은 A30 날짜 기준을 통과하지 못한 전략입니다. "
+        "그래서 본체는 등록 그대로 두고 위성의 결정일(월말 +0/+1/+5/+10/+15거래일, 4분할), 교체 비용(10/20bp), 섞는 방식(매일 무료 / 월말·분기 말 복원 10bp)만 바꿨습니다. "
+        "판정 W1(최악 결정일 MDD ≥ −20%) · W2(그 최악의 구역) · W3(20bp에서 위성이 같은 본체보다 수익을 더함)은 실행 전에 고정했습니다.",
+        ("한 줄 답: ②, ③, '(가) + 위성', '현재 보유 + 위성' 네 조합 모두 탈락입니다. 등록 조건은 5단계 숫자를 그대로 재현했으니 차이는 결정일에서 나옵니다.",
+         "③의 MDD는 결정일에 따라 −8.7%(월말)에서 −17.9%(+10거래일), ②는 −10.2%에서 −23.9%입니다. 위성 단독은 −16.0 – −32.2%로 A28을 재현했습니다.",
+         "CAGR도 결정일마다 1%p씩 흔들립니다(③ 8.10 – 9.06%). 그 폭이 ③과 (가) 정적의 차이(0.26%p)보다 몇 배 큽니다. ③의 9.07% / −8.7%는 다섯 결정일 중 운 좋은 쪽이었습니다.",
+         "4분할로 결정일 운을 평균하면 ③ 8.69% / −10.1%, '(가) + 위성' 8.63% / −12.3%로 −15% 안이지만, 둘 다 (가) 정적(8.81% / −13.7%)보다 CAGR이 낮습니다. 위성은 수익을 더하지 않고 MDD를 1–3%p 줄일 뿐입니다.",
+         "본체와 위성을 섞는 비용(매일 무료 → 분기 말 10bp)은 CAGR 0.04 – 0.06%p로 작았습니다.",
+         "읽는 법(미리 정함): ②·③ 숫자는 '월말 결정 한 경로의 숫자'로 낮춰 적고 위성 조합은 권고에서 뺍니다. 가장 좋은 결정일을 골라 쓰지 않습니다.",
+         "한계: 위성은 2007년부터만 있고, 다섯 결정일은 분포가 아니라 다섯 점입니다. 본체 결정일은 등록 그대로, 세금은 없습니다. 원화·대용 자료·표본 내 연구입니다."),
+        ("a44_offsets", "a44_alone"), A44_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a44_satellite/. 등록 동적 프리셋은 ‘동적 프리셋 (사후)’ 페이지"),
 )
 
 
@@ -891,6 +909,16 @@ def a42_5_table(folder: Path | str = A42_5_DIR) -> pd.DataFrame:
     for c in ("cagr", "mdd", "순위값 (매달 시작 CAGR 하위 10%)", "24세트 최악 MDD", "봉인 구간 MDD", "이어 붙인 MDD"):
         m[c] = m[c] * 100
     return m
+
+
+def a44_table(folder: Path | str = A44_DIR) -> pd.DataFrame:
+    """A44 runs on the representative set, whole window, % units: every (combination, decision day, satellite cost, mix,
+    share) row plus the cores without satellite (위성 몫 0) and the satellite alone (위성 구간)."""
+    r = pd.read_csv(Path(folder) / "runs.csv", keep_default_na=False, na_values=[""])
+    r = r[r["세트"] == "대표"].copy()
+    r["cagr"] = r["cagr"] * 100
+    r["mdd"] = r["mdd"] * 100
+    return r.reset_index(drop=True)
 
 
 def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:

@@ -2991,6 +2991,53 @@ def chart_a42_5_sealed() -> go.Figure:
     return fig
 
 
+A44_OFFSETS = ["0", "1", "5", "10", "15", "4분할"]
+A44_OFFSET_KO = {"0": "월말", "1": "+1일", "5": "+5일", "10": "+10일", "15": "+15일", "4분할": "4분할"}
+
+
+def chart_a44_offsets() -> go.Figure:
+    r = exps.a44_table()
+    j = r[(r["구간"] == "전체") & (r["위성 몫"] == 0.5) & (r["섞기"] == "quarterly") & (r["위성 비용 bp"] == 10.0)]
+    fig = go.Figure()
+    for k, (combo, g) in enumerate(j.groupby("조합", sort=False)):
+        g = g.set_index("오프셋").reindex(A44_OFFSETS)
+        color = PALETTE[k % len(PALETTE)]
+        fig.add_trace(go.Scatter(x=g["mdd"], y=g["cagr"], mode="markers+text", name=combo, legendgroup=combo,
+                                 text=[A44_OFFSET_KO[o] for o in g.index], textposition="top center", textfont=dict(size=9),
+                                 marker=dict(size=[13 if o == "4분할" else 8 for o in g.index], color=color,
+                                             symbol=["diamond" if o == "4분할" else "circle" for o in g.index]),
+                                 hovertemplate=combo + "<br>%{text}: CAGR %{y:.2f}% · MDD %{x:.1f}%<extra></extra>"))
+        core = r[(r["조합"] == g["본체"].iloc[0]) & (r["구간"] == "전체") & (r["위성 몫"] == 0.0)]
+        if len(core):
+            fig.add_trace(go.Scatter(x=core["mdd"], y=core["cagr"], mode="markers", legendgroup=combo, showlegend=False,
+                                     marker=dict(size=12, color=color, symbol="x"), text=[str(core["조합"].iloc[0])],
+                                     hovertemplate="위성 없는 본체: %{text}<br>CAGR %{y:.2f}% · MDD %{x:.1f}%<extra></extra>"))
+    for x, c in ((-15, GRAY), (-17, GRAY), (-20, GRAY)):
+        fig.add_vline(x=x, line=dict(color=c, dash="dash" if x == -15 else "dot", width=1))
+    fig.update_layout(height=520, margin=dict(l=10, r=10, t=80, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="위성 결정일을 옮기면: 조합마다 결정일 다섯 개와 4분할(◆), 위성 없는 같은 본체(×)<br>"
+                                      "<sup>대표 세트 2000-09 – 2024-12, 위성 50%, 분기 말 복원 10bp, 위성 교체 10bp. 선: −15 / −17 / −20%</sup>"),
+                      xaxis=dict(title="MDD (%)"), yaxis=dict(title="CAGR (%)"))
+    return fig
+
+
+def chart_a44_alone() -> go.Figure:
+    r = exps.a44_table()
+    a = r[r["조합"].str.startswith("위성 단독")]
+    fig = go.Figure()
+    for k, cost in enumerate((10.0, 20.0)):
+        g = a[a["위성 비용 bp"] == cost].set_index("오프셋").reindex(A44_OFFSETS)
+        fig.add_trace(go.Bar(x=[A44_OFFSET_KO[o] for o in g.index], y=g["mdd"], name=f"MDD, 교체 비용 {cost:g}bp",
+                             marker_color=PALETTE[k], customdata=g["cagr"],
+                             hovertemplate="%{x}: MDD %{y:.1f}% · CAGR %{customdata:.2f}%<extra></extra>"))
+    fig.add_hline(y=-20, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=420, margin=dict(l=10, r=10, t=70, b=10), barmode="group", legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="위성 단독(HAA50·BAA50 국내판)의 결정일별 MDD, 2007-04 – 2024-12<br>"
+                                      "<sup>점선 −20% = A30 날짜 견고 기준. 마우스를 올리면 CAGR</sup>"),
+                      yaxis=dict(title="MDD (%)"))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -3038,6 +3085,8 @@ EXPERIMENT_CHARTS = {
     "a42_4_checks": chart_a42_4_checks,
     "a42_5_final": chart_a42_5_final,
     "a42_5_sealed": chart_a42_5_sealed,
+    "a44_offsets": chart_a44_offsets,
+    "a44_alone": chart_a44_alone,
 }
 
 
