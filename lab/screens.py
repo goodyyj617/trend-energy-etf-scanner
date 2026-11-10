@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 
 from .blocks import Param, adx_di, atr, cmf, obv, rsi, sma
-from .data import BENCHMARK, Panel
+from .data import BENCHMARK, Panel, level_close, level_dollar_volume
 
 MONTH = 21  # trading days
 
@@ -108,10 +108,11 @@ def _rs_rating(p: Panel) -> pd.DataFrame:
     return score.rank(axis=1, pct=True) * 100.0
 
 
-def _amihud(p: Panel, days: int = 63) -> pd.DataFrame:
-    """Amihud illiquidity: mean |return| / dollar volume (higher = more illiquid)."""
+def _amihud(p: Panel, days: int = 63, level: bool = False) -> pd.DataFrame:
+    """Amihud illiquidity: mean |return| / dollar volume (higher = more illiquid). level=True: the
+    dollar volume of the panel's price basis (lab/data.level_dollar_volume; raw on a CRSP raw panel)."""
     r = p.close.pct_change(fill_method=None).abs()
-    dv = (p.close * p.volume).replace(0, np.nan)
+    dv = (level_dollar_volume(p) if level else p.close * p.volume).replace(0, np.nan)
     return (r / dv).rolling(days, min_periods=days // 2).mean()
 
 
@@ -122,16 +123,18 @@ def _h_history(p: Panel, m: float) -> pd.DataFrame:
     return p.close.notna().astype(float).rolling(n, min_periods=1).sum() < n * 0.9
 
 
+# price and dollar levels on the panel's price basis (DECISIONS 98: the day's raw price on a CRSP raw
+# panel; the adjusted close otherwise, as before)
 def _h_price(p: Panel, x: float) -> pd.DataFrame:
-    return p.close < x
+    return level_close(p) < x
 
 
 def _h_liquidity(p: Panel, x: float) -> pd.DataFrame:
-    return (p.close * p.volume).rolling(MONTH, min_periods=MONTH).mean() < x * 1e6
+    return level_dollar_volume(p).rolling(MONTH, min_periods=MONTH).mean() < x * 1e6
 
 
 def _h_illiquid(p: Panel, x: float) -> pd.DataFrame:
-    return _top_share(_amihud(p), x)
+    return _top_share(_amihud(p, level=True), x)
 
 
 HYGIENE_SCREENS: dict[str, Screen] = {

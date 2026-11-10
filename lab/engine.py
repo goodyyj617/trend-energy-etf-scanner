@@ -22,10 +22,10 @@ import numpy as np
 import pandas as pd
 
 from .blocks import ALL_BLOCKS, ENTRY_BLOCKS, EXIT_BLOCKS, atr
-from .data import BENCHMARK, Panel
+from .data import BENCHMARK, Panel, has_raw, level_close, level_dollar_volume
 
 RULES_KO = """- 신호는 **t일 종가까지의 데이터**로 계산하고, 주문은 **t+1일 시가**에 체결합니다 (미래 데이터 사용 없음).
-- 진입: 선택한 진입 조건이 **모두** 참이고, 최소 주가·최소 거래대금 조건을 통과한 종목.
+- 진입: 선택한 진입 조건이 **모두** 참이고, 최소 주가·최소 거래대금 조건을 통과한 종목. (CRSP 개별 종목 데이터에 그날의 실제 거래 가격이 있으면 이 두 조건은 실제 가격으로 봅니다. 수익률과 지표는 늘 조정 가격입니다.)
 - 청산: 선택한 청산 조건 중 **하나라도** 참이면 다음 날 시가에 전량 매도.
 - 최대 보유 종목 수만큼 슬롯이 있고, 새 종목에는 min(목표 금액, 남은 현금)을 배정합니다. 이후 리밸런싱은 하지 않습니다.
 - 신호가 슬롯보다 많으면 20일 평균 거래대금이 큰 종목부터 삽니다. 선별 순위(`lab/screens.py`)가 있는 데이터에서는 순위가 좋은 종목부터 삽니다.
@@ -199,6 +199,7 @@ class SignalCache:
         self.panel = panel
         self._frames: dict[tuple[str, float | None], pd.DataFrame] = {}
         self._dv: dict[int, pd.DataFrame] = {}
+        self._level: dict = {}  # price-floor close and filter dollar volume on a raw-price panel (never shared)
         self._atr: pd.DataFrame | None = None
         self._memo: dict[tuple, object] = {}
 
@@ -253,6 +254,24 @@ class SignalCache:
         if days not in self._dv:
             self._dv[days] = (self.panel.close * self.panel.volume).rolling(days, min_periods=days).mean()
         return self._dv[days]
+
+    def level_close(self) -> pd.DataFrame:
+        """Close for the min_price filter: the panel's close, or the day's raw price on a CRSP panel that
+        carries it (DECISIONS 98)."""
+        if not has_raw(self.panel):
+            return self.panel.close
+        if "close" not in self._level:
+            self._level["close"] = level_close(self.panel)
+        return self._level["close"]
+
+    def level_dollar_volume(self, days: int) -> pd.DataFrame:
+        """Average dollar volume for the min_dollar_volume filter: dollar_volume(days), or raw close x raw
+        volume on a CRSP panel that carries them. The buying order keeps dollar_volume(days)."""
+        if not has_raw(self.panel):
+            return self.dollar_volume(days)
+        if ("dv", days) not in self._level:
+            self._level[("dv", days)] = level_dollar_volume(self.panel).rolling(days, min_periods=days).mean()
+        return self._level[("dv", days)]
 
     @property
     def atr14(self) -> pd.DataFrame:
@@ -334,7 +353,7 @@ def run_backtest(panel: Panel, cfg: StrategyConfig, cache: SignalCache | None = 
         for key, value in cfg.entries.items():
             f = cache.frame(key, value)
             entry = f if entry is None else (entry & f)
-        eligible = (panel.close >= cfg.min_price) & (dv >= cfg.min_dollar_volume)
+        eligible = (cache.level_close() >= cfg.min_price) & (cache.level_dollar_volume(liq) >= cfg.min_dollar_volume)
         if panel.eligible is not None:  # point-in-time universe: only that day's members may be bought
             eligible &= panel.eligible
         return (entry & eligible).loc[dates].to_numpy() & tradable
