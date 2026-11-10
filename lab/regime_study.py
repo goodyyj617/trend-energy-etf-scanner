@@ -103,14 +103,15 @@ def regime_stats(states: pd.DataFrame, wdates: pd.DatetimeIndex) -> pd.DataFrame
     return pd.DataFrame(rows)
 
 
-def ew_regime(ew: np.ndarray, cash: np.ndarray, state_w: np.ndarray, cost: float) -> np.ndarray:
+def ew_regime(ew: np.ndarray, cash: np.ndarray, state_w: np.ndarray, cost) -> np.ndarray:
     """Equal-weight universe held while the regime was on at the previous close, T-bill otherwise;
-    one-way cost on each switch day."""
+    one-way cost on each switch day. cost: a number, or per window day (array of len(ew); the switch
+    whose return lands on day t pays cost[t], DECISIONS 100). A number gives the result as before."""
     r = ew[1:] / ew[:-1] - 1.0
     on = state_w[:-1]
     d = np.where(on, r, cash[1:])
     sw = np.r_[False, on[1:] != on[:-1]]
-    d = d - np.where(sw, cost, 0.0)
+    d = d - np.where(sw, cost if np.ndim(cost) == 0 else np.asarray(cost, dtype=float)[1:], 0.0)
     return np.concatenate([[1.0], np.cumprod(1.0 + d)])
 
 

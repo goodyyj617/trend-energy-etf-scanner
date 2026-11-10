@@ -82,15 +82,21 @@ def goal_metrics(R: np.ndarray, C: np.ndarray, years: np.ndarray, wins: list[tup
     return out
 
 
-def bench_curves(px, wdates, w0, cash) -> dict:
+def bench_curves(px, wdates, w0, cash, spy_cost=None) -> dict:
     """Equity of SPY, SPY200 (cash when off) and the equal-weight universe on the window, built as
-    lab/entry_study.baselines."""
+    lab/entry_study.baselines. SPY200 pays no switching cost unless spy_cost is given (DECISIONS 100: a
+    number, or per window day; a switch decided at the close of t-1 pays cost[t] on day t's return)."""
     n = len(wdates)
     spy = pd.Series(px.spy_c[w0:w0 + n], index=wdates)
     r = spy.pct_change(fill_method=None).fillna(0.0)
     full_spy = pd.Series(px.spy_c, index=px.dates)
     on = (full_spy > full_spy.rolling(200).mean()).shift(1, fill_value=False).to_numpy()[w0:w0 + n]
-    ma = np.cumprod(1 + np.where(on, r.to_numpy(), cash))
+    if spy_cost is None:
+        ma = np.cumprod(1 + np.where(on, r.to_numpy(), cash))
+    else:
+        sw = np.r_[False, on[1:] != on[:-1]]
+        c = spy_cost if np.ndim(spy_cost) == 0 else np.asarray(spy_cost, dtype=float)
+        ma = np.cumprod(1 + np.where(on, r.to_numpy(), cash) - np.where(sw, c, 0.0))
     return {"mix": (spy / spy.iloc[0]).to_numpy(), "ma200": ma, "ew": px.ew[w0:w0 + n] / px.ew[w0]}
 
 
@@ -112,10 +118,11 @@ def _init(panel_dir: str, eligible: str, dirs: dict, cfg: dict):
     _W["bench"] = benchmarks_table(_W["px"], _W["wdates"], _W["w0"], _W["cash"])[1]
 
 
-def benchmarks_table(px, wdates, w0, cash) -> tuple[pd.DataFrame, dict]:
-    """The three benchmarks at their own w*: a table and the metrics by name (window CAGRs kept)."""
+def benchmarks_table(px, wdates, w0, cash, spy_cost=None) -> tuple[pd.DataFrame, dict]:
+    """The three benchmarks at their own w*: a table and the metrics by name (window CAGRs kept);
+    spy_cost as bench_curves."""
     sp = _setup(cash, wdates)
-    curves = bench_curves(px, wdates, w0, cash)
+    curves = bench_curves(px, wdates, w0, cash, spy_cost)
     names = list(BENCHMARKS)
     EQ = np.column_stack([curves[k] for k in names])
     R = EQ[1:] / EQ[:-1] - 1.0

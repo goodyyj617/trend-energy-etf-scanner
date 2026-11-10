@@ -81,10 +81,14 @@ def pseudo_rng(band: str, src: str, k: int) -> np.random.Generator:
     return np.random.default_rng([SEED, zlib.crc32(f"{band}|{src}".encode()), k])
 
 
-def top_n_ew(close: pd.DataFrame, member, cost: float) -> np.ndarray:
+def top_n_ew(close: pd.DataFrame, member, cost) -> np.ndarray:
     """Close-based level of an equal-weight universe rebuilt daily: names that are members at the close
     of t-1 earn their close-to-close return on t; one-way `cost` on the weight sold and bought when the
-    membership changes (members = the hygiene universe and no cost give tail_study.equal_weight_index)."""
+    membership changes (members = the hygiene universe and no cost give tail_study.equal_weight_index).
+    cost: a number, or per day x symbol (an array of close's shape; a name entering or leaving at the
+    close of t-1 pays row t's cost of its own column, DECISIONS 100). A number gives the result as before."""
+    if np.ndim(cost) == 2:
+        return _top_n_ew_cells(close, member, np.asarray(cost, dtype=float))
     r = (close / close.ffill().shift(1) - 1.0).to_numpy(dtype=float)
     m = np.asarray(member, dtype=bool)
     held = np.vstack([np.zeros((1, m.shape[1]), dtype=bool), m[:-1]])
@@ -98,6 +102,22 @@ def top_n_ew(close: pd.DataFrame, member, cost: float) -> np.ndarray:
             + np.where(npv > 0, (prev & ~held).sum(axis=1) / np.maximum(npv, 1), 0.0)
         day = day - cost * turn
     return np.cumprod(1.0 + day)
+
+
+def _top_n_ew_cells(close: pd.DataFrame, member, cost: np.ndarray) -> np.ndarray:
+    """top_n_ew with a cost per day x symbol: each entering name's weight 1 / n(t) pays its own cost,
+    each leaving name's weight 1 / n(t-1) its own."""
+    r = (close / close.ffill().shift(1) - 1.0).to_numpy(dtype=float)
+    m = np.asarray(member, dtype=bool)
+    held = np.vstack([np.zeros((1, m.shape[1]), dtype=bool), m[:-1]])
+    h = held & np.isfinite(r)
+    n = h.sum(axis=1)
+    day = np.where(n > 0, np.where(h, r, 0.0).sum(axis=1) / np.maximum(n, 1), 0.0)
+    prev = np.vstack([np.zeros((1, m.shape[1]), dtype=bool), held[:-1]])
+    nh, npv = held.sum(axis=1), prev.sum(axis=1)
+    c = np.nan_to_num(cost)
+    paid = np.where(nh > 0, np.where(held & ~prev, c, 0.0).sum(axis=1) / np.maximum(nh, 1), 0.0)         + np.where(npv > 0, np.where(prev & ~held, c, 0.0).sum(axis=1) / np.maximum(npv, 1), 0.0)
+    return np.cumprod(1.0 + day - paid)
 
 
 def beta(eq: np.ndarray, spy_r: np.ndarray) -> float:
