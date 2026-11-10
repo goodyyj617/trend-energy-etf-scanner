@@ -1330,6 +1330,65 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     Other dollar-level uses listed in the memo, unchanged. Trials +0 (74,174). Record:
     docs/research/lab/2026-11-11_stage_r_results.md.
 
+99. Stage S: the headline conclusions re-measured on the raw-price universe (follow-up fixed by
+    98's "large" verdict; user decision 2026-11-11 01:40 KST: fix the review's holes first;
+    registered before any run). Question: 98 re-measured only E7 and E0; do the five headline
+    conclusions of Stages I, O, P, Q hold when all 15 entries, the regime gates with their placebos
+    and the cap bands with their pseudo restrictions are rebuilt on the raw basis? No new rule,
+    value or combination. Rebuilt on raw (lab/crsp.DEFAULT_BASIS): signal tables E1-E9, V1-V6 x X1
+    / H1 (E7 and E0 tables from 98), M1 / P1 percentiles on the raw universe; regimes.parquet, seeds
+    and random streams as before; 1993-02 to 2023-12, nothing from 2024 on computed. Measured: (A)
+    regime_study's full grid (4 settings x 2 exits x 15 entries + E0 5 seeds x no gate and R1-R5 x
+    A1 / A2, 20 placebo regimes per regime x action at the two registered settings, 20 bp, 40 bp
+    for candidates); (B) large_study's full grid (U1000 / U500 x none, R1 / R3 / R4 / R5 A1, 10
+    pseudo restrictions per band); (C) Stage O's core = the 8 no-gate systems judged by 94's goal
+    metrics, plus the same 8 without M1; (D) Stage I's core = per entry the unlimited-slot account
+    (calendar_weighted, M1, 1% rule, X1 / H1) against the 5 E0 seeds and the 8 no-gate U3000 systems
+    against E0; (E) benchmarks: SPY mix and SPY200 unchanged, EW universe, top-N EW and EW x regime
+    rebuilt on raw; (F) per trade, 15 entries x X1: signals new on raw / common / adjusted-only
+    (per-entry table with bootstrap CI and Mann-Whitney, pooled histogram). Not rerun, with reason:
+    the rest of Stage O's grid (16 other settings, H9 / ST, the 11-exit axis: 1.4-2.8 pp below
+    SPY200 on the adjusted basis against a measured slot-account shift of +0.1 to +0.35 pp, and it
+    would need 15 x 11 tables), Stage I's original grid (H1 / H9 x k, no M1), and the selection of
+    M1 / P1 / exits / settings in Stages C-N (not re-selected). Verdicts: (1) repro first, else
+    stop: on the adjusted basis the new path fed with the stored Stage L tables equals Stage P's
+    and Stage Q's result tables (all entries, 20 bp and the stored 40 bp cells) to 1e-9; E2 and V3
+    tables rebuilt on adjusted equal the stored ones; on raw the E7 / E0 cells equal 98's raw
+    results (96 cells) to 1e-9. (2) Five conclusions, "holds" or "changed", the adjusted value
+    computed with the same function on the stored results: K1 entries are not distinguishable from
+    random buys - an entry is "above random" if its unlimited CAGR exceeds the maximum of the 5 E0
+    seeds for both exits in both halves and its dd_cagr exceeds E0's in 1993-2023 and both halves in
+    >= 6 of the 8 no-gate U3000 systems; changed if >= 2 of 15 (chance: each E0 seed judged against
+    the other four); K2 no goal-passing system without a gate (94's definition on the 8 systems;
+    changed if >= 1); K3 A1 gates beat placebo regimes and A2 does not (95's "gate helps" count
+    over 8 systems against Binomial(8, p0) q95; changed if any of R1 / R3 / R4 / R5 A1 falls to
+    chance or any A2 gate exceeds it); K4 no goal-passing system among the 120 gated / narrowed
+    systems (4 settings x 2 exits x 5 gates x 3 bands; changed if >= 1); K5 narrowing to large caps
+    leaves 2008-2023 unchanged (median over 40 systems of U1000 / U500 minus U3000, adjusted +0.09
+    / +0.19 pp; changed if either >= +0.5 pp; 96's "large caps help" count reported). (3) All hold:
+    the hygiene-filter hole is closed, the overview's numbers are replaced by the raw-basis ones,
+    the stages not rerun (C-N, the rest of O) are labelled "adjusted-basis universe, slot-account
+    effect +0.1 to +0.4 pp", next review item. Any changed: that conclusion is rewritten on the raw
+    result and the wider grid behind it is rerun under a further decision before anything builds on
+    it. Either way the raw-basis numbers become the record for O's core, P and Q (the correct
+    definition, not the better-scoring one). (4) Candidates, descriptive: 95's (U3000) and 96's
+    (bands) candidate conditions applied unchanged, entry-specific label, E0 seeds' pass rate, and
+    for near misses the shortfall in pp (98 lost a cell by 0.10 pp, inside seed noise); no DSR /
+    PSR (a second application of the conditions to the same sample is not evidence); the holdout
+    stays closed - 97 is cancelled and a look needs a new user decision naming the cells. (5)
+    Reported, not judged: systems beating the band's EW x same gate (116 of 120 on adjusted; EW
+    rose 1.7 pp), M1 and P1 effects, the 2008-2023 gap with beta, EW and unlimited accounts on both
+    bases. Trials +0 (74,174). Limits: M1 / P1 / exits / settings / regimes chosen on the adjusted
+    universe and not re-selected; same 31-year sample; P1 cells are single paths (seed sd 0.35-0.51
+    pp), so K1-K5 are judged on systems or counts and the candidate list stays noise-exposed; K1's
+    6-of-8 and 2-of-15 and K5's 0.5 pp are practical thresholds, the 8 systems are not independent;
+    other dollar-level uses of the adjusted close unchanged (the accounts use P0 / P1 only); flat 20
+    bp. Runner lab/rebase_study.py (basis_study's table building widened to 15 entries;
+    regime_study / large_study / goal_study functions called unchanged; no engine or replay_risk
+    change; stages repro -> tables -> accounts -> report), results lab_crsp/stage_s_raw,
+    aggregates docs/research/lab/2026-11-11_stage_s/, figures figures/stage_s_raw/. Design:
+    docs/research/lab/2026-11-11_stage_s_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;
