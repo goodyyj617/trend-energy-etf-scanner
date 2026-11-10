@@ -2991,6 +2991,40 @@ def chart_a42_5_sealed() -> go.Figure:
     return fig
 
 
+def chart_a43_transfer() -> go.Figure:
+    w = exps.a43_windows()
+    t = exps.a43_transfer()
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=w["구간"] + "<br><sup>" + w["기간"] + "</sup>", y=w["통과 수"], marker_color=BLUE, name="4단계 판정 통과 설정 수",
+                         text=w["통과 수"], textposition="outside", hovertemplate="%{x}: %{y}개<extra></extra>"))
+    lines = "<br>".join(f"{r['방향']}: 고른 {int(r['고르는 구간 통과 n'])}개 중 시험 구간 통과 {int(r['시험 구간 유지 k'])}개"
+                        for _, r in t.iterrows())
+    fig.update_layout(height=470, margin=dict(l=10, r=10, t=70, b=10), showlegend=False,
+                      title=dict(text="구간마다 4단계 판정을 다시 걸면 통과하는 설정 수 (15,714개 중, 대표 세트)<br>"
+                                      "<sup>2013년 이후에는 거의 아무것도 통과하지 못한다</sup>"),
+                      yaxis=dict(title="통과 설정 수"),
+                      annotations=[dict(text=lines, xref="paper", yref="paper", x=0.99, y=0.97, showarrow=False, align="right",
+                                        font=dict(size=11), bgcolor="rgba(255,255,255,0.7)")])
+    return fig
+
+
+def chart_a43_windows() -> go.Figure:
+    r = exps.a43_rep3()
+    wins = ["전반", "후반", "1구간", "2구간", "3구간"]
+    fig = go.Figure()
+    for k, (name, g) in enumerate(r.groupby("이름", sort=False)):
+        g = g.set_index("구간").reindex(wins)
+        fig.add_trace(go.Scatter(x=g["mdd"], y=g["cagr"], mode="markers+lines+text", name=name, text=wins, textposition="top center",
+                                 textfont=dict(size=9), marker=dict(size=9, color=PALETTE[k % len(PALETTE)]), line=dict(width=1, dash="dot"),
+                                 hovertemplate=name + "<br>%{text}: CAGR %{y:.2f}% · MDD %{x:.1f}%<extra></extra>"))
+    fig.add_vline(x=-15, line=dict(color=GRAY, dash="dash", width=1))
+    fig.update_layout(height=500, margin=dict(l=10, r=10, t=70, b=10), legend=dict(orientation="h", y=-0.2),
+                      title=dict(text="③과 참고 배분의 구간별 CAGR · MDD (대표 세트, 경로는 한 번 돌리고 구간으로 자름)<br>"
+                                      "<sup>전반 2000-09 – 2012, 후반 2013 – 2024, 1구간 – 2008, 2구간 2009 – 2016, 3구간 2017 – 2024</sup>"),
+                      xaxis=dict(title="MDD (%)"), yaxis=dict(title="CAGR (%)"))
+    return fig
+
+
 A44_OFFSETS = ["0", "1", "5", "10", "15", "4분할"]
 A44_OFFSET_KO = {"0": "월말", "1": "+1일", "5": "+5일", "10": "+10일", "15": "+15일", "4분할": "4분할"}
 
@@ -3085,6 +3119,8 @@ EXPERIMENT_CHARTS = {
     "a42_4_checks": chart_a42_4_checks,
     "a42_5_final": chart_a42_5_final,
     "a42_5_sealed": chart_a42_5_sealed,
+    "a43_transfer": chart_a43_transfer,
+    "a43_windows": chart_a43_windows,
     "a44_offsets": chart_a44_offsets,
     "a44_alone": chart_a44_alone,
 }
@@ -3394,8 +3430,8 @@ def summary_page() -> None:
     st.caption(f"어떤 조합이 왜 좋은가만 모았습니다 ({summ.AS_OF} 기준). 숫자는 2000-09 – 2024-12 원화, 분기 리밸런싱, 거래 비용 10bp, "
                "A42 대표 가격 세트(실제 가격 우선 · 환헤지 비용 60bp · CD91). '1990년대 MDD'는 한 번도 안 본 1991-03 – 2000-08 자료로 한 번만 본 낙폭입니다. "
                "세부 숫자와 시험 과정은 왼쪽 '세부 기록'과 docs/research/allocation/SUMMARY.md에 있습니다.")
-    st.info("목표는 '레버리지 없이 MDD −15% 안에서 수익을 최대로'입니다. 아래 다섯 개가 그 기준과 1990년대 시험(−20% 안)을 모두 넘었습니다. "
-            "모두 과거 자료로 본 결과이고, 실거래 성과를 보장하지 않습니다.")
+    st.info(f"목표는 '레버리지 없이 MDD −15% 안에서 수익을 최대로'입니다. 아래 {len(summ.PICKS)}개가 그 기준과 1990년대 시험(−20% 안)을 넘었고, "
+            "시간을 나눈 시험(A43)과 위성 결정일 시험(A44) 뒤에도 남은 신호 없는 배분입니다. 모두 과거 자료로 본 결과이고, 실거래 성과를 보장하지 않습니다.")
     sd = summ.scatter_data()
     fig = go.Figure()
     g = sd[sd["구분"] == "다른 후보"]
@@ -3411,7 +3447,7 @@ def summary_page() -> None:
                       title="수익(CAGR)과 최대 낙폭(MDD): 오른쪽 위일수록 좋음, 점선 오른쪽이 목표(−15% 안)",
                       xaxis=dict(title="MDD (%)", range=[-48, 0]), yaxis=dict(title="CAGR (%)"))
     st.plotly_chart(fig, width="stretch")
-    st.subheader("추천 조합 다섯 개")
+    st.subheader(f"추천 조합 {len(summ.PICKS)}개")
     for p in summ.PICKS:
         with st.container(border=True):
             c1, c2, c3, c4 = st.columns([3.2, 1, 1, 1.2])

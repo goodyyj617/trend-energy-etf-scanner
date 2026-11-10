@@ -708,6 +708,13 @@ A43. Test the rule that picks a dynamic setting out of time, not the picked sett
     procedure's time stability, not fresh data); the satellite exists only from 2007-02; R4–R6 start 2003-11; the
     1 %p / 3 %p thresholds are kept unchanged for the shorter windows. Paths are cut, not re-started, at a window's
     first day (the '전체' window must reproduce the stage-4 verdicts: `--check-stage4`).
+    Result (2026-11-11, lab PC, memo `2026-11-06_a43_timesplit.md`): J1 없음, J2 무너짐, J3 탈락. In all four directions
+    none of the selection-window passers (477 / 0 / 406 / 55) passed in the test window. Passers per window: 2000-09 –
+    2008 699, 2009 – 2016 95, 2017 – 2024 1, 2013 – 2024 0 — the stage-4 passes come almost entirely from the dot-com
+    crash and 2008. ③ passes the first half and fails the second (①, ②, extremes). `--check-stage4`: 15,712 of 15,714
+    verdicts equal (two boundary ties at 1e-7). By the fixed reading the stage-4/5 selection does not transfer in time
+    and the signal parts of ②, ③, ⑤ are not validated; with A44 removing the satellite, the summary now recommends only
+    signal-free allocations: (가), 안정형 40, and R6 + vol target 10 % (the stage-5 reference row, 7.27 / −7.7 %).
 
 A44. Decision-date, cost and mixing test of the satellite inside ② and ③ (design fixed 2026-11-11 before the run,
     memo `2026-11-11_a44_design.md`; code `lab/aa_satellite.py`, run `scripts/aa_a44_satellite.py`). Why: the
@@ -731,3 +738,9 @@ A44. Decision-date, cost and mixing test of the satellite inside ② and ③ (de
     the Korean product mapping (DBC → CD, hedged bonds) is as in stage 5; no tax or ISA limit; five offsets are five
     points, not a distribution; the tested combinations are post hoc. Not added to the DSR trial count (nothing is
     selected); one descriptive line in `trials_ledger.csv` after the run.
+    Result (2026-11-11, lab PC, memo `2026-11-11_a44_satellite.md`): the registered condition reproduces stage 5 (1e-6);
+    all four combinations 탈락 (W2 밖 for all, W3 failed for all, all 날짜 민감). Worst decision day +10: ③ −17.9 %,
+    (가) + satellite −19.6 %, ② and 현재 보유 + satellite −23.9 %; CAGR moves ~1 %p with the decision day. Four tranches:
+    ③ 8.69 / −10.1 %, (가) + satellite 8.63 / −12.3 % (both 안, both below (가) static 8.81 %), ② 8.44 / −15.7 % (경계).
+    Mixing cost (daily free → quarterly 10 bp) 0.04 – 0.06 %p. Satellite combinations leave the recommendations; ② and
+    ③ stay registered with a note that their numbers are a single month-end path.

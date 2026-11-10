@@ -46,6 +46,8 @@ A42_4_DIR = ALLOC / "2026-11-02_a42_stage4"  # A42 stage 4: dynamic layers (sign
 A42_4_MEMO = ALLOC / "2026-11-02_a42_stage4.md"
 A42_5_DIR = ALLOC / "2026-11-02_a42_stage5"  # A42 stage 5: final verdict, sealed window, ledger, representatives
 A42_5_MEMO = ALLOC / "2026-11-02_a42_stage5.md"
+A43_DIR = ALLOC / "2026-11-06_a43_timesplit"  # A43: time-split test of the stage-4 selection rule
+A43_MEMO = ALLOC / "2026-11-06_a43_timesplit.md"
 A44_DIR = ALLOC / "2026-11-11_a44_satellite"  # A44: decision date, cost and mixing of the satellite inside ② and ③
 A44_MEMO = ALLOC / "2026-11-11_a44_satellite.md"
 
@@ -61,7 +63,7 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check",
               "a42_2_walk", "a42_2_rebalance", "a42_3_declared", "a42_3_axes", "a42_3_overflow",
               "a42_4_tradeoff", "a42_4_checks", "a42_5_final", "a42_5_sealed",
-              "a44_offsets", "a44_alone")
+              "a43_transfer", "a43_windows", "a44_offsets", "a44_alone")
 
 
 @dataclass(frozen=True)
@@ -373,6 +375,21 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 봉인 구간은 대용 자료이고(금은 월간), 국고채·미국 배당·선진국·신흥국 자료가 없어 그 몫을 나머지에 나눴습니다. 동적 층의 통과는 4단계에서 가짜 신호를 겨우 넘은 것입니다."),
         ("a42_5_final", "a42_5_sealed"), A42_5_MEMO,
         "PNG 그림은 docs/research/allocation/figures/a42_stage5/"),
+    Experiment(
+        "a43", "2026-11-11", "A43", "A43: 동적 설정을 고르는 규칙을 시간으로 나눠 시험하기",
+        "③은 가짜 신호 선을 0.14%p로 넘은 한 칸짜리 봉우리였습니다. 그 주변을 더 뒤지는 대신 4단계의 고르는 절차 자체를 시험했습니다. "
+        "4단계와 같은 경로(대상 6 × 설정 873 × 위성 0·25·50%, 가격 세트 3, 가짜 신호 200개)를 고정 구간으로 잘라, 한 구간에서 4단계 판정으로 고르고 "
+        "다른 구간에서 성적을 봤습니다(전반 → 후반, 후반 → 전반, 2000–2016 → 2017–2024, 2009–2024 → 2000–2008). 판정 J1–J3은 실행 전에 고정했습니다.",
+        ("한 줄 답: J1 없음 · J2 무너짐 · J3 탈락. 고르는 구간에서 통과한 설정 중 시험 구간에서도 통과한 것이 네 방향 모두 0개입니다.",
+         "구간별 통과 수: 2000-09 – 2008 699개, 2009–2016 95개, 2017–2024 1개, 2013–2024 0개. 4단계 통과는 거의 전부 닷컴 붕괴와 2008년에서 나왔습니다.",
+         "2009–2024에서 고른 55개는 2000–2008에서 하나도 통과하지 못했습니다(아무것이나 고르면 4.4% 통과).",
+         "③은 전반 10.00% / −8.7%로 통과, 후반 7.99% / −8.5%로 가짜 신호 선(−7.9%)과 같은 비용 정적(−8.4%)을 넘지 못해 탈락했습니다.",
+         "읽는 법(미리 정함): 4·5단계의 선택은 시간 밖으로 전달되지 않았고, ②·③·⑤의 신호 부분은 검증된 발견이 아닙니다. "
+         "두 절반 모두 −15% 안인 것은 (가) 정적(8.97 / −13.7, 8.60 / −12.2), 안정형 40, 변동성 목표만 건 배분(R6 + 10%: −7.7, −7.4)입니다.",
+         "재현 점검: 전체 구간 판정이 4단계와 15,714행 중 15,712행 같음(나머지 2행은 경계 동점).",
+         "한계: 두 절반 모두 4단계가 이미 본 자료라 절차의 시간 안정성을 본 것입니다. 후반에는 위기가 2020·2022 둘뿐입니다. 원화·대용 자료·표본 내 연구입니다."),
+        ("a43_transfer", "a43_windows"), A43_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a43_timesplit/"),
     Experiment(
         "a44", "2026-11-11", "A44", "A44: ②·③ 안의 위성 50%를 결정일·비용·섞는 방식만 바꿔 다시 재기",
         "11-10 점검에서 A42 5단계의 정책 변형이 본체만 옮겼고, ②·③ 자산의 절반인 위성(HAA 50 + BAA 공격형 50, 국내 상품판)은 "
@@ -909,6 +926,28 @@ def a42_5_table(folder: Path | str = A42_5_DIR) -> pd.DataFrame:
     for c in ("cagr", "mdd", "순위값 (매달 시작 CAGR 하위 10%)", "24세트 최악 MDD", "봉인 구간 MDD", "이어 붙인 MDD"):
         m[c] = m[c] * 100
     return m
+
+
+def a43_windows(folder: Path | str = A43_DIR) -> pd.DataFrame:
+    """A43: number of stage-4 passers per window (representative-set verdict, all targets), from summary.json."""
+    import json
+    s = json.loads((Path(folder) / "summary.json").read_text(encoding="utf-8"))
+    order = list(s["windows"])
+    return pd.DataFrame([{"구간": w, "기간": " – ".join(s["windows"][w]), "통과 수": int(s["pass_by_window"].get(w, 0))} for w in order])
+
+
+def a43_rep3(folder: Path | str = A43_DIR) -> pd.DataFrame:
+    """A43: ③ and its reference rows per window, % units."""
+    r = pd.read_csv(Path(folder) / "rep3_windows.csv")
+    r["cagr"] = r["cagr"] * 100
+    r["mdd"] = r["mdd"] * 100
+    return r
+
+
+def a43_transfer(folder: Path | str = A43_DIR) -> pd.DataFrame:
+    """A43 rule A per direction (all targets together): passers in the selection window and how many kept passing."""
+    t = pd.read_csv(Path(folder) / "transfer.csv")
+    return t[t["대상"] == "전체"].reset_index(drop=True)
 
 
 def a44_table(folder: Path | str = A44_DIR) -> pd.DataFrame:
