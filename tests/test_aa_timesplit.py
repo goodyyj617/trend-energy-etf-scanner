@@ -184,3 +184,15 @@ def test_script_jobs_run_on_a_synthetic_context(tmp_path):
         assert (tmp_path / f).exists()
     V = pd.read_csv(tmp_path / "verdicts_by_window.csv.gz")
     assert len(V) == len(settings) * len(M.SAT) * len(TS.WINDOWS)
+
+
+def test_quick_subset_builds_and_contains_rep3():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("aa_a43_timesplit", ROOT / "scripts" / "aa_a43_timesplit.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    q = mod.quick_settings(LY.all_settings())
+    rep3 = LY.Setting(**{k: v for k, v in TS.REP3.items() if k in TS.SETTING_KEY})
+    assert rep3 in q and len(q) == len(set(q)) and 0 < len(q) < len(LY.all_settings())
+    order = LY.all_settings()
+    assert [order.index(s) for s in q] == sorted(order.index(s) for s in q)

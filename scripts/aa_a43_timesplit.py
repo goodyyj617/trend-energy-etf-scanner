@@ -241,6 +241,14 @@ def analyse(out: Path, R: pd.DataFrame, PL: pd.DataFrame, check: bool, meta: dic
     return summ
 
 
+def quick_settings(settings: list) -> list:
+    """The --quick subset: every fourth setting of three signals, plus ③'s own setting, in all_settings() order."""
+    pick = [s for s in settings if s.signal in ("none", "k2", "k4") and s.action in ("none", "riskcd", "safe")][::4]
+    rep3 = LY.Setting(**{k: v for k, v in TS.REP3.items() if k in TS.SETTING_KEY})
+    order = {s: i for i, s in enumerate(LY.all_settings())}
+    return sorted(set(pick) | {rep3}, key=lambda s: order.get(s, len(order)))
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True)
@@ -270,8 +278,7 @@ def main(argv):
     n_pl = PLACEBOS
     names = list(TARGET_NAMES)
     if args.quick:
-        settings = [s for s in settings if s.signal in ("none", "k2", "k4") and s.action in ("none", "riskcd", "safe")][::4]
-        settings = sorted(set(settings) | {LY.Setting(**{k: v for k, v in TS.REP3.items() if k in TS.SETTING_KEY})})
+        settings = quick_settings(settings)
         n_pl, names = 8, ["F4 (가)", "F3 현재 보유"]
     ctx = S4.build_context(args.quick)
     ctx["targets"] = {n: ctx["targets"][n] for n in names}
