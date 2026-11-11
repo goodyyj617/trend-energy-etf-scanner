@@ -811,3 +811,5 @@ A46. Probabilistic MDD verdict (design `2026-11-11_a46_design.md`, fixed before 
     the blocks; one price set for M2/M3 (model error is the next step); stationarity across rate regimes; stage-3b tax
     simplifications; R6 family from 2003-11; targets chosen after A43–A45. Not added to the DSR trial count; one
     descriptive ledger line after the run.
+    User decision before the run (2026-11-11 21:10 KST, card): the probabilistic zone becomes the main criterion of
+    the summary; the single-path MDD (baseline and after tax) stays as a reference number. Rules unchanged.
