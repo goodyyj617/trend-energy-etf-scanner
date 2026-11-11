@@ -813,3 +813,15 @@ A46. Probabilistic MDD verdict (design `2026-11-11_a46_design.md`, fixed before 
     descriptive ledger line after the run.
     User decision before the run (2026-11-11 21:10 KST, card): the probabilistic zone becomes the main criterion of
     the summary; the single-path MDD (baseline and after tax) stays as a reference number. Rules unchanged.
+    Result (2026-11-11, lab PC, memo `2026-11-11_a46_probmdd.md`): reproduction passed (bootstrap code = DynamicSim 0.0,
+    vol levels identical; M3 = A45 1e-16; M1 = stage-5 24-set file 3.9e-7, REP 16-variant worst 2.3e-7). Probabilistic
+    zones: 안정형 40 안 (M3 median −13.8 %, q10 −17.0, inside −15 % 73 %), R6 + vol 10 % 안 (−10.2, 98 %), R6 static
+    안, same-average-exposure static 안, (가) 경계 (Z1, Z2 안 with M2 median −14.5 %; Z3 median −15.6 %, q10 −19.9, 42 %;
+    same direction as A45's never-sold gold account, not re-run here), 현재 보유 / 60/40 / S&P500 밖. Z2 identical for
+    blocks 63 and 252. Historical MDD was shallower than most resampled paths for the diversified mixes (R6 + vol 88 %,
+    (가) 73 %) and deeper for S&P500 (22 %), consistent with blocks cutting long bear markets. Layer 층 약함: paired
+    ΔMDD median +0.63 %p (M2), +0.40 %p (M3), positive in 61 % / 62 % of paths, ~20 % of paths with no difference
+    (the layer never cut), CAGR −0.01 %p; M1 median +2.95 %p (75 % of cells ≥ 2 %p) but −0.26 %p with the vol decision
+    at month end + 10 days. Per the fixed reading: the summary's zone column becomes the probabilistic zone; (가)'s
+    경계 is shown with its cause, not removed; ③ gets the 'layer weak on resampled paths' caveat and a switch to the
+    static R6 is left to the user. Ledger: one descriptive line (M1 5,376 cells + M2 24,000 + M3 5,000 paths).
