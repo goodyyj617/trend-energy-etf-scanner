@@ -50,6 +50,8 @@ A43_DIR = ALLOC / "2026-11-06_a43_timesplit"  # A43: time-split test of the stag
 A43_MEMO = ALLOC / "2026-11-06_a43_timesplit.md"
 A44_DIR = ALLOC / "2026-11-11_a44_satellite"  # A44: decision date, cost and mixing of the satellite inside ② and ③
 A44_MEMO = ALLOC / "2026-11-11_a44_satellite.md"
+A45_DIR = ALLOC / "2026-11-11_a45_aftertax"  # A45: after-tax table of the recommended allocations, vol layer after tax
+A45_MEMO = ALLOC / "2026-11-11_a45_aftertax.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -63,7 +65,7 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check",
               "a42_2_walk", "a42_2_rebalance", "a42_3_declared", "a42_3_axes", "a42_3_overflow",
               "a42_4_tradeoff", "a42_4_checks", "a42_5_final", "a42_5_sealed",
-              "a43_transfer", "a43_windows", "a44_offsets", "a44_alone")
+              "a43_transfer", "a43_windows", "a44_offsets", "a44_alone", "a45_table", "a45_layer")
 
 
 @dataclass(frozen=True)
@@ -405,6 +407,22 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 위성은 2007년부터만 있고, 다섯 결정일은 분포가 아니라 다섯 점입니다. 본체 결정일은 등록 그대로, 세금은 없습니다. 원화·대용 자료·표본 내 연구입니다."),
         ("a44_offsets", "a44_alone"), A44_MEMO,
         "PNG 그림은 docs/research/allocation/figures/a44_satellite/. 등록 동적 프리셋은 ‘동적 프리셋 (사후)’ 페이지"),
+    Experiment(
+        "a45", "2026-11-11", "A45", "A45: 추천 배분 세 개의 세후 최종 표, 그리고 변동성 목표 층이 세금 뒤에도 남는가",
+        "A43·A44 뒤 남은 추천 세 개((가), 안정형 40, R6 + 변동성 목표 10%)의 숫자는 모두 '한 계좌 · 목돈 · 10bp · 세금 없음'의 값이었습니다. "
+        "변동성 목표 배분만 계좌 시뮬레이터가 고정 비중만 받아서 실제 계좌 조건으로 재지 못했기에, 시뮬레이터가 시간에 따라 바뀌는 목표를 받도록 고치고 "
+        "3b의 계좌 정책 648가지(+ 기준선)에 일곱 대상을 넣었습니다. 변동성 목표의 MDD 이점이 '평균 노출이 낮아서'인지 보려고 같은 평균 노출의 정적(R6 × k̄ + CD)도 함께 쟀습니다. "
+        "판정 X1(세후 구역) · X2(세후 비용 표시) · X3(층 유지/비쌈/없음)은 실행 전에 고정했습니다.",
+        ("한 줄 답: 선언 정책(분리 계좌 · 매월 입금 · 상품별 비용 · ISA 일반형 · 한도 · 한도 밖 일반 계좌 굴림)의 세후 숫자는 (가) 8.21% / −15.1%(경계), "
+         "안정형 40 6.86% / −14.0%(안), R6 + 변동성 목표 10% 6.55% / −8.0%(안)입니다. 순서는 세전과 같고, 세금·비용으로 CAGR이 0.6–1.0%p 깎입니다.",
+         "(가)의 '경계'는 세금이 아니라 금현물 계좌 규칙(입금으로만 채우고 팔지 않음) 때문입니다. 한 계좌로 두면 같은 조건에서 −13.7%입니다. 648가지 중 (가)가 −15% 안인 것은 58%입니다.",
+         "X3 층 유지: 세후에도 변동성 목표가 같은 평균 노출의 정적보다 MDD 2.9%p 얕고 CAGR은 0.03%p만 낮습니다. 변동성 층이 세금을 더 내지도 않았습니다(−0.04%p).",
+         "그러나 노출을 크게 줄인 것은 2008-10 – 2009-08 한 번뿐입니다(k 최저 0.3, 노출 < 1인 날 7%). 2022년에는 줄이지 않았습니다. 층의 이점은 사실상 2008년 한 사건에서 옵니다.",
+         "실행 방식에 민감합니다: '새 입금 + 연 1회 보정'으로 운용하면 216가지 모두 층이 사라집니다. 노출 변경은 다음 거래일에 바로 반영해야 합니다.",
+         "재현 점검: 정적 다섯 개는 3b와 3.3e-7 안, 변동성 목표는 같은 관례의 5단계 계산과 경로 전체 4.6e-14로 같습니다.",
+         "한계: 대표 가격 세트 하나, 3b의 단순한 세금 규칙, R6 계열은 2003-11부터(닷컴 없음). 원화·대용 자료·표본 내 연구입니다."),
+        ("a45_table", "a45_layer"), A45_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a45_aftertax/. 추천 표의 세후 열은 ‘한눈에 보는 결론’"),
 )
 
 
@@ -958,6 +976,24 @@ def a44_table(folder: Path | str = A44_DIR) -> pd.DataFrame:
     r["cagr"] = r["cagr"] * 100
     r["mdd"] = r["mdd"] * 100
     return r.reset_index(drop=True)
+
+
+def a45_table(folder: Path | str = A45_DIR) -> pd.DataFrame:
+    """A45 after-tax table (declared policy vs baseline), % units."""
+    t = pd.read_csv(Path(folder) / "table.csv")
+    for c in ("기준선 CAGR", "기준선 MDD", "세후 CAGR (TWR)", "세후 MDD (TWR)", "세후 IRR", "정책 CAGR 최소", "정책 CAGR 최대",
+              "정책 MDD 최악"):
+        t[c] = t[c] * 100
+    return t
+
+
+def a45_layer(folder: Path | str = A45_DIR) -> tuple[pd.DataFrame, pd.Series]:
+    """A45 X3 under every policy (%p units) and the exposure k held each day by R6 + vol target 10 %."""
+    lay = pd.read_csv(Path(folder) / "layer.csv", keep_default_na=False, na_values=[""])
+    for c in ("MDD 이점 (vs 평균 노출)", "CAGR 손실 (vs 평균 노출)", "MDD 이점 (vs 정적)", "CAGR 손실 (vs 정적)"):
+        lay[c] = lay[c] * 100
+    k = pd.read_csv(Path(folder) / "exposure.csv", index_col=0, parse_dates=True)["k"]
+    return lay, k
 
 
 def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:

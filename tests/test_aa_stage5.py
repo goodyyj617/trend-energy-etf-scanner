@@ -71,3 +71,12 @@ def test_summary_numbers_match_stage5():
         assert str(r["최종"]).endswith("통과") and str(r["봉인 판정 (MDD ≥ −20%)"]).endswith("통과")
         assert not str(r["최종"]).endswith("탈락")
     assert (S.ALLOC / "SUMMARY.md").exists() and len(S.scatter_data()) == len(m)
+
+
+def test_summary_after_tax_numbers_match_a45():
+    from lab import aa_summary as S
+    t = pd.read_csv(S.A45).set_index("대상")
+    for p in S.PICKS:
+        r = t.loc[p.a45_name]
+        assert round(r["세후 CAGR (TWR)"] * 100, 2) == p.after_cagr and round(r["세후 MDD (TWR)"] * 100, 1) == p.after_mdd
+        assert r["X1 세후 구역"] == p.after_zone

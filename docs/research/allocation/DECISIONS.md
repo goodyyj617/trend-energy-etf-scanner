@@ -744,3 +744,45 @@ A44. Decision-date, cost and mixing test of the satellite inside ② and ③ (de
     ③ 8.69 / −10.1 %, (가) + satellite 8.63 / −12.3 % (both 안, both below (가) static 8.81 %), ② 8.44 / −15.7 % (경계).
     Mixing cost (daily free → quarterly 10 bp) 0.04 – 0.06 %p. Satellite combinations leave the recommendations; ② and
     ③ stay registered with a note that their numbers are a single month-end path.
+
+A45. After-tax final table of the recommended allocations, and whether the volatility-target layer survives the account
+    conditions (design fixed 2026-11-11 before the run, memo `2026-11-11_a45_design.md`; code `lab/aa_aftertax.py`,
+    run `scripts/aa_a45_aftertax.py`). Why: after A43 · A44 the summary recommends only signal-free allocations
+    ((가) static, 안정형 40, R6 + vol target 10 %), all quoted at one account · lump sum · 10 bp · no tax. (가) and
+    안정형 40 were measured under real account conditions in stage 3b, R6 + vol target 10 % was not, because
+    `aa_accounts.run_policy` only took fixed weights; the vol target trades every month its exposure k moves, and the
+    money over the ISA limit (general account) pays 15.4 % on overseas and bond ETF gains at each sale. Also, its MDD
+    edge over static R6 may come from a lower average exposure rather than from timing; a static R6 × k̄ + CD (k̄ =
+    average exposure held) gets that without trading. `run_policy(targets=)` now takes a T × N target array (row t =
+    the target a decision at the close of t picks, traded at the next close; a changed row is a decision; constant
+    rows give the old numbers bit for bit; the baseline policy equals `DynamicSim`). Seven targets ((가), 안정형 40,
+    R6 + vol 10 %, R6 static, R6 at the same average exposure, 현재 보유, S&P500; stage-3 target file) × the baseline
+    and the 648 stage-3b policies, representative price set, own window to 2024-12 (judged) and the common window
+    from 2003-11-07 (baseline and declared policy only). Reproduction before the sweep: the vol allocation under the
+    stage-5 condition equals the stage-5 reference row, and the statics equal the stage-3b verdicts (1e-6), else stop.
+    Verdicts under the declared policy (3b): X1 after-tax TWR MDD zone (안 / 경계 / 밖); X2 the stage-3b marks
+    (CAGR gap > 0.5 %p or MDD gap > 2 %p); X3 the vol allocation vs the same-average-exposure static: MDD ≥ 2 %p
+    shallower and CAGR loss ≤ 0.5 %p → 층 유지, MDD edge but CAGR loss > 0.5 %p → 층 비쌈, else 층 없음 (the share
+    of the 648 policies meeting 층 유지 is reported, not judged). Reading fixed in advance: the summary's
+    recommendation table gets after-tax columns; 층 유지 keeps recommendation ③ as is; 층 비쌈 / 층 없음 adds 'no
+    after-tax evidence for the vol layer (vs the same average exposure)' to ③ and leaves a switch to the user (k̄ is
+    in-sample, so the static is not promoted by this test); an after-tax 경계 / 밖 among the three is reported, not
+    removed (the probabilistic MDD step decides). No vol level, weight or policy is chosen from the result. Limits
+    written before the run: one price set; stage-3b tax simplifications; the gold account is never sold, so with split
+    accounts the vol target cannot cut the 6 % gold; R6 starts 2003-11 (no dot-com); the comparison static is post
+    hoc. Not added to the DSR trial count; one descriptive line in `trials_ledger.csv` after the run.
+    Change before the verdict run (design change log, 2026-11-11 21:00 KST): the quick check stopped on (a) at 2.05e-6
+    (tolerance 1e-6). Cause: DynamicSim holds the target from the start of the first day and lets that day's return
+    move the weights, the account simulator buys at the first close; R6's window starts 2003-11-07 inside the panel.
+    (a) now requires the account path to equal stage 5's computation without the first day's drift (1e-9, whole path)
+    and the stage-5 file within 1e-5. Verdicts, targets, policies unchanged.
+    Result (2026-11-11, lab PC, memo `2026-11-11_a45_aftertax.md`): reproduction passed (statics vs 3b ≤ 3.3e-7; vol
+    path vs stage 5's computation with the same first day 4.6e-14, vs the file 2.0e-6). Declared policy after tax
+    (TWR): (가) 8.21 / −15.1 % (X1 경계; from the never-sold gold account, single account −13.7 %; 58 % of the 648
+    policies inside −15 %), 안정형 40 6.86 / −14.0 % (안, all 648 inside), R6 + vol 10 % 6.55 / −8.0 % (안), R6 static
+    6.66 / −11.2, same-average-exposure static (k̄ 0.977) 6.57 / −11.0; X2 marked for all (CAGR −0.6 … −1.0 %p). X3
+    층 유지: MDD 2.94 %p shallower than the same-average-exposure static for 0.03 %p CAGR; the layer pays no extra
+    tax (−0.04 %p); 층 유지 in 55 % of the 648 policies, none with the 'deposit' execution (exposure changes only
+    traded in December). The exposure fell below 1 on 7 % of days and deeply only once (2008-10 – 2009-08, k 0.3),
+    not in 2022: the layer's edge rests on one episode. Per the fixed reading, the summary gets after-tax columns,
+    recommendation ③ stays with that caveat, (가)'s 경계 is reported, not removed.
