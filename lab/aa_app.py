@@ -3072,6 +3072,55 @@ def chart_a44_alone() -> go.Figure:
     return fig
 
 
+def chart_a45_table() -> go.Figure:
+    from plotly.subplots import make_subplots
+    t = exps.a45_table()
+    fig = make_subplots(rows=1, cols=2, subplot_titles=("CAGR (%)", "MDD (%)"))
+    for col, (b, d) in enumerate((("기준선 CAGR", "세후 CAGR (TWR)"), ("기준선 MDD", "세후 MDD (TWR)")), start=1):
+        fig.add_trace(go.Bar(x=t["대상"], y=t[b], name="한 계좌 · 목돈 · 비용·세금 없음", marker_color=PALETTE[0], showlegend=col == 1,
+                             legendgroup="b", hovertemplate="%{x}: %{y:.2f}%<extra></extra>"), row=1, col=col)
+        fig.add_trace(go.Bar(x=t["대상"], y=t[d], name="선언 정책 세후 (TWR)", marker_color=PALETTE[1], showlegend=col == 1,
+                             legendgroup="d", text=t["X1 세후 구역"] if col == 2 else None, textposition="outside",
+                             hovertemplate="%{x}: %{y:.2f}%<extra></extra>"), row=1, col=col)
+    fig.add_hline(y=-15, line=dict(color=GRAY, dash="dash", width=1), row=1, col=2)
+    fig.add_hline(y=-17, line=dict(color=GRAY, dash="dot", width=1), row=1, col=2)
+    fig.update_layout(height=470, margin=dict(l=10, r=10, t=90, b=10), barmode="group", legend=dict(orientation="h", y=-0.3),
+                      title=dict(text="같은 비중, 실제 계좌 조건만 넣었을 때: 기준선 vs 세후<br>"
+                                      "<sup>선언 정책 = ISA + 금현물 분리 · 1,000만 + 매월 100만 · 상품별 비용 · ISA 일반형 · 한도 · 한도 밖 일반 계좌 굴림. "
+                                      "MDD 막대 위 글자 = 세후 구역(−15% 안 / −17% 경계)</sup>"))
+    return fig
+
+
+def chart_a45_layer() -> go.Figure:
+    from plotly.subplots import make_subplots
+    lay, k = exps.a45_layer()
+    fig = make_subplots(rows=1, cols=2, column_widths=[0.55, 0.45],
+                        subplot_titles=("변동성 목표 vs 같은 평균 노출의 정적, 정책 649가지", "R6 + 변동성 목표 10%의 노출 k"))
+    pol = lay[~lay["기준선"].astype(bool)]
+    for ex, color in (("full", PALETTE[0]), ("band", PALETTE[2]), ("deposit", PALETTE[3])):
+        g = pol[pol["execution"] == ex]
+        fig.add_trace(go.Scatter(x=g["MDD 이점 (vs 평균 노출)"], y=g["CAGR 손실 (vs 평균 노출)"], mode="markers",
+                                 name={"full": "실행: 분기 전체", "band": "실행: 밴드 5%p", "deposit": "실행: 새 입금 + 연 1회 보정"}[ex],
+                                 marker=dict(size=5, color=color, opacity=0.6), text=g["X3"],
+                                 hovertemplate="MDD 이점 %{x:.2f}%p · CAGR 손실 %{y:.2f}%p<br>%{text}<extra></extra>"), row=1, col=1)
+    for flag, name, sym in (("선언 정책", "선언 정책", "star"), ("기준선", "기준선", "square")):
+        g = lay[lay[flag].astype(bool)]
+        fig.add_trace(go.Scatter(x=g["MDD 이점 (vs 평균 노출)"], y=g["CAGR 손실 (vs 평균 노출)"], mode="markers", name=name,
+                                 marker=dict(size=14, color=ORANGE if flag == "선언 정책" else RED, symbol=sym),
+                                 hovertemplate=name + ": MDD 이점 %{x:.2f}%p · CAGR 손실 %{y:.2f}%p<extra></extra>"), row=1, col=1)
+    fig.add_vline(x=2.0, line=dict(color=GRAY, dash="dash", width=1), row=1, col=1)
+    fig.add_hline(y=0.5, line=dict(color=GRAY, dash="dash", width=1), row=1, col=1)
+    fig.add_trace(go.Scatter(x=k.index, y=k.to_numpy(), mode="lines", name="노출 k", line=dict(color=PALETTE[0], width=1.2),
+                             hovertemplate="%{x|%Y-%m}: k %{y:.2f}<extra></extra>"), row=1, col=2)
+    fig.update_xaxes(title_text="MDD 이점 (%p, +면 변동성 목표가 얕음)", row=1, col=1)
+    fig.update_yaxes(title_text="CAGR 손실 (%p)", row=1, col=1)
+    fig.update_yaxes(range=[0, 1.05], row=1, col=2)
+    fig.update_layout(height=500, margin=dict(l=10, r=10, t=90, b=10), legend=dict(orientation="h", y=-0.25),
+                      title=dict(text="X3: 변동성 목표 층의 세후 값 (점선 오른쪽 아래 = 층 유지)<br>"
+                                      f"<sup>같은 평균 노출의 정적 = R6 × k̄ + CD (k̄ = {k.mean():.3f}). 노출을 크게 줄인 것은 2008-10 – 2009-08 한 번</sup>"))
+    return fig
+
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -3123,6 +3172,8 @@ EXPERIMENT_CHARTS = {
     "a43_windows": chart_a43_windows,
     "a44_offsets": chart_a44_offsets,
     "a44_alone": chart_a44_alone,
+    "a45_table": chart_a45_table,
+    "a45_layer": chart_a45_layer,
 }
 
 
@@ -3431,7 +3482,8 @@ def summary_page() -> None:
                "A42 대표 가격 세트(실제 가격 우선 · 환헤지 비용 60bp · CD91). '1990년대 MDD'는 한 번도 안 본 1991-03 – 2000-08 자료로 한 번만 본 낙폭입니다. "
                "세부 숫자와 시험 과정은 왼쪽 '세부 기록'과 docs/research/allocation/SUMMARY.md에 있습니다.")
     st.info(f"목표는 '레버리지 없이 MDD −15% 안에서 수익을 최대로'입니다. 아래 {len(summ.PICKS)}개가 그 기준과 1990년대 시험(−20% 안)을 넘었고, "
-            "시간을 나눈 시험(A43)과 위성 결정일 시험(A44) 뒤에도 남은 신호 없는 배분입니다. 모두 과거 자료로 본 결과이고, 실거래 성과를 보장하지 않습니다.")
+            "시간을 나눈 시험(A43)과 위성 결정일 시험(A44) 뒤에도 남은 신호 없는 배분입니다. '실제 계좌 세후'는 ISA·금현물 분리 계좌, 매월 입금, "
+            "세금, ISA 한도를 넣은 숫자입니다(A45). 모두 과거 자료로 본 결과이고, 실거래 성과를 보장하지 않습니다.")
     sd = summ.scatter_data()
     fig = go.Figure()
     g = sd[sd["구분"] == "다른 후보"]
@@ -3450,11 +3502,16 @@ def summary_page() -> None:
     st.subheader(f"추천 조합 {len(summ.PICKS)}개")
     for p in summ.PICKS:
         with st.container(border=True):
-            c1, c2, c3, c4 = st.columns([3.2, 1, 1, 1.2])
+            c1, c2, c3, c4, c5 = st.columns([3.0, 1, 1, 1.2, 1.5])
             c1.markdown(f"**{p.rank}. {p.name}**  \n<small>{p.kind}</small>", unsafe_allow_html=True)
             c2.metric("CAGR", f"{p.cagr:.2f}%")
             c3.metric("MDD", f"{p.mdd:.1f}%")
             c4.metric("1990년대 MDD", f"{p.sealed_mdd:.1f}%")
+            c5.metric("실제 계좌 세후 CAGR", f"{p.after_cagr:.2f}%", help=(
+                "A45 선언 정책: ISA + 금현물 분리 계좌 · 1,000만 원 + 매월 100만 원 · 분기 전체 리밸런싱 · 상품별 수수료와 반 스프레드 · "
+                "ISA 일반형 세금 · 연 2,000만 · 총 1억 한도 · 한도 밖 돈은 일반 계좌에서 같은 ETF로 굴림. 시간가중 CAGR / MDD. "
+                f"세후 구역: {p.after_zone}"))
+            c5.caption(f"세후 MDD {p.after_mdd:.1f}% · 구역 {p.after_zone}")
             st.caption(p.weights)
             a, b = st.columns(2)
             a.markdown("**왜 좋은가**\n" + "\n".join(f"- {x}" for x in p.why))

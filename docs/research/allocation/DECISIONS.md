@@ -776,3 +776,13 @@ A45. After-tax final table of the recommended allocations, and whether the volat
     move the weights, the account simulator buys at the first close; R6's window starts 2003-11-07 inside the panel.
     (a) now requires the account path to equal stage 5's computation without the first day's drift (1e-9, whole path)
     and the stage-5 file within 1e-5. Verdicts, targets, policies unchanged.
+    Result (2026-11-11, lab PC, memo `2026-11-11_a45_aftertax.md`): reproduction passed (statics vs 3b ≤ 3.3e-7; vol
+    path vs stage 5's computation with the same first day 4.6e-14, vs the file 2.0e-6). Declared policy after tax
+    (TWR): (가) 8.21 / −15.1 % (X1 경계; from the never-sold gold account, single account −13.7 %; 58 % of the 648
+    policies inside −15 %), 안정형 40 6.86 / −14.0 % (안, all 648 inside), R6 + vol 10 % 6.55 / −8.0 % (안), R6 static
+    6.66 / −11.2, same-average-exposure static (k̄ 0.977) 6.57 / −11.0; X2 marked for all (CAGR −0.6 … −1.0 %p). X3
+    층 유지: MDD 2.94 %p shallower than the same-average-exposure static for 0.03 %p CAGR; the layer pays no extra
+    tax (−0.04 %p); 층 유지 in 55 % of the 648 policies, none with the 'deposit' execution (exposure changes only
+    traded in December). The exposure fell below 1 on 7 % of days and deeply only once (2008-10 – 2009-08, k 0.3),
+    not in 2022: the layer's edge rests on one episode. Per the fixed reading, the summary gets after-tax columns,
+    recommendation ③ stays with that caveat, (가)'s 경계 is reported, not removed.
