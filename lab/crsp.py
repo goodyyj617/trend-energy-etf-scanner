@@ -14,6 +14,18 @@ that the last price equals |PRC| / CFACPR; open, high and low are scaled by the 
 Volume is VOL x CFACPR so that close x volume stays the day's dollar volume. Days without a
 trade (PRC < 0, a bid/ask midpoint) get high = low = close.
 
+Raw prices (DECISIONS 98): extra_raw_close / extra_raw_volume beside the panel hold the day's CRSP
+|PRC| (a bid/ask midpoint on a day without a trade) and VOL on the panel's dates and symbols
+(build_raw). The adjusted close is anchored at the panel's last date, so a price floor or a dollar
+volume on it depends on later splits and dividends; on the "raw" basis the hygiene screens and the
+engine's min_price / min_dollar_volume read the raw series instead (lab/data.level_close,
+level_dollar_volume). load_panel(basis=...) chooses: "adjusted" never loads them (the definitions
+of Stages C-Q), "raw" loads them when they exist. The default is DEFAULT_BASIS ("raw" since
+Stage R; a panel folder without the raw files still loads as before), which the environment variable
+LAB_PRICE_BASIS (e.g. "adjusted" to rebuild a Stage C-Q table) overrides for any runner and its
+worker processes. Runners that read a stored eligible_daily.parquet or stored signal tables keep the
+basis those files were made on.
+
 Delisting: on the trading day after a stock's last CRSP row with a delisting code, one
 synthetic bar is added at last close x (1 + DLRET), so the engine's forced "delist" exit sells
 at that price. A missing DLRET is -30% for performance delistings (codes 500, 520-584,
@@ -23,13 +35,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from .data import BENCHMARK, FIELDS, Panel
+from .data import BASES, BENCHMARK, FIELDS, RAW_CLOSE, RAW_VOLUME, Panel
 
 SPY_PERMNO = "84398"
 COMMON_SHRCD = {"10", "11"}
@@ -39,6 +52,9 @@ COLUMNS = ["PERMNO", "date", "SHRCD", "EXCHCD", "TICKER", "SICCD", "PRC", "VOL",
 EXTRA = ("cap", "dividend")  # per-symbol series beyond OHLCV: market value ($M) and daily dividend yield
 TOP_N = 1000
 DAILY_CAP_WINDOW = 21  # sessions of market value averaged for the daily universe (DECISIONS 81)
+RAW_EXTRA = (RAW_CLOSE, RAW_VOLUME)
+# raw since Stage R (DECISIONS 98): the corrected definition. LAB_PRICE_BASIS=adjusted reproduces Stages C-Q.
+DEFAULT_BASIS = os.environ.get("LAB_PRICE_BASIS", "raw")
 
 
 def source_files(src: Path) -> list[Path]:
@@ -259,17 +275,74 @@ def save_panel(panel: Panel, info: pd.DataFrame, meta: dict, out: Path) -> None:
     (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
-def load_panel(out: Path) -> Panel:
+def resolve_basis(basis: str | None) -> str:
+    basis = basis or DEFAULT_BASIS
+    if basis not in BASES:
+        raise ValueError(f"가격 기준은 {BASES} 중 하나입니다: {basis}")
+    return basis
+
+
+def load_panel(out: Path, basis: str | None = None) -> Panel:
+    """basis 'raw' adds the raw price and volume series when the folder has them (DECISIONS 98)."""
+    basis = resolve_basis(basis)
     tables = {f: pd.read_parquet(out / f"{f}.parquet") for f in FIELDS}
     eligible = pd.read_parquet(out / "eligible.parquet")
     info = pd.read_csv(out / "info.csv", dtype={"symbol": str, "name": str})
     meta = json.loads((out / "meta.json").read_text(encoding="utf-8"))
     symbols = list(tables["close"].columns)
-    extra = {k: pd.read_parquet(out / f"extra_{k}.parquet") for k in EXTRA + ("cap_rank",)
-             if (out / f"extra_{k}.parquet").exists()}
+    keys = EXTRA + ("cap_rank",) + (RAW_EXTRA if basis == "raw" else ())
+    extra = {k: pd.read_parquet(out / f"extra_{k}.parquet") for k in keys if (out / f"extra_{k}.parquet").exists()}
+    if basis == "raw" and not all(k in extra for k in RAW_EXTRA):  # both or neither
+        extra = {k: v for k, v in extra.items() if k not in RAW_EXTRA}
     return Panel(**tables, info=info, source=f"CRSP 시점별 시가총액 상위 {meta['top_n']} (보통주)",
                  tradable=[s for s in symbols if s != BENCHMARK], kind="crsp", eligible=eligible, delist_exit=True,
                  extra=extra)
+
+
+def raw_series(files: list[Path], symbols: list[str], dates: pd.DatetimeIndex, log=print) -> dict[str, pd.DataFrame]:
+    """The day's CRSP |PRC| (raw_close), VOL (raw_volume) and |PRC| x SHROUT / 1000 (cap, a check of the
+    alignment against the panel's extra_cap) on a panel's dates and symbols (SPY = PERMNO 84398), from
+    the same rows the panel was built from (read_block). NaN where CRSP has no value."""
+    permno = {s: (SPY_PERMNO if s == BENCHMARK else s) for s in symbols}
+    wanted = set(permno.values())
+    parts = []
+    for f in files:
+        df = read_block(f, wanted, columns=["PERMNO", "date", "SHRCD", "EXCHCD", "PRC", "VOL", "SHROUT"])
+        parts.append(df[["PERMNO", "date", "PRC", "VOL", "SHROUT"]])
+        log(f"  {f.name}: {len(df):,}행")
+    long = pd.concat(parts, ignore_index=True)
+    long = long[long["date"].isin(dates)]
+    long["raw_close"] = long["PRC"].abs()
+    long["cap"] = long["PRC"].abs() * long["SHROUT"] / 1000.0
+    back = {v: k for k, v in permno.items()}
+    long["symbol"] = long["PERMNO"].map(back)
+    out = {}
+    for key, col in (("raw_close", "raw_close"), ("raw_volume", "VOL"), ("cap", "cap")):
+        out[key] = long.pivot(index="date", columns="symbol", values=col).reindex(index=dates, columns=symbols).astype("float32")
+    return out
+
+
+def build_raw(src: Path, panel_dir: Path, log=print) -> dict:
+    """Write extra_raw_close / extra_raw_volume beside a built panel (its other files untouched) and
+    return the alignment check: the raw |PRC| x SHROUT against the panel's market value."""
+    close = pd.read_parquet(panel_dir / "close.parquet")
+    meta = json.loads((panel_dir / "meta.json").read_text(encoding="utf-8"))
+    files = [src / f for f in meta["files"]] if meta.get("files") else source_files(src)
+    raw = raw_series(files, list(close.columns), close.index, log)
+    cap = pd.read_parquet(panel_dir / "extra_cap.parquet").reindex(index=close.index, columns=close.columns)
+    both = cap.notna().to_numpy() & raw["cap"].notna().to_numpy()
+    diff = np.abs(cap.to_numpy(dtype="float64") - raw["cap"].to_numpy(dtype="float64"))[both]
+    has_close = close.notna().to_numpy()
+    check = {"cells_with_cap": int(both.sum()), "cap_max_abs_diff": float(diff.max()) if diff.size else np.nan,
+             "cap_mismatch": int((diff > 0).sum()),
+             "cap_only_panel": int((cap.notna().to_numpy() & ~raw["cap"].notna().to_numpy()).sum()),
+             "listed_cells": int(has_close.sum()), "raw_close_on_listed": float(raw["raw_close"].notna().to_numpy()[has_close].mean()),
+             "raw_close_off_listed": int((raw["raw_close"].notna().to_numpy() & ~has_close).sum())}
+    for k in RAW_EXTRA:
+        tmp = panel_dir / f"extra_{k}.tmp"
+        raw[k].to_parquet(tmp)
+        tmp.replace(panel_dir / f"extra_{k}.parquet")
+    return check
 
 
 def main(argv: list[str]) -> None:

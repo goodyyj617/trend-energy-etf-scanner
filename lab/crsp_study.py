@@ -49,8 +49,8 @@ def base_config(start: str, end: str) -> StrategyConfig:
     return StrategyConfig(entries={}, exits={}, start=start, end=end, sizing="equal")  # settings of DECISIONS 43
 
 
-def load_panel_with_cash(panel_dir: Path):
-    panel = crsp.load_panel(panel_dir)
+def load_panel_with_cash(panel_dir: Path, basis: str | None = None):
+    panel = crsp.load_panel(panel_dir, basis)
     ref, _ = download_panel([BENCHMARK], str(panel.last_date.date()))  # only for its T-bill cash series
     panel.cash = ref.cash.reindex(panel.close.index).ffill().fillna(0.0)
     return panel

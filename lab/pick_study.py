@@ -284,7 +284,7 @@ def _placebo_year(Xtr, y, sym, Xte, test, Y, cols, rng, n):
 # --------------------------------------------------------------------------- 4. accounts
 
 def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLOTS, ban=BAN, log=None, psale=None,
-                pfrac=0.5):
+                pfrac=0.5, force_exit=None, fills=None):
     """10-stock 1%-rule account on the window arrays: signals of day i are bought at the open of
     ei (their next session) in `key` order (larger first) while a slot and cash are free; target
     value = w x equity at that open (capped by cash); no re-entry for `ban` sessions after an exit.
@@ -294,8 +294,21 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
     banned (signals skipped by the re-entry rule) and held (symbols held at the close).
     psale (optional, per signal: window day of a partial sale or -1): sells pfrac of the shares at
     that open, after the day's full sales and before its buys (as the engine's take_profit_pct);
-    the trade's return then combines both sales. Without psale the account is unchanged."""
+    the trade's return then combines both sales. Without psale the account is unchanged.
+    force_exit (optional, window days): every holding is sold at that day's open, after the day's
+    full and partial sales and before its buys (a holding without an open price is sold at its next
+    open); the re-entry ban applies as after any exit. Without force_exit the account is unchanged.
+    cost: the one-way cost as a fraction - a number (every fill), or a per-fill lookup on the window
+    arrays' coordinates (an object with at(i, j) -> float, DECISIONS 100): a purchase pays the cost of its
+    day and symbol, a sale (full, partial or forced) the cost of its own day. With a number the account
+    is bit for bit the one before the lookup existed (tested).
+    fills (optional, a list): (day, symbol, value, cost) is appended for every purchase, sale, partial
+    sale and forced sale, value = shares x price before cost. Without fills the account is unchanged."""
     n = O.shape[0]
+    vary = hasattr(cost, "at")
+    at = cost.at if vary else None
+    force = set(int(i) for i in force_exit) if force_exit is not None else None
+    carry: set[int] = set()
     by_day: dict[int, list[int]] = {}
     for r in np.argsort(-key, kind="stable"):
         if 0 <= ei[r] < n:
@@ -316,9 +329,11 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
             px = Oi[j]
             if px != px:
                 continue
-            cash += p["shares"] * px * (1 - cost)
-            ret = (px * (1 - cost) / (p["entry_px"] * (1 + cost)) - 1.0 if "ppx" not in p
-                   else (pfrac * p["ppx"] + (1 - pfrac) * px) * (1 - cost) / (p["entry_px"] * (1 + cost)) - 1.0)
+            cx = at(i, j) if vary else cost
+            cash += p["shares"] * px * (1 - cx)
+            ret = _sale_ret(p, px, cx, pfrac, vary)
+            if fills is not None:
+                fills.append((i, j, p["shares"] * px, cx))
             trades.append((j, p["entry_i"], i, ret, p["weight"], p["r"]))
             del pos[j]
             last_exit[j] = i
@@ -327,9 +342,32 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
             if p is None or p.get("psale") != i or Oi[j] != Oi[j]:
                 continue
             sold = p["shares"] * pfrac
-            cash += sold * Oi[j] * (1 - cost)
+            cp = at(i, j) if vary else cost
+            cash += sold * Oi[j] * (1 - cp)
+            if fills is not None:
+                fills.append((i, j, sold * Oi[j], cp))
             p["shares"] -= sold
             p["ppx"] = float(Oi[j])
+            p["cp"] = cp
+        if force is not None and (i in force or carry):
+            for j in (list(pos) if i in force else list(carry)):
+                p = pos.get(j)
+                if p is None:  # sold by its own exit meanwhile
+                    carry.discard(j)
+                    continue
+                px = Oi[j]
+                if px != px:
+                    carry.add(j)
+                    continue
+                cx = at(i, j) if vary else cost
+                cash += p["shares"] * px * (1 - cx)
+                ret = _sale_ret(p, px, cx, pfrac, vary)
+                if fills is not None:
+                    fills.append((i, j, p["shares"] * px, cx))
+                trades.append((j, p["entry_i"], i, ret, p["weight"], p["r"]))
+                del pos[j]
+                last_exit[j] = i
+                carry.discard(j)
         left = banned = bought = 0
         if i in by_day and len(pos) < slots:
             held = sum(p["shares"] * (Oi[j] if Oi[j] == Oi[j] else LC[i - 1, j]) for j, p in pos.items())
@@ -347,8 +385,11 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
                 if px != px or px <= 0 or not np.isfinite(w[r]):
                     continue
                 alloc = min(w[r] * eq_now, cash)
-                pos[j] = {"shares": alloc / (px * (1 + cost)), "entry_px": float(px), "entry_i": i,
-                          "sale": int(sale[r]) if closed[r] else -1, "weight": alloc / eq_now, "r": int(r)}
+                ce = at(i, j) if vary else cost
+                pos[j] = {"shares": alloc / (px * (1 + ce)), "entry_px": float(px), "entry_i": i,
+                          "sale": int(sale[r]) if closed[r] else -1, "weight": alloc / eq_now, "r": int(r), "ce": ce}
+                if fills is not None:
+                    fills.append((i, j, alloc / (1 + ce), ce))
                 cash -= alloc
                 bought += 1
                 if closed[r] and sale[r] < n:
@@ -368,15 +409,31 @@ def replay_risk(si, ei, sj, sale, closed, w, key, O, LC, cash_r, cost, slots=SLO
             log.setdefault("banned", np.zeros(n, dtype=int))[i] = banned
             log.setdefault("held", [None] * n)[i] = list(pos)
     for j, p in pos.items():  # still open at the end: valued at the last close
-        ret = (LC[n - 1, j] / (p["entry_px"] * (1 + cost)) - 1.0 if "ppx" not in p
-               else (pfrac * p["ppx"] * (1 - cost) + (1 - pfrac) * LC[n - 1, j]) / (p["entry_px"] * (1 + cost)) - 1.0)
+        ce = p["ce"]
+        ret = (LC[n - 1, j] / (p["entry_px"] * (1 + ce)) - 1.0 if "ppx" not in p
+               else (pfrac * p["ppx"] * (1 - (p["cp"] if vary else ce)) + (1 - pfrac) * LC[n - 1, j]) / (p["entry_px"] * (1 + ce)) - 1.0)
         trades.append((j, p["entry_i"], n - 1, ret, p["weight"], p["r"]))
     return eq, pd.DataFrame(trades, columns=["j", "entry_i", "exit_i", "ret", "weight", "row"])
 
 
+def _sale_ret(p: dict, px: float, cx: float, pfrac: float, vary: bool) -> float:
+    """A position's return when its last shares are sold at px with one-way cost cx (entry cost p['ce'];
+    with a per-fill lookup a partial sale keeps its own cost p['cp']; with one number for every fill the
+    expression is the original one)."""
+    ce = p["ce"]
+    if "ppx" not in p:
+        return px * (1 - cx) / (p["entry_px"] * (1 + ce)) - 1.0
+    if not vary:
+        return (pfrac * p["ppx"] + (1 - pfrac) * px) * (1 - cx) / (p["entry_px"] * (1 + ce)) - 1.0
+    return (pfrac * p["ppx"] * (1 - p["cp"]) + (1 - pfrac) * px * (1 - cx)) / (p["entry_px"] * (1 + ce)) - 1.0
+
+
 def calendar_weighted(ei, sale, closed, sj, w, O, C, cash, cost):
     """No stock limit: every position at its own weight w; on days the weights add up to more than
-    100% they are scaled down to 100%; the rest earns T-bills. Returns (equity, gross exposure)."""
+    100% they are scaled down to 100%; the rest earns T-bills. Returns (equity, gross exposure).
+    cost: one-way fraction, a number or a per-fill lookup on the window arrays' coordinates (an object
+    with take(days, symbols) -> array; a purchase pays its day's cost, a sale its own day's; DECISIONS
+    100). With a number the result is bit for bit the one before the lookup existed (tested)."""
     n = len(cash)
     if not len(ei):
         return np.cumprod(1.0 + cash), np.zeros(n)
@@ -396,12 +453,15 @@ def calendar_weighted(ei, sale, closed, sj, w, O, C, cash, cost):
         h = np.cumsum(held)[:n]
         num += h * cc[:, k]
         gross += h
-    r_in = np.where(np.isfinite(c[ei, local]) & (o[ei, local] > 0), c[ei, local] / (o[ei, local] * (1 + cost)) - 1.0, 0.0)
+    vary = hasattr(cost, "take")
+    ce = cost.take(ei, sj) if vary else cost
+    r_in = np.where(np.isfinite(c[ei, local]) & (o[ei, local] > 0), c[ei, local] / (o[ei, local] * (1 + ce)) - 1.0, 0.0)
     np.add.at(num, ei, w * r_in)
     np.add.at(gross, ei, w)
     ex = closed & (sale < n)
     si_, sl = sale[ex], local[ex]
-    r_out = np.where(np.isfinite(o[si_, sl]) & np.isfinite(prev[si_, sl]), o[si_, sl] * (1 - cost) / prev[si_, sl] - 1.0, 0.0)
+    cx = cost.take(si_, sj[ex]) if vary else cost
+    r_out = np.where(np.isfinite(o[si_, sl]) & np.isfinite(prev[si_, sl]), o[si_, sl] * (1 - cx) / prev[si_, sl] - 1.0, 0.0)
     np.add.at(num, si_, w[ex] * r_out)
     np.add.at(gross, si_, w[ex])
     scale = np.maximum(gross, 1.0)

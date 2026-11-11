@@ -91,6 +91,54 @@ class Panel:
         )
 
 
+# Dollar-level filters (DECISIONS 98): a CRSP panel may carry the day's raw traded price and share
+# volume beside its total-return adjusted prices (lab/crsp.py, basis "raw"). Price floors and dollar
+# volume then use them; every return, indicator and signal stays on the adjusted prices. Without the
+# raw series (ETF / yfinance panels, CRSP basis "adjusted") these are the panel's own close and
+# close x volume, so nothing changes.
+RAW_CLOSE, RAW_VOLUME = "raw_close", "raw_volume"
+BASES = ("adjusted", "raw")
+
+
+def has_raw(panel: "Panel") -> bool:
+    extra = getattr(panel, "extra", None) or {}
+    return RAW_CLOSE in extra and RAW_VOLUME in extra
+
+
+def _raw(panel: "Panel", key: str) -> pd.DataFrame:
+    f = panel.extra[key]
+    if f.index.equals(panel.close.index) and f.columns.equals(panel.close.columns):
+        return f
+    return f.reindex(index=panel.close.index, columns=panel.close.columns)
+
+
+def level_close(panel: "Panel") -> pd.DataFrame:
+    """Close for price floors: with raw series the day's traded price (CRSP |PRC|), carried over a
+    listed day without a price as the adjusted close is; otherwise the panel's close (same object)."""
+    if not has_raw(panel):
+        return panel.close
+    return _raw(panel, RAW_CLOSE).ffill().where(panel.close.notna())
+
+
+def level_dollar_volume(panel: "Panel") -> pd.DataFrame:
+    """Daily dollar volume for liquidity filters: with raw series raw close x raw volume (0 on a listed
+    day without them, as the adjusted volume is), otherwise close x volume."""
+    if not has_raw(panel):
+        return panel.close * panel.volume
+    return (_raw(panel, RAW_CLOSE) * _raw(panel, RAW_VOLUME)).fillna(0.0).where(panel.close.notna())
+
+
+def with_basis(panel: "Panel", basis: str) -> "Panel":
+    """The panel on a price basis: 'adjusted' drops the raw series (the filters then read the adjusted
+    prices), 'raw' keeps them (a panel without them is returned unchanged)."""
+    if basis not in BASES:
+        raise ValueError(f"가격 기준은 {BASES} 중 하나입니다: {basis}")
+    if basis == "raw" or not has_raw(panel):
+        return panel
+    from dataclasses import replace
+    return replace(panel, extra={k: v for k, v in panel.extra.items() if k not in (RAW_CLOSE, RAW_VOLUME)})
+
+
 def upgrade_panel(panel: "Panel") -> "Panel":
     """A panel pickled before a field was added gets that field's default (keeps old caches usable)."""
     for f in fields(Panel):
