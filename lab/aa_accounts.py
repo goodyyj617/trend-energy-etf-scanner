@@ -27,6 +27,13 @@
 
 Returns money-weighted (IRR) and time-weighted (TWR) results; MDD is on the TWR index. With a single account, one lump
 sum, full rebalancing, no tax and no limit the TWR index equals `aa_engine.run_allocation`'s equity (tests).
+
+Time-varying targets (A45, `targets=`): row t is the target a decision at the close of row t picks (traded at the next
+close, like `aa_canary.DynamicSim`); a row that differs from the row before is a decision even off the rebalance
+calendar. Row 0 is also the starting target. Deposits between decisions buy the target in force (the last one traded);
+the execution rule, the gold account (filled by deposits only, never sold) and the taxes are as for fixed weights.
+Without `targets` the computation is the fixed-weight one, unchanged (tests: constant rows give the same numbers bit
+for bit, and the baseline policy with moving targets equals `DynamicSim`).
 """
 from __future__ import annotations
 
@@ -152,20 +159,36 @@ def irr(flows: np.ndarray, times: np.ndarray) -> float:
 
 
 def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, codes: list[str], weights: np.ndarray,
-               policy: Policy, rebalance: str = "Q", charge_first: bool = True) -> dict:
+               policy: Policy, rebalance: str = "Q", charge_first: bool = True,
+               targets: np.ndarray | None = None) -> dict:
     """rets: daily product returns (T × N, NaN = 0), cash: daily cash return (T,), weights: target fractions (N,).
+    targets: optional T × N targets that move over time (see the module docstring; `weights` is then ignored).
     Returns the daily value, flows, TWR index and the summary metrics."""
     R = np.nan_to_num(np.asarray(rets, float), nan=0.0)
     C = np.nan_to_num(np.asarray(cash, float), nan=0.0)
     T, N = R.shape
-    w = np.asarray(weights, float) / np.sum(weights)
+    if targets is not None:
+        targets = np.asarray(targets, float)
+        if targets.shape != (T, N):
+            raise ValueError("targets must be (days, products)")
+        targets = targets / targets.sum(axis=1, keepdims=True)
+        w = targets[0]
+    else:
+        w = np.asarray(weights, float) / np.sum(weights)
     cv = cost_vector(codes, policy.cost)
     gi = codes.index(GOLD) if GOLD in codes else None
-    split = policy.accounts == "split" and gi is not None and w[gi] > 0
-    isa_w = w.copy()
-    if split:
-        isa_w[gi] = 0.0
-        isa_w = isa_w / isa_w.sum() if isa_w.sum() > 0 else isa_w
+    if targets is None:
+        split = policy.accounts == "split" and gi is not None and w[gi] > 0
+    else:
+        split = policy.accounts == "split" and gi is not None and bool((targets[:, gi] > 0).any())
+
+    def isa_of(wv: np.ndarray) -> np.ndarray:
+        iw = wv.copy()
+        if split:
+            iw[gi] = 0.0
+            iw = iw / iw.sum() if iw.sum() > 0 else iw
+        return iw
+    isa_w = isa_of(w)
     rule = TAXES[policy.tax]
     taxed = rule is not None
     limit = policy.limit == "isa"
@@ -176,6 +199,9 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
         for r in months[1:]:
             deposits[int(r)] = deposits.get(int(r), 0.0) + dep.amount_krw
     dec = set(int(i) for i in decision_rows(dates, rebalance) if i < T - 1)
+    if targets is not None:
+        moved = np.flatnonzero(np.any(targets[1:] != targets[:-1], axis=1)) + 1
+        dec |= set(int(i) for i in moved if i < T - 1)
     first_of_year = set(pd.Series(np.arange(T), index=dates).groupby(dates.year).first().to_numpy()[1:].tolist())
 
     invest = policy.overflow == "invest"
@@ -309,6 +335,7 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
     V = np.empty(T)
     F = np.zeros(T)
     pending = False
+    pend_row = 0
     gen_r = 1.0 - (GENERAL_RATE if taxed else 0.0)
     for t in range(T):
         st["h"] = st["h"] * (1.0 + R[t])
@@ -318,6 +345,10 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
         if invest:
             st["gh"] = st["gh"] * (1.0 + R[t])
         if pending:
+            if targets is not None:
+                w = targets[pend_row]
+                isa_w = isa_of(w)
+                gw = isa_w
             if policy.execution == "full" or (policy.execution == "band" and off_band()) or \
                     (policy.execution == "deposit" and dates[t - 1].month == 12):
                 rebalance_isa()
@@ -359,6 +390,7 @@ def run_policy(rets: np.ndarray, cash: np.ndarray, dates: pd.DatetimeIndex, code
             route(deposits[t], t, free=(t == 0 and not charge_first))
         if t in dec:
             pending = True
+            pend_row = t
         V[t] = st["h"].sum() + st["gold"] + st["G"] + st["gh"].sum()
     if taxed:
         final_tax = rule.tax(st["h"].sum() - st["basis"])
