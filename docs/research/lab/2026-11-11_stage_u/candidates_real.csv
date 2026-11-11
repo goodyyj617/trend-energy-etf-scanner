@@ -1,0 +1,3 @@
+setting,gen,filter,n20,n40,n_e0,ok,neighbour,candidate,entry_specific,route,band,neighbour_n,neighbour_band
+N20_W2_P1,E7,R3A1,2,2,2,True,,True,True,96,U1000,True,True
+N20_W2_P1,E7,R3A1,2,2,2,True,,True,True,96,U500,True,True

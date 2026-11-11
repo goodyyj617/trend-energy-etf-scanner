@@ -1582,6 +1582,34 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     exceed 20 hours at night speed), results lab_crsp/stage_u_null (per-seed result tables; signal
     tables in the temp folder only), aggregates docs/research/lab/2026-11-11_stage_u/, figures
     figures/stage_u_null/. Design: docs/research/lab/2026-11-11_stage_u_design.md.
+    Result (2026-11-11, run 12:34 - 17:55 KST, report 20:05; runner 9e47005, merged in #131): repro passed -
+    (a) seeds 1-5 rebuilt through the new table path equal the stored raw E0 tables row for row (10 tables,
+    return diff 0), their base rows equal Stage S's base, and their 120 cells per seed (20 bp) equal Stage
+    S's E0 rows per seed (P 300 cells, max diff 8.9e-16; Q 300, 7.1e-15); (b) the 15 real entries through
+    this runner's unit path equal Stage S's 20 bp cells (P 900 / Q 900, 7.1e-15) and 40 bp cells (P 4 / Q
+    14, same sets), and through the candidate path the cell flags (1,800 rows) and candidate tables (900
+    rows) differ nowhere; the candidates are exactly the 2 cells. Pre-run details in lab/null_study.py
+    (margin on 20 bp cells only; worlds drawn with rng [101, 1]; percentile ties half). Primary verdict
+    "explained by chance": 42 of 1,000 random-entry rules (seeds 1001-2000) produce a candidate by either
+    route, p-hat 4.2% (one-sided 95% Clopper-Pearson 3.2% / 5.4%), P-hat = 1 - (1 - p)^15 = 47.5% (limits
+    38.7% / 56.5%), lower limit far above the 10% boundary. Reported: route 95 38 seeds (P-hat 44.1%),
+    route 96 7 (P-hat 10.0%, limits 4.8% / 18.0%, "not separated" if read alone - not judged), both 3,
+    entry-specific label 35 (3.5%); candidate rows by gate R5 A1 49, R3 A1 34, R1 A1 3, R4 A1 2. Over
+    10,000 worlds of 15 seeds: 0 candidate rules 52.9%, 1 34.6%, 2 10.4%, >= 3 2.1%; >= the observed 1
+    rule 47.1%, >= the observed 2 cells 43.7%. Candidate margin (min of dd_cagr - binding gated benchmark
+    over the needed 20 bp cells, best family): E7 +0.52 pp, 98.8th percentile of the 1,000 rules, but the
+    15-rule maximum reaches it in 16.6% of worlds (maxT p = 0.166). E7's candidate cells (N20 x R3 A1 x
+    U1000 / U500 x X1 / H1, three periods) sit at a median 99.5th percentile of the random rules at the
+    same cells (post-hoc cells, descriptive). Per-cell random pass rates (20 bp): mean 3.7%, U3000 R3 A1
+    11-19%, R5 A1 4-15%, A2 and no-gate narrowed cells 0-0.8%; with these as p0, Stage S's raw "beyond
+    chance" flags over the 120 P1 cells fall from 33 to 3 (none new; every E7 cell drops). Post-hoc,
+    not judged: by passing-cell count E7 (22 of 120) is at the 99.85th percentile and a 15-rule world's
+    maximum reaches 22 in 3.0% of worlds. Predictions: p-hat (0.5-3%) and P-hat (7-37%) both exceeded,
+    verdict within the predicted pair, candidate seeds mostly on route 95 not 96 (7 of 42 with route 96),
+    gates R3 / R5 A1 met (94%), E7 cells' median percentile 99.5 just above 90-99. Per verdict 4 the two
+    cells are recorded as no basis for a holdout look; a stricter candidate rule (or stopping the entry
+    search) is a new decision for the user. Holdout closed, no DSR / PSR, trials +0 (74,174). Table
+    workers 4 (about 22 GB each), not 6. Record: docs/research/lab/2026-11-11_stage_u_results.md.
 
 ## Open decisions
 
