@@ -1530,6 +1530,59 @@ and run on the lab computer via Google Drive. Review: docs/research/lab/2026-10-
     The judgement cost stays 20 bp. Trials +0 (74,174); no holdout, no DSR / PSR. Record:
     docs/research/lab/2026-11-11_stage_t_results.md.
 
+101. Stage U: the chance rate of the candidate procedure (user decision 2026-11-11 12:12 KST on
+    the card "next direction after the cost check": measure how often chance passes the candidate
+    conditions; registered before any run). 95's and 96's candidate conditions left two cells on
+    the raw universe (E7 x R3 A1 x N20 / W2 / P1 x U1000 and U500), found by scanning 15 entries on
+    an account structure whose random-entry cells already pass 2% of the time (5 seeds), with 70
+    cells missing by <= 0.5 pp; how often the whole procedure yields a candidate with no entry
+    information was never measured, and the holdout should not be spent on what chance produces.
+    Questions: the probability p that one random entry yields a candidate (95's or 96's
+    conditions), and P = 1 - (1 - p)^15 that a world of 15 random entries yields at least one. No
+    new rule, value or combination: Stage S's conditions, accounts, gates, bands, benchmarks and
+    costs, with random entries in the entry slot. Measured: 1,000 random entries = blocks.g_random
+    (1% of stock-days) with seeds 1001-2000, one seed one entry; per seed the X1 / H1 signal
+    tables on the raw universe and the M1 / P1 base rows by the same functions; per seed the 120
+    cells the conditions read (3 P1 settings x 2 exits x [U3000 x R1-R5 x A1 / A2 + U1000 / U500 x
+    none, R1 / R3 / R4 / R5 A1]) at 20 bp and, for cells passing at 20 bp, at 40 bp as in the
+    registered procedure; regime_study.candidates and large_study.candidates applied unchanged,
+    the entry-specific label against the same E0 row (seeds 1-5); 1993-02 to 2023-12, nothing from
+    2024 on. Verdicts: (1) repro first, else stop: (a) seeds 1-5 rebuilt through the new table
+    path equal the stored raw E0 tables row for row; (b) the 15 real entries through this
+    runner's candidate path give Stage S's candidate tables (cell flags and the 2 candidates). (2)
+    Primary: p-hat = share of the 1,000 seeds with at least one candidate by either route, P-hat =
+    1 - (1 - p-hat)^15, one-sided 95% Clopper-Pearson limits of p carried through the same
+    formula; lower limit of P >= 10% -> "explained by chance" (the present candidates are not
+    evidence); upper limit of P < 10% -> "hard to attribute to chance"; otherwise "not separated"
+    with the estimate and interval (at 1,000 seeds: <= 2 candidate seeds -> hard to attribute, >=
+    13 -> explained; the 10% boundary is what the sample budget can reach, 5% would need thousands
+    of seeds). (3) Reported, not judged: p-hat per route and with the entry-specific label; over
+    10,000 worlds of 15 seeds drawn from the 1,000 the distribution of candidate entries and
+    candidate cells against the observed 1 entry / 2 cells; a continuous measure - per entry the
+    candidate margin (the minimum over the cells a candidate needs of dd_cagr minus the binding
+    benchmark over the three periods, maximised over families) and the place of the real 15's
+    maximum in the distribution of world maxima (maxT p value); E7's values at its candidate and
+    neighbouring cells as percentiles of the 1,000 (post-hoc cells, descriptive); per-cell pass
+    rates from 1,000 seeds and whether Stage P's / Q's "beyond chance" flags set with 5 seeds
+    stand. (4) "Explained": the two cells are recorded as no basis for a holdout look and a
+    stricter candidate rule is a new decision; "hard to attribute": the user is asked whether to
+    look at the two cells in the holdout once (a new decision naming the cells); "not separated":
+    the estimate goes to the user. The holdout stays closed in this stage either way; no DSR /
+    PSR. Predictions written down first: p-hat 0.5-3%, P-hat 7-37%, verdict "not separated" or
+    "explained"; candidate seeds mostly on 96's route and at R3 / R5 A1; E7's candidate cells at
+    the 90th-99th percentile of the random distribution. Trials +0 (random entries are a null,
+    74,174). Limits: the 15 real entries overlap and are not independent, so P counted over 15
+    independent random entries gives chance more tries than reality (conservative for "hard to
+    attribute", slightly generous to "explained"); the null draws 1% evenly over days whereas real
+    entries cluster in rising markets, and a same-day-same-count null (which would also absorb
+    that timing) is not run; settings, M1, P1, gates and exits were chosen on the same 31 years,
+    so only the scan over entries is calibrated, not the selection of the structure; flat 20 / 40
+    bp (100 left the cost measurement open). Runner lab/null_study.py (stages repro -> tables ->
+    accounts -> report; table building timed on 20 seeds first and stopped if the whole would
+    exceed 20 hours at night speed), results lab_crsp/stage_u_null (per-seed result tables; signal
+    tables in the temp folder only), aggregates docs/research/lab/2026-11-11_stage_u/, figures
+    figures/stage_u_null/. Design: docs/research/lab/2026-11-11_stage_u_design.md.
+
 ## Open decisions
 
 - final trend-filter definition;
