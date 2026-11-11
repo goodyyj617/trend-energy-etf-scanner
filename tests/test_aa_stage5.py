@@ -67,5 +67,7 @@ def test_summary_numbers_match_stage5():
         r = m.loc[p.stage5_name]
         assert round(r["cagr"] * 100, 2) == p.cagr and round(r["mdd"] * 100, 1) == p.mdd
         assert round(r["봉인 구간 MDD"] * 100, 1) == p.sealed_mdd
-        assert r["최종"] == "통과" and r["봉인 판정 (MDD ≥ −20%)"] == "통과"
+        # a pick is a stage-5 candidate that passed both verdicts, or a reference row that passed them (A43 reading, 2026-11-11)
+        assert str(r["최종"]).endswith("통과") and str(r["봉인 판정 (MDD ≥ −20%)"]).endswith("통과")
+        assert not str(r["최종"]).endswith("탈락")
     assert (S.ALLOC / "SUMMARY.md").exists() and len(S.scatter_data()) == len(m)

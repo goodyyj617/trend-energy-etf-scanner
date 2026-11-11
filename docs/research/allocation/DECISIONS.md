@@ -687,3 +687,60 @@ A42. Verify the rule that picks weights, not the picked weights (design fixed 20
     (`tests/test_aa_dynamic.py`). Their notes carry the badge and the limits (placebo pass rate 7.7 %, satellite from
     2007 only and not sealed-tested, no K3 signal in the sealed window for ⑤).
 
+A43. Test the rule that picks a dynamic setting out of time, not the picked setting (design fixed 2026-11-06 before
+    the run, memo `2026-11-06_a43_design.md`; code `lab/aa_timesplit.py`, run `scripts/aa_a43_timesplit.py`).
+    Why: the user's favourite stage-5 representative ③ ((가) + K2 canary → safe bundle, cooldown 21, vol target 8 %,
+    satellite 50 %, 9.07 / −8.7 %) decomposes (2026-11-06, from the stage-4 files) into a CAGR edge that comes from the
+    satellite and an MDD of −8.7 % that needs all three parts; it beats the placebo 95 % line (−8.84 %) by 0.14 %p and
+    all eight one-step setting neighbours fail that line, so ③ is a single-cell peak. Instead of searching around it,
+    the stage-4 selection itself is tested: the same paths (873 settings × 6 targets × satellite 0 / 25 / 50 %, three
+    price sets, 200 placebos, same seeds) are cut into fixed windows (halves 2000-09 – 2012-12 / 2013-01 – 2024-12 and
+    thirds 2000-09 – 2008-12 / 2009-01 – 2016-12 / 2017-01 – 2024-12), the stage-4 verdict is applied inside a selection
+    window, and the passers (rule A) and the best passer by rank value (rule B, the stage-5 representative rule) are
+    measured in the test window, four directions (전반 → 후반, 후반 → 전반, 1+2 → 3, 2+3 → 1). Chance = hypergeometric
+    p of the kept count. Judgements fixed: J1 rule A carries information if in all four directions the kept share is
+    ≥ 2× the base pass rate with p < 0.05 (one failure 약함, two 없음); J2 the (가) pick holds if it passes ①②③ in
+    the test window in all four directions (①③ only 약함, else 무너짐); J3 ③ itself passes ①②③ in both halves.
+    Reading fixed in advance: J1 없음 and J2 무너짐 → the stage-4/5 selection does not transfer in time and ③'s
+    dynamic parts are not a validated finding; what remains is the no-signal reference inside −15 % in both halves
+    ((가) 50 + satellite 50, or a vol target alone). J1 있음 → ③ stays a candidate and the next step is the
+    account-condition test. Limits written before the run: both halves were already seen by stage 4 (this tests the
+    procedure's time stability, not fresh data); the satellite exists only from 2007-02; R4–R6 start 2003-11; the
+    1 %p / 3 %p thresholds are kept unchanged for the shorter windows. Paths are cut, not re-started, at a window's
+    first day (the '전체' window must reproduce the stage-4 verdicts: `--check-stage4`).
+    Result (2026-11-11, lab PC, memo `2026-11-06_a43_timesplit.md`): J1 없음, J2 무너짐, J3 탈락. In all four directions
+    none of the selection-window passers (477 / 0 / 406 / 55) passed in the test window. Passers per window: 2000-09 –
+    2008 699, 2009 – 2016 95, 2017 – 2024 1, 2013 – 2024 0 — the stage-4 passes come almost entirely from the dot-com
+    crash and 2008. ③ passes the first half and fails the second (①, ②, extremes). `--check-stage4`: 15,712 of 15,714
+    verdicts equal (two boundary ties at 1e-7). By the fixed reading the stage-4/5 selection does not transfer in time
+    and the signal parts of ②, ③, ⑤ are not validated; with A44 removing the satellite, the summary now recommends only
+    signal-free allocations: (가), 안정형 40, and R6 + vol target 10 % (the stage-5 reference row, 7.27 / −7.7 %).
+
+A44. Decision-date, cost and mixing test of the satellite inside ② and ③ (design fixed 2026-11-11 before the run,
+    memo `2026-11-11_a44_design.md`; code `lab/aa_satellite.py`, run `scripts/aa_a44_satellite.py`). Why: the
+    2026-11-10 review found, from `scripts/aa_a42_stage5.py` `set_job`, that stage 5's policy variants shifted only
+    the core; the HAA50+BAA50 satellite (50 % of ② and ③, the source of ③'s CAGR edge) was computed once at month
+    end and mixed at a free daily fixed ratio, although alone it had failed the A30 date gate (A28: MDD −16.0 … −32.7 %
+    by decision day). The four cores stay exactly as registered ((가) static, ③'s core, 현재 보유 static, ②'s core);
+    the satellite is decided 0 / 1 / 5 / 10 / 15 trading days after month end or in four tranches (0/5/10/15, not
+    rebalanced against each other), at 10 / 20 bp, and the core/satellite split is restored daily for free (stage 5,
+    must reproduce the stage-5 numbers to 1e-6), monthly or quarterly at 10 bp on the amount moved; shares 50 %
+    (judged) and 25 %; representative price set (two extreme sets for information); whole window 2000-09 – 2024-12
+    (judged) and the satellite-live window from 2007-04. Verdicts per combination at 50 % · quarterly restoring ·
+    10 bp: W1 worst MDD over the five decision days ≥ −20 % (A30 on the combination); W2 zone of that worst MDD
+    (안 / 경계 / 밖); W3 at 20 bp the satellite adds CAGR over the same core without it in ≥ 4 of 5 decision days and
+    the worst MDD is at most 1 %p deeper than that core's; flag '날짜 민감' when the MDD spread exceeds 3 %p.
+    유지 = W1 · 안 · W3, 경계 = W1 · 경계 · W3, else 탈락; the four-tranche row is reported next to it ('4분할로만 운용
+    가능' when only it is 안). Reading fixed in advance: ③ 탈락 → its numbers are relabelled as a single-path month-end
+    figure and satellite combinations leave the recommendations; ③ 유지 → the satellite survives dates and costs and
+    the question whether K2 / vol target add anything is A43's. No offset, share or rule is chosen from the result.
+    Limits written before the run: the satellite exists only from 2007-02; the core's own dates are not co-shifted;
+    the Korean product mapping (DBC → CD, hedged bonds) is as in stage 5; no tax or ISA limit; five offsets are five
+    points, not a distribution; the tested combinations are post hoc. Not added to the DSR trial count (nothing is
+    selected); one descriptive line in `trials_ledger.csv` after the run.
+    Result (2026-11-11, lab PC, memo `2026-11-11_a44_satellite.md`): the registered condition reproduces stage 5 (1e-6);
+    all four combinations 탈락 (W2 밖 for all, W3 failed for all, all 날짜 민감). Worst decision day +10: ③ −17.9 %,
+    (가) + satellite −19.6 %, ② and 현재 보유 + satellite −23.9 %; CAGR moves ~1 %p with the decision day. Four tranches:
+    ③ 8.69 / −10.1 %, (가) + satellite 8.63 / −12.3 % (both 안, both below (가) static 8.81 %), ② 8.44 / −15.7 % (경계).
+    Mixing cost (daily free → quarterly 10 bp) 0.04 – 0.06 %p. Satellite combinations leave the recommendations; ② and
+    ③ stay registered with a note that their numbers are a single month-end path.
