@@ -1,0 +1,257 @@
+{
+ "a_tables": [
+  {
+   "seed": 1,
+   "exit": "X1",
+   "rows_new": 161194,
+   "rows_stored": 161194,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "seed": 1,
+   "exit": "H1",
+   "rows_new": 161194,
+   "rows_stored": 161194,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "seed": 2,
+   "exit": "X1",
+   "rows_new": 161598,
+   "rows_stored": 161598,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "seed": 2,
+   "exit": "H1",
+   "rows_new": 161598,
+   "rows_stored": 161598,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "seed": 3,
+   "exit": "X1",
+   "rows_new": 160923,
+   "rows_stored": 160923,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "seed": 3,
+   "exit": "H1",
+   "rows_new": 160923,
+   "rows_stored": 160923,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "seed": 4,
+   "exit": "X1",
+   "rows_new": 161049,
+   "rows_stored": 161049,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "seed": 4,
+   "exit": "H1",
+   "rows_new": 161049,
+   "rows_stored": 161049,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "seed": 5,
+   "exit": "X1",
+   "rows_new": 161241,
+   "rows_stored": 161241,
+   "equal": true,
+   "max_return_diff": 0.0
+  },
+  {
+   "seed": 5,
+   "exit": "H1",
+   "rows_new": 161241,
+   "rows_stored": 161241,
+   "equal": true,
+   "max_return_diff": 0.0
+  }
+ ],
+ "a_tables_pass": true,
+ "a_base": [
+  {
+   "seed": 1,
+   "rows_new": 160945,
+   "rows_stored": 160945,
+   "equal": true
+  },
+  {
+   "seed": 2,
+   "rows_new": 161338,
+   "rows_stored": 161338,
+   "equal": true
+  },
+  {
+   "seed": 3,
+   "rows_new": 160667,
+   "rows_stored": 160667,
+   "equal": true
+  },
+  {
+   "seed": 4,
+   "rows_new": 160848,
+   "rows_stored": 160848,
+   "equal": true
+  },
+  {
+   "seed": 5,
+   "rows_new": 161009,
+   "rows_stored": 161009,
+   "equal": true
+  }
+ ],
+ "a_acc_p": {
+  "cells": 300,
+  "values": 9300,
+  "max_diff": 8.881784197001252e-16,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "a_acc_q": {
+  "cells": 300,
+  "values": 10500,
+  "max_diff": 7.105427357601002e-15,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "b_goal_p": {
+  "cells": 900,
+  "values": 27000,
+  "max_diff": 8.881784197001252e-16,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "b_goal_q": {
+  "cells": 900,
+  "values": 30600,
+  "max_diff": 7.105427357601002e-15,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "b_40bp_p": {
+  "cells": 4,
+  "values": 120,
+  "max_diff": 1.1102230246251565e-16,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "b_40bp_q": {
+  "cells": 14,
+  "values": 476,
+  "max_diff": 7.105427357601002e-15,
+  "missing": 0,
+  "extra": 0,
+  "over_tol": 0,
+  "pass": true
+ },
+ "b_flags_p": {
+  "rows": 900,
+  "missing": 0,
+  "extra": 0,
+  "differ": 0,
+  "pass": true
+ },
+ "b_flags_q": {
+  "rows": 900,
+  "missing": 0,
+  "extra": 0,
+  "differ": 0,
+  "pass": true
+ },
+ "b_cand_p": {
+  "rows": 450,
+  "missing": 0,
+  "extra": 0,
+  "differ": 0,
+  "pass": true
+ },
+ "b_cand_q": {
+  "rows": 450,
+  "missing": 0,
+  "extra": 0,
+  "differ": 0,
+  "pass": true
+ },
+ "b_cand_counts_p": true,
+ "b_cand_counts_q": true,
+ "b_candidates": [
+  {
+   "route": "96",
+   "setting": "N20_W2_P1",
+   "gen": "E7",
+   "filter": "R3A1",
+   "band": "U1000",
+   "entry_specific": true
+  },
+  {
+   "route": "96",
+   "setting": "N20_W2_P1",
+   "gen": "E7",
+   "filter": "R3A1",
+   "band": "U500",
+   "entry_specific": true
+  }
+ ],
+ "b_candidates_pass": true,
+ "tables_timing": {
+  "seeds": 5,
+  "sec": 136.43590021133423,
+  "per_seed": [
+   {
+    "seed": 1,
+    "sec": 111.45749497413635,
+    "rows_X1": 161194,
+    "rows_H1": 161194
+   },
+   {
+    "seed": 2,
+    "sec": 109.50656414031982,
+    "rows_X1": 161598,
+    "rows_H1": 161598
+   },
+   {
+    "seed": 3,
+    "sec": 111.0070288181305,
+    "rows_X1": 160923,
+    "rows_H1": 160923
+   },
+   {
+    "seed": 4,
+    "sec": 107.70390892028809,
+    "rows_X1": 161049,
+    "rows_H1": 161049
+   },
+   {
+    "seed": 5,
+    "sec": 110.6226851940155,
+    "rows_X1": 161241,
+    "rows_H1": 161241
+   }
+  ]
+ },
+ "pass": true
+}
