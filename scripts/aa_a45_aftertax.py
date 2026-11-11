@@ -41,6 +41,8 @@ FIG_DIR = ALLOC / "figures" / "a45_aftertax"
 REP = PS.PriceSet("real", 60.0, "cd91")
 START, END = PS.START, "2024-12-31"
 TOL = 1e-6
+TOL_SAME_PRICES = 1e-9  # (a) account simulator vs stage 5's arithmetic, same prices, same first day (change log)
+TOL_FILE = 1e-5  # (a) account simulator vs the stage-5 file: the first-day convention and price refreshes (change log)
 POLICY_COLS = ["accounts", "deposits", "execution", "cost", "tax", "limit", "overflow"]
 REPRO_POLICY = AC.Policy("single", "lump", "full", "flat", "none", "none")  # stage 5: 10 bp, first purchase free
 
@@ -113,16 +115,30 @@ def _job(args):
     return result_row(name, pol, r, _CTX[name][1], AC.DECLARED)
 
 
-def reproduction(ctx: dict) -> dict:
-    """(a) the vol allocation under the stage-5 condition vs stage 5's reference row; (b) statics vs stage 3b."""
+def reproduction(ctx: dict, p=None) -> dict:
+    """(a) the vol allocation under the stage-5 condition vs stage 5's reference row; (b) statics vs stage 3b.
+    (a) as amended (design change log 2026-11-11): the account simulator must equal stage 5's own computation on the
+    same prices without the first day's drift (1e-9 on the whole path), and stay within 1e-5 of the stage-5 file."""
     out = {"ok": True}
     s5 = pd.read_csv(STAGE5)
     ref = s5[(s5["세트"] == REP.label) & (s5["이름"] == AT.STAGE5_REF)].iloc[0]
+    codes, dates = ctx[AT.VOL_NAME][0], ctx[AT.VOL_NAME][1]
     r = run_one(ctx[AT.VOL_NAME], REPRO_POLICY, charge_first=False)
     a = {"cagr": r["twr_cagr"], "mdd": r["twr_mdd"], "stage5_cagr": float(ref["cagr"]), "stage5_mdd": float(ref["mdd"]),
-         "stage5_start": ref["시작"], "start": str(ctx[AT.VOL_NAME][1][0].date())}
+         "stage5_start": ref["시작"], "start": str(dates[0].date())}
     a["diff"] = max(abs(a["cagr"] - a["stage5_cagr"]), abs(a["mdd"] - a["stage5_mdd"]))
-    a["ok"] = bool(a["diff"] < TOL and a["start"] == a["stage5_start"])
+    if p is not None:
+        w6 = load_targets()[AT.STATIC_OF["R6 정적"]]
+        P0 = AT.stage5_vol_path(p, w6, str(dates[0].date()), END, first_day_return=False)
+        a["same_convention_path_diff"] = float(np.max(np.abs(r["twr"] - P0 / P0[0])))
+        P = AT.stage5_vol_path(p, w6, str(dates[0].date()), END)  # stage 5 as it ran, on today's prices
+        a["stage5_today_cagr"], a["stage5_today_mdd"] = float(LY.cagr(P)[0]), float(LY.mdd(P)[0])
+        a["stage5_today_vs_file"] = max(abs(a["stage5_today_cagr"] - a["stage5_cagr"]),
+                                        abs(a["stage5_today_mdd"] - a["stage5_mdd"]))
+        a["ok"] = bool(a["same_convention_path_diff"] < TOL_SAME_PRICES and a["diff"] < TOL_FILE
+                       and a["start"] == a["stage5_start"])
+    else:
+        a["ok"] = bool(a["diff"] < TOL and a["start"] == a["stage5_start"])
     out["a_stage5_vol"] = a
     v3 = pd.read_csv(STAGE3B).set_index("대상")
     b = []
@@ -196,7 +212,7 @@ def run(out: Path, quick: bool, workers: int) -> dict:
     p = PS.build(REP.prices, REP.hedge_bp, REP.cash, quirks=True)[0]
     ctx, facts = build(p)
     facts["exposure"].rename("k").to_csv(out / "exposure.csv", index_label="date")
-    rep = reproduction(ctx)
+    rep = reproduction(ctx, p)
     (out / "repro.json").write_text(json.dumps(rep, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     print("재현 점검:", "통과" if rep["ok"] else "실패", flush=True)
     if not rep["ok"]:

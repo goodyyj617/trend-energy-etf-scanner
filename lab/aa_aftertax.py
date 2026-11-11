@@ -48,6 +48,28 @@ def vol_levels_of(panel, w: dict[str, float], start: str, end: str, target: floa
     return sim.dates, LY.vol_levels(base_r, sim.dates, target)
 
 
+def stage5_vol_path(panel, w: dict[str, float], start: str, end: str, target: float = VOL,
+                    first_day_return: bool = True) -> np.ndarray:
+    """The stage-5 reference path itself (`aa_a42_stage5.set_job` for a no-signal setting): `aa_layers.paths` on
+    `DynamicSim` at 10 bp, quarterly, with the volatility levels of `vol_levels_of`. Used by the reproduction check
+    to compare the account simulator with stage 5's arithmetic on the same prices.
+
+    `DynamicSim` holds the target from the start of the first day (the first day's return moves the weights, then the
+    path is divided by its first value); the account simulator buys at the first day's close. `first_day_return=False`
+    removes that one day of drift (growth of row 0 set to 1), which is the account simulator's convention."""
+    from .aa_engine import decision_rows
+    cols = sorted(set(w) | set(K.DEFENSIVE) | {CD})
+    sim = K.DynamicSim(panel, cols, start, end, cost_bps=10.0)
+    if not first_day_return:
+        sim.growth[0, :] = 1.0
+    _, lev = vol_levels_of(panel, w, start, end, target)
+    tab = LY.action_tables(w, "none", "none", sim.columns)
+    q = decision_rows(sim.dates, "Q")
+    q = q[q < len(sim.dates) - 1]
+    S = np.zeros((1, sim.n_days), dtype=int)
+    return LY.paths(sim, tab, S, LY.Setting(vol=target), q, lev)[0]
+
+
 def vol_targets(w: dict[str, float], codes: list[str], lev: np.ndarray) -> np.ndarray:
     """T × len(codes): row t = static weights × k + CD × (1 − k) for the level held from row t+1 (the last row
     repeats). The first row is also the starting target, so the level must not change between rows 0 and 1."""
@@ -125,5 +147,5 @@ def layer_rows(R: pd.DataFrame, policy_cols: list[str]) -> pd.DataFrame:
 
 
 __all__ = ["VOL", "CD", "COMMON_START", "STATIC_OF", "VOL_NAME", "MEAN_NAME", "ORDER", "RECOMMENDED", "STAGE5_REF",
-           "vol_levels_of", "vol_targets", "mean_exposure", "mean_exposure_weights", "zone", "layer_verdict",
+           "vol_levels_of", "stage5_vol_path", "vol_targets", "mean_exposure", "mean_exposure_weights", "zone", "layer_verdict",
            "table_rows", "layer_rows"]

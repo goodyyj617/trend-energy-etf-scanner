@@ -165,3 +165,21 @@ def test_tables_from_policy_rows():
     L = AT.layer_rows(R, S.POLICY_COLS)
     assert len(L) == 2 and L["선언 정책"].sum() == 1
     assert set(L["X3"]) <= {"층 유지", "층 비쌈", "층 없음"}
+
+
+def test_stage5_vol_path_equals_the_account_simulator():
+    """The window starts after the panel does, so the first day has a return (as for R6 from 2003-11-07): DynamicSim
+    lets it move the weights, the account simulator buys at that close. Without that day of drift the two agree."""
+    p = _panel(1400, extra=K.DEFENSIVE)
+    dates = p.close.index[100:]
+    rets = p.close[CODES].pct_change(fill_method=None).loc[dates].to_numpy()
+    cash = p.cash.loc[dates].to_numpy()
+    a, b = str(dates[0].date()), str(dates[-1].date())
+    _, lev = AT.vol_levels_of(p, W, a, b, 0.08)
+    pol = AC.Policy("single", "lump", "full", "flat", "none", "none")
+    res = AC.run_policy(rets, cash, dates, CODES, None, pol, charge_first=False, targets=AT.vol_targets(W, CODES, lev))
+    P = AT.stage5_vol_path(p, W, a, b, 0.08, first_day_return=False)
+    assert np.allclose(res["twr"], P / P[0], rtol=0, atol=1e-10)
+    P1 = AT.stage5_vol_path(p, W, a, b, 0.08)
+    assert not np.allclose(res["twr"], P1 / P1[0], rtol=0, atol=1e-10)  # the one day of drift is visible
+    assert abs(res["twr"][-1] / (P1[-1] / P1[0]) - 1) < 0.01

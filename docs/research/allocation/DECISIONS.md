@@ -771,3 +771,8 @@ A45. After-tax final table of the recommended allocations, and whether the volat
     written before the run: one price set; stage-3b tax simplifications; the gold account is never sold, so with split
     accounts the vol target cannot cut the 6 % gold; R6 starts 2003-11 (no dot-com); the comparison static is post
     hoc. Not added to the DSR trial count; one descriptive line in `trials_ledger.csv` after the run.
+    Change before the verdict run (design change log, 2026-11-11 21:00 KST): the quick check stopped on (a) at 2.05e-6
+    (tolerance 1e-6). Cause: DynamicSim holds the target from the start of the first day and lets that day's return
+    move the weights, the account simulator buys at the first close; R6's window starts 2003-11-07 inside the panel.
+    (a) now requires the account path to equal stage 5's computation without the first day's drift (1e-9, whole path)
+    and the stage-5 file within 1e-5. Verdicts, targets, policies unchanged.
