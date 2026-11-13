@@ -4460,6 +4460,7 @@ IQEI,Invesco International Developed Enhanced ETF,P,True,False,False,False,False
 IQEL,Invesco U.S. Large Cap Enhanced ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 IQES,Invesco U.S. Small Cap Enhanced ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 IROC,Invesco Rochester High Yield Municipal ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+KBTY,Guinness Atkinson K-Beauty ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 LBAY,Leatherback Long/Short Alternative Yield ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 LQID,Kurv Enhanced Short Maturity ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 LSEQ,Harbor Long-Short Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
@@ -4467,9 +4468,11 @@ LTEQ,Equity Partners ETF,N,True,False,False,False,False,False,False,False,False,
 LYR,Lyrical U.S. Value Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 LYRI,Lyrical International Value Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 MAGC,Roundhill China Magnificent Seven ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
+MAGP,Roundhill Magnificent Seven Plus ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 MBCE,Monarch Blue Chips Elite Index ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 MEAR,iShares Short Maturity Municipal Bond Active ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 MINT,PIMCO Enhanced Short Maturity Active Exchange-Traded Fund,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+NJPN,Nomura Japan Equity ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 NLSI,NEOS Long/Short Equity Income ETF,Z,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,equity income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 NVDW,Roundhill NVDA WeeklyPay ETF,Z,True,False,False,False,False,False,True,False,True,option_income,False,,,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
 OAKL,Oakmark U.S. Concentrated ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
@@ -4507,6 +4510,7 @@ TPAY,Roundhill S&P 500 Target 10 Managed Distribution ETF,Z,True,False,False,Fal
 TRPA,Hartford AAA CLO ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 TSLW,Roundhill TSLA WeeklyPay ETF,Z,True,False,False,False,False,False,True,False,True,option_income,False,,,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
 UPSD,Aptus Large Cap Upside ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+VEMB,Vanguard Emerging Markets Bond Active ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 VOXP,Vox Populi ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 VTVX,XFUNDS Value Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 WEEL,Peerless Option Income Wheel ETF,P,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
