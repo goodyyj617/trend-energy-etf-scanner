@@ -786,3 +786,42 @@ A45. After-tax final table of the recommended allocations, and whether the volat
     traded in December). The exposure fell below 1 on 7 % of days and deeply only once (2008-10 – 2009-08, k 0.3),
     not in 2022: the layer's edge rests on one episode. Per the fixed reading, the summary gets after-tax columns,
     recommendation ③ stays with that caveat, (가)'s 경계 is reported, not removed.
+
+A46. Probabilistic MDD verdict (design `2026-11-11_a46_design.md`, fixed before the run; code `lab/aa_probmdd.py`,
+    runner `scripts/aa_a46_probmdd.py`). Why: the MDD of one historical path is a noisy statistic (the same allocation
+    reads −12 … −17 % under different price assumptions, (가) fell 0.1 %p into 경계 after tax in A45, and the vol
+    layer's edge rests on 2008), so the −15 % line is put on distributions. Eight targets ((가), 안정형 40, R6 + vol
+    10 %, R6 static, R6 at the same average exposure, 현재 보유, 60/40, S&P500; stage-3 target file), own window to
+    2024-12. M1 assumptions: 24 price sets × the 16 stage-5 date/cost variants (× vol decision offsets month end +
+    0/5/10/15 for the vol target and its static). M2 resampled paths: representative set, circular stationary block
+    bootstrap (mean block 126 trading days; 63 and 252 reported), 1,000 paths, seed 20261111, all products on the same
+    rows, calendar kept, targets with the same window paired, the vol levels and the static's k̄ recomputed per path.
+    M3: the same paths under the declared account policy (A45) for (가), 안정형 40, R6 + vol, R6 static and the
+    same-average-exposure static. Zone rule on each set of MDDs: median ≥ −15 % and lower 10 % ≥ −20 % → 안; else
+    median ≥ −17 % → 경계; else 밖. Probabilistic zone = the worst of M1, M2, M3. Layer (paired ΔMDD vol − static):
+    median ≥ 2 %p and > 0 in ≥ 75 % of paths in both M2 and M3 → 층 확인; a median ≤ 0 in either → 층 없음; else 층
+    약함. Reading fixed in advance: the summary's recommendation table gets the probabilistic zone and the after-tax
+    probability of staying inside −15 %; whether it replaces the single-path gate as the main criterion is the user's
+    decision (asked with the design); a 경계 / 밖 among the three is reported with its cause, not removed by this
+    test; 층 약함 / 없음 adds a caveat to ③ and leaves a switch to the user. Block length, lines, weights, vol level
+    and policy are not chosen from the result. Reproduction before the paths (stop on failure): the bootstrap code with
+    the historical order equals DynamicSim (1e-12) and aa_layers.vol_levels (exact); M3 with the historical order
+    equals A45's declared row (1e-6); M1's base cells equal stage 5's 24-set file and its 16-variant worst (1e-6).
+    Limits written before the run: resampling cannot create crises the 2000–2024 data lacks and cuts trends longer than
+    the blocks; one price set for M2/M3 (model error is the next step); stationarity across rate regimes; stage-3b tax
+    simplifications; R6 family from 2003-11; targets chosen after A43–A45. Not added to the DSR trial count; one
+    descriptive ledger line after the run.
+    User decision before the run (2026-11-11 21:10 KST, card): the probabilistic zone becomes the main criterion of
+    the summary; the single-path MDD (baseline and after tax) stays as a reference number. Rules unchanged.
+    Result (2026-11-11, lab PC, memo `2026-11-11_a46_probmdd.md`): reproduction passed (bootstrap code = DynamicSim 0.0,
+    vol levels identical; M3 = A45 1e-16; M1 = stage-5 24-set file 3.9e-7, REP 16-variant worst 2.3e-7). Probabilistic
+    zones: 안정형 40 안 (M3 median −13.8 %, q10 −17.0, inside −15 % 73 %), R6 + vol 10 % 안 (−10.2, 98 %), R6 static
+    안, same-average-exposure static 안, (가) 경계 (Z1, Z2 안 with M2 median −14.5 %; Z3 median −15.6 %, q10 −19.9, 42 %;
+    same direction as A45's never-sold gold account, not re-run here), 현재 보유 / 60/40 / S&P500 밖. Z2 identical for
+    blocks 63 and 252. Historical MDD was shallower than most resampled paths for the diversified mixes (R6 + vol 88 %,
+    (가) 73 %) and deeper for S&P500 (22 %), consistent with blocks cutting long bear markets. Layer 층 약함: paired
+    ΔMDD median +0.63 %p (M2), +0.40 %p (M3), positive in 61 % / 62 % of paths, ~20 % of paths with no difference
+    (the layer never cut), CAGR −0.01 %p; M1 median +2.95 %p (75 % of cells ≥ 2 %p) but −0.26 %p with the vol decision
+    at month end + 10 days. Per the fixed reading: the summary's zone column becomes the probabilistic zone; (가)'s
+    경계 is shown with its cause, not removed; ③ gets the 'layer weak on resampled paths' caveat and a switch to the
+    static R6 is left to the user. Ledger: one descriptive line (M1 5,376 cells + M2 24,000 + M3 5,000 paths).

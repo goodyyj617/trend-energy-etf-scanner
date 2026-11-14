@@ -52,6 +52,8 @@ A44_DIR = ALLOC / "2026-11-11_a44_satellite"  # A44: decision date, cost and mix
 A44_MEMO = ALLOC / "2026-11-11_a44_satellite.md"
 A45_DIR = ALLOC / "2026-11-11_a45_aftertax"  # A45: after-tax table of the recommended allocations, vol layer after tax
 A45_MEMO = ALLOC / "2026-11-11_a45_aftertax.md"
+A46_DIR = ALLOC / "2026-11-11_a46_probmdd"  # A46: probabilistic MDD verdict (assumptions, resampled paths, after tax)
+A46_MEMO = ALLOC / "2026-11-11_a46_probmdd.md"
 
 
 # the charts lab/aa_app.py knows how to draw (its EXPERIMENT_CHARTS has exactly these keys; a test checks)
@@ -65,7 +67,8 @@ CHART_KEYS = ("frontier_model", "frontier_compare", "stage2_model", "stage2_real
               "a42_0_sets", "a42_0_hedge", "a42_1_scenarios", "a42_1_check",
               "a42_2_walk", "a42_2_rebalance", "a42_3_declared", "a42_3_axes", "a42_3_overflow",
               "a42_4_tradeoff", "a42_4_checks", "a42_5_final", "a42_5_sealed",
-              "a43_transfer", "a43_windows", "a44_offsets", "a44_alone", "a45_table", "a45_layer")
+              "a43_transfer", "a43_windows", "a44_offsets", "a44_alone", "a45_table", "a45_layer",
+              "a46_zones", "a46_layer")
 
 
 @dataclass(frozen=True)
@@ -423,6 +426,25 @@ EXPERIMENTS: tuple[Experiment, ...] = (
          "한계: 대표 가격 세트 하나, 3b의 단순한 세금 규칙, R6 계열은 2003-11부터(닷컴 없음). 원화·대용 자료·표본 내 연구입니다."),
         ("a45_table", "a45_layer"), A45_MEMO,
         "PNG 그림은 docs/research/allocation/figures/a45_aftertax/. 추천 표의 세후 열은 ‘한눈에 보는 결론’"),
+    Experiment(
+        "a46", "2026-11-11", "A46", "A46: 확률적 MDD 판정 — 역사 경로 하나 대신 가정 · 표본 경로 · 세후 경로의 MDD 분포로 구역 매기기",
+        "MDD는 경로 하나에서 가장 나빴던 순간 하나로 정해지는 숫자라 흔들림이 큽니다. 같은 배분이 가격 가정만으로 −12 – −17%를 오갔고(11-10 재검토), "
+        "A45에서는 (가)가 0.1%p 차이로 '경계'에 들어갔습니다. 그래서 MDD를 세 가지 분포로 봤습니다: M1 가정 격자(가격 세트 24개 × 리밸런싱 결정일·비용 16가지), "
+        "M2 대표 가격 세트의 일간 수익을 평균 126거래일 블록으로 다시 섞은 경로 1,000개(세전), M3 같은 경로를 실제 계좌 조건(A45 선언 정책)으로 돌린 세후 값. "
+        "구역 규칙(중앙값 −15% 안 · 하위 10% −20% 안 → 안, 중앙값 −17% 안 → 경계)과 변동성 층 판정은 실행 전에 고정했고, "
+        "확률 구역을 주 기준으로 쓰는 것은 결과를 보기 전에 사용자가 정했습니다.",
+        ("한 줄 답: 확률 구역은 안정형 40 '안'(세후 −15% 안 확률 73%), R6 + 변동성 목표 10% '안'(98%), (가) '경계'(42%)입니다. 현재 보유 · 60/40 · S&P500은 '밖'입니다.",
+         "(가)는 세전에서는 가정 격자(384칸 중 98%가 −15% 안)와 표본 경로(중앙값 −14.5%) 모두 '안'인데, 세후 경로의 중앙값이 −15.6%라 '경계'입니다. "
+         "A45에서 본 원인(팔지 않는 금현물 계좌의 금 30%)과 같은 방향입니다.",
+         "역사 경로는 분산 배분에는 운이 좋은 쪽이었습니다: R6 + 변동성 목표의 역사 MDD −7.7%보다 깊은 경로가 88%(중앙값 −9.6%), (가)는 73%. "
+         "반대로 S&P500은 역사(−45.4%)가 대부분의 경로보다 깊었습니다. 블록이 긴 약세장을 끊기 때문으로 보여, 이 방법의 꼬리는 긴 위기에 낙관적일 수 있습니다.",
+         "변동성 층 '층 약함': 같은 경로에서 같은 평균 노출의 정적과 짝지으면 MDD 이점 중앙값이 세전 +0.63%p, 세후 +0.40%p이고 이기는 경로는 61%입니다. "
+         "약 20%의 경로에서는 층이 아무것도 하지 않았고, 비용도 거의 없습니다(CAGR −0.01%p). 가정 격자에서는 이점이 +2.95%p지만 변동성 결정일을 월말 + 10거래일로 옮기면 −0.26%p로 사라집니다.",
+         "재현 점검: 부트스트랩 코드에 원래 순서를 넣으면 DynamicSim과 차이 0, 세후 경로는 A45와 1e-16, 가정 격자는 5단계 24세트와 3.9e-7 안에서 같습니다.",
+         "읽는 법(미리 정함): 결론 화면 구역은 확률 구역으로, (가)의 경계는 원인과 함께 적고 빼지 않으며, ③에는 '표본 경로에서는 층 약함'을 붙이고 R6 정적으로 바꿀지는 사용자 결정으로 둡니다.",
+         "한계: 과거 수익을 다시 섞을 뿐이라 없던 위기는 만들지 못하고, 대표 가격 세트 하나(모형 오차는 다음 단계), 단순한 세금 규칙, R6 계열은 2003-11부터입니다. 원화·대용 자료·표본 내 연구입니다."),
+        ("a46_zones", "a46_layer"), A46_MEMO,
+        "PNG 그림은 docs/research/allocation/figures/a46_probmdd/. 추천 표의 확률 구역은 ‘한눈에 보는 결론’"),
 )
 
 
@@ -994,6 +1016,36 @@ def a45_layer(folder: Path | str = A45_DIR) -> tuple[pd.DataFrame, pd.Series]:
         lay[c] = lay[c] * 100
     k = pd.read_csv(Path(folder) / "exposure.csv", index_col=0, parse_dates=True)["k"]
     return lay, k
+
+
+def a46_distributions(folder: Path | str = A46_DIR) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """A46: the zone table and every MDD in long form (원천 = M1 가정 격자 | M2 표본 경로 | M3 세후 경로), % units."""
+    folder = Path(folder)
+    z = pd.read_csv(folder / "zones.csv")
+    m1 = pd.read_csv(folder / "m1_cells.csv.gz")
+    m2 = pd.read_csv(folder / "m2_paths.csv.gz")
+    m3 = pd.read_csv(folder / "m3_paths.csv.gz")
+    m2 = m2[m2["블록"] == 126]
+    m3 = m3[m3["경로"] >= 0]
+    long = pd.concat([pd.DataFrame({"대상": m1["대상"], "원천": "M1 가정 격자", "MDD": m1["mdd"] * 100}),
+                      pd.DataFrame({"대상": m2["대상"], "원천": "M2 표본 경로 (세전)", "MDD": m2["mdd"] * 100}),
+                      pd.DataFrame({"대상": m3["대상"], "원천": "M3 표본 경로 (세후)", "MDD": m3["mdd"] * 100})], ignore_index=True)
+    for c in [c for c in z.columns if ("MDD" in c or "중앙값" in c or "하위 10%" in c or "최악" in c) and z[c].dtype != object]:
+        z[c] = z[c] * 100
+    return z, long
+
+
+def a46_layer(folder: Path | str = A46_DIR) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """A46: paired ΔMDD (vol target − same-average-exposure static, %p) per path (M2, M3) and per M1 cell with its vol
+    decision offset."""
+    folder = Path(folder)
+    pairs = pd.read_csv(folder / "layer_pairs.csv.gz") * 100
+    m1 = pd.read_csv(folder / "m1_cells.csv.gz")
+    key = ["세트", "위상", "이동", "비용", "변동성 이동"]
+    v = m1[m1["대상"] == "R6 + 변동성 목표 10%"].set_index(key)["mdd"]
+    m = m1[m1["대상"] == "R6 평균 노출 정적"].set_index(key)["mdd"]
+    cells = ((v - m) * 100).dropna().rename("ΔMDD").reset_index()
+    return pairs, cells
 
 
 def a41_holdout(folder: Path | str = A41_DIR) -> pd.DataFrame:
