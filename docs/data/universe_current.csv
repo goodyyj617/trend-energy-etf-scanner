@@ -4298,97 +4298,95 @@ ZCBA,Global X Zero Coupon Bond 2030 ETF,P,True,False,False,False,False,False,Fal
 ZCBB,Global X Zero Coupon Bond 2031 ETF,P,True,False,False,False,False,False,False,False,False,,False,,,984102.0,Bond,unknown,4297.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
 PBUB,Portfolio Building Block US Banks ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,978518.0,Other,unknown,4298.0,False,,False,False,Other,Other,Other,Other,Other
 CRY,GraniteShares YieldBOOST CRCL ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,977504.0,Other,unknown,4299.0,False,,False,False,Other,Other,Other,Other,Other
-WZRD,Opportunistic Trader ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,976380.0,Other,unknown,4300.0,False,,False,False,Other,Other,Other,Other,Other
-PBCS,Portfolio Building Block World Consumer Staples ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,973444.0,Sector,unknown,4301.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-GANZ,Tuttle Capital Thematic ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,972183.0,Other,unknown,4302.0,False,,False,False,Other,Other,Other,Other,Other
-TMH,Toyota Motor Corporation ADRhedged,P,True,False,False,False,False,False,False,False,False,,False,,,913815.0,Other,unknown,4303.0,False,,False,False,Other,Other,Other,Other,Other
-XXQQ,Subversive Growth 100 Redacted ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,908207.0,Factor / Style,unknown,4304.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
-SCA,GraniteShares Autocallable SMCI ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,864881.0,Other,unknown,4305.0,False,,True,False,Other,Other,Other,Other,Other
-LFDR,LifeX Durable Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,859584.0,Bond,unknown,4306.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-BFJA,FT Vest Bitcoin Strategy Floor15 ETF - January,P,True,False,False,False,False,False,False,True,True,buffer,False,,,852152.0,Crypto,unknown,4307.0,False,,True,False,Crypto,Crypto,Crypto,Crypto,Crypto
-TRUH,VanEck Healthcare TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,833117.0,Sector,unknown,4308.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-CHNL,Chainlink ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,821327.0,Other,unknown,4309.0,False,,False,False,Other,Other,Other,Other,Other
-ATC,GraniteShares Autocallable COIN ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,816636.0,Other,unknown,4310.0,False,,True,False,Other,Other,Other,Other,Other
-AT,Defiance Robotics Actuators ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,807298.0,Industry / Theme,unknown,4311.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-CHIP,REX AI Chipmaking ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,780838.0,Industry / Theme,unknown,4312.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-HMYY,GraniteShares YieldBoost HIMS ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,775381.0,Other,unknown,4313.0,False,,False,False,Other,Other,Other,Other,Other
-SMNG,xETFs Samsung Group ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,760767.0,Other,unknown,4314.0,False,,False,False,Other,Other,Other,Other,Other
-FINY,GraniteShares YieldBOOST Financials ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,756973.0,Sector,unknown,4315.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-KSMH,xETFs Korea AI Semiconductor,Q,True,False,False,False,False,False,False,False,False,,False,,,754177.0,Country / Region,unknown,4316.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
-AAAB,Corgi FTSE Aaa-A Intermediate Corporate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,752999.0,Bond,unknown,4317.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-BNAV,Amplify Fairlead Tactical Bitcoin ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,742664.0,Crypto,unknown,4318.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
-ICOM,Tema Commodity Income ETF,F,True,False,False,False,False,False,False,False,False,,False,,,741790.0,Commodity,unknown,4319.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
-HYGM,Amplify HYG High Yield 10% Target Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,739125.0,Bond,unknown,4320.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-GSKH,GSK plc ADRhedged,P,True,False,False,False,False,False,False,False,False,,False,,,737441.0,Other,unknown,4321.0,False,,False,False,Other,Other,Other,Other,Other
-FIYY,GraniteShares YieldBOOST 20Y Treasuries ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,732273.0,Other,unknown,4322.0,False,,False,False,Other,Other,Other,Other,Other
-MRA,GraniteShares Autocallable MARA ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,722042.0,Other,unknown,4323.0,False,,True,False,Other,Other,Other,Other,Other
-HFSP,TradersAI Large Cap Equity & Cash ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,704822.0,Factor / Style,unknown,4324.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
-OPTO,Tuttle Capital Photonics Income Blast ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,694593.0,Other,unknown,4325.0,False,,False,False,Other,Other,Other,Other,Other
-BIOY,GraniteShares YieldBOOST Biotech ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,693209.0,Industry / Theme,unknown,4326.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-CRDD,Cardano ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,692417.0,Other,unknown,4327.0,False,,False,False,Other,Other,Other,Other,Other
-HBTC,Fortuna Hedged Bitcoin ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,690808.0,Crypto,unknown,4328.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
-TECY,GraniteShares YieldBOOST Technology ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,685085.0,Sector,unknown,4329.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-BOBP,CORE16 Best of Breed Premier Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,676923.0,Other,unknown,4330.0,False,,False,False,Other,Other,Other,Other,Other
-BBYY,GraniteShares YieldBOOST BABA ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,670575.0,Other,unknown,4331.0,False,,False,False,Other,Other,Other,Other,Other
-CWY,GraniteShares YieldBOOST CRWV ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,602155.0,Other,unknown,4332.0,False,,False,False,Other,Other,Other,Other,Other
-XEY,GraniteShares YieldBOOST Ether ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,593212.0,Other,unknown,4333.0,False,,False,False,Other,Other,Other,Other,Other
-TRUF,VanEck Financials TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,561429.0,Sector,unknown,4334.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-XLPM,State Street S&P 500 Consumer Staples Market Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,False,,,531010.0,Sector,unknown,4335.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-XLEM,State Street S&P 500 Energy Market Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,False,,,530524.0,Sector,unknown,4336.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-QFHD,Pacer S&P 500 Quality FCF High Dividend ETF,Z,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,high dividend,529001.0,Factor / Style,unknown,4337.0,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
-AMEI,Amana Equity Income ETF,Q,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,equity income,525989.0,Bond,unknown,4338.0,False,,True,False,Bond,Bond,Bond,Bond,Bond
-COOL,"VegaShares AI Thermal, Cooling & Power Management ETF",Q,True,False,False,False,False,False,False,False,False,,False,,,522800.0,Industry / Theme,unknown,4339.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-HWIV,Hotchkis & Wiley International Value Fund,Q,True,False,False,False,False,False,False,False,False,,False,,,521208.0,Factor / Style,unknown,4340.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
-THRU,Tema Commodity Infrastructure ETF,F,True,False,False,False,False,False,False,False,False,,False,,,514531.0,Commodity,unknown,4341.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
-CAPA,Defiance AI Capacitors & MLCC ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,510714.0,Industry / Theme,unknown,4342.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-AIHY,Defiance AI Hyperscale Leaders ETF,P,True,False,False,False,False,False,False,False,False,,False,,,506890.0,Industry / Theme,unknown,4343.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-GCB,Corgi FTSE Intermediate Government/Credit Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,502510.0,Bond,unknown,4344.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-BBBB,Corgi FTSE BBB Rated Corporate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,501447.0,Bond,unknown,4345.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-DBAR,IMGP DBI Absolute Return ETF,P,True,False,False,False,False,False,False,False,False,,False,,,501137.0,Other,unknown,4346.0,False,,False,False,Other,Other,Other,Other,Other
-XLYM,State Street S&P 500 Consumer Discretionary Market Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,False,,,500917.0,Sector,unknown,4347.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-AMEM,Amana Developing World ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,499088.0,Global Equity,unknown,4348.0,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
-EMAG,Emerging Markets AI Mag 3 ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,494165.0,Country / Region,unknown,4349.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
-XXX,CYBER HORNET S&P 500 and XRP 75/25 Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,492789.0,US Equity,unknown,4350.0,False,,False,False,US Equity,US Equity,US Equity,US Equity,US Equity
-EEE,CYBER HORNET S&P 500 and Ethereum 75/25 Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,492644.0,Crypto,unknown,4351.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
-LCTO,Kurv U.S. Large Cap TaxOptimized ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,491776.0,Factor / Style,unknown,4352.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
-ICMO,Symmetry Panoramic International Country Momentum ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,491054.0,Factor / Style,unknown,4353.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
-BLCK,Corgi Crypto Infrastructure ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,488984.0,Crypto,unknown,4354.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
-HOID,Tuttle - Rareview Humanoid Robotics ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,486983.0,Industry / Theme,unknown,4355.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-CRAM,Defiance China Memory ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,473685.0,Country / Region,unknown,4356.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
-LPSV,Lone Peak SMID Value ETF,P,True,False,False,False,False,False,False,False,False,,False,,,473533.0,Factor / Style,unknown,4357.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
-AINF,Defiance Inference AI Chip ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,463998.0,Industry / Theme,unknown,4358.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-XLKM,State Street S&P 500 Technology Market Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,False,,,463858.0,Sector,unknown,4359.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-MGOL,Leverage Shares MANGOS ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,439757.0,Other,unknown,4360.0,False,,False,False,Other,Other,Other,Other,Other
-ACHP,Global X Asia Semiconductor ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,410230.0,Country / Region,unknown,4361.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
-GARA,Guinness Atkinson Real Assets Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,382976.0,Bond,unknown,4362.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-ELOL,Leverage Shares 100% TSLA AND 100% SPCX Daily ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,376466.0,Other,unknown,4363.0,False,,False,False,Other,Other,Other,Other,Other
-MSR,GraniteShares Autocallable MSTR ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,374892.0,Other,unknown,4364.0,False,,True,False,Other,Other,Other,Other,Other
-TYYY,xETFs TSLA Daily Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,367444.0,Bond,unknown,4365.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-FBYY,GraniteShares YieldBOOST META ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,355664.0,Other,unknown,4366.0,False,,False,False,Other,Other,Other,Other,Other
-USMD,CoreValues America First Technology ETF,P,True,False,False,False,False,False,False,False,False,,False,,,321092.0,Sector,unknown,4367.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-SAPH,SAP SE ADRhedged,P,True,False,False,False,False,False,False,False,False,,False,,,287081.0,Other,unknown,4368.0,False,,False,False,Other,Other,Other,Other,Other
-TRUN,VanEck Energy TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,280416.0,Other,unknown,4369.0,False,,False,False,Other,Other,Other,Other,Other
-TRUI,VanEck Industrials TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,265171.0,Sector,unknown,4370.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-AIFR,Defiance Global Foundries ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,259711.0,Global Equity,unknown,4371.0,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
-LTB,Corgi FTSE 20 Year U.S. Treasury Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,254757.0,Bond,unknown,4372.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-TNTW,Corgi FTSE 10-20 Year U.S. Treasury Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,254706.0,Bond,unknown,4373.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-TRUR,VanEck Real Estate TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,254355.0,REIT / Infra,unknown,4374.0,False,,False,False,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra
-SVTN,Corgi FTSE 7-10 Year U.S. Treasury Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,253152.0,Bond,unknown,4375.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-TTTT,Corgi FTSE U.S. TIPS Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,252430.0,Bond,unknown,4376.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-UB,Corgi FTSE U.S. Treasury Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,252025.0,Bond,unknown,4377.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
-TRUO,VanEck Consumer Staples TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,251206.0,Sector,unknown,4378.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-WBMO,VanEck Wealth Builder ETF,P,True,False,False,False,False,False,False,False,False,,False,,,249332.0,Other,unknown,4379.0,False,,False,False,Other,Other,Other,Other,Other
-PRAM,Defiance Memory & Photonics ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,248886.0,Other,unknown,4380.0,False,,False,False,Other,Other,Other,Other,Other
-NECK,xETFs AI Bottlenecks ETF,P,True,False,False,False,False,False,False,False,False,,False,,,246192.0,Industry / Theme,unknown,4381.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
-TRUM,VanEck Materials TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,245727.0,Sector,unknown,4382.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-TRUU,VanEck Utilities TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,242411.0,Sector,unknown,4383.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
-TKNS,21Shares Active Crypto ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,203138.0,Crypto,unknown,4384.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
-MWHS,Skylar Electricity Futures ETF,P,True,False,False,False,False,False,False,False,False,,False,,,196544.0,Other,unknown,4385.0,False,,False,False,Other,Other,Other,Other,Other
-KMEM,Kurv Memory Select ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,25.0,Other,unknown,4386.0,False,,False,False,Other,Other,Other,Other,Other
-LLMA,Global X LLM ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,25.0,Global Equity,unknown,4387.0,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
-TRIL,VegaShares Trillions ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,25.0,Other,unknown,4388.0,False,,False,False,Other,Other,Other,Other,Other
-ISRL,Defiance KSM Israel 120 ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,24.0,Other,unknown,4389.0,False,,False,False,Other,Other,Other,Other,Other
-XX,"Roundhill S&P 500 Target 10,000 2030 ETF",Z,True,False,False,False,False,False,False,False,False,,False,,,24.0,US Equity,unknown,4390.0,False,,False,False,US Equity,US Equity,US Equity,US Equity,US Equity
+PBCS,Portfolio Building Block World Consumer Staples ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,973444.0,Sector,unknown,4300.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+GANZ,Tuttle Capital Thematic ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,972183.0,Other,unknown,4301.0,False,,False,False,Other,Other,Other,Other,Other
+TMH,Toyota Motor Corporation ADRhedged,P,True,False,False,False,False,False,False,False,False,,False,,,913815.0,Other,unknown,4302.0,False,,False,False,Other,Other,Other,Other,Other
+XXQQ,Subversive Growth 100 Redacted ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,908207.0,Factor / Style,unknown,4303.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+SCA,GraniteShares Autocallable SMCI ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,864881.0,Other,unknown,4304.0,False,,True,False,Other,Other,Other,Other,Other
+LFDR,LifeX Durable Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,859584.0,Bond,unknown,4305.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+BFJA,FT Vest Bitcoin Strategy Floor15 ETF - January,P,True,False,False,False,False,False,False,True,True,buffer,False,,,852152.0,Crypto,unknown,4306.0,False,,True,False,Crypto,Crypto,Crypto,Crypto,Crypto
+TRUH,VanEck Healthcare TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,833117.0,Sector,unknown,4307.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+CHNL,Chainlink ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,821327.0,Other,unknown,4308.0,False,,False,False,Other,Other,Other,Other,Other
+ATC,GraniteShares Autocallable COIN ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,816636.0,Other,unknown,4309.0,False,,True,False,Other,Other,Other,Other,Other
+AT,Defiance Robotics Actuators ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,807298.0,Industry / Theme,unknown,4310.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
+CHIP,REX AI Chipmaking ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,780838.0,Industry / Theme,unknown,4311.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
+HMYY,GraniteShares YieldBoost HIMS ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,775381.0,Other,unknown,4312.0,False,,False,False,Other,Other,Other,Other,Other
+SMNG,xETFs Samsung Group ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,760767.0,Other,unknown,4313.0,False,,False,False,Other,Other,Other,Other,Other
+FINY,GraniteShares YieldBOOST Financials ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,756973.0,Sector,unknown,4314.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+KSMH,xETFs Korea AI Semiconductor,Q,True,False,False,False,False,False,False,False,False,,False,,,754177.0,Country / Region,unknown,4315.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
+AAAB,Corgi FTSE Aaa-A Intermediate Corporate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,752999.0,Bond,unknown,4316.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+BNAV,Amplify Fairlead Tactical Bitcoin ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,742664.0,Crypto,unknown,4317.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
+ICOM,Tema Commodity Income ETF,F,True,False,False,False,False,False,False,False,False,,False,,,741790.0,Commodity,unknown,4318.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+HYGM,Amplify HYG High Yield 10% Target Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,739125.0,Bond,unknown,4319.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+GSKH,GSK plc ADRhedged,P,True,False,False,False,False,False,False,False,False,,False,,,737441.0,Other,unknown,4320.0,False,,False,False,Other,Other,Other,Other,Other
+FIYY,GraniteShares YieldBOOST 20Y Treasuries ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,732273.0,Other,unknown,4321.0,False,,False,False,Other,Other,Other,Other,Other
+MRA,GraniteShares Autocallable MARA ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,722042.0,Other,unknown,4322.0,False,,True,False,Other,Other,Other,Other,Other
+HFSP,TradersAI Large Cap Equity & Cash ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,704822.0,Factor / Style,unknown,4323.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+OPTO,Tuttle Capital Photonics Income Blast ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,694593.0,Other,unknown,4324.0,False,,False,False,Other,Other,Other,Other,Other
+BIOY,GraniteShares YieldBOOST Biotech ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,693209.0,Industry / Theme,unknown,4325.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
+CRDD,Cardano ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,692417.0,Other,unknown,4326.0,False,,False,False,Other,Other,Other,Other,Other
+HBTC,Fortuna Hedged Bitcoin ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,690808.0,Crypto,unknown,4327.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
+TECY,GraniteShares YieldBOOST Technology ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,685085.0,Sector,unknown,4328.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+BOBP,CORE16 Best of Breed Premier Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,676923.0,Other,unknown,4329.0,False,,False,False,Other,Other,Other,Other,Other
+BBYY,GraniteShares YieldBOOST BABA ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,670575.0,Other,unknown,4330.0,False,,False,False,Other,Other,Other,Other,Other
+CWY,GraniteShares YieldBOOST CRWV ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,602155.0,Other,unknown,4331.0,False,,False,False,Other,Other,Other,Other,Other
+XEY,GraniteShares YieldBOOST Ether ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,593212.0,Other,unknown,4332.0,False,,False,False,Other,Other,Other,Other,Other
+TRUF,VanEck Financials TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,561429.0,Sector,unknown,4333.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+XLPM,State Street S&P 500 Consumer Staples Market Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,False,,,531010.0,Sector,unknown,4334.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+XLEM,State Street S&P 500 Energy Market Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,False,,,530524.0,Sector,unknown,4335.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+QFHD,Pacer S&P 500 Quality FCF High Dividend ETF,Z,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,high dividend,529001.0,Factor / Style,unknown,4336.0,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+AMEI,Amana Equity Income ETF,Q,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,equity income,525989.0,Bond,unknown,4337.0,False,,True,False,Bond,Bond,Bond,Bond,Bond
+COOL,"VegaShares AI Thermal, Cooling & Power Management ETF",Q,True,False,False,False,False,False,False,False,False,,False,,,522800.0,Industry / Theme,unknown,4338.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
+HWIV,Hotchkis & Wiley International Value Fund,Q,True,False,False,False,False,False,False,False,False,,False,,,521208.0,Factor / Style,unknown,4339.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+THRU,Tema Commodity Infrastructure ETF,F,True,False,False,False,False,False,False,False,False,,False,,,514531.0,Commodity,unknown,4340.0,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+CAPA,Defiance AI Capacitors & MLCC ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,510714.0,Industry / Theme,unknown,4341.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
+AIHY,Defiance AI Hyperscale Leaders ETF,P,True,False,False,False,False,False,False,False,False,,False,,,506890.0,Industry / Theme,unknown,4342.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
+GCB,Corgi FTSE Intermediate Government/Credit Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,502510.0,Bond,unknown,4343.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+BBBB,Corgi FTSE BBB Rated Corporate Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,501447.0,Bond,unknown,4344.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+DBAR,IMGP DBI Absolute Return ETF,P,True,False,False,False,False,False,False,False,False,,False,,,501137.0,Other,unknown,4345.0,False,,False,False,Other,Other,Other,Other,Other
+XLYM,State Street S&P 500 Consumer Discretionary Market Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,False,,,500917.0,Sector,unknown,4346.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+AMEM,Amana Developing World ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,499088.0,Global Equity,unknown,4347.0,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
+EMAG,Emerging Markets AI Mag 3 ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,494165.0,Country / Region,unknown,4348.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
+XXX,CYBER HORNET S&P 500 and XRP 75/25 Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,492789.0,US Equity,unknown,4349.0,False,,False,False,US Equity,US Equity,US Equity,US Equity,US Equity
+EEE,CYBER HORNET S&P 500 and Ethereum 75/25 Strategy ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,492644.0,Crypto,unknown,4350.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
+LCTO,Kurv U.S. Large Cap TaxOptimized ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,491776.0,Factor / Style,unknown,4351.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+ICMO,Symmetry Panoramic International Country Momentum ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,491054.0,Factor / Style,unknown,4352.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+BLCK,Corgi Crypto Infrastructure ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,488984.0,Crypto,unknown,4353.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
+HOID,Tuttle - Rareview Humanoid Robotics ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,486983.0,Industry / Theme,unknown,4354.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
+CRAM,Defiance China Memory ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,473685.0,Country / Region,unknown,4355.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
+LPSV,Lone Peak SMID Value ETF,P,True,False,False,False,False,False,False,False,False,,False,,,473533.0,Factor / Style,unknown,4356.0,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+AINF,Defiance Inference AI Chip ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,463998.0,Industry / Theme,unknown,4357.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
+XLKM,State Street S&P 500 Technology Market Sector SPDR ETF,P,True,False,False,False,False,False,False,False,False,,False,,,463858.0,Sector,unknown,4358.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+MGOL,Leverage Shares MANGOS ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,439757.0,Other,unknown,4359.0,False,,False,False,Other,Other,Other,Other,Other
+ACHP,Global X Asia Semiconductor ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,410230.0,Country / Region,unknown,4360.0,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
+GARA,Guinness Atkinson Real Assets Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,382976.0,Bond,unknown,4361.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+ELOL,Leverage Shares 100% TSLA AND 100% SPCX Daily ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,376466.0,Other,unknown,4362.0,False,,False,False,Other,Other,Other,Other,Other
+MSR,GraniteShares Autocallable MSTR ETF,Q,True,False,False,False,False,False,False,True,True,buffer,False,,,374892.0,Other,unknown,4363.0,False,,True,False,Other,Other,Other,Other,Other
+FBYY,GraniteShares YieldBOOST META ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,355664.0,Other,unknown,4364.0,False,,False,False,Other,Other,Other,Other,Other
+USMD,CoreValues America First Technology ETF,P,True,False,False,False,False,False,False,False,False,,False,,,321092.0,Sector,unknown,4365.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+SAPH,SAP SE ADRhedged,P,True,False,False,False,False,False,False,False,False,,False,,,287081.0,Other,unknown,4366.0,False,,False,False,Other,Other,Other,Other,Other
+TRUN,VanEck Energy TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,280416.0,Other,unknown,4367.0,False,,False,False,Other,Other,Other,Other,Other
+TRUI,VanEck Industrials TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,265171.0,Sector,unknown,4368.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+AIFR,Defiance Global Foundries ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,259711.0,Global Equity,unknown,4369.0,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
+LTB,Corgi FTSE 20 Year U.S. Treasury Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,254757.0,Bond,unknown,4370.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+TNTW,Corgi FTSE 10-20 Year U.S. Treasury Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,254706.0,Bond,unknown,4371.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+TRUR,VanEck Real Estate TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,254355.0,REIT / Infra,unknown,4372.0,False,,False,False,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra
+SVTN,Corgi FTSE 7-10 Year U.S. Treasury Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,253152.0,Bond,unknown,4373.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+TTTT,Corgi FTSE U.S. TIPS Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,252430.0,Bond,unknown,4374.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+UB,Corgi FTSE U.S. Treasury Bond ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,252025.0,Bond,unknown,4375.0,False,,False,False,Bond,Bond,Bond,Bond,Bond
+TRUO,VanEck Consumer Staples TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,251206.0,Sector,unknown,4376.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+WBMO,VanEck Wealth Builder ETF,P,True,False,False,False,False,False,False,False,False,,False,,,249332.0,Other,unknown,4377.0,False,,False,False,Other,Other,Other,Other,Other
+PRAM,Defiance Memory & Photonics ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,248886.0,Other,unknown,4378.0,False,,False,False,Other,Other,Other,Other,Other
+NECK,xETFs AI Bottlenecks ETF,P,True,False,False,False,False,False,False,False,False,,False,,,246192.0,Industry / Theme,unknown,4379.0,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
+TRUM,VanEck Materials TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,245727.0,Sector,unknown,4380.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+TRUU,VanEck Utilities TruSector ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,242411.0,Sector,unknown,4381.0,False,,False,False,Sector,Sector,Sector,Sector,Sector
+TKNS,21Shares Active Crypto ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,203138.0,Crypto,unknown,4382.0,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
+MWHS,Skylar Electricity Futures ETF,P,True,False,False,False,False,False,False,False,False,,False,,,196544.0,Other,unknown,4383.0,False,,False,False,Other,Other,Other,Other,Other
+KMEM,Kurv Memory Select ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,25.0,Other,unknown,4384.0,False,,False,False,Other,Other,Other,Other,Other
+LLMA,Global X LLM ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,25.0,Global Equity,unknown,4385.0,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
+TRIL,VegaShares Trillions ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,25.0,Other,unknown,4386.0,False,,False,False,Other,Other,Other,Other,Other
+ISRL,Defiance KSM Israel 120 ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,24.0,Other,unknown,4387.0,False,,False,False,Other,Other,Other,Other,Other
+XX,"Roundhill S&P 500 Target 10,000 2030 ETF",Z,True,False,False,False,False,False,False,False,False,,False,,,24.0,US Equity,unknown,4388.0,False,,False,False,US Equity,US Equity,US Equity,US Equity,US Equity
 ABLD,Abacus FCF Real Assets Leaders ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 ABLG,Abacus FCF International Leaders ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 ABOT,Abacus FCF Innovation Leaders ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
@@ -4403,12 +4401,15 @@ AIBE,FINQ CORE U.S. Large Cap AI-Managed Equity ETF,P,True,False,False,False,Fal
 AIQD,MicroSectors -3? Short Artificial Intelligence (AI) ETNs,P,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 AIQU,MicroSectors 3? Long Artificial Intelligence (AI) ETNs,P,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
 AMHI,American Beacon Aberdeen Municipal High Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+APFS,Artisan Focus Fund: ETF Class Shares,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+APNX,Artisan Select Equity Fund: ETF Class Shares,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BBLX,BondBloxx Core Plus ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BGRD,BNY Mellon Power Ecosystem ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BTCI,NEOS Bitcoin High Income ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Crypto,unknown,,False,,False,False,Crypto,Crypto,Crypto,Crypto,Crypto
 BUCK,Simplify Treasury Option Income ETF,P,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 BUXX,Strive Enhanced Income Short Maturity ETF,N,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 BWLB,Brandywine Large Cap ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+CCHP,Global X China Semiconductor ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 CEF,Sprott Physical Gold and Silver Trust Units,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 CLSE,Convergence Long/Short Equity ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 CWPD,CWP Premium Dividend ETF,Q,True,False,False,False,False,False,False,False,False,,True,dividend_equity_income,dividend,,Factor / Style,unknown,,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
@@ -4440,6 +4441,7 @@ FTLS,First Trust Long/Short Equity,P,True,False,False,False,False,False,False,Fa
 FTPA,Franklin Pennsylvania Municipal Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 FTSM,First Trust Enhanced Short Maturity ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 GARP,iShares MSCI USA Quality GARP ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
+GMIX,iShares Macro AlphaBeta Active ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 GOLY,Strategy Shares Gold Enhanced Yield ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
 GSWO,Goldman Sachs ActiveBeta World Equity ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 GTOH,Invesco Short Duration High Yield ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
@@ -4459,6 +4461,7 @@ IQEE,Invesco Emerging Markets Enhanced ETF,P,True,False,False,False,False,False,
 IQEI,Invesco International Developed Enhanced ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 IQEL,Invesco U.S. Large Cap Enhanced ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 IQES,Invesco U.S. Small Cap Enhanced ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
+IQQI,IncomeQ Nasdaq-100 Premium Income ETF,Q,True,False,False,False,False,False,True,False,True,option_income,True,covered_call_option_income,premium income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 IROC,Invesco Rochester High Yield Municipal ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 KBTY,Guinness Atkinson K-Beauty ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 LBAY,Leatherback Long/Short Alternative Yield ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
@@ -4490,9 +4493,11 @@ REK,ProShares Short Real Estate,P,True,False,False,False,False,False,False,False
 RNMN,RiverNorth Market Neutral ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 SARK,Tradr 1X Short Innovation Daily ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 SCOP,Sprott Physical Copper Trust Units,P,True,False,False,False,False,False,False,False,False,,False,,,,Commodity,unknown,,False,,False,False,Commodity,Commodity,Commodity,Commodity,Commodity
+SDC,KICK Space Data Center & Infrastructure Index ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,REIT / Infra,unknown,,False,,False,False,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra,REIT / Infra
 SEF,ProShares Short Financials,P,True,False,False,False,False,False,False,False,False,,False,,,,Sector,unknown,,False,,False,False,Sector,Sector,Sector,Sector,Sector
 SETH,ProShares Short Ether ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 SHEH,Shell plc ADRhedged,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+SHLA,Global X Asia Defense Tech ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 SHRT,Gotham Short Strategies ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 SHYD,VanEck Short High Yield Muni ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
 SHYM,iShares Short Duration High Yield Muni Active ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
@@ -4512,12 +4517,15 @@ TLTP,Amplify TLT U.S. Treasury 12% Option Income ETF,Z,True,False,False,False,Fa
 TOAK,Manager Directed Portfolios Twin Oak Short Horizon Absolute Return ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 TOPW,Roundhill Top WeeklyPay ETF,Z,True,False,False,False,False,False,True,False,True,option_income,False,,,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
 TPAY,Roundhill S&P 500 Target 10 Managed Distribution ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,US Equity,unknown,,False,,False,False,US Equity,US Equity,US Equity,US Equity,US Equity
+TRLL,Direxion Trillions ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 TRPA,Hartford AAA CLO ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 TSLW,Roundhill TSLA WeeklyPay ETF,Z,True,False,False,False,False,False,True,False,True,option_income,False,,,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
 UPSD,Aptus Large Cap Upside ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 VEMB,Vanguard Emerging Markets Bond Active ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+VEN,Teucrium Venezuela Future Opportunities ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 VOXP,Vox Populi ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 VTVX,XFUNDS Value Income ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Bond,unknown,,False,,False,False,Bond,Bond,Bond,Bond,Bond
+VVPL,Vulcan Value Partners ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Factor / Style,unknown,,False,,False,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 WEEL,Peerless Option Income Wheel ETF,P,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Other,unknown,,False,,True,False,Other,Other,Other,Other,Other
 WSML,iShares MSCI World Small-Cap ETF,Q,True,False,False,False,False,False,False,False,False,,False,,,,Global Equity,unknown,,False,,False,False,Global Equity,Global Equity,Global Equity,Global Equity,Global Equity
 WTLS,WisdomTree Efficient Long/Short U.S. Equity Fund,Z,True,False,False,False,False,False,False,False,False,,False,,,,US Equity,unknown,,False,,False,False,US Equity,US Equity,US Equity,US Equity,US Equity
@@ -4525,5 +4533,7 @@ XDLR,Lazard Non-Dollar Active Income ETF,P,True,False,False,False,False,False,Fa
 XOEX,Xtrackers S&P 100 Ex Top 20 ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
 XRPM,Amplify XRP 3% Monthly Option Income ETF,Z,True,False,False,False,False,False,False,False,False,,True,covered_call_option_income,option income,,Bond,unknown,,False,,True,False,Bond,Bond,Bond,Bond,Bond
 XRPR,REX-Osprey XRP ETF,Z,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+YASX,Yorkville America Space Index ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Other,unknown,,False,,False,False,Other,Other,Other,Other,Other
+YO,Amplify S&P 500 Buffered Autocallable Yield Opportunity ETF,P,True,False,False,False,False,False,False,True,True,buffer,False,,,,Factor / Style,unknown,,False,,True,False,Factor / Style,Factor / Style,Factor / Style,Factor / Style,Factor / Style
 YXI,ProShares Short FTSE China 50,P,True,False,False,False,False,False,False,False,False,,False,,,,Country / Region,unknown,,False,,False,False,Country / Region,Country / Region,Country / Region,Country / Region,Country / Region
 ZDAY,Bitwise AI Cyber Defense ETF,P,True,False,False,False,False,False,False,False,False,,False,,,,Industry / Theme,unknown,,False,,False,False,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme,Industry / Theme
