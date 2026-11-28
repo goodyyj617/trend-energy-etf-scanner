@@ -80,3 +80,12 @@ def test_summary_after_tax_numbers_match_a45():
         r = t.loc[p.a45_name]
         assert round(r["세후 CAGR (TWR)"] * 100, 2) == p.after_cagr and round(r["세후 MDD (TWR)"] * 100, 1) == p.after_mdd
         assert r["X1 세후 구역"] == p.after_zone
+
+
+def test_summary_probabilistic_zones_match_a46():
+    from lab import aa_summary as S
+    z = pd.read_csv(S.A46).set_index("대상")
+    for p in S.PICKS:
+        r = z.loc[p.a46_name]
+        assert r["확률 구역"] == p.prob_zone
+        assert round(r["M3 −15% 안 확률"] * 100, 1) == p.p15_after and round(r["M3 중앙값"] * 100, 1) == p.median_after

@@ -3121,6 +3121,54 @@ def chart_a45_layer() -> go.Figure:
     return fig
 
 
+
+def chart_a46_zones() -> go.Figure:
+    z, long = exps.a46_distributions()
+    names = list(z["대상"])
+    fig = go.Figure()
+    for src, color in (("M1 가정 격자", PALETTE[1]), ("M2 표본 경로 (세전)", PALETTE[0]), ("M3 표본 경로 (세후)", ORANGE)):
+        g = long[long["원천"] == src]
+        fig.add_trace(go.Box(x=g["대상"], y=g["MDD"], name=src, marker_color=color, boxpoints=False,
+                             hovertemplate="%{x}<br>MDD %{y:.1f}%<extra>" + src + "</extra>"))
+    fig.add_trace(go.Scatter(x=names, y=z["역사 MDD"], mode="markers", name="역사 경로 (대표 세트, 세전)",
+                             marker=dict(symbol="diamond", size=10, color="black"), hovertemplate="%{x}: 역사 MDD %{y:.1f}%<extra></extra>"))
+    colors = {"안": "#1baf7a", "경계": "#eda100", "밖": RED}
+    for n, zone in zip(names, z["확률 구역"]):
+        fig.add_annotation(x=n, y=1, yref="paper", text=f"<b>{zone}</b>", showarrow=False, font=dict(color=colors[zone], size=13))
+    for y, dash in ((-15, "dash"), (-17, "dot"), (-20, "dashdot")):
+        fig.add_hline(y=y, line=dict(color=GRAY, dash=dash, width=1))
+    fig.update_layout(boxmode="group", height=540, margin=dict(l=10, r=10, t=110, b=10), legend=dict(orientation="h", y=-0.2),
+                      yaxis=dict(title="MDD (%)", range=[-60, 2]),
+                      title=dict(text="MDD 분포와 확률 구역 (위 글자)<br><sup>중앙값 −15% 안 & 하위 10% −20% 안 → 안, 중앙값 −17% 안 → 경계, 그 밖 → 밖. "
+                                      "M1·M2·M3 중 가장 나쁜 것. 선: −15 / −17 / −20%. M2 = 평균 126거래일 블록 부트스트랩 1,000경로</sup>"))
+    return fig
+
+
+def chart_a46_layer() -> go.Figure:
+    from plotly.subplots import make_subplots
+    pairs, cells = exps.a46_layer()
+    fig = make_subplots(rows=1, cols=2, column_widths=[0.6, 0.4],
+                        subplot_titles=("같은 경로끼리: 변동성 목표 − 같은 평균 노출 정적", "가정 격자: 변동성 결정일을 옮기면"))
+    for col, name, color in (("ΔMDD (M2)", "M2 세전", PALETTE[0]), ("ΔMDD (M3)", "M3 세후", ORANGE)):
+        if col in pairs:
+            fig.add_trace(go.Histogram(x=pairs[col], name=name, marker_color=color, opacity=0.6, xbins=dict(size=0.25),
+                                       hovertemplate="ΔMDD %{x:.2f}%p: %{y}경로<extra>" + name + "</extra>"), row=1, col=1)
+    fig.add_vline(x=0, line=dict(color="black", width=1), row=1, col=1)
+    fig.add_vline(x=2, line=dict(color=GRAY, dash="dash", width=1), row=1, col=1)
+    for off in sorted(cells["변동성 이동"].unique()):
+        g = cells[cells["변동성 이동"] == off]
+        fig.add_trace(go.Box(y=g["ΔMDD"], name=f"월말 + {off}일", marker_color=PALETTE[2], boxpoints=False, showlegend=False,
+                             hovertemplate="ΔMDD %{y:.2f}%p<extra></extra>"), row=1, col=2)
+    fig.add_hline(y=2, line=dict(color=GRAY, dash="dash", width=1), row=1, col=2)
+    fig.add_hline(y=0, line=dict(color="black", width=1), row=1, col=2)
+    fig.update_xaxes(title_text="ΔMDD (%p, +면 변동성 목표가 얕음)", row=1, col=1)
+    fig.update_yaxes(title_text="경로 수", row=1, col=1)
+    fig.update_yaxes(title_text="ΔMDD (%p)", row=1, col=2)
+    fig.update_layout(barmode="overlay", height=480, margin=dict(l=10, r=10, t=100, b=10), legend=dict(orientation="h", y=-0.25),
+                      title=dict(text="변동성 층의 MDD 이점: 층 약함<br><sup>층 확인 = 세전·세후 모두 중앙값 ≥ 2%p이고 75% 이상의 경로에서 양수. "
+                                      f"중앙값 세전 {pairs['ΔMDD (M2)'].median():.2f}%p · 세후 {pairs['ΔMDD (M3)'].median():.2f}%p</sup>"))
+    return fig
+
 EXPERIMENT_CHARTS = {
     "frontier_model": chart_frontier_model,
     "frontier_compare": chart_frontier_compare,
@@ -3174,6 +3222,8 @@ EXPERIMENT_CHARTS = {
     "a44_alone": chart_a44_alone,
     "a45_table": chart_a45_table,
     "a45_layer": chart_a45_layer,
+    "a46_zones": chart_a46_zones,
+    "a46_layer": chart_a46_layer,
 }
 
 
@@ -3483,7 +3533,8 @@ def summary_page() -> None:
                "세부 숫자와 시험 과정은 왼쪽 '세부 기록'과 docs/research/allocation/SUMMARY.md에 있습니다.")
     st.info(f"목표는 '레버리지 없이 MDD −15% 안에서 수익을 최대로'입니다. 아래 {len(summ.PICKS)}개가 그 기준과 1990년대 시험(−20% 안)을 넘었고, "
             "시간을 나눈 시험(A43)과 위성 결정일 시험(A44) 뒤에도 남은 신호 없는 배분입니다. '실제 계좌 세후'는 ISA·금현물 분리 계좌, 매월 입금, "
-            "세금, ISA 한도를 넣은 숫자입니다(A45). 모두 과거 자료로 본 결과이고, 실거래 성과를 보장하지 않습니다.")
+            "세금, ISA 한도를 넣은 숫자입니다(A45). '확률 구역'은 역사 경로 하나 대신 가격 가정 · 다시 섞은 시장 경로 · 세후 경로의 MDD 분포로 매긴 구역이고, "
+            "2026-11-11부터 판정의 주 기준입니다(A46). 모두 과거 자료로 본 결과이고, 실거래 성과를 보장하지 않습니다.")
     sd = summ.scatter_data()
     fig = go.Figure()
     g = sd[sd["구분"] == "다른 후보"]
@@ -3503,7 +3554,13 @@ def summary_page() -> None:
     for p in summ.PICKS:
         with st.container(border=True):
             c1, c2, c3, c4, c5 = st.columns([3.0, 1, 1, 1.2, 1.5])
+            zc = {"안": "green", "경계": "orange", "밖": "red"}.get(p.prob_zone, "gray")
             c1.markdown(f"**{p.rank}. {p.name}**  \n<small>{p.kind}</small>", unsafe_allow_html=True)
+            c1.markdown(f"확률 구역 :{zc}-badge[{p.prob_zone}] <small>세후 경로가 −15% 안에 머문 비율 {p.p15_after:.0f}% · "
+                        f"중앙값 {p.median_after:.1f}%</small>", unsafe_allow_html=True, help=(
+                "A46: 역사 경로 하나가 아니라 MDD 분포로 매긴 구역(2026-11-11부터 주 기준). 가격 가정 24세트 × 결정일·비용 16가지, "
+                "과거 일간 수익을 평균 126거래일 블록으로 다시 섞은 경로 1,000개(세전), 같은 경로의 실제 계좌 세후 값 중 가장 나쁜 구역. "
+                "중앙값 −15% 안이고 하위 10% −20% 안이면 안, 중앙값 −17% 안이면 경계."))
             c2.metric("CAGR", f"{p.cagr:.2f}%")
             c3.metric("MDD", f"{p.mdd:.1f}%")
             c4.metric("1990년대 MDD", f"{p.sealed_mdd:.1f}%")
